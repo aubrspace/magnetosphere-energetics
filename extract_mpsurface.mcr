@@ -73,8 +73,8 @@ $!VarSet |rPoint|        = 2.5
 # ============================================================================
 # Create the dayside magnetopause zone
 
-$!VARSET |ntheta| = 10
-$!VARSET |nphi|   = 10
+$!VARSET |ntheta| = 30
+$!VARSET |nphi|   = 30
 
 $!CREATERECTANGULARZONE
 IMAX     = |ntheta|
@@ -232,6 +232,6 @@ $!ALTERDATA[|numzones|]
 
 
 $!ALTERDATA[|numzones|] #Magnitude Normal Flux
-        EQUATION = '{K_in [Kw/km^2]} = sqrt({Kn_x [kW/km^2]}**2 + {Kn_y [kW/km^2]}**2 + {Kn_z [kW/km^2]}**2)'
+        EQUATION = '{K_in [Kw/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Normal} + {Kn_y [kW/km^2]}*{Y Grid K Unit Normal} + {Kn_z [kW/km^2]}*{Z Grid K Unit Normal}) / sqrt({X Grid K Unit Normal}**2 + {Y Grid K Unit Normal}**2 + {Z Grid K Unit Normal}**2)'
 
 
