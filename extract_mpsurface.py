@@ -6,6 +6,7 @@ import os
 import sys
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
+from array import array
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
@@ -113,19 +114,11 @@ def find_tail_disk_point(rho, psi, x):
 	Outputs
 		[r, theta, phi]- spherical coordinates of the point relative to the global origin
 	"""
-	r = sqrt(x**2 + rho**2)
+	y = rho*sin(psi)
 	z = rho*cos(psi)
-	if z/r < 0:
-		theta = -1*np.arccos(z/r)
-	else:
-		theta = np.arccos(z/r)
-	if theta is 0 or pi:
-		phi = 0
-	else:
-		if x/(r*sin(theta)) < 0:
-			phi = -1*np.arccos(x/(r*sin(theta)))
-		else:
-			phi = np.arccos(x/(r*sin(theta)))
+	r = sqrt(x**2+rho**2)
+	theta = pi/2 - np.arctan(z/abs(x))
+	phi = pi + np.arctan(y/abs(x))
 	return [r,theta,phi]
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -156,7 +149,7 @@ if __name__ == "__main__":
 	R_MIN = 3.5
 
 	#Tail
-	n_azimuth_tail = 20
+	n_azimuth_tail = 5
 	psi = np.linspace(-pi*(1-pi/n_azimuth_tail),pi,n_azimuth_tail)
 	RHO_MAX = 50
 	RHO_STEP = 0.5
@@ -189,75 +182,96 @@ if __name__ == "__main__":
 #	print(max_closed)
 
 	#Create Dayside Magnetopause field lines
-	for i in range(n_azimuth_day):
-		#Create initial max min and mid field lines
-		log.info('Creating dayside magnetopause boundary')
-		create_stream_zone(R_MIN,pi/2,phi[i],'min_field_line')
-		create_stream_zone(R_MAX,pi/2,phi[i],'max_field_line')
-		#Check that last closed is bounded
-		min_closed, _, __ = check_streamline_closed('min_field_line',R_MIN,R_CAP)
-		max_closed, _, __ = check_streamline_closed('max_field_line',R_MAX,R_CAP)
-		swmf_data.delete_zones(swmf_data.zone('min_field*'),swmf_data.zone('max_field*'))
-		print('phi: {:.1f}, iterations: {}, error: {}'.format(np.rad2deg(phi[i]),itr,r_eq_max-r_eq_min))
-		if max_closed and min_closed:
-			print('WARNING: field line closed at max of {}R_e'.format(R_MAX))
-			create_stream_zone(R_MAX,pi/2,phi[i],'field_phi_')
-		elif not max_closed and not min_closed:
-			print('WARNING: first field line open at {}R_e'.format(R_MIN))
-			create_stream_zone(R_MIN,pi/2,phi[i],'field_phi_')
-		else:
-			#if i is 0:
-			#	r_eq_mid[i] = (R_MAX+R_MIN)/2
-			#else: #inherit last mid r position for faster convergence
-			#	r_eq_mid[i] = r_eq_mid[i-1]
-			r_eq_mid[i] = (R_MAX+R_MIN)/2
-			itr = 0
-			notfound = True
-			r_eq_min, r_eq_max = R_MIN, R_MAX
-			while(notfound and itr<itr_max):
-				#This is a bisection root finding algorithm with initial guess at the previous phi solution
-				create_stream_zone(r_eq_mid[i],pi/2,phi[i],'temp_field_phi_')
-				mid_closed, r_north[i], r_south[i] = check_streamline_closed('temp_field_phi_',r_eq_mid[i],R_CAP)
-				if mid_closed:
-					r_eq_min = r_eq_mid[i]
-				else:
-					r_eq_max = r_eq_mid[i]
-				if abs(r_eq_min - r_eq_max) < tol and mid_closed:
-					notfound = False
-					swmf_data.zone('temp_field_phi_*').name = 'field_phi_{:.1f}'.format(np.rad2deg(phi[i]))
-				else:
-					r_eq_mid[i] = (r_eq_max+r_eq_min)/2
-					swmf_data.delete_zones(swmf_data.zone('temp_field*'))
-				itr += 1
-	
-	rho_tail = RHO_MAX
-	#Create Tail Magnetopause field lines
-	for i in range(n_azimuth_tail):
-		log.info('Creating tail magnetopause boundary')
-		r_tail, theta_tail, phi_tail = find_tail_disk_point(RHO_MAX,psi[i],X_TAIL_CAP)
-		create_stream_zone(r_tail,theta_tail,phi_tail,'temp_tail_line_')
-		#check if closed
-		tail_closed, r_north[i+n_azimuth_day], r_south[i+n_azimuth_day] = check_streamline_closed('temp_tail_line_',RHO_MAX,R_CAP)
-		print('psi: {:.1f}, rho: {:.2f}'.format(np.rad2deg(psi[i]),rho_tail))
-		if tail_closed:
-			print('WARNING: field line closed at RHO_MAX={}R_e'.format(RHO_MAX))
-			swmf_data.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
-		else:
-			#This is a basic marching algorithm from outside in starting at RHO_MAX
-			rho_tail = RHO_MAX
-			notfound = True
-			while notfound and rho_tail>RHO_STEP:
-				swmf_data.delete_zones(swmf_data.zone('temp_tail_line*'))
-				rho_tail = rho_tail - RHO_STEP
-				r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_tail,psi[i],X_TAIL_CAP)
-				create_stream_zone(r_tail,theta_tail,phi_tail,'temp_tail_line_')
-				tail_closed, r_north[i+n_azimuth_day], r_south[i+n_azimuth_day] = check_streamline_closed('temp_tail_line_',rho_tail,R_CAP)
-				if tail_closed:
-					swmf_data.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
-					notfound = False
-				if rho_tail <= RHO_STEP:
-					print('WARNING: placement not possible at psi={:.1f}'.format(np.rad2deg(psi[i])))
-		
+	with tp.session.suspend():
+		for i in range(n_azimuth_day):
+			#Create initial max min and mid field lines
+			log.info('Creating dayside magnetopause boundary')
+			create_stream_zone(R_MIN,pi/2,phi[i],'min_field_line')
+			create_stream_zone(R_MAX,pi/2,phi[i],'max_field_line')
+			#Check that last closed is bounded
+			min_closed, _, __ = check_streamline_closed('min_field_line',R_MIN,R_CAP)
+			max_closed, _, __ = check_streamline_closed('max_field_line',R_MAX,R_CAP)
+			swmf_data.delete_zones(swmf_data.zone('min_field*'),swmf_data.zone('max_field*'))
+			print('phi: {:.1f}, iterations: {}, error: {}'.format(np.rad2deg(phi[i]),itr,r_eq_max-r_eq_min))
+			if max_closed and min_closed:
+				print('WARNING: field line closed at max of {}R_e'.format(R_MAX))
+				create_stream_zone(R_MAX,pi/2,phi[i],'field_phi_')
+			elif not max_closed and not min_closed:
+				print('WARNING: first field line open at {}R_e'.format(R_MIN))
+				create_stream_zone(R_MIN,pi/2,phi[i],'field_phi_')
+			else:
+				#if i is 0:
+				#	r_eq_mid[i] = (R_MAX+R_MIN)/2
+				#else: #inherit last mid r position for faster convergence
+				#	r_eq_mid[i] = r_eq_mid[i-1]
+				r_eq_mid[i] = (R_MAX+R_MIN)/2
+				itr = 0
+				notfound = True
+				r_eq_min, r_eq_max = R_MIN, R_MAX
+				while(notfound and itr<itr_max):
+					#This is a bisection root finding algorithm with initial guess at the previous phi solution
+					create_stream_zone(r_eq_mid[i],pi/2,phi[i],'temp_field_phi_')
+					mid_closed, r_north[i], r_south[i] = check_streamline_closed('temp_field_phi_',r_eq_mid[i],R_CAP)
+					if mid_closed:
+						r_eq_min = r_eq_mid[i]
+					else:
+						r_eq_max = r_eq_mid[i]
+					if abs(r_eq_min - r_eq_max) < tol and mid_closed:
+						notfound = False
+						swmf_data.zone('temp_field_phi_*').name = 'field_phi_{:.1f}'.format(np.rad2deg(phi[i]))
+					else:
+						r_eq_mid[i] = (r_eq_max+r_eq_min)/2
+						swmf_data.delete_zones(swmf_data.zone('temp_field*'))
+					itr += 1
+			
+		rho_tail = RHO_MAX
+		#Create Tail Magnetopause field lines
+		for i in range(n_azimuth_tail):
+			log.info('Creating tail magnetopause boundary')
+			r_tail, theta_tail, phi_tail = find_tail_disk_point(RHO_MAX,psi[i],X_TAIL_CAP)
+			print('r: {}, theta: {:.1f}, phi: {:.1f}'.format(r_tail,np.rad2deg(theta_tail),np.rad2deg(phi_tail)))
+			create_stream_zone(r_tail,theta_tail,phi_tail,'temp_tail_line_')
+			#check if closed
+			tail_closed, r_north[i+n_azimuth_day], r_south[i+n_azimuth_day] = check_streamline_closed('temp_tail_line_',RHO_MAX,R_CAP)
+			print('psi: {:.1f}, rho: {:.2f}'.format(np.rad2deg(psi[i]),rho_tail))
+			if tail_closed:
+				print('WARNING: field line closed at RHO_MAX={}R_e'.format(RHO_MAX))
+				swmf_data.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
+			else:
+				#This is a basic marching algorithm from outside in starting at RHO_MAX
+				rho_tail = RHO_MAX
+				notfound = True
+				while notfound and rho_tail>RHO_STEP:
+					swmf_data.delete_zones(swmf_data.zone('temp_tail_line*'))
+					rho_tail = rho_tail - RHO_STEP
+					r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_tail,psi[i],X_TAIL_CAP)
+					create_stream_zone(r_tail,theta_tail,phi_tail,'temp_tail_line_')
+					tail_closed, r_north[i+n_azimuth_day], r_south[i+n_azimuth_day] = check_streamline_closed('temp_tail_line_',rho_tail,R_CAP)
+					if tail_closed:
+						swmf_data.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
+						notfound = False
+					if rho_tail <= RHO_STEP:
+						print('WARNING: placement not possible at psi={:.1f}'.format(np.rad2deg(psi[i])))
+						
+		#Create magnetopause surface by stitching together created zones
+		#Get shape of the total mp zone
+		n_points, zone_step = 0,[]
+		for i in range(1,swmf_data.num_zones):
+			zone_step.append(len(swmf_data.zone(i).values('X *')[::100]))
+			n_points += zone_step[-1]
+		mpdatashape = [n_points,n_points,1]
+		print(mpdatashape, zone_step)
+		#"Ordered Zone" automatically determines connectivity based on i,k,j ordered points
+		mp_zone = swmf_data.add_ordered_zone('MagnetoPause', mpdatashape)
+		print('created mp zone with dimension: {}'.format(mp_zone.dimensions))
+		#Fill the created zone by iterating over all zones
+		fill_start = 0
+		for i in range(1,swmf_data.num_zones):
+			mp_zone.values('X *')[fill_start:(fill_start+zone_step[i-1])] = swmf_data.zone(i).values('X *')[::100]
+			mp_zone.values('Y *')[fill_start:(fill_start+zone_step[i-1])] = swmf_data.zone(i).values('Y *')[::100]
+			mp_zone.values('Z *')[fill_start:(fill_start+zone_step[i-1])] = swmf_data.zone(i).values('Z *')[::100]
+			fill_start += zone_step[i-1]
+			#mp_zone = swmf_data.add_ordered_zone('MagnetoPause',shape)
 #		 -------------------------------------------------------------
 #                 Function to check if a streamzone is open or closed
 #                 Inputs |1| -> Streamzone number / ID
