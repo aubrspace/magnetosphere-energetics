@@ -253,21 +253,22 @@ def stitch_zones(zone_name, spar):
         mpdatashape[0] = max(mpdatashape[0], SWMF_DATA.zone(i).dimensions[0])
         mpdatashape[1] += SWMF_DATA.zone(i).dimensions[1]
         zone_step.append(SWMF_DATA.zone(i).dimensions[0])
-        print(SWMF_DATA.zone(i).dimensions)
-    print(mpdatashape, zone_step)
     #"Ordered Zone" automatically determines connectivity based on i, k, j ordered points
     mp_zone = SWMF_DATA.add_ordered_zone(zone_name, mpdatashape)
     print('created mp zone with dimension: {}'.format(mp_zone.dimensions))
-    #Fill the created zone by iterating over all zones
-    spar = 1
-    xfr_start = 0
-    # for j in range(1, SWMF_DATA.num_zones):
-    #     xfr_end = xfr_start+zone_step[j-1]
-    #     mp_zone.values('X *')[xfr_start:xfr_end] = SWMF_DATA.zone(j).values('X *')[:]
-    #     mp_zone.values('Y *')[xfr_start:xfr_end] = SWMF_DATA.zone(j).values('Y *')[:]
-    #     mp_zone.values('Z *')[xfr_start:xfr_end] = SWMF_DATA.zone(j).values('Z *')[:]
-    #     xfr_start += zone_step[j-1]
-        #mp_zone = SWMF_DATA.add_ordered_zone('MagnetoPause',shape)
+    #Fill the created zone by iterating over all zones excpt zone 0 and last zone
+    for i in range(1, SWMF_DATA.num_zones-1):
+        start = mpdatashape[0]*(i-1)
+        end = start + len(SWMF_DATA.zone(i).values('X *')[:])
+        mp_zone.values('X *')[start:end] = SWMF_DATA.zone(i).values('X *')[:]
+        mp_zone.values('Y *')[start:end] = SWMF_DATA.zone(i).values('Y *')[:]
+        mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values('Z *')[:]
+
+
+
+
+
+
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
 # To enable connections in Tecplot 360, click on:
@@ -290,14 +291,14 @@ if __name__ == "__main__":
 
     #Set the parameters for streamline seeding
     #DaySide
-    N_AZIMUTH_DAY = 3
+    N_AZIMUTH_DAY = 20
     AZIMUTH_RANGE = [np.deg2rad(-122), np.deg2rad(122)] #need to come back
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
     R_MAX = 30
     R_MIN = 3.5
 
     #Tail
-    N_AZIMUTH_TAIL = 5
+    N_AZIMUTH_TAIL = 20
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
@@ -315,11 +316,16 @@ if __name__ == "__main__":
         calc_dayside_mp(PHI, R_MAX, R_MIN)
 
         #Create Tail magnetopause field lines
-        # calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
+        calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
 
         #Stitch into single ordered zone
         stitch_zones('MagnetoPause', SPARSENESS)
 
+        #Interpolate field data and calculate normal energy flux on magnetopause zone
+
+        #Interpolate data
+
+#
 #        -------------------------------------------------------------
 #                 Function to check if a streamzone is open or closed
 #                 Inputs |1| -> Streamzone number / ID
