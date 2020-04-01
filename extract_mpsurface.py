@@ -24,7 +24,6 @@ def create_stream_zone(r_start, theta_start, phi_start, zone_name, stream_type):
     """
     # Get starting position in cartesian coordinates
     [x_start, y_start, z_start] = sph_to_cart(r_start, theta_start, phi_start)
-    print('X: {:.2f} Y:{:.2f} Z:{:.2f}\n'.format(x_start, y_start, z_start))
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
@@ -61,11 +60,16 @@ def check_streamline_closed(zone_name, r_seed, r_cap, stream_type):
     """
     # Get starting and endpoints of streamzone
     r_values = SWMF_DATA.zone(zone_name+'*').values('r *').as_numpy_array()
-    r_end_n, r_end_s = r_values[0], r_values[-1]
     if stream_type == 'north':
+        r_end_n = r_values[-1]
         r_end_s = 0
+        r_seed = 2
     elif stream_type == 'south':
         r_end_n = 0
+        r_end_s = r_values[0]
+        r_seed = 2
+    else:
+        r_end_n, r_end_s = r_values[0], r_values[-1]
     #check if closed
     if (r_end_n > r_seed) or (r_end_s > r_seed):
         isclosed = False
@@ -169,7 +173,8 @@ def calc_dayside_mp(phi, r_max, r_min):
         min_closed, _, __ = check_streamline_closed('min_field_line', r_min, R_CAP, stream_type)
         max_closed, _, __ = check_streamline_closed('max_field_line', r_max, R_CAP, stream_type)
         SWMF_DATA.delete_zones(SWMF_DATA.zone('min_field*'), SWMF_DATA.zone('max_field*'))
-        print('phi: {:.1f}, iters: {}, err: {}'.format(np.rad2deg(phi[i]), itr, r_eq_max-r_eq_min))
+        print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(np.rad2deg(phi[i]),
+                                                       itr, r_eq_max-r_eq_min))
         if max_closed and min_closed:
             print('WARNING: field line closed at max of {}R_e'.format(r_max))
             create_stream_zone(r_max, pi/2, phi[i], 'field_phi_', stream_type)
@@ -182,10 +187,11 @@ def calc_dayside_mp(phi, r_max, r_min):
             notfound = True
             r_eq_min, r_eq_max = r_min, r_max
             while(notfound and itr < ITR_MAX):
-                #This is a bisection root finding algorithm with init guess at previous phi solution
+                #This is a bisection root finding algorithm
                 create_stream_zone(r_eq_mid[i], pi/2, phi[i], 'temp_field_phi_', stream_type)
                 mid_closed, r_north[i], r_south[i] = check_streamline_closed('temp_field_phi_',
-                                                                             r_eq_mid[i], R_CAP, stream_type)
+                                                                             r_eq_mid[i], R_CAP,
+                                                                             stream_type)
                 if mid_closed:
                     r_eq_min = r_eq_mid[i]
                 else:
@@ -224,8 +230,6 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
         r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_max, psi[i], x_disc)
-        print('NEXT FIELD LINE AT r: {}, theta: {:.1f}, phi: {:.1f}'.format(r_tail, np.rad2deg(theta_tail),
-                                                         np.rad2deg(phi_tail)))
         #check if north or south attached
         x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
         if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
@@ -234,36 +238,35 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
             stream_type = 'north'
         create_stream_zone(r_tail, theta_tail, phi_tail, 'temp_tail_line_', stream_type)
         #check if closed
-        tail_closed, r_north[i], r_south[i] = check_streamline_closed('temp_tail_line_', r_tail                                                                      , R_CAP, stream_type)
-        print('psi: {:.1f}, rho: {:.2f}'.format(np.rad2deg(psi[i]), rho_tail))
-#        if tail_closed:
-#            print('WARNING: field line closed at RHO_MAX={}R_e'.format(rho_max))
-#            SWMF_DATA.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
-#        else:
-#            #This is a basic marching algorithm from outside in starting at RHO_MAX
-#            rho_tail = rho_max
-#            notfound = True
-#            while notfound and rho_tail > rho_step:
-#                SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
-#                rho_tail = rho_tail - rho_step
-#                r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_tail, psi[i], x_disc)
-#                #check if north or south attached
-#                x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
-#                if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
-#                    stream_type = 'south'
-#                else:
-#                    stream_type = 'north'
-#                print('NEXT FIELD LINE AT r: {}, theta: {:.1f}, phi: {:.1f}'.format(r_tail, np.rad2deg(theta_tail),
-#                                                         np.rad2deg(phi_tail)))
-#                print('psi: {:.1f}, rho: {:.2f}'.format(np.rad2deg(psi[i]), rho_tail))
-#                create_stream_zone(r_tail, theta_tail, phi_tail, 'temp_tail_line_', stream_type)
-#                tail_closed, r_north[i], r_south[i] = check_streamline_closed('temp_tail_line_',
-#                                                                              rho_tail, R_CAP, stream_type)
-#                if tail_closed:
-#                    SWMF_DATA.zone('temp*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
-#                    notfound = False
-#                if rho_tail <= rho_step:
-#                    print('WARNING: placemnt not possible at psi={:.1f}'.format(np.rad2deg(psi[i])))
+        tail_closed, r_north[i], r_south[i] = check_streamline_closed('temp_tail_line_', r_tail,
+                                                                      R_CAP, stream_type)
+        if tail_closed:
+            print('WARNING: field line closed at RHO_MAX={}R_e'.format(rho_max))
+            SWMF_DATA.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
+        else:
+            #This is a basic marching algorithm from outside in starting at RHO_MAX
+            rho_tail = rho_max
+            notfound = True
+            while notfound and rho_tail > rho_step:
+                SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
+                rho_tail = rho_tail - rho_step
+                r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_tail, psi[i], x_disc)
+                #check if north or south attached
+                x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
+                if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
+                    stream_type = 'south'
+                else:
+                    stream_type = 'north'
+                create_stream_zone(r_tail, theta_tail, phi_tail, 'temp_tail_line_', stream_type)
+                tail_closed, r_north[i], r_south[i] = check_streamline_closed('temp_tail_line_',
+                                                                              rho_tail, R_CAP,
+                                                                              stream_type)
+                if tail_closed:
+                    SWMF_DATA.zone('temp*').name ='tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
+                    notfound = False
+                    print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail, np.rad2deg(psi[i])))
+                if rho_tail <= rho_step:
+                    print('WARNING: not possible at psi={:.1f}'.format(np.rad2deg(psi[i])))
 
 
 
@@ -293,8 +296,6 @@ def stitch_zones(zone_name, spar):
         mp_zone.values('Y *')[start:end] = SWMF_DATA.zone(i).values('Y *')[::spar]
         mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values('Z *')[::spar]
 
-    for i in range(1, SWMF_DATA.num_zones-1):
-        SWMF_DATA.delete_zones(i)
 
 
 
@@ -322,7 +323,7 @@ if __name__ == "__main__":
 
     #Set the parameters for streamline seeding
     #DaySide
-    N_AZIMUTH_DAY = 10
+    N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
     AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)] #need to come back
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
@@ -330,11 +331,11 @@ if __name__ == "__main__":
     R_MIN = 3.5
 
     #Tail
-    N_AZIMUTH_TAIL = 10
+    N_AZIMUTH_TAIL = 50
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -30
+    X_TAIL_CAP = -20
 
     #Other
     R_CAP = 3.5
@@ -345,13 +346,13 @@ if __name__ == "__main__":
     #Create Dayside Magnetopause field lines
     with tp.session.suspend():
         #Create Dayside Magnetopause field lines
-        #calc_dayside_mp(PHI, R_MAX, R_MIN)
+        calc_dayside_mp(PHI, R_MAX, R_MIN)
 
         #Create Tail magnetopause field lines
         calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
 
         #Stitch into single ordered zone
-        #stitch_zones('MagnetoPause', SPARSENESS)
+        stitch_zones('MagnetoPause', SPARSENESS)
 
         #Interpolate field data and calculate normal energy flux on magnetopause zone
 
