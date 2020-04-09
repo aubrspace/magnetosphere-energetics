@@ -10,6 +10,7 @@ from numpy import abs, pi, cos, sin, sqrt
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
+import pandas as pd
 
 log.basicConfig(level=log.INFO)
 
@@ -96,7 +97,8 @@ def create_polar_caps(cap_distance, cap_diameter, cap_area_resolution):
         #Create northern polar cap
         log.info('creating polar cap zones')
         north_cap_data = tp.active_frame().create_dataset('NorthCap', ['x', 'y', 'z'])
-        north_cap_zone = north_cap_data.add_ordered_zone('North Cap', [num_elements, num_elements])
+        north_cap_zone = north_cap_data.add_ordered_zone('North Cap', [num_elements,
+                                                                       num_elements])
         north_cap_zone.values('x')[:] = cap_x.ravel()
         north_cap_zone.values('y')[:] = cap_y.ravel()
         north_cap_zone.values('z')[:] = cap_z.ravel()
@@ -123,13 +125,13 @@ def sph_to_cart(radius, theta, phi):
     return [x_pos, y_pos, z_pos]
 
 def find_tail_disk_point(rho, psi_disc, x_pos):
-    """Function find spherical coordinates of a point on a disk at a constant x position in the tail
+    """Function find spherical coord of a point on a disk at a constant x position in the tail
     Inputs
         rho- radial position relative to the center of the disk
         psi_disc- angle relative to the axis pointing out from the center of the disk
         x_pos- x position of the disk
     Outputs
-        [radius, theta, phi_disc]- spherical coordinates of the point relative to the global origin
+        [radius, theta, phi_disc]- spherical coord of the point relative to the global origin
     """
     y_pos = rho*sin(psi_disc)
     z_pos = rho*cos(psi_disc)
@@ -296,7 +298,39 @@ def stitch_zones(zone_name, spar):
         mp_zone.values('Y *')[start:end] = SWMF_DATA.zone(i).values('Y *')[::spar]
         mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values('Z *')[::spar]
 
-
+def construct_map_data(spar):
+    """Function collects and sorts stream zone spatial data into searchable data for mapping
+    Inputs
+        spar- only 1 per sparse number of points loaded into database
+    Outputs
+        loc_data- pandas DataFrame object that is ready to be mapped into an ordered zone
+    """
+    n_phi = 50
+    n_th = 50
+    loc_data = pd.DataFrame([[0,0,0]], columns = ['theta', 'phi', 'r', 'x'])
+    #Load zone data into the DataFrame object
+    for i in range(1,3):
+        temp_data = pd.DataFrame([[0,0,0]], columns = ['theta', 'phi', 'r', 'x'])
+        for j in range(0, max(SWMF_DATA.zone(i).dimensions), spar):
+            temp_data = temp_data.append(pd.DataFrame([[SWMF_DATA.zone(i).values('theta')[j],
+                                                        SWMF_DATA.zone(i).values('phi')[j],
+                                                        SWMF_DATA.zone(i).values('r*')[j],
+                                                        SWMF_DATA.zone(i).values('X *')[j]]],
+                                                        columns = ['theta', 'phi', 'r', 'x']))
+        loc_data = loc_data.append(temp_data, ignore_index=True)
+    loc_data = loc_data.drop(0)
+    print(loc_data)
+    #Loop through all final zone points in phi-theta space
+    for theta_p in np.linspace(-pi/2, pi/2, n_th):
+        for phi_p in np.linspace(0, pi, n_phi):
+            #Find the 4 bounding neighbors
+            d1th, d2th, d1phi, d2phi = 100
+            for row in loc_data.itertuples(index=False):
+                theta = row[0]
+                phi = row[1]
+                x = row[3]
+                d1th = d2th
+                d2th = theta_p-theta
 
 
 
@@ -323,7 +357,7 @@ if __name__ == "__main__":
 
     #Set the parameters for streamline seeding
     #DaySide
-    N_AZIMUTH_DAY = 50
+    N_AZIMUTH_DAY = 5
     AZIMUTH_MAX = 122
     AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)] #need to come back
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
@@ -331,7 +365,7 @@ if __name__ == "__main__":
     R_MIN = 3.5
 
     #Tail
-    N_AZIMUTH_TAIL = 50
+    N_AZIMUTH_TAIL = 5
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
@@ -351,8 +385,15 @@ if __name__ == "__main__":
         #Create Tail magnetopause field lines
         calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
 
+        #Create Theta and Phi coordinates for all points in domain
+        tp.data.operate.execute_equation('{theta} = atan({Y [R]}/({X [R]}+1e-24))')
+        tp.data.operate.execute_equation('{phi} = acos({Z [R]}/{r [R]})')
+
+        #Construct data set for mapping
+        construct_map_data(SPARSENESS)
+
         #Stitch into single ordered zone
-        stitch_zones('MagnetoPause', SPARSENESS)
+        #stitch_zones('MagnetoPause', SPARSENESS)
 
         #Interpolate field data and calculate normal energy flux on magnetopause zone
 
