@@ -4,6 +4,7 @@
 import logging as log
 import os
 import sys
+import time
 from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
@@ -13,9 +14,12 @@ from tecplot.exception import *
 import pandas as pd
 
 log.basicConfig(level=log.INFO)
+start_time = time.time()
 
-def create_stream_zone(r_start, theta_start, phi_start, zone_name, stream_type):
-    """Function to create a streamline, created in 2 directions from starting point
+def create_stream_zone(r_start, theta_start, phi_start,
+                       zone_name, stream_type):
+    """Function to create a streamline, created in 2 directions from
+       starting point
     Inputs
         r_start [R]- starting position for streamline
         theta_start [rad]
@@ -24,7 +28,8 @@ def create_stream_zone(r_start, theta_start, phi_start, zone_name, stream_type):
         stream_type- day, north or south for determining stream direction
     """
     # Get starting position in cartesian coordinates
-    [x_start, y_start, z_start] = sph_to_cart(r_start, theta_start, phi_start)
+    [x_start, y_start, z_start] = sph_to_cart(r_start,
+                                              theta_start, phi_start)
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
@@ -56,7 +61,8 @@ def check_streamline_closed(zone_name, r_seed, r_cap, stream_type):
         stream_type- dayside, north or south from tail
     Outputs
         isclosed- boolean, True for closed
-        max(r_end_n, r_cap)- furthest out point at pole, for making smooth surface on the caps
+        max(r_end_n, r_cap)- furthest out point at pole, for making smooth
+        surface on the caps
         max(r_end_s, r_cap)
     """
     # Get starting and endpoints of streamzone
@@ -87,18 +93,21 @@ def create_polar_caps(cap_distance, cap_diameter, cap_area_resolution):
     """
     # Obtain latitude bounds and number of elements given conditions
     theta_total = cap_diameter/abs(cap_distance)
-    num_elements = np.ceil(abs(cap_distance)*sqrt(theta_total*2*pi/cap_area_resolution))
+    num_elements = np.ceil(abs(cap_distance)*sqrt(
+                                      theta_total*2*pi/cap_area_resolution))
     #create cap data point mesh
     phi_lin = np.linspace(0, 2*pi, int(num_elements))
-    theta_lin = np.linspace(-0.5*theta_total, 0.5*theta_total, int(num_elements))
+    theta_lin = np.linspace(-0.5*theta_total,
+                            0.5*theta_total, int(num_elements))
     theta, phi_cap = np.meshgrid(theta_lin, phi_lin, indexing='ij')
     cap_x, cap_y, cap_z = sph_to_cart(cap_distance, theta, phi_cap)
     with tp.session.suspend():
         #Create northern polar cap
         log.info('creating polar cap zones')
-        north_cap_data = tp.active_frame().create_dataset('NorthCap', ['x', 'y', 'z'])
-        north_cap_zone = north_cap_data.add_ordered_zone('North Cap', [num_elements,
-                                                                       num_elements])
+        north_cap_data = tp.active_frame().create_dataset('NorthCap',
+                                                          ['x', 'y', 'z'])
+        north_cap_zone = north_cap_data.add_ordered_zone('North Cap',
+                                               [num_elements, num_elements])
         north_cap_zone.values('x')[:] = cap_x.ravel()
         north_cap_zone.values('y')[:] = cap_y.ravel()
         north_cap_zone.values('z')[:] = cap_z.ravel()
@@ -125,13 +134,16 @@ def sph_to_cart(radius, theta, phi):
     return [x_pos, y_pos, z_pos]
 
 def find_tail_disk_point(rho, psi_disc, x_pos):
-    """Function find spherical coord of a point on a disk at a constant x position in the tail
+    """Function find spherical coord of a point on a disk at a constant x
+       position in the tail
     Inputs
         rho- radial position relative to the center of the disk
-        psi_disc- angle relative to the axis pointing out from the center of the disk
+        psi_disc- angle relative to the axis pointing out from the center
+        of the disk
         x_pos- x position of the disk
     Outputs
-        [radius, theta, phi_disc]- spherical coord of the point relative to the global origin
+        [radius, theta, phi_disc]- spherical coord of the point relative
+        to the global origin
     """
     y_pos = rho*sin(psi_disc)
     z_pos = rho*cos(psi_disc)
@@ -169,20 +181,28 @@ def calc_dayside_mp(phi, r_max, r_min):
     stream_type = 'day'
     for i in range(int(len(phi))):
         #Create initial max min and mid field lines
-        create_stream_zone(r_min, pi/2, phi[i], 'min_field_line', stream_type)
-        create_stream_zone(r_max, pi/2, phi[i], 'max_field_line', stream_type)
+        create_stream_zone(r_min, pi/2, phi[i], 'min_field_line',
+                           stream_type)
+        create_stream_zone(r_max, pi/2, phi[i], 'max_field_line',
+                           stream_type)
         #Check that last closed is bounded
-        min_closed, _, __ = check_streamline_closed('min_field_line', r_min, R_CAP, stream_type)
-        max_closed, _, __ = check_streamline_closed('max_field_line', r_max, R_CAP, stream_type)
-        SWMF_DATA.delete_zones(SWMF_DATA.zone('min_field*'), SWMF_DATA.zone('max_field*'))
-        print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(np.rad2deg(phi[i]),
-                                                       itr, r_eq_max-r_eq_min))
+        min_closed, _, __ = check_streamline_closed('min_field_line',
+                                                  r_min, R_CAP, stream_type)
+        max_closed, _, __ = check_streamline_closed('max_field_line',
+                                                  r_max, R_CAP, stream_type)
+        SWMF_DATA.delete_zones(SWMF_DATA.zone('min_field*'),
+                               SWMF_DATA.zone('max_field*'))
+        print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(
+                                                    np.rad2deg(phi[i]),
+                                                    itr, r_eq_max-r_eq_min))
         if max_closed and min_closed:
-            print('WARNING: field line closed at max of {}R_e'.format(r_max))
-            create_stream_zone(r_max, pi/2, phi[i], 'field_phi_', stream_type)
+            print('WARNING: field line closed at max {}R_e'.format(r_max))
+            create_stream_zone(r_max, pi/2, phi[i], 'field_phi_',
+                               stream_type)
         elif not max_closed and not min_closed:
             print('WARNING: first field line open at {}R_e'.format(r_min))
-            create_stream_zone(r_min, pi/2, phi[i], 'field_phi_', stream_type)
+            create_stream_zone(r_min, pi/2, phi[i], 'field_phi_',
+                               stream_type)
         else:
             r_eq_mid[i] = (r_max+r_min)/2
             itr = 0
@@ -190,17 +210,20 @@ def calc_dayside_mp(phi, r_max, r_min):
             r_eq_min, r_eq_max = r_min, r_max
             while(notfound and itr < ITR_MAX):
                 #This is a bisection root finding algorithm
-                create_stream_zone(r_eq_mid[i], pi/2, phi[i], 'temp_field_phi_', stream_type)
-                mid_closed, r_north[i], r_south[i] = check_streamline_closed('temp_field_phi_',
-                                                                             r_eq_mid[i], R_CAP,
-                                                                             stream_type)
+                create_stream_zone(r_eq_mid[i], pi/2, phi[i],
+                                   'temp_field_phi_', stream_type)
+                mid_closed, r_north[i],r_south[i] = check_streamline_closed(
+                                                         'temp_field_phi_',
+                                                         r_eq_mid[i], R_CAP,
+                                                         stream_type)
                 if mid_closed:
                     r_eq_min = r_eq_mid[i]
                 else:
                     r_eq_max = r_eq_mid[i]
                 if abs(r_eq_min - r_eq_max) < TOL and mid_closed:
                     notfound = False
-                    SWMF_DATA.zone('temp*').name = 'field_phi_{:.1f}'.format(np.rad2deg(phi[i]))
+                    SWMF_DATA.zone('temp*').name ='field_phi_{:.1f}'.format(
+                                                         np.rad2deg(phi[i]))
                 else:
                     r_eq_mid[i] = (r_eq_max+r_eq_min)/2
                     SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_field*'))
@@ -231,44 +254,58 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
 
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
-        r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_max, psi[i], x_disc)
+        r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_max, psi[i],
+                                                            x_disc)
         #check if north or south attached
         x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
         if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
             stream_type = 'south'
         else:
             stream_type = 'north'
-        create_stream_zone(r_tail, theta_tail, phi_tail, 'temp_tail_line_', stream_type)
+        create_stream_zone(r_tail, theta_tail, phi_tail,
+                           'temp_tail_line_', stream_type)
         #check if closed
-        tail_closed, r_north[i], r_south[i] = check_streamline_closed('temp_tail_line_', r_tail,
-                                                                      R_CAP, stream_type)
+        tail_closed, r_north[i], r_south[i] = check_streamline_closed(
+                                                  'temp_tail_line_', r_tail,
+                                                  R_CAP, stream_type)
         if tail_closed:
-            print('WARNING: field line closed at RHO_MAX={}R_e'.format(rho_max))
-            SWMF_DATA.zone('temp_tail_line*').name = 'tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
+            print('WARNING: field line closed at RHO_MAX={}R_e'.format(
+                                                                   rho_max))
+            SWMF_DATA.zone('temp_tail*').name = 'tail_field_{:.1f}'.format(
+                                                        np.rad2deg(psi[i]))
         else:
-            #This is a basic marching algorithm from outside in starting at RHO_MAX
+            #This is a basic marching algorithm from outside in starting at
+            #RHO_MAX
             rho_tail = rho_max
             notfound = True
             while notfound and rho_tail > rho_step:
                 SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
                 rho_tail = rho_tail - rho_step
-                r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_tail, psi[i], x_disc)
+                r_tail, theta_tail, phi_tail = find_tail_disk_point(
+                                                rho_tail, psi[i], x_disc)
                 #check if north or south attached
-                x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
-                if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
+                x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail,
+                                                  phi_tail)
+                if tp.data.query.probe_at_position(x_pos,
+                                                   y_pos, z_pos)[0][7] < 0:
                     stream_type = 'south'
                 else:
                     stream_type = 'north'
-                create_stream_zone(r_tail, theta_tail, phi_tail, 'temp_tail_line_', stream_type)
-                tail_closed, r_north[i], r_south[i] = check_streamline_closed('temp_tail_line_',
-                                                                              rho_tail, R_CAP,
-                                                                              stream_type)
+                create_stream_zone(r_tail, theta_tail, phi_tail,
+                                   'temp_tail_line_', stream_type)
+                tail_closed, r_north[i],r_south[i] =check_streamline_closed(
+                                                         'temp_tail_line_',
+                                                         rho_tail, R_CAP,
+                                                         stream_type)
                 if tail_closed:
-                    SWMF_DATA.zone('temp*').name ='tail_field_{:.1f}'.format(np.rad2deg(psi[i]))
+                    SWMF_DATA.zone('temp*').name='tail_field_{:.1f}'.format(
+                                                        np.rad2deg(psi[i]))
                     notfound = False
-                    print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail, np.rad2deg(psi[i])))
+                    print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
+                                                       np.rad2deg(psi[i])))
                 if rho_tail <= rho_step:
-                    print('WARNING: not possible at psi={:.1f}'.format(np.rad2deg(psi[i])))
+                    print('WARNING: not possible at psi={:.1f}'.format(
+                                                       np.rad2deg(psi[i])))
 
 
 
@@ -282,21 +319,27 @@ def stitch_zones(zone_name, spar):
     #Get shape of the total mp zone
     zone_step, mpdatashape = [], [0, 0, 1]
     for i in range(1, SWMF_DATA.num_zones):
-        mpdatashape[0] = max(mpdatashape[0], SWMF_DATA.zone(i).dimensions[0])
+        mpdatashape[0] = max(mpdatashape[0],
+                             SWMF_DATA.zone(i).dimensions[0])
         mpdatashape[1] += SWMF_DATA.zone(i).dimensions[1]
         zone_step.append(SWMF_DATA.zone(i).dimensions[0])
-    #"Ordered Zone" automatically determines connectivity based on i, k, j ordered points
+    #"Ordered Zone" automatically determines connectivity based on i, k, j
+    #ordered points
     mpdatashape[0] = int(np.ceil(np.divide(mpdatashape[0], spar)))
     print('mpdatashape: ', mpdatashape, 'type: ', type(mpdatashape))
     mp_zone = SWMF_DATA.add_ordered_zone(zone_name, mpdatashape)
     print('created mp zone with dimension: {}'.format(mp_zone.dimensions))
-    #Fill the created zone by iterating over all zones excpt zone 0 and last zone
+    #Fill the created zone by iterating over all zones excpt zone 0 and last
+    #zone
     for i in range(1, SWMF_DATA.num_zones-1):
         start = mpdatashape[0]*(i-1)
         end = start + len(SWMF_DATA.zone(i).values('X *')[::spar])
-        mp_zone.values('X *')[start:end] = SWMF_DATA.zone(i).values('X *')[::spar]
-        mp_zone.values('Y *')[start:end] = SWMF_DATA.zone(i).values('Y *')[::spar]
-        mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values('Z *')[::spar]
+        mp_zone.values('X *')[start:end] = SWMF_DATA.zone(i).values(
+                                                             'X *')[::spar]
+        mp_zone.values('Y *')[start:end] = SWMF_DATA.zone(i).values(
+                                                             'Y *')[::spar]
+        mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values(
+                                                             'Z *')[::spar]
 
 def construct_map_data(spar):
     """Function collects and sorts stream zone spatial data into searchable data for mapping
@@ -305,35 +348,82 @@ def construct_map_data(spar):
     Outputs
         loc_data- pandas DataFrame object that is ready to be mapped into an ordered zone
     """
-    n_phi = 50
-    n_th = 50
-    loc_data = pd.DataFrame([[0,0,0]], columns = ['theta', 'phi', 'r', 'x'])
+    n_phi = 5
+    n_th = 5
+    loc_data = pd.DataFrame(columns = ['theta', 'phi',
+                                                    'r', 'x'])
     #Load zone data into the DataFrame object
     for i in range(1,3):
-        temp_data = pd.DataFrame([[0,0,0]], columns = ['theta', 'phi', 'r', 'x'])
+        temp_data = pd.DataFrame(columns = ['theta', 'phi',
+                                                       'r', 'x'])
         for j in range(0, max(SWMF_DATA.zone(i).dimensions), spar):
-            temp_data = temp_data.append(pd.DataFrame([[SWMF_DATA.zone(i).values('theta')[j],
-                                                        SWMF_DATA.zone(i).values('phi')[j],
-                                                        SWMF_DATA.zone(i).values('r*')[j],
-                                                        SWMF_DATA.zone(i).values('X *')[j]]],
-                                                        columns = ['theta', 'phi', 'r', 'x']))
+            temp_data = temp_data.append(
+                        pd.DataFrame(
+                                    [[SWMF_DATA.zone(i).values('theta')[j],
+                                      SWMF_DATA.zone(i).values('phi')[j],
+                                      SWMF_DATA.zone(i).values('r*')[j],
+                                      SWMF_DATA.zone(i).values('X *')[j]]],
+                                    columns = ['theta', 'phi', 'r', 'x']))
         loc_data = loc_data.append(temp_data, ignore_index=True)
     loc_data = loc_data.drop(0)
     print(loc_data)
     #Loop through all final zone points in phi-theta space
+    map_data = pd.DataFrame(columns = ['theta', 'phi',
+                                       'NE', 'NW', 'SE', 'SW'])
     for theta_p in np.linspace(-pi/2, pi/2, n_th):
         for phi_p in np.linspace(0, pi, n_phi):
+            southeast_dist = 100
+            southwest_dist = 100
+            northeast_dist = 100
+            northwest_dist = 100
+            new_map_point = pd.DataFrame([[theta_p, phi_p]],
+                                         columns=['theta','phi'])
+            print(new_map_point)
+            map_data = map_data.append(new_map_point, ignore_index=True)
             #Find the 4 bounding neighbors
-            d1th, d2th, d1phi, d2phi = 100
-            for row in loc_data.itertuples(index=False):
-                theta = row[0]
-                phi = row[1]
-                x = row[3]
-                d1th = d2th
-                d2th = theta_p-theta
+            for row in loc_data.itertuples():
+                index = row[0]
+                theta = row[1]
+                phi = row[2]
+                r = row[3]
+                x = row[4]
+                dist = sqrt(2-2*(
+                                 sin(theta)*sin(theta_p)*cos(
+                                 theta-theta_p)+cos(theta)*cos(theta_p)))
+                #Determine if point is N,S,E,W of point
+                north, south, east, west = False, False, False, False
+                if abs(theta) > abs(theta_p):
+                    south = True
+                else:
+                    north = True
+                if (theta*theta_p >0 and theta>theta_p) or (
+                        theta*theta_p <0 and theta<theta_p):
+                    east = True
+                else:
+                    west = True
+                #Compare to the current closest points
+                if (south and east) and (dist<southeast_dist):
+                    map_data.update(pd.DataFrame(
+                                            [index],
+                                            columns=['SE'],
+                                            index=[max(map_data.index)]))
+                if (south and west) and (dist<southwest_dist):
+                    map_data.update(pd.DataFrame(
+                                            [index],
+                                            columns=['SW'],
+                                            index=[max(map_data.index)]))
+                if (north and east) and (dist<northeast_dist):
+                    map_data.update(pd.DataFrame(
+                                            [index],
+                                            columns=['NE'],
+                                            index=[max(map_data.index)]))
+                if (north and west) and (dist<northwest_dist):
+                    map_data.update(pd.DataFrame(
+                                            [index],
+                                            columns=['NW'],
+                                            index=[max(map_data.index)]))
 
-
-
+    print(map_data)
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -353,7 +443,8 @@ if __name__ == "__main__":
     print(SWMF_DATA)
 
     #Create R from cartesian coordinates
-    tp.data.operate.execute_equation('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+    tp.data.operate.execute_equation(
+                '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
     #Set the parameters for streamline seeding
     #DaySide
@@ -386,8 +477,10 @@ if __name__ == "__main__":
         calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
 
         #Create Theta and Phi coordinates for all points in domain
-        tp.data.operate.execute_equation('{theta} = atan({Y [R]}/({X [R]}+1e-24))')
-        tp.data.operate.execute_equation('{phi} = acos({Z [R]}/{r [R]})')
+        tp.data.operate.execute_equation(
+                                 '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
+        tp.data.operate.execute_equation(
+        '{theta} = acos({Z [R]}/{r [R]}) * ({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
         #Construct data set for mapping
         construct_map_data(SPARSENESS)
@@ -411,6 +504,7 @@ if __name__ == "__main__":
         tp.active_frame().plot().slice(0).origin=(X_TAIL_CAP,
                                               tp.active_frame().plot().slice(0).origin[1],
                                               tp.active_frame().plot().slice(0).origin[2])
+        print("--- %s seconds ---" % (time.time() - start_time))
         #tp.active_frame().plot().axes.x_axis.show = True
         #tp.active_frame().plot().axes.x_axis.min = -40
         #tp.active_frame().plot().axes.x_axis.max = 20
