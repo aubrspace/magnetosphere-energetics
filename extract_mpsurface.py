@@ -448,7 +448,7 @@ if __name__ == "__main__":
 
     #Set the parameters for streamline seeding
     #DaySide
-    N_AZIMUTH_DAY = 5
+    N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
     AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)] #need to come back
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
@@ -456,7 +456,7 @@ if __name__ == "__main__":
     R_MIN = 3.5
 
     #Tail
-    N_AZIMUTH_TAIL = 5
+    N_AZIMUTH_TAIL = 50
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
@@ -483,7 +483,7 @@ if __name__ == "__main__":
         '{theta} = acos({Z [R]}/{r [R]}) * ({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
         #Construct data set for mapping
-        construct_map_data(SPARSENESS)
+        #construct_map_data(SPARSENESS)
 
         #Stitch into single ordered zone
         #stitch_zones('MagnetoPause', SPARSENESS)
