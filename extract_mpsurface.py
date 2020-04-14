@@ -254,6 +254,7 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
 
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
+        #Find global position based on seed point
         r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_max, psi[i],
                                                             x_disc)
         #check if north or south attached
@@ -341,12 +342,33 @@ def stitch_zones(zone_name, spar):
         mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values(
                                                              'Z *')[::spar]
 
+def dump_to_pandas(spar):
+    """Function to hand zone data to pandas to do processing
+    Inputs-
+    """
+    loc_data = pd.DataFrame(columns = ['X', 'Y', 'Z'])
+    #load data into DataFrame
+    for i in range(1,SWMF_DATA.num_zones):
+        temp_data = pd.DataFrame(columns = ['X', 'Y', 'Z'])
+        for j in range(0, max(SWMF_DATA.zone(i).dimensions)):
+            temp_data = temp_data.append(
+                        pd.DataFrame(
+                                    [[SWMF_DATA.zone(i).values('X *')[j],
+                                      SWMF_DATA.zone(i).values('Y *')[j],
+                                      SWMF_DATA.zone(i).values('Z *')[j]]],
+                                    columns = ['X', 'Y', 'Z']))
+        loc_data = loc_data.append(temp_data, ignore_index=True)
+    print(loc_data)
+
+
 def construct_map_data(spar):
-    """Function collects and sorts stream zone spatial data into searchable data for mapping
+    """Function collects and sorts stream zone spatial data into searchable
+       data for mapping
     Inputs
         spar- only 1 per sparse number of points loaded into database
     Outputs
-        loc_data- pandas DataFrame object that is ready to be mapped into an ordered zone
+        loc_data- pandas DataFrame object that is ready to be mapped into an
+        ordered zone
     """
     n_phi = 5
     n_th = 5
@@ -365,7 +387,7 @@ def construct_map_data(spar):
                                       SWMF_DATA.zone(i).values('X *')[j]]],
                                     columns = ['theta', 'phi', 'r', 'x']))
         loc_data = loc_data.append(temp_data, ignore_index=True)
-    loc_data = loc_data.drop(0)
+    #loc_data = loc_data.drop(0)
     print(loc_data)
     #Loop through all final zone points in phi-theta space
     map_data = pd.DataFrame(columns = ['theta', 'phi',
@@ -482,6 +504,10 @@ if __name__ == "__main__":
         tp.data.operate.execute_equation(
         '{theta} = acos({Z [R]}/{r [R]}) * ({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
+        #Export 3D point data to csv file
+        tp.macro.execute_extended_command(command_processor_id='excsv',
+                command='VarNames:FrOp=1:ZnCount=100:ZnList=[2-101]:VarCount=3:VarList=[1-3]:ValSep=",":F    NAME="/Users/ngpdl/Code/swmf-energetics/mp_points.csv"')
+
         #Construct data set for mapping
         #construct_map_data(SPARSENESS)
 
@@ -505,15 +531,6 @@ if __name__ == "__main__":
                                               tp.active_frame().plot().slice(0).origin[1],
                                               tp.active_frame().plot().slice(0).origin[2])
         print("--- %s seconds ---" % (time.time() - start_time))
-        #tp.active_frame().plot().axes.x_axis.show = True
-        #tp.active_frame().plot().axes.x_axis.min = -40
-        #tp.active_frame().plot().axes.x_axis.max = 20
-        #tp.active_frame().plot().axes.y_axis.show = True
-        #tp.active_frame().plot().axes.y_axis.min = -1*RHO_MAX
-        #tp.active_frame().plot().axes.y_axis.max = RHO_MAX
-        #tp.active_frame().plot().axes.z_axis.show = True
-        #tp.active_frame().plot().axes.z_axis.min = -1*RHO_MAX
-        #tp.active_frame().plot().axes.z_axis.max = RHO_MAX
 #
 #        -------------------------------------------------------------
 #                 Function to check if a streamzone is open or closed
