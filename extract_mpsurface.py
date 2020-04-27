@@ -84,41 +84,6 @@ def check_streamline_closed(zone_name, r_seed, r_cap, stream_type):
         isclosed = True
     return isclosed, max(r_end_n, r_cap), max(r_end_s, r_cap)
 
-
-def create_polar_caps(cap_distance, cap_diameter, cap_area_resolution):
-    """Function to create 3D polar cap in the magnetopause
-    Inputs
-        cap_distance [Re]- radial distance to center of the cap
-        cap_diameter [Re]- curvilinear diameter of the cap
-    """
-    # Obtain latitude bounds and number of elements given conditions
-    theta_total = cap_diameter/abs(cap_distance)
-    num_elements = np.ceil(abs(cap_distance)*sqrt(
-                                      theta_total*2*pi/cap_area_resolution))
-    #create cap data point mesh
-    phi_lin = np.linspace(0, 2*pi, int(num_elements))
-    theta_lin = np.linspace(-0.5*theta_total,
-                            0.5*theta_total, int(num_elements))
-    theta, phi_cap = np.meshgrid(theta_lin, phi_lin, indexing='ij')
-    cap_x, cap_y, cap_z = sph_to_cart(cap_distance, theta, phi_cap)
-    with tp.session.suspend():
-        #Create northern polar cap
-        log.info('creating polar cap zones')
-        north_cap_data = tp.active_frame().create_dataset('NorthCap',
-                                                          ['x', 'y', 'z'])
-        north_cap_zone = north_cap_data.add_ordered_zone('North Cap',
-                                               [num_elements, num_elements])
-        north_cap_zone.values('x')[:] = cap_x.ravel()
-        north_cap_zone.values('y')[:] = cap_y.ravel()
-        north_cap_zone.values('z')[:] = cap_z.ravel()
-        #Mirror to southern polar cap
-        tp.macro.execute_command('''$!CreateMirrorZones
-                                SourceZones =  {'North Cap'}
-                                MirrorVars =  [3]''')
-        tp.execute_command("""$!RenameDataSetZone
-                            Zone = {'Mirror: North Cap'}
-                            Name = 'South Cap'""")
-
 def sph_to_cart(radius, theta, phi):
     """Function converts spherical coordinates to cartesian coordinates
     Inputs
@@ -133,14 +98,14 @@ def sph_to_cart(radius, theta, phi):
     z_pos = (radius * cos(theta))
     return [x_pos, y_pos, z_pos]
 
-def find_tail_disk_point(rho, psi_disc, x_pos):
-    """Function find spherical coord of a point on a disk at a constant x
+def find_tail_disc_point(rho, psi_disc, x_pos):
+    """Function find spherical coord of a point on a disc at a constant x
        position in the tail
     Inputs
-        rho- radial position relative to the center of the disk
+        rho- radial position relative to the center of the disc
         psi_disc- angle relative to the axis pointing out from the center
-        of the disk
-        x_pos- x position of the disk
+        of the disc
+        x_pos- x position of the disc
     Outputs
         [radius, theta, phi_disc]- spherical coord of the point relative
         to the global origin
@@ -255,7 +220,7 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
         #Find global position based on seed point
-        r_tail, theta_tail, phi_tail = find_tail_disk_point(rho_max, psi[i],
+        r_tail, theta_tail, phi_tail = find_tail_disc_point(rho_max, psi[i],
                                                             x_disc)
         #check if north or south attached
         x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
@@ -282,7 +247,7 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
             while notfound and rho_tail > rho_step:
                 SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
                 rho_tail = rho_tail - rho_step
-                r_tail, theta_tail, phi_tail = find_tail_disk_point(
+                r_tail, theta_tail, phi_tail = find_tail_disc_point(
                                                 rho_tail, psi[i], x_disc)
                 #check if north or south attached
                 x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail,
@@ -309,39 +274,6 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
                                                        np.rad2deg(psi[i])))
 
 
-
-def stitch_zones(zone_name, spar):
-    """Function that creates single ordered zone out of streamzones
-    Inputs
-        zone_name
-        spar- only 1 per sparse number of points loaded into zone
-    """
-    #Create magnetopause surface by stitching together all but 1st zone
-    #Get shape of the total mp zone
-    zone_step, mpdatashape = [], [0, 0, 1]
-    for i in range(1, SWMF_DATA.num_zones):
-        mpdatashape[0] = max(mpdatashape[0],
-                             SWMF_DATA.zone(i).dimensions[0])
-        mpdatashape[1] += SWMF_DATA.zone(i).dimensions[1]
-        zone_step.append(SWMF_DATA.zone(i).dimensions[0])
-    #"Ordered Zone" automatically determines connectivity based on i, k, j
-    #ordered points
-    mpdatashape[0] = int(np.ceil(np.divide(mpdatashape[0], spar)))
-    print('mpdatashape: ', mpdatashape, 'type: ', type(mpdatashape))
-    mp_zone = SWMF_DATA.add_ordered_zone(zone_name, mpdatashape)
-    print('created mp zone with dimension: {}'.format(mp_zone.dimensions))
-    #Fill the created zone by iterating over all zones excpt zone 0 and last
-    #zone
-    for i in range(1, SWMF_DATA.num_zones-1):
-        start = mpdatashape[0]*(i-1)
-        end = start + len(SWMF_DATA.zone(i).values('X *')[::spar])
-        mp_zone.values('X *')[start:end] = SWMF_DATA.zone(i).values(
-                                                             'X *')[::spar]
-        mp_zone.values('Y *')[start:end] = SWMF_DATA.zone(i).values(
-                                                             'Y *')[::spar]
-        mp_zone.values('Z *')[start:end] = SWMF_DATA.zone(i).values(
-                                                             'Z *')[::spar]
-
 def dump_to_pandas(spar):
     """Function to hand zone data to pandas to do processing
     Inputs-
@@ -360,92 +292,42 @@ def dump_to_pandas(spar):
         loc_data = loc_data.append(temp_data, ignore_index=True)
     print(loc_data)
 
-
-def construct_map_data(spar):
-    """Function collects and sorts stream zone spatial data into searchable
-       data for mapping
-    Inputs
-        spar- only 1 per sparse number of points loaded into database
-    Outputs
-        loc_data- pandas DataFrame object that is ready to be mapped into an
-        ordered zone
+def create_cylinder(nx, nalpha, x_min, x_max):
+    """Function creates empty cylindrical zone for loading of slice data
+    Inputs-
+        nx- number of x positions, same as n_slice
+        nalpha
+        x_min
+        x_max
     """
-    n_phi = 5
-    n_th = 5
-    loc_data = pd.DataFrame(columns = ['theta', 'phi',
-                                                    'r', 'x'])
-    #Load zone data into the DataFrame object
-    for i in range(1,3):
-        temp_data = pd.DataFrame(columns = ['theta', 'phi',
-                                                       'r', 'x'])
-        for j in range(0, max(SWMF_DATA.zone(i).dimensions), spar):
-            temp_data = temp_data.append(
-                        pd.DataFrame(
-                                    [[SWMF_DATA.zone(i).values('theta')[j],
-                                      SWMF_DATA.zone(i).values('phi')[j],
-                                      SWMF_DATA.zone(i).values('r*')[j],
-                                      SWMF_DATA.zone(i).values('X *')[j]]],
-                                    columns = ['theta', 'phi', 'r', 'x']))
-        loc_data = loc_data.append(temp_data, ignore_index=True)
-    #loc_data = loc_data.drop(0)
-    print(loc_data)
-    #Loop through all final zone points in phi-theta space
-    map_data = pd.DataFrame(columns = ['theta', 'phi',
-                                       'NE', 'NW', 'SE', 'SW'])
-    for theta_p in np.linspace(-pi/2, pi/2, n_th):
-        for phi_p in np.linspace(0, pi, n_phi):
-            southeast_dist = 100
-            southwest_dist = 100
-            northeast_dist = 100
-            northwest_dist = 100
-            new_map_point = pd.DataFrame([[theta_p, phi_p]],
-                                         columns=['theta','phi'])
-            print(new_map_point)
-            map_data = map_data.append(new_map_point, ignore_index=True)
-            #Find the 4 bounding neighbors
-            for row in loc_data.itertuples():
-                index = row[0]
-                theta = row[1]
-                phi = row[2]
-                r = row[3]
-                x = row[4]
-                dist = sqrt(2-2*(
-                                 sin(theta)*sin(theta_p)*cos(
-                                 theta-theta_p)+cos(theta)*cos(theta_p)))
-                #Determine if point is N,S,E,W of point
-                north, south, east, west = False, False, False, False
-                if abs(theta) > abs(theta_p):
-                    south = True
-                else:
-                    north = True
-                if (theta*theta_p >0 and theta>theta_p) or (
-                        theta*theta_p <0 and theta<theta_p):
-                    east = True
-                else:
-                    west = True
-                #Compare to the current closest points
-                if (south and east) and (dist<southeast_dist):
-                    map_data.update(pd.DataFrame(
-                                            [index],
-                                            columns=['SE'],
-                                            index=[max(map_data.index)]))
-                if (south and west) and (dist<southwest_dist):
-                    map_data.update(pd.DataFrame(
-                                            [index],
-                                            columns=['SW'],
-                                            index=[max(map_data.index)]))
-                if (north and east) and (dist<northeast_dist):
-                    map_data.update(pd.DataFrame(
-                                            [index],
-                                            columns=['NE'],
-                                            index=[max(map_data.index)]))
-                if (north and west) and (dist<northwest_dist):
-                    map_data.update(pd.DataFrame(
-                                            [index],
-                                            columns=['NW'],
-                                            index=[max(map_data.index)]))
+    #use built in create zone function for verticle cylinder
+    tp.macro.execute_command('''$!CreateCircularZone
+                             IMax = 2
+                             JMax = {:d}
+                             KMax = {:d}
+                             X = 0
+                             Y = 0
+                             Z1 = {:d}
+                             Z2 = {:d}
+                             Radius = 50'''.format(nalpha,nx,x_min,x_max))
 
-    print(map_data)
+    #use built in function to rotate 90deg about y axis
+    tp.macro.execute_command('''$!AxialDuplicate
+                             ZoneList =  [12]
+                             Angle = 90
+                             NumDuplicates = 1
+                             XVar = 1
+                             YVar = 2
+                             ZVar = 3
+                             UVarList =  [8]
+                             VVarList =  [9]
+                             WVarList =  [10]
+                             NormalX = 0
+                             NormalY = 1
+                             NormalZ = 0''')
+
+    #delete verticle cylinder
+    SWMF_DATA.delete_zones(SWMF_DATA.zone('Circular zone'))
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -470,7 +352,7 @@ if __name__ == "__main__":
 
     #Set the parameters for streamline seeding
     #DaySide
-    N_AZIMUTH_DAY = 50
+    N_AZIMUTH_DAY = 5
     AZIMUTH_MAX = 122
     AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)] #need to come back
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
@@ -478,7 +360,7 @@ if __name__ == "__main__":
     R_MIN = 3.5
 
     #Tail
-    N_AZIMUTH_TAIL = 50
+    N_AZIMUTH_TAIL = 5
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
@@ -500,23 +382,23 @@ if __name__ == "__main__":
 
         #Create Theta and Phi coordinates for all points in domain
         tp.data.operate.execute_equation(
-                                 '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
+                                   '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
         tp.data.operate.execute_equation(
-        '{theta} = acos({Z [R]}/{r [R]}) * ({X [R]}+1e-24) / abs({X [R]}+1e-24)')
+                                   '{theta} = acos({Z [R]}/{r [R]}) * '+
+                                    '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
         #Export 3D point data to csv file
-        tp.macro.execute_extended_command(command_processor_id='excsv',
-                command='VarNames:FrOp=1:ZnCount=100:ZnList=[2-101]:VarCount=3:VarList=[1-3]:ValSep=",":F    NAME="/Users/ngpdl/Code/swmf-energetics/mp_points.csv"')
-
-        #Construct data set for mapping
-        #construct_map_data(SPARSENESS)
-
-        #Stitch into single ordered zone
-        #stitch_zones('MagnetoPause', SPARSENESS)
-
-        #Interpolate field data and calculate normal energy flux on magnetopause zone
-
-        #Interpolate data
+        #os.system('touch mp_points.csv | rm mp_points.csv')
+        #tp.macro.execute_extended_command(command_processor_id='excsv',
+        #        command='VarNames:'+
+        #                'FrOp=1:'+
+        #                'ZnCount=100:'+
+        #                'ZnList=[2-101]:'+
+        #                'VarCount=3:'+
+        #                'VarList=[1-3]:'+
+        #                'ValSep=",":F    '+
+        #        'NAME="/Users/ngpdl/Code/swmf-energetics/mp_points.csv"')
+        create_cylinder(50, 50, -20, 10)
 
         #Show spatial axes labels
         #tp.active_frame().plot().fieldmap(0).show = False
@@ -528,8 +410,8 @@ if __name__ == "__main__":
         tp.active_frame().plot().isosurface(0).isosurface_values[0]=1
         tp.active_frame().plot(PlotType.Cartesian3D).show_slices=True
         tp.active_frame().plot().slice(0).origin=(X_TAIL_CAP,
-                                              tp.active_frame().plot().slice(0).origin[1],
-                                              tp.active_frame().plot().slice(0).origin[2])
+                                tp.active_frame().plot().slice(0).origin[1],
+                                tp.active_frame().plot().slice(0).origin[2])
         print("--- %s seconds ---" % (time.time() - start_time))
 #
 #        -------------------------------------------------------------

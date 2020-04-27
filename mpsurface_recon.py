@@ -20,10 +20,12 @@ START = time.time()
 def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     """Function loops through x position to create 2D closed curves in YZ
     Inputs
+        zone- pandas DataFrame containing stream line 3D data
         x_min
         x_max
         n_slice- must be >= 2
         n_theta
+        show- True for plotting
     Outputs
         mesh- mesh of X,Y,Z points in a pandas DataFrame object
     """
@@ -80,21 +82,27 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         tck, u = interp.splprep([zone_temp['Y [R]'],
                                  zone_temp['Z [R]']],
                                  s=20, per=True)
-        y_new, z_new = interp.splev(np.linspace(0,1,1000), tck)
-        x_new = np.ones(len(y_new))*x
-        for i in range(0,len(x_new[::n_theta])):
-            mesh = mesh.append(pd.DataFrame([[x_new[i],
-                                            y_new[i],
-                                            z_new[i]]],
-                                            columns = ['X','Y','Z']))
-
-        #append interpolated points to mesh
+        y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
+        #setup angle bins for mesh loading
+        x_load, y_load, z_load = [], [], []
+        n_angle = n_theta
+        da = 2*pi/n_angle/10
+        for a in np.linspace(-1*pi+da, pi-da, n_angle-2):
+            #extract point from curve in angle range
+            condition = ((np.arctan2(z_curve,y_curve)>a-da) &
+                         (np.arctan2(z_curve,y_curve)<a+da))
+            y_load.append(np.extract(condition, y_curve)[0])
+            z_load.append(np.extract(condition, z_curve)[0])
+            x_load.append(x)
+        mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
+                                        columns = ['X','Y','Z']))
 
         if show:
             #plot interpolated data and save figure
             ax.scatter(zone_temp['Y [R]'], zone_temp['Z [R]'], c='green',
                        label='remaining')
-            ax.plot(y_new, z_new, label='interpolated')
+            ax.plot(y_curve, z_curve, label='interpolated')
+            ax.scatter(y_load, z_load, label ='mesh_final')
             ax.set_xlabel('Y [Re]')
             ax.set_ylabel('Z [Re]')
             ax.set_xlim([-30,30])
@@ -153,7 +161,6 @@ if __name__ == "__main__":
     MESH.to_csv('slice_mesh.csv', index=False)
 
     #Plot slices with finalized points
-
     if SHOW_VIDEO:
         show_video('slice_log')
 
