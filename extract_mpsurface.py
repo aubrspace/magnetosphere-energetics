@@ -313,7 +313,7 @@ def create_cylinder(nx, nalpha, x_min, x_max):
 
     #use built in function to rotate 90deg about y axis
     tp.macro.execute_command('''$!AxialDuplicate
-                             ZoneList =  [12]
+                             ZoneList =  [{:d}]
                              Angle = 90
                              NumDuplicates = 1
                              XVar = 1
@@ -324,10 +324,53 @@ def create_cylinder(nx, nalpha, x_min, x_max):
                              WVarList =  [10]
                              NormalX = 0
                              NormalY = 1
-                             NormalZ = 0''')
+                             NormalZ = 0'''.format(SWMF_DATA.num_zones))
 
     #delete verticle cylinder
     SWMF_DATA.delete_zones(SWMF_DATA.zone('Circular zone'))
+    SWMF_DATA.zone('Circular*').name = 'mp_zone'
+
+def load_cylinder(filename, zonename, I, J, K):
+    """Function to load processed slice data into cylindrial ordered zone
+       I, J, K -> radial, azimuthal, axial
+    Inputs
+        filename- path to .csv file for loading data
+        zonename- name of cylindrical zone
+        I- vector of I coordinates (0 to 1)
+        J- vector of J coordinates (0 to num_alpha)
+        K- vector of K coordinates (0 to num_slices)
+    """
+    mag_bound = SWMF_DATA.zone(zonename)
+    data = pd.read_csv(filename)
+    xdata = data['X'].values.copy()
+    ydata = data['Y'].values.copy()
+    zdata = data['Z'].values.copy()
+    #ndata = np.meshgrid(xdata,ydata,zdata)
+    mag_bound.values('X*')[1::2] = xdata
+    mag_bound.values('Y*')[1::2] = ydata
+    mag_bound.values('Z*')[1::2] = zdata
+
+def calculate_energetics():
+    """Function calculates values for energetics tracing
+    """
+    #Electric Field
+    tp.data.operate.execute_equation('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]} - {U_y [km/s]}*{B_z     [nT]})')
+    tp.data.operate.execute_equation('{E_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]} - {U_z [km/s]}*    {B_x [nT]})')
+    tp.data.operate.execute_equation('{E_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]} - {U_x [km/s]}*    {B_y [nT]})')
+    #Poynting Flux
+    tp.data.operate.execute_equation('{ExB_x [kW/km^2]} = -(1/1.25663706)*({E_z [mV/km]}*{B_y     [nT]} - {E_y [mV/km]}*{B_z [nT]})*1e-6')
+    tp.data.operate.execute_equation('{ExB_y [kW/km^2]} = -(1/1.25663706)*({E_x [mV/km]}*{B_z     [nT]} - {E_z [mV/km]}*{B_x [nT]})*1e-6')
+    tp.data.operate.execute_equation('{ExB_z [kW/km^2]} = -(1/1.25663706)*({E_y [mV/km]}*{B_x     [nT]} - {E_x [mV/km]}*{B_y [nT]})*1e-6')
+    #Total Energy Flux
+    tp.data.operate.execute_equation('{K_x [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/(1.6666    67-1)) + 1e-3*{Rho [amu/cm^3]}/2*({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s    ]}**2))*{U_x [km/s]}  +  {ExB_x [kW/km^2]}')
+    tp.data.operate.execute_equation('{K_y [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/(1.6666    67-1)) + 1e-3*{Rho [amu/cm^3]}/2*({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s    ]}**2))*{U_y [km/s]}  +  {ExB_y [kW/km^2]}')
+    tp.data.operate.execute_equation('{K_z [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/(1.6666    67-1)) + 1e-3*{Rho [amu/cm^3]}/2*({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s    ]}**2))*{U_z [km/s]}  +  {ExB_z [kW/km^2]}')
+    #Component Normal Flux
+    tp.data.operate.execute_equation('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Norma    l} + {K_y [kW/km^2]}*{Y Grid K Unit Normal} + {K_z [kW/km^2]}*{Z Grid K Unit     Normal}) / sqrt({X Grid K Unit Normal}**2 + {Y Grid K Unit Normal}**2 + {Z     Grid K Unit Normal}**2) * {X Grid K Unit Normal}')
+    tp.data.operate.execute_equation('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Norma    l} + {K_y [kW/km^2]}*{Y Grid K Unit Normal} + {K_z [kW/km^2]}*{Z Grid K Unit     Normal}) / sqrt({X Grid K Unit Normal}**2 + {Y Grid K Unit Normal}**2 + {Z     Grid K Unit Normal}**2) * {Y Grid K Unit Normal}')
+    tp.data.operate.execute_equation('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Norma    l} + {K_y [kW/km^2]}*{Y Grid K Unit Normal} + {K_z [kW/km^2]}*{Z Grid K Unit     Normal}) / sqrt({X Grid K Unit Normal}**2 + {Y Grid K Unit Normal}**2 + {Z     Grid K Unit Normal}**2) * {Z Grid K Unit Normal}')
+    #Magnitude Normal Flux
+    tp.data.operate.execute_equation('{K_in [Kw/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Norm    al} + {Kn_y [kW/km^2]}*{Y Grid K Unit Normal} + {Kn_z [kW/km^2]}*{Z Grid K U    nit Normal}) / sqrt({X Grid K Unit Normal}**2 + {Y Grid K Unit Normal}**2 +     {Z Grid K Unit Normal}**2)')
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -335,8 +378,16 @@ def create_cylinder(nx, nalpha, x_min, x_max):
 #   "Scripting" -> "PyTecplot Connections..." -> "Accept connections"
 
 if __name__ == "__main__":
+    if '-n' in sys.argv:
+        os.system('open -a Tecplot\ 360\ EX\ 2019\ R1')
+        tp.macro.execute_extended_command("TecUtilServer",'R"('+
+                                          'AcceptRequests = Yes'+
+                                          'ListenOnAddress = localhost'+
+                                          'ListenOnPort = 7600)"')
+
     if '-c' in sys.argv:
         tp.session.connect()
+
 
     tp.new_layout()
 
@@ -372,13 +423,12 @@ if __name__ == "__main__":
     TOL = 0.1
     SPARSENESS = 50
 
-    #Create Dayside Magnetopause field lines
     with tp.session.suspend():
         #Create Dayside Magnetopause field lines
-        calc_dayside_mp(PHI, R_MAX, R_MIN)
+        #calc_dayside_mp(PHI, R_MAX, R_MIN)
 
         #Create Tail magnetopause field lines
-        calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
+        #calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
 
         #Create Theta and Phi coordinates for all points in domain
         tp.data.operate.execute_equation(
@@ -398,7 +448,19 @@ if __name__ == "__main__":
         #                'VarList=[1-3]:'+
         #                'ValSep=",":F    '+
         #        'NAME="/Users/ngpdl/Code/swmf-energetics/mp_points.csv"')
+
+        #create and load cylidrical zone
         create_cylinder(50, 50, -20, 10)
+        load_cylinder('slice_mesh.csv', 'mp_zone',
+                      range(0,2), range(0,50), range(0,50))
+
+        #interpolate field data to zone
+        tp.data.operate.interpolate_inverse_distance(
+                destination_zone=SWMF_DATA.zone('mp_zone'),
+                source_zones=SWMF_DATA.zone('global_field'))
+
+        #calculate energetics
+        calculate_energetics()
 
         #Show spatial axes labels
         #tp.active_frame().plot().fieldmap(0).show = False

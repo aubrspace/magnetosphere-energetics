@@ -33,7 +33,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     mesh = pd.DataFrame(columns = ['X', 'Y', 'Z', 'alpha', 'r'])
     print(mesh)
     k = 0
-    for x in np.linspace(x_min, x_max-dx, n_slice-1):
+    for x in np.linspace(x_min, x_max-dx, n_slice):
         #Gather data within one x-slice
         zone_temp = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
 
@@ -87,15 +87,22 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         x_load, y_load, z_load = [], [], []
         n_angle = n_theta
         da = 2*pi/n_angle/10
-        for a in np.linspace(-1*pi+da, pi-da, n_angle-2):
+        for a in np.linspace(-1*pi, pi, n_angle):
             #extract point from curve in angle range
             condition = ((np.arctan2(z_curve,y_curve)>a-da) &
                          (np.arctan2(z_curve,y_curve)<a+da))
-            y_load.append(np.extract(condition, y_curve)[0])
-            z_load.append(np.extract(condition, z_curve)[0])
-            x_load.append(x)
-        mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
-                                        columns = ['X','Y','Z']))
+            y_load = np.extract(condition, y_curve)[0]
+            z_load = np.extract(condition, z_curve)[0]
+            x_load = x
+            mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
+                                        columns = ['X','Y','Z']),
+                                ignore_index=True)
+
+        #duplicate first value to make overlapping surface
+        x_index, y_index, z_index = 0,1,2
+        mesh.iloc[-1,x_index] = mesh.iloc[-50,x_index]
+        mesh.iloc[-1,y_index] = mesh.iloc[-50,y_index]
+        mesh.iloc[-1,z_index] = mesh.iloc[-50,z_index]
 
         if show:
             #plot interpolated data and save figure
@@ -156,7 +163,8 @@ if __name__ == "__main__":
     X_MIN = -20
 
     #Slice and construct XYZ data
-    MESH = yz_slicer(ZONE, X_MIN, X_MAX, 100, 50, SHOW_VIDEO)
+    MESH = yz_slicer(ZONE, X_MIN, X_MAX, 50, 50, SHOW_VIDEO)
+    MESH = MESH.drop(columns=['r','alpha'])
     #MESH.to_hdf('slice_mesh.h5', format='table', key='MESH', mode='w')
     MESH.to_csv('slice_mesh.csv', index=False)
 
