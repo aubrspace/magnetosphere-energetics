@@ -30,7 +30,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         mesh- mesh of X,Y,Z points in a pandas DataFrame object
     """
     dx = (x_max-x_min)/(2*(n_slice-1))
-    mesh = pd.DataFrame(columns = ['X', 'Y', 'Z', 'alpha', 'r'])
+    mesh = pd.DataFrame(columns = ['X', 'Y', 'Z'])
     print(mesh)
     k = 0
     for x in np.linspace(x_min, x_max-dx, n_slice):
@@ -164,7 +164,6 @@ if __name__ == "__main__":
 
     #Slice and construct XYZ data
     MESH = yz_slicer(ZONE, X_MIN, X_MAX, 50, 50, SHOW_VIDEO)
-    MESH = MESH.drop(columns=['r','alpha'])
     #MESH.to_hdf('slice_mesh.h5', format='table', key='MESH', mode='w')
     MESH.to_csv('slice_mesh.csv', index=False)
 

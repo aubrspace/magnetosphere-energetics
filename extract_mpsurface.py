@@ -12,6 +12,7 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
+import mpsurface_recon
 
 log.basicConfig(level=log.INFO)
 start_time = time.time()
@@ -274,9 +275,11 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
                                                        np.rad2deg(psi[i])))
 
 
-def dump_to_pandas(spar):
+def dump_to_pandas():
     """Function to hand zone data to pandas to do processing
     Inputs-
+    Outputs-
+        loc_data- DataFrame of stream zone data
     """
     loc_data = pd.DataFrame(columns = ['X', 'Y', 'Z'])
     #load data into DataFrame
@@ -290,7 +293,7 @@ def dump_to_pandas(spar):
                                       SWMF_DATA.zone(i).values('Z *')[j]]],
                                     columns = ['X', 'Y', 'Z']))
         loc_data = loc_data.append(temp_data, ignore_index=True)
-    print(loc_data)
+    return loc_data
 
 def create_cylinder(nx, nalpha, x_min, x_max):
     """Function creates empty cylindrical zone for loading of slice data
@@ -352,7 +355,6 @@ def load_cylinder(filename, zonename, I, J, K):
 
 def calculate_energetics():
     """Function calculates values for energetics tracing
-    very ugly
     """
     tp.macro.execute_extended_command('CFDAnalyzer3', 'CALCULATE FUNCTION = GRIDKUNITNORMAL VALUELOCATION = CELLCENTERED')
     eq = tp.data.operate.execute_equation
@@ -499,31 +501,38 @@ if __name__ == "__main__":
         #                'ValSep=",":F    '+
         #        'NAME="/Users/ngpdl/Code/swmf-energetics/mp_points.csv"')
 
+        #port stream data to pandas DataFrame object
+        STREAM_DF = dump_to_pandas()
+
+        #slice and construct XYZ data
+        MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, 10,
+                                         50, 50, False)
+
         #create and load cylidrical zone
-        create_cylinder(50, 50, -20, 10)
-        load_cylinder('slice_mesh.csv', 'mp_zone',
-                      range(0,2), range(0,50), range(0,50))
+        #create_cylinder(50, 50, -20, 10)
+        #load_cylinder('slice_mesh.csv', 'mp_zone',
+        #              range(0,2), range(0,50), range(0,50))
 
         #interpolate field data to zone
-        tp.data.operate.interpolate_inverse_distance(
-                destination_zone=SWMF_DATA.zone('mp_zone'),
-                source_zones=SWMF_DATA.zone('global_field'))
+        #tp.data.operate.interpolate_inverse_distance(
+        #        destination_zone=SWMF_DATA.zone('mp_zone'),
+        #        source_zones=SWMF_DATA.zone('global_field'))
 
         #calculate energetics
         calculate_energetics()
 
         #Show spatial axes labels
         #tp.active_frame().plot().fieldmap(0).show = False
-        tp.active_frame().plot().fieldmap(1).show = True
-        tp.active_frame().plot().show_mesh = True
-        tp.active_frame().plot().view.fit()
-        tp.active_frame().plot(PlotType.Cartesian3D).show_isosurfaces=True
-        tp.active_frame().plot().contour(0).variable_index=14
-        tp.active_frame().plot().isosurface(0).isosurface_values[0]=1
-        tp.active_frame().plot(PlotType.Cartesian3D).show_slices=True
-        tp.active_frame().plot().slice(0).origin=(X_TAIL_CAP,
-                                tp.active_frame().plot().slice(0).origin[1],
-                                tp.active_frame().plot().slice(0).origin[2])
+        #tp.active_frame().plot().fieldmap(1).show = True
+        #tp.active_frame().plot().show_mesh = True
+        #tp.active_frame().plot().view.fit()
+        #tp.active_frame().plot(PlotType.Cartesian3D).show_isosurfaces=True
+        #tp.active_frame().plot().contour(0).variable_index=14
+        #tp.active_frame().plot().isosurface(0).isosurface_values[0]=1
+        #tp.active_frame().plot(PlotType.Cartesian3D).show_slices=True
+        #tp.active_frame().plot().slice(0).origin=(X_TAIL_CAP,
+        #                        tp.active_frame().plot().slice(0).origin[1],
+        #                        tp.active_frame().plot().slice(0).origin[2])
         print("--- %s seconds ---" % (time.time() - start_time))
 #
 #        -------------------------------------------------------------
