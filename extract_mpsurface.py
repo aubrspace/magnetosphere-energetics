@@ -280,20 +280,24 @@ def dump_to_pandas():
     Inputs-
     Outputs-
         loc_data- DataFrame of stream zone data
+        x_max
     """
-    loc_data = pd.DataFrame(columns = ['X', 'Y', 'Z'])
-    #load data into DataFrame
-    for i in range(1,SWMF_DATA.num_zones):
-        temp_data = pd.DataFrame(columns = ['X', 'Y', 'Z'])
-        for j in range(0, max(SWMF_DATA.zone(i).dimensions)):
-            temp_data = temp_data.append(
-                        pd.DataFrame(
-                                    [[SWMF_DATA.zone(i).values('X *')[j],
-                                      SWMF_DATA.zone(i).values('Y *')[j],
-                                      SWMF_DATA.zone(i).values('Z *')[j]]],
-                                    columns = ['X', 'Y', 'Z']))
-        loc_data = loc_data.append(temp_data, ignore_index=True)
-    return loc_data
+    #Export 3D point data to csv file
+    os.system('touch mp_points.csv | rm mp_points.csv')
+    tp.macro.execute_extended_command(command_processor_id='excsv',
+            command='VarNames:'+
+                    'FrOp=1:'+
+                    'ZnCount={:d}:'.format(SWMF_DATA.num_zones-1)+
+                    'ZnList=[2-{:d}]:'.format(SWMF_DATA.num_zones)+
+                    'VarCount=3:'+
+                    'VarList=[1-3]:'+
+                    'ValSep=",":'+
+            'FNAME="/Users/ngpdl/Code/swmf-energetics/stream_points.csv"')
+    loc_data = pd.read_csv('stream_points.csv')
+    loc_data = loc_data.drop(columns=['Unnamed: 3'])
+    loc_data = loc_data.sort_values(by=['X [R]'])
+    x_max = loc_data['X [R]'].max()
+    return loc_data, x_max
 
 def create_cylinder(nx, nalpha, x_min, x_max):
     """Function creates empty cylindrical zone for loading of slice data
@@ -356,10 +360,11 @@ def load_cylinder(filename, zonename, I, J, K):
 def calculate_energetics():
     """Function calculates values for energetics tracing
     """
+    zone_index= SWMF_DATA.zone('mp_zone').index
     tp.macro.execute_extended_command('CFDAnalyzer3', 'CALCULATE FUNCTION = GRIDKUNITNORMAL VALUELOCATION = CELLCENTERED')
     eq = tp.data.operate.execute_equation
     #Electric Field
-    eq( '{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
+    eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
                           '-{U_y [km/s]}*{B_z [nT]})')
     eq('{E_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
                          '-{U_z [km/s]}*{B_x [nT]})')
@@ -381,17 +386,20 @@ def calculate_energetics():
                                '+1e-3*{Rho [amu/cm^3]}/2*'+
                                    '({U_x [km/s]}**2+{U_y [km/s]}**2'+
                                    '+{U_z [km/s]}**2))'+
-                          '*{U_x [km/s]}  +  {ExB_x [kW/km^2]}')
+                          '*{U_x [km/s]}  +  {ExB_x [kW/km^2]}',
+        zones=[zone_index])
     eq('{K_y [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
                                '+1e-3*{Rho [amu/cm^3]}/2*'+
                                    '({U_x [km/s]}**2+{U_y [km/s]}**2'+
                                    '+{U_z [km/s]}**2))'+
-                          '*{U_y [km/s]}  +  {ExB_y [kW/km^2]}')
+                          '*{U_y [km/s]}  +  {ExB_y [kW/km^2]}',
+        zones=[zone_index])
     eq('{K_z [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
                                '+1e-3*{Rho [amu/cm^3]}/2*'+
                                    '({U_x [km/s]}**2+{U_y [km/s]}**2'+
                                    '+{U_z [km/s]}**2))'+
-                          '*{U_z [km/s]}  +  {ExB_z [kW/km^2]}')
+                          '*{U_z [km/s]}  +  {ExB_z [kW/km^2]}',
+        zones=[zone_index])
 
     #Component Normal Flux
     eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
@@ -400,21 +408,24 @@ def calculate_energetics():
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2'+
                                   '+{Z Grid K Unit Normal}**2)'+
-                          '* {X Grid K Unit Normal}')
+                          '* {X Grid K Unit Normal}',
+       zones=[zone_index])
     eq('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
                             '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
                             '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2'+
                                   '+{Z Grid K Unit Normal}**2)'+
-                          '* {Y Grid K Unit Normal}')
+                          '* {Y Grid K Unit Normal}',
+        zones=[zone_index])
     eq('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
                             '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
                             '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2'+
                                   '+{Z Grid K Unit Normal}**2)'+
-                          '* {Z Grid K Unit Normal}')
+                          '* {Z Grid K Unit Normal}',
+        zones=[zone_index])
 
     #Magnitude Normal Flux
     eq('{K_in [Kw/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Normal}'+
@@ -422,7 +433,8 @@ def calculate_energetics():
                             '+{Kn_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2 '+
-                                  '+{Z Grid K Unit Normal}**2)')
+                                  '+{Z Grid K Unit Normal}**2)',
+        zones=[zone_index])
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -455,7 +467,7 @@ if __name__ == "__main__":
 
     #Set the parameters for streamline seeding
     #DaySide
-    N_AZIMUTH_DAY = 5
+    N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
     AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)] #need to come back
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
@@ -463,7 +475,7 @@ if __name__ == "__main__":
     R_MIN = 3.5
 
     #Tail
-    N_AZIMUTH_TAIL = 5
+    N_AZIMUTH_TAIL = 50
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
@@ -477,10 +489,10 @@ if __name__ == "__main__":
 
     with tp.session.suspend():
         #Create Dayside Magnetopause field lines
-        #calc_dayside_mp(PHI, R_MAX, R_MIN)
+        calc_dayside_mp(PHI, R_MAX, R_MIN)
 
         #Create Tail magnetopause field lines
-        #calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
+        calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
 
         #Create Theta and Phi coordinates for all points in domain
         tp.data.operate.execute_equation(
@@ -489,34 +501,22 @@ if __name__ == "__main__":
                                    '{theta} = acos({Z [R]}/{r [R]}) * '+
                                     '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
-        #Export 3D point data to csv file
-        #os.system('touch mp_points.csv | rm mp_points.csv')
-        #tp.macro.execute_extended_command(command_processor_id='excsv',
-        #        command='VarNames:'+
-        #                'FrOp=1:'+
-        #                'ZnCount=100:'+
-        #                'ZnList=[2-101]:'+
-        #                'VarCount=3:'+
-        #                'VarList=[1-3]:'+
-        #                'ValSep=",":F    '+
-        #        'NAME="/Users/ngpdl/Code/swmf-energetics/mp_points.csv"')
-
         #port stream data to pandas DataFrame object
-        STREAM_DF = dump_to_pandas()
+        STREAM_DF, X_MAX = dump_to_pandas()
 
         #slice and construct XYZ data
-        MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, 10,
+        MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
                                          50, 50, False)
 
         #create and load cylidrical zone
-        #create_cylinder(50, 50, -20, 10)
-        #load_cylinder('slice_mesh.csv', 'mp_zone',
-        #              range(0,2), range(0,50), range(0,50))
+        create_cylinder(50, 50, -20, 10)
+        load_cylinder('slice_mesh.csv', 'mp_zone',
+                      range(0,2), range(0,50), range(0,50))
 
         #interpolate field data to zone
-        #tp.data.operate.interpolate_inverse_distance(
-        #        destination_zone=SWMF_DATA.zone('mp_zone'),
-        #        source_zones=SWMF_DATA.zone('global_field'))
+        tp.data.operate.interpolate_inverse_distance(
+                destination_zone=SWMF_DATA.zone('mp_zone'),
+                source_zones=SWMF_DATA.zone('global_field'))
 
         #calculate energetics
         calculate_energetics()
@@ -533,7 +533,9 @@ if __name__ == "__main__":
         #tp.active_frame().plot().slice(0).origin=(X_TAIL_CAP,
         #                        tp.active_frame().plot().slice(0).origin[1],
         #                        tp.active_frame().plot().slice(0).origin[2])
-        print("--- %s seconds ---" % (time.time() - start_time))
+        ltime = time.time()-start_time
+        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
+                                               np.mod(ltime,60)))
 #
 #        -------------------------------------------------------------
 #                 Function to check if a streamzone is open or closed

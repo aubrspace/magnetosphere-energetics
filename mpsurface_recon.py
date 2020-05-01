@@ -31,7 +31,6 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     """
     dx = (x_max-x_min)/(2*(n_slice-1))
     mesh = pd.DataFrame(columns = ['X', 'Y', 'Z'])
-    print(mesh)
     k = 0
     for x in np.linspace(x_min, x_max-dx, n_slice):
         #Gather data within one x-slice
