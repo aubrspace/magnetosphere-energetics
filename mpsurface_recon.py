@@ -30,7 +30,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         mesh- mesh of X,Y,Z points in a pandas DataFrame object
     """
     dx = (x_max-x_min)/(2*(n_slice-1))
-    mesh = pd.DataFrame(columns = ['X', 'Y', 'Z'])
+    mesh = pd.DataFrame(columns = ['X [R]', 'Y [R]', 'Z [R]'])
     k = 0
     for x in np.linspace(x_min, x_max-dx, n_slice):
         #Gather data within one x-slice
@@ -94,14 +94,14 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             z_load = np.extract(condition, z_curve)[0]
             x_load = x
             mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
-                                        columns = ['X','Y','Z']),
+                                    columns = ['X [R]','Y [R]','Z [R]']),
                                 ignore_index=True)
 
         #duplicate first value to make overlapping surface
         x_index, y_index, z_index = 0,1,2
-        mesh.iloc[-1,x_index] = mesh.iloc[-50,x_index]
-        mesh.iloc[-1,y_index] = mesh.iloc[-50,y_index]
-        mesh.iloc[-1,z_index] = mesh.iloc[-50,z_index]
+        mesh.iloc[-1,x_index] = mesh.iloc[-n_angle,x_index]
+        mesh.iloc[-1,y_index] = mesh.iloc[-n_angle,y_index]
+        mesh.iloc[-1,z_index] = mesh.iloc[-n_angle,z_index]
 
         if show:
             #plot interpolated data and save figure

@@ -53,18 +53,14 @@ def create_stream_zone(r_start, theta_start, phi_start,
     field_line.delete_all()
 
 
-def check_streamline_closed(zone_name, r_seed, r_cap, stream_type):
+def check_streamline_closed(zone_name, r_seed, stream_type):
     """Function to check if a streamline is open or closed
     Inputs
         zone_name
         r_seed [R]- position used to seed field line
-        r_cap [R]- radius of cap that determines if line is closed
         stream_type- dayside, north or south from tail
     Outputs
         isclosed- boolean, True for closed
-        max(r_end_n, r_cap)- furthest out point at pole, for making smooth
-        surface on the caps
-        max(r_end_s, r_cap)
     """
     # Get starting and endpoints of streamzone
     r_values = SWMF_DATA.zone(zone_name+'*').values('r *').as_numpy_array()
@@ -83,7 +79,7 @@ def check_streamline_closed(zone_name, r_seed, r_cap, stream_type):
         isclosed = False
     else:
         isclosed = True
-    return isclosed, max(r_end_n, r_cap), max(r_end_s, r_cap)
+    return isclosed
 
 def sph_to_cart(radius, theta, phi):
     """Function converts spherical coordinates to cartesian coordinates
@@ -119,20 +115,17 @@ def find_tail_disc_point(rho, psi_disc, x_pos):
     return [radius, theta, phi_disc]
 
 
-def calc_dayside_mp(phi, r_max, r_min):
+def calc_dayside_mp(phi, r_max, r_min, itr_max, tolerance):
     """"Function to create zones that will makeup dayside magnetopause
     Inputs
         phi- set of phi angle points
         r_max- maxium radial distance for equitorial search
-        r_min- min
-    Outputs
-        r_north- set of cuttoff points for northern hemisphere
-        r_south- southern hemisphere
+        r_min
+        itr_max
+        tolerance- for searching algorithm
     """
     #Initialize objects that will be modified in creation loop
     r_eq_mid = np.zeros(int(len(phi)))
-    r_north = np.zeros(int(len(phi)))
-    r_south = np.zeros(int(len(phi)))
     itr = 0
     r_eq_max, r_eq_min = r_max, r_min
 
@@ -152,10 +145,10 @@ def calc_dayside_mp(phi, r_max, r_min):
         create_stream_zone(r_max, pi/2, phi[i], 'max_field_line',
                            stream_type)
         #Check that last closed is bounded
-        min_closed, _, __ = check_streamline_closed('min_field_line',
-                                                  r_min, R_CAP, stream_type)
-        max_closed, _, __ = check_streamline_closed('max_field_line',
-                                                  r_max, R_CAP, stream_type)
+        min_closed = check_streamline_closed('min_field_line',
+                                                  r_min, stream_type)
+        max_closed = check_streamline_closed('max_field_line',
+                                                  r_max, stream_type)
         SWMF_DATA.delete_zones(SWMF_DATA.zone('min_field*'),
                                SWMF_DATA.zone('max_field*'))
         print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(
@@ -174,19 +167,18 @@ def calc_dayside_mp(phi, r_max, r_min):
             itr = 0
             notfound = True
             r_eq_min, r_eq_max = r_min, r_max
-            while(notfound and itr < ITR_MAX):
+            while(notfound and itr < itr_max):
                 #This is a bisection root finding algorithm
                 create_stream_zone(r_eq_mid[i], pi/2, phi[i],
                                    'temp_field_phi_', stream_type)
-                mid_closed, r_north[i],r_south[i] = check_streamline_closed(
-                                                         'temp_field_phi_',
-                                                         r_eq_mid[i], R_CAP,
-                                                         stream_type)
+                mid_closed = check_streamline_closed('temp_field_phi_',
+                                                     r_eq_mid[i],
+                                                     stream_type)
                 if mid_closed:
                     r_eq_min = r_eq_mid[i]
                 else:
                     r_eq_max = r_eq_mid[i]
-                if abs(r_eq_min - r_eq_max) < TOL and mid_closed:
+                if abs(r_eq_min - r_eq_max) < tolerance and mid_closed:
                     notfound = False
                     SWMF_DATA.zone('temp*').name ='field_phi_{:.1f}'.format(
                                                          np.rad2deg(phi[i]))
@@ -194,7 +186,6 @@ def calc_dayside_mp(phi, r_max, r_min):
                     r_eq_mid[i] = (r_eq_max+r_eq_min)/2
                     SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_field*'))
                 itr += 1
-    return r_north, r_south
 
 
 
@@ -209,8 +200,6 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
     """
     #Initialize objects that will be modified in creation loop
     rho_tail = rho_max
-    r_north = np.zeros(int(len(psi)))
-    r_south = np.zeros(int(len(psi)))
 
     #set B as the vector field
     plot = tp.active_frame().plot()
@@ -232,9 +221,8 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
         create_stream_zone(r_tail, theta_tail, phi_tail,
                            'temp_tail_line_', stream_type)
         #check if closed
-        tail_closed, r_north[i], r_south[i] = check_streamline_closed(
-                                                  'temp_tail_line_', r_tail,
-                                                  R_CAP, stream_type)
+        tail_closed = check_streamline_closed('temp_tail_line_', r_tail,
+                                              stream_type)
         if tail_closed:
             print('WARNING: field line closed at RHO_MAX={}R_e'.format(
                                                                    rho_max))
@@ -260,10 +248,8 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
                     stream_type = 'north'
                 create_stream_zone(r_tail, theta_tail, phi_tail,
                                    'temp_tail_line_', stream_type)
-                tail_closed, r_north[i],r_south[i] =check_streamline_closed(
-                                                         'temp_tail_line_',
-                                                         rho_tail, R_CAP,
-                                                         stream_type)
+                tail_closed =check_streamline_closed('temp_tail_line_',
+                                                     rho_tail, stream_type)
                 if tail_closed:
                     SWMF_DATA.zone('temp*').name='tail_field_{:.1f}'.format(
                                                         np.rad2deg(psi[i]))
@@ -283,7 +269,6 @@ def dump_to_pandas():
         x_max
     """
     #Export 3D point data to csv file
-    os.system('touch mp_points.csv | rm mp_points.csv')
     tp.macro.execute_extended_command(command_processor_id='excsv',
             command='VarNames:'+
                     'FrOp=1:'+
@@ -307,6 +292,8 @@ def create_cylinder(nx, nalpha, x_min, x_max):
         x_min
         x_max
     """
+    print('\nin create_cylinder')
+    print(type(nx),type(nalpha))
     #use built in create zone function for verticle cylinder
     tp.macro.execute_command('''$!CreateCircularZone
                              IMax = 2
@@ -315,7 +302,7 @@ def create_cylinder(nx, nalpha, x_min, x_max):
                              X = 0
                              Y = 0
                              Z1 = {:d}
-                             Z2 = {:d}
+                             Z2 = {:f}
                              Radius = 50'''.format(nalpha,nx,x_min,x_max))
 
     #use built in function to rotate 90deg about y axis
@@ -337,7 +324,7 @@ def create_cylinder(nx, nalpha, x_min, x_max):
     SWMF_DATA.delete_zones(SWMF_DATA.zone('Circular zone'))
     SWMF_DATA.zone('Circular*').name = 'mp_zone'
 
-def load_cylinder(filename, zonename, I, J, K):
+def load_cylinder(data, zonename, I, J, K):
     """Function to load processed slice data into cylindrial ordered zone
        I, J, K -> radial, azimuthal, axial
     Inputs
@@ -348,10 +335,11 @@ def load_cylinder(filename, zonename, I, J, K):
         K- vector of K coordinates (0 to num_slices)
     """
     mag_bound = SWMF_DATA.zone(zonename)
-    data = pd.read_csv(filename)
-    xdata = data['X'].values.copy()
-    ydata = data['Y'].values.copy()
-    zdata = data['Z'].values.copy()
+    print(data)
+    #data = pd.read_csv(filename)
+    xdata = data['X [R]'].values.copy()
+    ydata = data['Y [R]'].values.copy()
+    zdata = data['Z [R]'].values.copy()
     #ndata = np.meshgrid(xdata,ydata,zdata)
     mag_bound.values('X*')[1::2] = xdata
     mag_bound.values('Y*')[1::2] = ydata
@@ -461,35 +449,36 @@ if __name__ == "__main__":
     SWMF_DATA.zone(0).name = 'global_field'
     print(SWMF_DATA)
 
-    #Create R from cartesian coordinates
-    tp.data.operate.execute_equation(
-                '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-
-    #Set the parameters for streamline seeding
+    #Set parameters
     #DaySide
     N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
-    AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)] #need to come back
-    PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
     R_MAX = 30
     R_MIN = 3.5
+    ITR_MAX = 100
+    TOL = 0.1
+    AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)]
+    PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
     N_AZIMUTH_TAIL = 50
-    PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -20
+    X_TAIL_CAP = -40
+    PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
-    #Other
-    R_CAP = 3.5
-    ITR_MAX = 100
-    TOL = 0.1
-    SPARSENESS = 50
+    #YZ slices
+    N_SLICE = 100
+    N_ALPHA = 50
+    print('\nwhen created')
+    print(type(N_SLICE),type(N_ALPHA))
 
     with tp.session.suspend():
+        #Create R from cartesian coordinates
+        tp.data.operate.execute_equation(
+                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
         #Create Dayside Magnetopause field lines
-        calc_dayside_mp(PHI, R_MAX, R_MIN)
+        calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
 
         #Create Tail magnetopause field lines
         calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
@@ -506,12 +495,14 @@ if __name__ == "__main__":
 
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
-                                         50, 50, False)
+                                         N_SLICE, N_ALPHA, False)
 
         #create and load cylidrical zone
-        create_cylinder(50, 50, -20, 10)
-        load_cylinder('slice_mesh.csv', 'mp_zone',
-                      range(0,2), range(0,50), range(0,50))
+        print('\nJust bfore function')
+        print(type(N_SLICE),type(N_ALPHA))
+        create_cylinder(N_SLICE, N_ALPHA, X_TAIL_CAP, X_MAX)
+        load_cylinder(MP_MESH, 'mp_zone',
+                      range(0,2), range(0,N_SLICE), range(0,N_ALPHA))
 
         #interpolate field data to zone
         tp.data.operate.interpolate_inverse_distance(
@@ -521,48 +512,24 @@ if __name__ == "__main__":
         #calculate energetics
         calculate_energetics()
 
-        #Show spatial axes labels
-        #tp.active_frame().plot().fieldmap(0).show = False
-        #tp.active_frame().plot().fieldmap(1).show = True
-        #tp.active_frame().plot().show_mesh = True
-        #tp.active_frame().plot().view.fit()
-        #tp.active_frame().plot(PlotType.Cartesian3D).show_isosurfaces=True
-        #tp.active_frame().plot().contour(0).variable_index=14
-        #tp.active_frame().plot().isosurface(0).isosurface_values[0]=1
-        #tp.active_frame().plot(PlotType.Cartesian3D).show_slices=True
-        #tp.active_frame().plot().slice(0).origin=(X_TAIL_CAP,
-        #                        tp.active_frame().plot().slice(0).origin[1],
-        #                        tp.active_frame().plot().slice(0).origin[2])
+        #adjust frame settings
+        plt = tp.active_frame().plot()
+        MP_INDEX = SWMF_DATA.num_zones-1
+        for ZN in range(0,MP_INDEX-1):
+            plt.fieldmap(ZN).show=False
+        plt.fieldmap(MP_INDEX).show = True
+        plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
+        plt.show_mesh = True
+        plt.show_contour = True
+        plt.view.fit(consider_blanking=True)
+        plt.contour(0).variable_index = SWMF_DATA.num_variables-1
+        plt.contour(0).colormap_name = 'cmocean - balance'
+
+        #write .plt and .lay files
+        tp.data.save_tecplot_plt('fileID.plt')
+        tp.save_layout('fileID.lay')
+
+        #timestamp
         ltime = time.time()-start_time
         print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
                                                np.mod(ltime,60)))
-#
-#        -------------------------------------------------------------
-#                 Function to check if a streamzone is open or closed
-#                 Inputs |1| -> Streamzone number / ID
-#                        |2| -> rPoint
-#
-#
-# ============================================================================
-# Create the dayside magnetopause zone
-#
-#
-#
-# ==================================================================================================
-# Interpolate field data and calculate normal energy flux on magnetopause zone
-#
-# Interpolate data
-#
-# Create MP surface normal vector
-#
-# Calculate energy flux for all zones
-#     Electric field (no resistivity)
-#
-#     Poynting flux
-#
-#     Total Energy flux
-#
-# Calculate orthogonal projection of energy flux through magnetopause
-#     Component normal flux
-#
-#     Signed magnitude normal flux
