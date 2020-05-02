@@ -73,9 +73,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                                       (zone_temp['alpha'] > a+da) |
                                       (zone_temp['alpha'] < a-da) |
                                       (zone_temp.index == max_r_index)]
-        print('\n\n\nX=: {:.2f}'.format(x))
-        print("___ %s seconds ___" % (time.time() - START))
-        print('\n\n\n')
+        print('X=: {:.2f}'.format(x))
 
         #Created closed interpolation of data
         tck, u = interp.splprep([zone_temp['Y [R]'],
@@ -133,6 +131,8 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                     '\tRMIN: {:.2f}\n'.format(r_min)+
                     '\tINTERP S: 20\n')
 
+    print("___ %s seconds ___" % (time.time() - START))
+    print('\n\n\n')
     return mesh
 
 def show_video(image_folder):

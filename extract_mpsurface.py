@@ -268,6 +268,7 @@ def dump_to_pandas():
         loc_data- DataFrame of stream zone data
         x_max
     """
+    print('converting stream data to DataFrame\n')
     #Export 3D point data to csv file
     tp.macro.execute_extended_command(command_processor_id='excsv',
             command='VarNames:'+
@@ -292,8 +293,6 @@ def create_cylinder(nx, nalpha, x_min, x_max):
         x_min
         x_max
     """
-    print('\nin create_cylinder')
-    print(type(nx),type(nalpha))
     #use built in create zone function for verticle cylinder
     tp.macro.execute_command('''$!CreateCircularZone
                              IMax = 2
@@ -323,6 +322,7 @@ def create_cylinder(nx, nalpha, x_min, x_max):
     #delete verticle cylinder
     SWMF_DATA.delete_zones(SWMF_DATA.zone('Circular zone'))
     SWMF_DATA.zone('Circular*').name = 'mp_zone'
+    print('empty zone created')
 
 def load_cylinder(data, zonename, I, J, K):
     """Function to load processed slice data into cylindrial ordered zone
@@ -334,8 +334,8 @@ def load_cylinder(data, zonename, I, J, K):
         J- vector of J coordinates (0 to num_alpha)
         K- vector of K coordinates (0 to num_slices)
     """
+    print('cylindrical zone loading')
     mag_bound = SWMF_DATA.zone(zonename)
-    print(data)
     #data = pd.read_csv(filename)
     xdata = data['X [R]'].values.copy()
     ydata = data['Y [R]'].values.copy()
@@ -470,8 +470,6 @@ if __name__ == "__main__":
     #YZ slices
     N_SLICE = 100
     N_ALPHA = 50
-    print('\nwhen created')
-    print(type(N_SLICE),type(N_ALPHA))
 
     with tp.session.suspend():
         #Create R from cartesian coordinates
@@ -498,13 +496,12 @@ if __name__ == "__main__":
                                          N_SLICE, N_ALPHA, False)
 
         #create and load cylidrical zone
-        print('\nJust bfore function')
-        print(type(N_SLICE),type(N_ALPHA))
         create_cylinder(N_SLICE, N_ALPHA, X_TAIL_CAP, X_MAX)
         load_cylinder(MP_MESH, 'mp_zone',
                       range(0,2), range(0,N_SLICE), range(0,N_ALPHA))
 
         #interpolate field data to zone
+        print('interpolating field data to magnetopause')
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=SWMF_DATA.zone('mp_zone'),
                 source_zones=SWMF_DATA.zone('global_field'))
