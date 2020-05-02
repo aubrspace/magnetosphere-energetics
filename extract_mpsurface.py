@@ -424,6 +424,36 @@ def calculate_energetics():
                                   '+{Z Grid K Unit Normal}**2)',
         zones=[zone_index])
 
+def stream_from_iso():
+    '''Function that creates stream lines from iso surface and then stores
+        data as a single zone
+    Inputs-
+    '''
+    plt = tp.active_frame().plot()
+    #generate isosurface
+    tp.active_frame().plot(PlotType.Cartesian3D).show_isosurfaces = True
+    #plt.contour(0).variable_index= SWMF_DATA.num_variables
+    plt.contour(0).variable_index= 14
+    plt.isosurface(0).isosurface_values[0]=1
+    #set vector variables
+    tp.active_frame().plot(PlotType.Cartesian3D).vector.u_variable_index=7
+    tp.active_frame().plot(PlotType.Cartesian3D).vector.v_variable_index=8
+    tp.active_frame().plot(PlotType.Cartesian3D).vector.w_variable_index=9
+    #create streamlines
+    plt.show_streamtraces = True
+    plt.view.fit_surfaces(consider_blanking=True)
+    tp.macro.execute_command('''$!Pick SetMouseMode MouseMode = Select''')
+    tp.macro.execute_command('''$!Pick AddAtPosition
+                             X = 5
+                             Y = 5
+                             ConsiderStyle = Yes''')
+    tp.macro.execute_command('''$!Streamtrace Add
+            DistributionRegion = SurfacesOfSelectedObjects
+            NumPts=1000
+            StreamType=VolumeLine
+            StreamDirection=Both''')
+    tp.macro.execute_command('$!RedrawAll')
+
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
 # To enable connections in Tecplot 360, click on:
@@ -475,6 +505,8 @@ if __name__ == "__main__":
         #Create R from cartesian coordinates
         tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+        stream_from_iso()
+        '''
         #Create Dayside Magnetopause field lines
         calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
 
@@ -526,6 +558,7 @@ if __name__ == "__main__":
         tp.data.save_tecplot_plt('fileID.plt')
         tp.save_layout('fileID.lay')
 
+        '''
         #timestamp
         ltime = time.time()-start_time
         print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
