@@ -464,7 +464,7 @@ if __name__ == "__main__":
     N_AZIMUTH_TAIL = 50
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -40
+    X_TAIL_CAP = -20
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
