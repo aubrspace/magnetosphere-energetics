@@ -1,0 +1,12 @@
+#!/bin/zsh
+#Batch file for running extract_mpsurface.py on all .plt files
+
+PLTDIR=plt/
+SCRIPTDIR=./
+mkdir output
+OUTPUTDIR=/output/
+echo "Created directory $OUTPUTDIR"
+
+for file in $PLTDIR*.plt
+    extract_mpsurface.py file -c
+    echo $file

@@ -425,27 +425,22 @@ def calculate_energetics():
         zones=[zone_index])
 
 
+# Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
 # To enable connections in Tecplot 360, click on:
 #   "Scripting" -> "PyTecplot Connections..." -> "Accept connections"
 
 if __name__ == "__main__":
-    if '-n' in sys.argv:
-        os.system('open -a Tecplot\ 360\ EX\ 2019\ R1')
-        tp.macro.execute_extended_command("TecUtilServer",'R"('+
-                                          'AcceptRequests = Yes'+
-                                          'ListenOnAddress = localhost'+
-                                          'ListenOnPort = 7600)"')
-
     if '-c' in sys.argv:
         tp.session.connect()
 
-
+    DATAFILE = sys.argv[1]
     tp.new_layout()
 
     #Load .plt file, come back to this later for batching
     log.info('loading .plt and reformatting')
-    SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
+    SWMF_DATA = tp.data.load_tecplot(DATAFILE)
+    #SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
     SWMF_DATA.zone(0).name = 'global_field'
     print(SWMF_DATA)
 
