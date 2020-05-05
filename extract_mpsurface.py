@@ -435,6 +435,10 @@ if __name__ == "__main__":
         tp.session.connect()
 
     DATAFILE = sys.argv[1]
+    PLTPATH = sys.argv[2]
+    LAYPATH = sys.argv[3]
+    PNGPATH = sys.argv[4]
+    print('Processing '+DATAFILE)
     tp.new_layout()
 
     #Load .plt file, come back to this later for batching
@@ -518,8 +522,10 @@ if __name__ == "__main__":
         plt.contour(0).colormap_name = 'cmocean - balance'
 
         #write .plt and .lay files
-        tp.data.save_tecplot_plt('fileID.plt')
-        tp.save_layout('fileID.lay')
+        OUTPUTNAME = DATAFILE.split('e')[1].split('-000')[0]+'done'
+        tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
+        tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
+        tp.export.save_png(PLTPATH+OUTPUTNAME+'.png')
 
         #timestamp
         ltime = time.time()-start_time
