@@ -270,17 +270,12 @@ def dump_to_pandas():
     """
     print('converting stream data to DataFrame\n')
     #Export 3D point data to csv file
-    tp.macro.execute_extended_command(command_processor_id='excsv',
-            command='VarNames:'+
-                    'FrOp=1:'+
-                    'ZnCount={:d}:'.format(SWMF_DATA.num_zones-1)+
-                    'ZnList=[2-{:d}]:'.format(SWMF_DATA.num_zones)+
-                    'VarCount=3:'+
-                    'VarList=[1-3]:'+
-                    'ValSep=",":'+
-            'FNAME="/Users/ngpdl/Code/swmf-energetics/stream_points.csv"')
-    loc_data = pd.read_csv('stream_points.csv')
-    loc_data = loc_data.drop(columns=['Unnamed: 3'])
+    skipcond= type()
+    tp.data.save_tecplot_ascii('stream_points.dat',
+                               zones=range(1,SWMF_DATA.num_zones),
+                               variables=[0,1,2], use_point_format=True,
+                               include_text=False, include_geom=False)
+    loc_data = pd.read_table('stream_points.dat',sep=' ', skiprows=skipcond)
     loc_data = loc_data.sort_values(by=['X [R]'])
     x_max = loc_data['X [R]'].max()
     return loc_data, x_max
@@ -450,7 +445,7 @@ if __name__ == "__main__":
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 50
+    N_AZIMUTH_DAY = 5
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
@@ -460,7 +455,7 @@ if __name__ == "__main__":
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 50
+    N_AZIMUTH_TAIL = 5
     RHO_MAX = 50
     RHO_STEP = 0.5
     X_TAIL_CAP = -30
@@ -489,7 +484,7 @@ if __name__ == "__main__":
 
         #port stream data to pandas DataFrame object
         STREAM_DF, X_MAX = dump_to_pandas()
-
+        '''
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
                                          N_SLICE, N_ALPHA, False)
@@ -531,3 +526,4 @@ if __name__ == "__main__":
         ltime = time.time()-start_time
         print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
                                                np.mod(ltime,60)))
+        '''
