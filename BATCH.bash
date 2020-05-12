@@ -2,15 +2,15 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=plt/
+PLTDIR=pltdbug/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
 mkdir output/lay
 mkdir output/png
-PLTOUT=output/plt
-LAYOUT=output/lay
-PNGOUT=output/png
+PLTOUT=output/plt/
+LAYOUT=output/lay/
+PNGOUT=output/png/
 echo "Created output directory"
 
 #ensure batch mode is ready for tecpot LINUX SPECIFIC
