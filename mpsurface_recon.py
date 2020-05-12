@@ -17,6 +17,16 @@ import tecplot as tp
 
 START = time.time()
 
+def show_video(image_folder):
+    """Function to save images into a video for visualization
+    Inputs
+        image_folder
+    """
+    from makevideo import vid_compile
+    framerate = 2
+    title = 'video'
+    vid_compile(image_folder, framerate, title)
+
 def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     """Function loops through x position to create 2D closed curves in YZ
     Inputs
@@ -83,11 +93,11 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         #setup angle bins for mesh loading
         x_load, y_load, z_load = [], [], []
         n_angle = n_theta
-        da = 2*pi/n_angle/10
+        da = 2*pi/n_angle
         for a in np.linspace(-1*pi, pi, n_angle):
             #extract point from curve in angle range
-            condition = ((np.arctan2(z_curve,y_curve)>a-da) &
-                         (np.arctan2(z_curve,y_curve)<a+da))
+            condition = ((np.arctan2(z_curve, y_curve)>a-da) &
+                         (np.arctan2(z_curve, y_curve)<a+da))
             y_load = np.extract(condition, y_curve)[0]
             z_load = np.extract(condition, z_curve)[0]
             x_load = x
@@ -130,20 +140,12 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                     '\tNTHETA: {:.2f}\n'.format(n_theta)+
                     '\tRMIN: {:.2f}\n'.format(r_min)+
                     '\tINTERP S: 20\n')
+        show_video('slice_log')
 
     print("___ %s seconds ___" % (time.time() - START))
     print('\n\n\n')
     return mesh
 
-def show_video(image_folder):
-    """Function to save images into a video for visualization
-    Inputs
-        image_folder
-    """
-    from makevideo import vid_compile
-    framerate = 2
-    title = 'video'
-    vid_compile(image_folder, framerate, title)
 
 #main program
 '''Run program with -v to capture 2D images of sliced data and compile into video

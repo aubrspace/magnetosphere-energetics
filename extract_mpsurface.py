@@ -278,7 +278,7 @@ def dump_to_pandas():
                     'VarCount=3:'+
                     'VarList=[1-3]:'+
                     'ValSep=",":'+
-            'FNAME="/Users/ngpdl/Code/swmf-energetics/stream_points.csv"')
+            'FNAME="/home/aubr/Code/swmf-energetics/stream_points.csv"')
     loc_data = pd.read_csv('stream_points.csv')
     loc_data = loc_data.drop(columns=['Unnamed: 3'])
     loc_data = loc_data.sort_values(by=['X [R]'])
@@ -395,7 +395,8 @@ def calculate_energetics():
                             '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2)'+
+                                  '+{Z Grid K Unit Normal}**2'+
+                                  '+1e-25)'+
                           '* {X Grid K Unit Normal}',
        zones=[zone_index])
     eq('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
@@ -403,7 +404,8 @@ def calculate_energetics():
                             '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2)'+
+                                  '+{Z Grid K Unit Normal}**2'+
+                                  '+1e-25)'+
                           '* {Y Grid K Unit Normal}',
         zones=[zone_index])
     eq('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
@@ -411,7 +413,8 @@ def calculate_energetics():
                             '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2)'+
+                                  '+{Z Grid K Unit Normal}**2'+
+                                  '+1e-25)'+
                           '* {Z Grid K Unit Normal}',
         zones=[zone_index])
 
@@ -421,7 +424,8 @@ def calculate_energetics():
                             '+{Kn_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
                                   '+{Y Grid K Unit Normal}**2 '+
-                                  '+{Z Grid K Unit Normal}**2)',
+                                  '+{Z Grid K Unit Normal}**2'+
+                                  '+1e-25)',
         zones=[zone_index])
 
 
@@ -434,6 +438,7 @@ if __name__ == "__main__":
     if '-c' in sys.argv:
         tp.session.connect()
 
+    os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     DATAFILE = sys.argv[1]
     PLTPATH = sys.argv[2]
     LAYPATH = sys.argv[3]
@@ -492,7 +497,7 @@ if __name__ == "__main__":
 
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
-                                         N_SLICE, N_ALPHA, False)
+                                         N_SLICE, N_ALPHA, True)
 
         #create and load cylidrical zone
         create_cylinder(N_SLICE, N_ALPHA, X_TAIL_CAP, X_MAX)
