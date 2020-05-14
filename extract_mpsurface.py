@@ -278,7 +278,7 @@ def dump_to_pandas():
                     'VarCount=3:'+
                     'VarList=[1-3]:'+
                     'ValSep=",":'+
-            'FNAME="/home/aubr/Code/swmf-energetics/stream_points.csv"')
+            'FNAME="/Users/ngpdl/Code/swmf-energetics/stream_points.csv"')
     loc_data = pd.read_csv('stream_points.csv')
     loc_data = loc_data.drop(columns=['Unnamed: 3'])
     loc_data = loc_data.sort_values(by=['X [R]'])

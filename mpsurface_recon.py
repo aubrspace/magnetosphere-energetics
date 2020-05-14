@@ -57,10 +57,14 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                     np.sqrt(zone_temp['Z [R]']**2+zone_temp['Y [R]']**2),
                               columns = ['r'])
         zone_temp = zone_temp.combine(radius, np.minimum, fill_value=1000)
-        r_min = 0.5 * zone_temp['r'].max()
+        r_min = 0.2 * zone_temp['r'].max()
 
         #Sort values by YZ angle and remove r<r_min points
         zone_temp = zone_temp[zone_temp['r']>r_min]
+        if show:
+            #create plot with dropped data
+            ax.scatter(zone_temp['Y [R]'], zone_temp['Z [R]'], c='y',
+                       label='after 1st cut', marker='o')
         angle = pd.DataFrame(np.arctan2(zone_temp['Z [R]'],
                                         zone_temp['Y [R]']),
                              columns=['alpha'])
@@ -68,12 +72,15 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         zone_temp = zone_temp.sort_values(by=['alpha'])
 
         #Bin temp zone into alpha bins and take maximum r value
-        n_angle = n_theta * 4
+        n_angle = n_theta*2
         da = 2*pi/n_angle
-        for a in np.linspace(-1*pi+da, pi-da, n_angle-2):
+        for a in np.linspace(-1*pi, pi, n_angle):
             #if the section has values
             if not zone_temp[(zone_temp['alpha'] < a+da) &
                              (zone_temp['alpha'] > a-da)].empty:
+                #print('before: ',
+                #        len(zone_temp[(zone_temp['alpha'] < a+da) &
+                #                    (zone_temp['alpha'] > a-da)]))
                 #identify the index of row with maximum r within section
                 max_r_index = zone_temp[
                             (zone_temp['alpha'] < a+da) &
@@ -83,18 +90,28 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                                       (zone_temp['alpha'] > a+da) |
                                       (zone_temp['alpha'] < a-da) |
                                       (zone_temp.index == max_r_index)]
+                print('after : ',
+                        len(zone_temp[(zone_temp['alpha'] < a+da) &
+                                    (zone_temp['alpha'] > a-da)]))
         print('X=: {:.2f}'.format(x))
+        print('number remaining: {:d}'.format(len(zone_temp['alpha'])))
 
         #Created closed interpolation of data
         tck, u = interp.splprep([zone_temp['Y [R]'],
                                  zone_temp['Z [R]']],
                                  s=20, per=True)
         y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
+        dat_angles = np.sort(np.arctan2(z_curve, y_curve))
+        #print(dat_angles)
         #setup angle bins for mesh loading
         x_load, y_load, z_load = [], [], []
+        spoke, spoketxt = [], []
         n_angle = n_theta
-        da = 2*pi/n_angle
+        da = 2*pi/n_angle/5
         for a in np.linspace(-1*pi, pi, n_angle):
+            #print('range: {:.2f}-{:.2f}'.format(a-da,a+da))
+            #print('dAlpha= {:.2f}'.format(da))
+            #print('curve density= {:.2f}'.format(2*pi/len(y_curve)))
             #extract point from curve in angle range
             condition = ((np.arctan2(z_curve, y_curve)>a-da) &
                          (np.arctan2(z_curve, y_curve)<a+da))
@@ -104,6 +121,8 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
                                     columns = ['X [R]','Y [R]','Z [R]']),
                                 ignore_index=True)
+            spoke.append(a)
+            spoketxt.append('{:.2f}'.format(a))
 
         #duplicate first value to make overlapping surface
         x_index, y_index, z_index = 0,1,2
@@ -117,6 +136,10 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                        label='remaining')
             ax.plot(y_curve, z_curve, label='interpolated')
             ax.scatter(y_load, z_load, label ='mesh_final')
+            ax.scatter(20*np.cos(spoke), 20*np.sin(spoke), label='spokes')
+            for a in enumerate(spoke[::4]):
+                ax.annotate(spoketxt[4*a[0]], (20*np.cos(a[1]),
+                                    20*np.sin(a[1])))
             ax.set_xlabel('Y [Re]')
             ax.set_ylabel('Z [Re]')
             ax.set_xlim([-30,30])
@@ -156,17 +179,17 @@ if __name__ == "__main__":
     else:
         SHOW_VIDEO = False
     #Read in data values and sort by X position
-    ZONE = pd.read_csv('mp_points.csv')
+    ZONE = pd.read_csv('stream_points.csv')
     ZONE = ZONE.drop(columns=['Unnamed: 3'])
     ZONE = ZONE.sort_values(by=['X [R]'])
     X_MAX = ZONE['X [R]'].max()
     #X_MIN = ZONE['X [R]'].min()
-    X_MIN = -20
+    X_MIN = -30
 
     #Slice and construct XYZ data
     MESH = yz_slicer(ZONE, X_MIN, X_MAX, 50, 50, SHOW_VIDEO)
     #MESH.to_hdf('slice_mesh.h5', format='table', key='MESH', mode='w')
-    MESH.to_csv('slice_mesh.csv', index=False)
+    #MESH.to_csv('slice_mesh.csv', index=False)
 
     #Plot slices with finalized points
     if SHOW_VIDEO:
