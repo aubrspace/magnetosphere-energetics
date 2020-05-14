@@ -90,11 +90,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                                       (zone_temp['alpha'] > a+da) |
                                       (zone_temp['alpha'] < a-da) |
                                       (zone_temp.index == max_r_index)]
-                print('after : ',
-                        len(zone_temp[(zone_temp['alpha'] < a+da) &
-                                    (zone_temp['alpha'] > a-da)]))
         print('X=: {:.2f}'.format(x))
-        print('number remaining: {:d}'.format(len(zone_temp['alpha'])))
 
         #Created closed interpolation of data
         tck, u = interp.splprep([zone_temp['Y [R]'],
@@ -109,18 +105,25 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         n_angle = n_theta
         da = 2*pi/n_angle/5
         for a in np.linspace(-1*pi, pi, n_angle):
-            #print('range: {:.2f}-{:.2f}'.format(a-da,a+da))
-            #print('dAlpha= {:.2f}'.format(da))
-            #print('curve density= {:.2f}'.format(2*pi/len(y_curve)))
             #extract point from curve in angle range
             condition = ((np.arctan2(z_curve, y_curve)>a-da) &
                          (np.arctan2(z_curve, y_curve)<a+da))
-            y_load = np.extract(condition, y_curve)[0]
-            z_load = np.extract(condition, z_curve)[0]
+            if condition.any():
+                y_load = np.extract(condition, y_curve)[0]
+                z_load = np.extract(condition, z_curve)[0]
+            else:
+                print("WARNING: No extraction at X={:.2f}, alpha={:.2f}".format(x,a))
+                r_load = np.sqrt(y_load**2+z_load**2)
+                y_load = y_load + r_load*(np.cos(a+da)-np.cos(a))
+                z_load = z_load + r_load*(np.sin(a+da)-np.sin(a))
+                print('putting in dummy point at',
+                        'X= {:.2f}'.format(x),
+                        'Y= {:.2f}'.format(y_load),
+                        'Z= {:.2f}'.format(z_load))
             x_load = x
             mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
-                                    columns = ['X [R]','Y [R]','Z [R]']),
-                                ignore_index=True)
+                               columns = ['X [R]','Y [R]','Z [R]']),
+                               ignore_index=True)
             spoke.append(a)
             spoketxt.append('{:.2f}'.format(a))
 

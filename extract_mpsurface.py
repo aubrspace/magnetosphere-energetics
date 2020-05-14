@@ -497,7 +497,7 @@ if __name__ == "__main__":
 
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
-                                         N_SLICE, N_ALPHA, True)
+                                         N_SLICE, N_ALPHA, False)
 
         #create and load cylidrical zone
         create_cylinder(N_SLICE, N_ALPHA, X_TAIL_CAP, X_MAX)
