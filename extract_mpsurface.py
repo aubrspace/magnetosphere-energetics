@@ -475,6 +475,9 @@ if __name__ == "__main__":
     N_SLICE = 50
     N_ALPHA = 50
 
+    #Visualization
+    COLORBAR = np.linspace(-8,8,33)
+
     with tp.session.suspend():
         #Create R from cartesian coordinates
         tp.data.operate.execute_equation(
@@ -522,9 +525,19 @@ if __name__ == "__main__":
         plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
         plt.show_mesh = True
         plt.show_contour = True
-        plt.view.fit(consider_blanking=True)
-        plt.contour(0).variable_index = SWMF_DATA.num_variables-1
-        plt.contour(0).colormap_name = 'cmocean - balance'
+        VIEW = plt.view
+        VIEW.magnification = 1.07565
+        VIEW.translate(y=40)
+        VIEW.translate(x=30)
+        CONTOUR = plt.contour(0)
+        CONTOUR.variable_index = SWMF_DATA.num_variables-1
+        CONTOUR.colormap_name = 'cmocean - balance'
+        CONTOUR.legend.vertical = False
+        CONTOUR.legend.position[1] = 20
+        CONTOUR.legend.position[0] = 75
+        CONTOUR.levels.reset_levels(COLORBAR)
+        CONTOUR.labels.step = 2
+
 
         #write .plt and .lay files
         OUTPUTNAME = DATAFILE.split('e')[1].split('-000')[0]+'done'
