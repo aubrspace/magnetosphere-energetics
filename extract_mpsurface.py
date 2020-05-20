@@ -428,6 +428,34 @@ def calculate_energetics():
                                   '+1e-25)',
         zones=[zone_index])
 
+    #Integrate total surface Flux
+    tp.active_frame().plot().scatter.variable_index = 3
+    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
+                                      command="Integrate [22] "+
+                                              "VariableOption='Scalar' "+
+                                              "XOrigin=0 "+
+                                              "YOrigin=0 "+
+                                              "ZOrigin=0 "+
+                                              "ScalarVar=33 "+
+                                              "Absolute='F' "+
+                                              "ExcludeBlanked='F' "+
+                                              "XVariable=1 "+
+                                              "YVariable=2 "+
+                                              "ZVariable=3 "+
+                                              "IntegrateOver='Cells' "+
+                                              "IntegrateBy='Zones' "+
+                                              "IRange={MIN =1 MAX = 0 "+
+                                                      "SKIP = 1} "+
+                                              "JRange={MIN =1 MAX = 0 "+
+                                                      "SKIP = 1} "+
+                                              "KRange={MIN =1 MAX = 0 "+
+                                                      "SKIP = 1} "+
+                                              "PlotResults='T' "+
+                                              "PlotAs='TotalK_in' "+
+                                              "TimeMin=0 TimeMax=0")
+
+    tp.macro.execute_command("$!FrameName = 'energybar'")
+
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -479,6 +507,7 @@ if __name__ == "__main__":
     COLORBAR = np.linspace(-8,8,33)
 
     with tp.session.suspend():
+        tp.macro.execute_command("$!FrameName = 'main'")
         #Create R from cartesian coordinates
         tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
@@ -517,7 +546,7 @@ if __name__ == "__main__":
         calculate_energetics()
 
         #adjust frame settings
-        plt = tp.active_frame().plot()
+        plt = tp.frames('main').plot()
         MP_INDEX = SWMF_DATA.num_zones-1
         for ZN in range(0,MP_INDEX-1):
             plt.fieldmap(ZN).show=False

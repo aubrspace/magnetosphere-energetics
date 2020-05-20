@@ -50,13 +50,17 @@ def set_frames(folder):
     os.system('mkdir '+folder+'/frames/')
     n=0
     for image in framelist:
-        if n<0.9:
-            filename = 'img-0{:.0f}.png'.format(10*n)
+        if n<0.099:
+            filename = 'img-00{:.0f}.png'.format(100*n)
+        elif n<0.999:
+            filename = 'img-0{:.0f}.png'.format(100*n)
         else:
-            filename = 'img-{:.0f}.png'.format(10*n)
+            filename = 'img-{:.0f}.png'.format(100*n)
         cp_cmd = 'cp '+image+' '+folder+'/frames/'+filename
         os.system(cp_cmd)
-        n = n+0.1
+        print('n: {:.2f}, filename: {:s}'.format(n,filename))
+        n = n+0.01
+    return folder+'/frames'
 
 
 def vid_compile(folder, framerate, title):
@@ -67,7 +71,7 @@ def vid_compile(folder, framerate, title):
         title
     """
     os.system('rm '+folder+'/'+title+'.avi')
-    make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%02d.png '+folder+'/'+title+'.avi'
+    make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%03d.png '+folder+'/'+title+'.avi'
     os.system(make_vid_cmd)
     print('\nopening video: '+folder+'/'+title+'.avi\n')
     os.system('open '+folder+'/'+title+'.avi')
@@ -79,8 +83,8 @@ if __name__ == '__main__':
     FRAMERATE = 2
     FOLDER = sys.argv[1]
     #determine file frame order
-    set_frames(FOLDER)
+    FRAME_LOC = set_frames(FOLDER)
     #Convert all img .pdf to img.png
     #convert_pdf(FOLDER, RES)
     #Create video from .png
-    vid_compile(FOLDER+'/frames', FRAMERATE, 'video')
+    vid_compile(FRAME_LOC, FRAMERATE, 'video')
