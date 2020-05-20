@@ -530,7 +530,7 @@ if __name__ == "__main__":
         OUTPUTNAME = DATAFILE.split('e')[1].split('-000')[0]+'done'
         tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
         tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
-        tp.export.save_png(PLTPATH+OUTPUTNAME+'.png')
+        tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
 
         #timestamp
         ltime = time.time()-start_time
