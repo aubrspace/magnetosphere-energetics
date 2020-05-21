@@ -261,9 +261,12 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
                                                        np.rad2deg(psi[i])))
 
 
-def dump_to_pandas():
+def dump_to_pandas(zonelist, varlist, filename):
     """Function to hand zone data to pandas to do processing
     Inputs-
+        zonelist- array like object of which zones to export
+        varlist- which variables
+        filename
     Outputs-
         loc_data- DataFrame of stream zone data
         x_max
@@ -273,16 +276,18 @@ def dump_to_pandas():
     tp.macro.execute_extended_command(command_processor_id='excsv',
             command='VarNames:'+
                     'FrOp=1:'+
-                    'ZnCount={:d}:'.format(SWMF_DATA.num_zones-1)+
-                    'ZnList=[2-{:d}]:'.format(SWMF_DATA.num_zones)+
+                    'ZnCount={:d}:'.format(len(zonelist))+
+                    'ZnList=[{:d}-{:d}]:'.format(int(zonelist[0]),
+                                                 int(zonelist[-1]))+
                     'VarCount=3:'+
                     'VarList=[1-3]:'+
                     'ValSep=",":'+
-                    'FNAME="'+os.getcwd()+'/stream_points.csv"')
-    loc_data = pd.read_csv('stream_points.csv')
-    loc_data = loc_data.drop(columns=['Unnamed: 3'])
-    loc_data = loc_data.sort_values(by=['X [R]'])
-    x_max = loc_data['X [R]'].max()
+                    'FNAME="'+os.getcwd()+filename+'"')
+    loc_data = pd.read_csv(filename)
+    if any(col == 'X [R]' for col in loc_data.columns):
+        loc_data = loc_data.drop(columns=['Unnamed: 3'])
+        loc_data = loc_data.sort_values(by=['X [R]'])
+        x_max = loc_data['X [R]'].max()
     return loc_data, x_max
 
 def create_cylinder(nx, nalpha, x_min, x_max):
@@ -539,7 +544,10 @@ if __name__ == "__main__":
                                     '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
         #port stream data to pandas DataFrame object
-        STREAM_DF, X_MAX = dump_to_pandas()
+        STREAM_ZONE_LIST = np.linspace(2,SWMF_DATA.num_zones,
+                                       SWMF_DATA.num_zones-2+1)
+        STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
+                                          'stream_points.csv')
 
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
@@ -583,6 +591,8 @@ if __name__ == "__main__":
 
         #integrate k flux
         integrate_surface(33,'energybar')
+
+        FLUX_DF, _ = dump_to_pandas([1],[33],'flux_example.csv')
 
         #adjust frame settings for k flux
         tp.macro.execute_command('$!FrameLayout XYPos{X = 1}')
