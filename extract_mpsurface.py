@@ -349,7 +349,10 @@ def calculate_energetics():
     """Function calculates values for energetics tracing
     """
     zone_index= SWMF_DATA.zone('mp_zone').index
-    tp.macro.execute_extended_command('CFDAnalyzer3', 'CALCULATE FUNCTION = GRIDKUNITNORMAL VALUELOCATION = CELLCENTERED')
+    tp.macro.execute_extended_command('CFDAnalyzer3',
+                                      'CALCULATE FUNCTION = '+
+                                      'GRIDKUNITNORMAL VALUELOCATION = '+
+                                      'CELLCENTERED')
     eq = tp.data.operate.execute_equation
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
@@ -428,6 +431,13 @@ def calculate_energetics():
                                   '+1e-25)',
         zones=[zone_index])
 
+
+def integrate_surface(var_index, qtname):
+    """Function to calculate integral of variable on mp surface
+    Inputs
+        var_index- variable to be integrated
+        qtname- integrated quantity will be saved as this name
+    """
     #Integrate total surface Flux
     tp.active_frame().plot().scatter.variable_index = 3
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
@@ -454,6 +464,10 @@ def calculate_energetics():
                                               "PlotAs='TotalK_in' "+
                                               "TimeMin=0 TimeMax=0")
 
+    #switch active frame to newly created one
+    tp.macro.execute_command('''$!FrameControl ActivateAtPosition
+            X = 6
+            Y = 5''')
     tp.macro.execute_command("$!FrameName = 'energybar'")
 
 
@@ -546,7 +560,7 @@ if __name__ == "__main__":
         calculate_energetics()
 
         #adjust frame settings
-        plt = tp.frames('main').plot()
+        plt = tp.active_frame().plot()
         MP_INDEX = SWMF_DATA.num_zones-1
         for ZN in range(0,MP_INDEX-1):
             plt.fieldmap(ZN).show=False
@@ -566,6 +580,24 @@ if __name__ == "__main__":
         CONTOUR.legend.position[0] = 75
         CONTOUR.levels.reset_levels(COLORBAR)
         CONTOUR.labels.step = 2
+
+        #integrate k flux
+        integrate_surface(33,'energybar')
+
+        #adjust frame settings for k flux
+        tp.macro.execute_command('$!FrameLayout XYPos{X = 1}')
+        tp.macro.execute_command('$!FrameLayout XYPos{Y = 0}')
+        tp.macro.execute_command('$!FrameLayout Width = 1.5')
+        tp.active_frame().plot(PlotType.XYLine).show_bars = True
+        plt = tp.active_frame().plot()
+        plt.linemap(0).bars.show = True
+        plt.linemap(0).bars.size = 16
+        plt.axes.x_axis(0).show = False
+        plt.axes.y_axis(0).min = -10000
+        plt.axes.y_axis(0).max = 10000
+        plt.axes.y_axis(0).line.offset = -20
+        plt.axes.y_axis(0).title.offset = 10
+
 
 
         #write .plt and .lay files
