@@ -533,7 +533,7 @@ if __name__ == "__main__":
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 10
+    N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
@@ -543,14 +543,14 @@ if __name__ == "__main__":
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 10
+    N_AZIMUTH_TAIL = 50
     RHO_MAX = 50
     RHO_STEP = 0.5
     X_TAIL_CAP = -30
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
-    N_SLICE = 50
+    N_SLICE = 100
     N_ALPHA = 50
 
     #Visualization
