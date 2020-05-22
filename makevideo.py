@@ -15,12 +15,16 @@ def get_time(filename):
     Output
         abstime
     """
-    day = int(filename.split('/')[-1].split('-')[0])
+    date = filename.split('/')[-1].split('-')[0]
+    year = int(''.join(list(date)[0:4]))
+    month = int(''.join(list(date)[4:6]))
+    day = int(''.join(list(date)[6:8]))
     time = int(filename.split('/')[-1].split('-')[1].split('d')[0])
     hour = np.floor(time/10000)
     minute = np.mod(time/100, 100)
     second = np.mod(time, 100)
-    abstime = second + 60*(minute+ 60*(hour + 24*(day)))
+    abstime = second + 60*(minute+ 60*(hour +
+                           24*(day + 30*(month+12*year))))
     return abstime
 
 def convert_pdf(folder, res):

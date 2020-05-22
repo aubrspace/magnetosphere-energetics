@@ -271,7 +271,8 @@ def dump_to_pandas(zonelist, varlist, filename):
         loc_data- DataFrame of stream zone data
         x_max
     """
-    print('converting stream data to DataFrame\n')
+    print('converting '+filename.split('.')[0]+' to DataFrame\n')
+    os.system('touch '+filename)
     #Export 3D point data to csv file
     tp.macro.execute_extended_command(command_processor_id='excsv',
             command='VarNames:'+
@@ -279,15 +280,17 @@ def dump_to_pandas(zonelist, varlist, filename):
                     'ZnCount={:d}:'.format(len(zonelist))+
                     'ZnList=[{:d}-{:d}]:'.format(int(zonelist[0]),
                                                  int(zonelist[-1]))+
-                    'VarCount=3:'+
-                    'VarList=[1-3]:'+
+                    'VarCount={:d}:'.format(len(varlist))+
+                    'VarList=[{:d}-{:d}]:'.format(int(varlist[0]),
+                                                  int(varlist[-1]))+
                     'ValSep=",":'+
-                    'FNAME="'+os.getcwd()+filename+'"')
+                    'FNAME="'+os.getcwd()+'/'+filename+'"')
     loc_data = pd.read_csv(filename)
     if any(col == 'X [R]' for col in loc_data.columns):
         loc_data = loc_data.drop(columns=['Unnamed: 3'])
         loc_data = loc_data.sort_values(by=['X [R]'])
         x_max = loc_data['X [R]'].max()
+    else: x_max = []
     return loc_data, x_max
 
 def create_cylinder(nx, nalpha, x_min, x_max):
@@ -475,6 +478,33 @@ def integrate_surface(var_index, qtname):
             Y = 5''')
     tp.macro.execute_command("$!FrameName = 'energybar'")
 
+def write_to_timelog(timelogname, sourcename, data):
+    """Function for writing the results from the current file to a file that contains time integrated data
+    Inputs
+        timelogname
+        sourcename
+        data- pandas DataFrame object that will be written into the file
+    """
+    #get the time entries for this file
+    from makevideo import get_time
+    abstime = get_time(sourcename)
+    secyear = 60*60*24*12*30
+    year = np.floor(abstime/secyear)
+    month = np.floor((abstime/secyear-year)*12)
+    day = np.floor((((abstime/secyear-year)*12)-month)*30)
+    hour = np.floor((((((abstime/secyear-year)*12)-month)*30)-day)*24)
+    minute = np.floor((((((((abstime/secyear-year)*12)-month)*30)
+                             -day)*24)-hour)*60)
+    second = np.floor((((((((((abstime/secyear-year)*12)-month)*30)
+                             -day)*24)-hour)*60)-minute)*60)
+    timestamp = [year, month, day, hour, minute, second, abstime]
+    #write data to file
+    with open(timelogname, 'a') as log:
+        log.seek(0,2)
+        log.write('\n')
+        for entry in timestamp:
+            log.write(str(entry)+', ')
+        log.write(str(data.values[0,0])+',')
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -498,6 +528,7 @@ if __name__ == "__main__":
     SWMF_DATA = tp.data.load_tecplot(DATAFILE)
     #SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
     SWMF_DATA.zone(0).name = 'global_field'
+    OUTPUTNAME = DATAFILE.split('e')[1].split('-000')[0]+'done'
     print(SWMF_DATA)
 
     #Set parameters
@@ -546,6 +577,7 @@ if __name__ == "__main__":
         #port stream data to pandas DataFrame object
         STREAM_ZONE_LIST = np.linspace(2,SWMF_DATA.num_zones,
                                        SWMF_DATA.num_zones-2+1)
+        print(STREAM_ZONE_LIST)
         STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
                                           'stream_points.csv')
 
@@ -591,8 +623,9 @@ if __name__ == "__main__":
 
         #integrate k flux
         integrate_surface(33,'energybar')
-
-        FLUX_DF, _ = dump_to_pandas([1],[33],'flux_example.csv')
+        FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
+        print(FLUX_DF)
+        write_to_timelog('kfluxlog.csv', OUTPUTNAME, FLUX_DF)
 
         #adjust frame settings for k flux
         tp.macro.execute_command('$!FrameLayout XYPos{X = 1}')
@@ -608,12 +641,9 @@ if __name__ == "__main__":
         plt.axes.y_axis(0).line.offset = -20
         plt.axes.y_axis(0).title.offset = 10
 
-
-
         #write .plt and .lay files
-        OUTPUTNAME = DATAFILE.split('e')[1].split('-000')[0]+'done'
         tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
-        tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
+        #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
         tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
 
         #timestamp
