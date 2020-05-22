@@ -19,7 +19,7 @@ eval `$TECPATH-env`
 echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #create log file for integral quantities
-touch integral_logs.csv
+touch integral_log.csv
 echo "year, month, day, hour, minute, second, abstime, k_flux[kW],">>integral_logs.csv
 
 #execute script on .plt files

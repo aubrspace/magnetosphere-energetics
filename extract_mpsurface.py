@@ -625,7 +625,7 @@ if __name__ == "__main__":
         integrate_surface(33,'energybar')
         FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
         print(FLUX_DF)
-        write_to_timelog('kfluxlog.csv', OUTPUTNAME, FLUX_DF)
+        write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
 
         #adjust frame settings for k flux
         tp.macro.execute_command('$!FrameLayout XYPos{X = 1}')
