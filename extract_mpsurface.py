@@ -430,7 +430,7 @@ def calculate_energetics():
         zones=[zone_index])
 
     #Magnitude Normal Flux
-    eq('{K_in [Kw/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Normal}'+
+    eq('{K_in [kW/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Normal}'+
                             '+{Kn_y [kW/km^2]}*{Y Grid K Unit Normal}'+
                             '+{Kn_z [kW/km^2]}*{Z Grid K Unit Normal})'+
                           '/ sqrt({X Grid K Unit Normal}**2'+
@@ -440,21 +440,24 @@ def calculate_energetics():
         zones=[zone_index])
 
 
-def integrate_surface(var_index, qtname):
+def integrate_surface(var_index, mpindex, qtname):
     """Function to calculate integral of variable on mp surface
     Inputs
         var_index- variable to be integrated
+        mpindex- index of the mp zone
         qtname- integrated quantity will be saved as this name
     """
     #Integrate total surface Flux
     tp.active_frame().plot().scatter.variable_index = 3
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-                                      command="Integrate [22] "+
+                                      command="Integrate [{:d}] ".format(
+                                                                  mpindex)+
                                               "VariableOption='Scalar' "+
                                               "XOrigin=0 "+
                                               "YOrigin=0 "+
                                               "ZOrigin=0 "+
-                                              "ScalarVar=33 "+
+                                              "ScalarVar={:d} ".format(
+                                                                var_index)+
                                               "Absolute='F' "+
                                               "ExcludeBlanked='F' "+
                                               "XVariable=1 "+
@@ -469,14 +472,9 @@ def integrate_surface(var_index, qtname):
                                               "KRange={MIN =1 MAX = 0 "+
                                                       "SKIP = 1} "+
                                               "PlotResults='T' "+
-                                              "PlotAs='TotalK_in' "+
+                                              "PlotAs='"+qtname+"' "+
                                               "TimeMin=0 TimeMax=0")
 
-    #switch active frame to newly created one
-    tp.macro.execute_command('''$!FrameControl ActivateAtPosition
-            X = 6
-            Y = 5''')
-    tp.macro.execute_command("$!FrameName = 'energybar'")
 
 def write_to_timelog(timelogname, sourcename, data):
     """Function for writing the results from the current file to a file that contains time integrated data
@@ -550,23 +548,25 @@ if __name__ == "__main__":
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
-    N_SLICE = 100
+    N_SLICE = abs(X_TAIL_CAP*2)
     N_ALPHA = 50
 
     #Visualization
-    COLORBAR = np.linspace(-8,8,33)
+    RCOLOR = 4
+    COLORBAR = np.linspace(-1*RCOLOR,RCOLOR,4*RCOLOR+1)
 
     with tp.session.suspend():
         tp.macro.execute_command("$!FrameName = 'main'")
         #Create R from cartesian coordinates
         tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+        '''
         #Create Dayside Magnetopause field lines
         calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
 
         #Create Tail magnetopause field lines
         calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
-
+        '''
         #Create Theta and Phi coordinates for all points in domain
         tp.data.operate.execute_equation(
                                    '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
@@ -574,12 +574,19 @@ if __name__ == "__main__":
                                    '{theta} = acos({Z [R]}/{r [R]}) * '+
                                     '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
+        '''
         #port stream data to pandas DataFrame object
         STREAM_ZONE_LIST = np.linspace(2,SWMF_DATA.num_zones,
                                        SWMF_DATA.num_zones-2+1)
-        print(STREAM_ZONE_LIST)
+
         STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
                                           'stream_points.csv')
+        '''
+
+        STREAM_DF = pd.read_csv('stream_points.csv')
+        STREAM_DF = STREAM_DF.drop(columns=['Unnamed: 3'])
+        STREAM_DF = STREAM_DF.sort_values(by=['X [R]'])
+        X_MAX = STREAM_DF['X [R]'].max()
 
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
@@ -600,8 +607,12 @@ if __name__ == "__main__":
         calculate_energetics()
 
         #adjust frame settings
+        MP_INDEX = SWMF_DATA.zone('mp_zone').index+1
+        Kin_INDEX = SWMF_DATA.variable('K_in *').index+1
+        tp.macro.execute_command('''$!FrameControl ActivateAtPosition
+            X = 8
+            Y = 7.5''')
         plt = tp.active_frame().plot()
-        MP_INDEX = SWMF_DATA.num_zones-1
         for ZN in range(0,MP_INDEX-1):
             plt.fieldmap(ZN).show=False
         plt.fieldmap(MP_INDEX).show = True
@@ -621,8 +632,15 @@ if __name__ == "__main__":
         CONTOUR.levels.reset_levels(COLORBAR)
         CONTOUR.labels.step = 2
 
+        """
         #integrate k flux
-        integrate_surface(33,'energybar')
+        integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_in [kW]')
+        #switch active frame to newly created one
+        tp.macro.execute_command('''$!FrameControl ActivateAtPosition
+            X = 8
+            Y = 7.5''')
+        tp.macro.execute_command("$!FrameName = 'energybar'")
+        #log in file
         FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
         print(FLUX_DF)
         write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
@@ -641,12 +659,21 @@ if __name__ == "__main__":
         plt.axes.y_axis(0).line.offset = -20
         plt.axes.y_axis(0).title.offset = 10
 
-        #write .plt and .lay files
-        tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
-        #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
-        tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
+    #adjust frame settings for main frame
+    tp.macro.execute_command('''$!FrameControl ActivateAtPosition
+            X = 5.75
+            Y = 4.25''')
+    plt = tp.active_frame().plot()
+    plt.fieldmap(MP_INDEX).show = True
+    plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
 
-        #timestamp
-        ltime = time.time()-start_time
-        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
-                                               np.mod(ltime,60)))
+    #write .plt and .lay files
+    tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
+    #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
+    tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
+        """
+
+    #timestamp
+    ltime = time.time()-start_time
+    print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
+                                           np.mod(ltime,60)))

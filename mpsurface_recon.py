@@ -116,6 +116,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                 r_load = np.sqrt(y_load**2+z_load**2)
                 y_load = y_load + r_load*(np.cos(a+da)-np.cos(a))
                 z_load = z_load + r_load*(np.sin(a+da)-np.sin(a))
+                print('y_load:',y_load)
                 print('putting in dummy point at',
                         'X= {:.2f}'.format(x),
                         'Y= {:.2f}'.format(y_load),
