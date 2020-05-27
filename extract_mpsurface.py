@@ -604,9 +604,9 @@ if __name__ == "__main__":
         calculate_energetics()
 
         #adjust frame settings
-        MP_INDEX = SWMF_DATA.zone('mp_zone').index+1
-        Kin_INDEX = SWMF_DATA.variable('K_in *').index+1
         plt = tp.active_frame().plot()
+        MP_INDEX = SWMF_DATA.num_zones-1
+        Kin_INDEX = SWMF_DATA.variable('K_in *').index+1
         for ZN in range(0,MP_INDEX-1):
             plt.fieldmap(ZN).show=False
         plt.fieldmap(MP_INDEX).show = True

@@ -2,7 +2,7 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=pltdbug/
+PLTDIR=plt/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
