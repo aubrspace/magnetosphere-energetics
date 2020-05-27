@@ -606,7 +606,9 @@ if __name__ == "__main__":
         #adjust frame settings
         plt = tp.active_frame().plot()
         MP_INDEX = SWMF_DATA.num_zones-1
-        Kin_INDEX = SWMF_DATA.variable('K_in *').index+1
+        Kin_INDEX = SWMF_DATA.num_variables-1
+        print(SWMF_DATA)
+        print('MPINDEX: ',MP_INDEX,' Kindex: ',Kin_INDEX)
         for ZN in range(0,MP_INDEX-1):
             plt.fieldmap(ZN).show=False
         plt.fieldmap(MP_INDEX).show = True
@@ -627,7 +629,7 @@ if __name__ == "__main__":
         CONTOUR.labels.step = 2
 
         #integrate k flux
-        integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_in [kW]')
+        integrate_surface(Kin_INDEX+1, MP_INDEX+1, 'Total K_in [kW]')
         FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
         write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
 
@@ -643,7 +645,7 @@ if __name__ == "__main__":
         plt.axes.y_axis(0).min = -14000
         plt.axes.y_axis(0).max = 14000
         plt.axes.y_axis(0).line.offset = -20
-        plt.axes.y_axis(0).title.offset = 10
+        plt.axes.y_axis(0).title.offset = 15
 
         """
         #adjust frame settings for main frame
