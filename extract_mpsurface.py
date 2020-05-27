@@ -475,6 +475,12 @@ def integrate_surface(var_index, mpindex, qtname):
                                               "PlotAs='"+qtname+"' "+
                                               "TimeMin=0 TimeMax=0")
 
+    #switch active frame to newly created one
+    tp.macro.execute_command('''$!FrameControl ActivateAtPosition
+            X = 6
+            Y = 5''')
+    tp.macro.execute_command("$!FrameName = 'energybar'")
+
 
 def write_to_timelog(timelogname, sourcename, data):
     """Function for writing the results from the current file to a file that contains time integrated data
@@ -579,11 +585,6 @@ if __name__ == "__main__":
         STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
                                           'stream_points.csv')
 
-        STREAM_DF = pd.read_csv('stream_points.csv')
-        STREAM_DF = STREAM_DF.drop(columns=['Unnamed: 3'])
-        STREAM_DF = STREAM_DF.sort_values(by=['X [R]'])
-        X_MAX = STREAM_DF['X [R]'].max()
-
         #slice and construct XYZ data
         MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
                                          N_SLICE, N_ALPHA, False)
@@ -605,9 +606,6 @@ if __name__ == "__main__":
         #adjust frame settings
         MP_INDEX = SWMF_DATA.zone('mp_zone').index+1
         Kin_INDEX = SWMF_DATA.variable('K_in *').index+1
-        tp.macro.execute_command('''$!FrameControl ActivateAtPosition
-            X = 8
-            Y = 7.5''')
         plt = tp.active_frame().plot()
         for ZN in range(0,MP_INDEX-1):
             plt.fieldmap(ZN).show=False
@@ -630,14 +628,7 @@ if __name__ == "__main__":
 
         #integrate k flux
         integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_in [kW]')
-        #switch active frame to newly created one
-        tp.macro.execute_command('''$!FrameControl ActivateAtPosition
-            X = 8
-            Y = 7.5''')
-        tp.macro.execute_command("$!FrameName = 'energybar'")
-        #log in file
         FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
-        print(FLUX_DF)
         write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
 
         #adjust frame settings for k flux
@@ -649,11 +640,12 @@ if __name__ == "__main__":
         plt.linemap(0).bars.show = True
         plt.linemap(0).bars.size = 16
         plt.axes.x_axis(0).show = False
-        plt.axes.y_axis(0).min = -10000
-        plt.axes.y_axis(0).max = 10000
+        plt.axes.y_axis(0).min = -14000
+        plt.axes.y_axis(0).max = 14000
         plt.axes.y_axis(0).line.offset = -20
         plt.axes.y_axis(0).title.offset = 10
 
+        """
         #adjust frame settings for main frame
         tp.macro.execute_command('''$!FrameControl ActivateAtPosition
             X = 5.75
@@ -661,13 +653,14 @@ if __name__ == "__main__":
         plt = tp.active_frame().plot()
         plt.fieldmap(MP_INDEX).show = True
         plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
+        """
 
         #write .plt and .lay files
         tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
         #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
         tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
 
-    #timestamp
-    ltime = time.time()-start_time
-    print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
+        #timestamp
+        ltime = time.time()-start_time
+        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
                                            np.mod(ltime,60)))
