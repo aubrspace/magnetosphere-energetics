@@ -560,13 +560,11 @@ if __name__ == "__main__":
         #Create R from cartesian coordinates
         tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-        '''
         #Create Dayside Magnetopause field lines
         calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
 
         #Create Tail magnetopause field lines
         calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
-        '''
         #Create Theta and Phi coordinates for all points in domain
         tp.data.operate.execute_equation(
                                    '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
@@ -574,14 +572,12 @@ if __name__ == "__main__":
                                    '{theta} = acos({Z [R]}/{r [R]}) * '+
                                     '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
 
-        '''
         #port stream data to pandas DataFrame object
         STREAM_ZONE_LIST = np.linspace(2,SWMF_DATA.num_zones,
                                        SWMF_DATA.num_zones-2+1)
 
         STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
                                           'stream_points.csv')
-        '''
 
         STREAM_DF = pd.read_csv('stream_points.csv')
         STREAM_DF = STREAM_DF.drop(columns=['Unnamed: 3'])
@@ -632,7 +628,6 @@ if __name__ == "__main__":
         CONTOUR.levels.reset_levels(COLORBAR)
         CONTOUR.labels.step = 2
 
-        """
         #integrate k flux
         integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_in [kW]')
         #switch active frame to newly created one
@@ -659,19 +654,18 @@ if __name__ == "__main__":
         plt.axes.y_axis(0).line.offset = -20
         plt.axes.y_axis(0).title.offset = 10
 
-    #adjust frame settings for main frame
-    tp.macro.execute_command('''$!FrameControl ActivateAtPosition
+        #adjust frame settings for main frame
+        tp.macro.execute_command('''$!FrameControl ActivateAtPosition
             X = 5.75
             Y = 4.25''')
-    plt = tp.active_frame().plot()
-    plt.fieldmap(MP_INDEX).show = True
-    plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
+        plt = tp.active_frame().plot()
+        plt.fieldmap(MP_INDEX).show = True
+        plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
 
-    #write .plt and .lay files
-    tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
-    #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
-    tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
-        """
+        #write .plt and .lay files
+        tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
+        #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
+        tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
 
     #timestamp
     ltime = time.time()-start_time
