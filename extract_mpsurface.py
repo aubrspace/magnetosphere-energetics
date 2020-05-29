@@ -439,8 +439,55 @@ def calculate_energetics():
                                   '+1e-25)',
         zones=[zone_index])
 
+    #Split into + and - flux
+    eq('{K_in+} = max({K_in [kW/km^2]},0)', zones=[zone_index])
+    eq('{K_in-} = min({K_in [kW/km^2]},0)', zones=[zone_index])
 
-def integrate_surface(var_index, mpindex, qtname):
+
+def display_variable_bar(oldframe, var_index, color, barid, newaxis):
+    """Function to display bargraph of variable quantity in upper right
+    Inputs
+        frame- tecplot frame object
+        var_index- index for displayed variable (4 for integrated qty)
+        color
+        barid- for multiple bars, setup to the right of the previous
+        newaxis- True if plotting on new axis
+    """
+    oldframe.activate()
+    tp.macro.execute_command('$!CreateNewFrame\n'+
+            'XYPos{X='+str(1+0.125*barid)+'\n'
+                  'Y=0}\n'+
+            'Width = 1\n'+
+            'Height = 3.7\n')
+    frame = tp.active_frame()
+    tp.macro.execute_command('$!FrameLayout ShowBorder = No')
+    plt = frame.plot(PlotType.XYLine)
+    frame.plot_type = PlotType.XYLine
+    plt.linemap(0).show = False
+    plt.linemap(2).show = True
+    frame.transparent = True
+    plt.show_bars = True
+    plt.linemap(2).bars.show = True
+    plt.linemap(2).bars.size = 16
+    plt.linemap(2).bars.line_color = color
+    plt.linemap(2).bars.fill_color = color
+    plt.axes.x_axis(0).show = False
+    plt.axes.y_axis(0).min = -14000
+    plt.axes.y_axis(0).max = 14000
+    if newaxis:
+        plt.axes.y_axis(0).show = True
+        plt.axes.y_axis(0).line.offset = -40
+        plt.axes.y_axis(0).title.offset = 40
+    else:
+        plt.axes.y_axis(0).show = False
+    oldframe.activate()
+    oldframe.move_to_top()
+    tp.macro.execute_command('$!FrameControl DeleteTop')
+    frame.activate()
+
+
+
+def integrate_surface(var_index, mpindex, qtname, barid):
     """Function to calculate integral of variable on mp surface
     Inputs
         var_index- variable to be integrated
@@ -448,16 +495,16 @@ def integrate_surface(var_index, mpindex, qtname):
         qtname- integrated quantity will be saved as this name
     """
     #Integrate total surface Flux
-    tp.active_frame().plot().scatter.variable_index = 3
+    #tp.active_frame().plot().scatter.variable_index = 3
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command="Integrate [{:d}] ".format(
-                                                                  mpindex)+
+                                                                mpindex+1)+
                                               "VariableOption='Scalar' "+
                                               "XOrigin=0 "+
                                               "YOrigin=0 "+
                                               "ZOrigin=0 "+
                                               "ScalarVar={:d} ".format(
-                                                                var_index)+
+                                                              var_index+1)+
                                               "Absolute='F' "+
                                               "ExcludeBlanked='F' "+
                                               "XVariable=1 "+
@@ -479,7 +526,21 @@ def integrate_surface(var_index, mpindex, qtname):
     tp.macro.execute_command('''$!FrameControl ActivateAtPosition
             X = 6
             Y = 5''')
-    tp.macro.execute_command("$!FrameName = 'energybar'")
+    tp.macro.execute_command("$!FrameName = '"+qtname+"'")
+    oldframe = tp.active_frame()
+    #adjust new frame settings
+    if barid == 0:
+        newaxis = True
+        color = Color.Red
+    elif barid == 1:
+        newaxis = False
+        color = Color.Green
+    elif barid == 2:
+        newaxis = False
+        color = Color.Blue
+    display_variable_bar(tp.active_frame(), var_index, color, barid,
+                         newaxis)
+    tp.macro.execute_command("$!FrameName = '"+qtname+"'")
 
 
 def write_to_timelog(timelogname, sourcename, data):
@@ -510,6 +571,38 @@ def write_to_timelog(timelogname, sourcename, data):
             log.write(str(entry)+', ')
         log.write(str(data.values[0,0])+',')
 
+def display_main_frame(frame, mpindex, contourvar, colorbar, multiframe):
+    """Function to center the magnetopause object and adjust colorbar
+        settings
+    Inputs
+        frame- object for the tecplot frame
+        mpindex
+        contourvar- variable to be used for the contour
+        colorbar- levels for colorbar
+        multiframe- boolean, false for single frame
+    """
+    plt = frame.plot()
+    for zone in range(0,mpindex-1):
+            plt.fieldmap(zone).show=False
+    if not multiframe:
+        plt.fieldmap(mpindex).show = True
+        plt.fieldmap(mpindex).surfaces.surfaces_to_plot = (
+                                               SurfacesToPlot.BoundaryFaces)
+        plt.show_mesh = True
+        plt.show_contour = True
+        view = plt.view
+        view.magnification = 1.07565
+        view.translate(y=40)
+        view.translate(x=30)
+        contour = plt.contour(0)
+        contour.variable_index = SWMF_DATA.num_variables-1
+        contour.colormap_name = 'cmocean - balance'
+        contour.legend.vertical = False
+        contour.legend.position[1] = 20
+        contour.legend.position[0] = 75
+        contour.levels.reset_levels(colorbar)
+        contour.labels.step = 2
+
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
 # To enable connections in Tecplot 360, click on:
@@ -537,7 +630,7 @@ if __name__ == "__main__":
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 50
+    N_AZIMUTH_DAY = 10
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
@@ -547,14 +640,14 @@ if __name__ == "__main__":
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 50
+    N_AZIMUTH_TAIL = 10
     RHO_MAX = 50
     RHO_STEP = 0.5
     X_TAIL_CAP = -30
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
-    N_SLICE = abs(X_TAIL_CAP*2)
+    N_SLICE = 20
     N_ALPHA = 50
 
     #Visualization
@@ -603,49 +696,37 @@ if __name__ == "__main__":
         #calculate energetics
         calculate_energetics()
 
-        #adjust frame settings
-        plt = tp.active_frame().plot()
-        MP_INDEX = SWMF_DATA.num_zones-1
-        Kin_INDEX = SWMF_DATA.num_variables-1
-        print(SWMF_DATA)
-        print('MPINDEX: ',MP_INDEX,' Kindex: ',Kin_INDEX)
-        for ZN in range(0,MP_INDEX-1):
-            plt.fieldmap(ZN).show=False
-        plt.fieldmap(MP_INDEX).show = True
-        plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
-        plt.show_mesh = True
-        plt.show_contour = True
-        VIEW = plt.view
-        VIEW.magnification = 1.07565
-        VIEW.translate(y=40)
-        VIEW.translate(x=30)
-        CONTOUR = plt.contour(0)
-        CONTOUR.variable_index = SWMF_DATA.num_variables-1
-        CONTOUR.colormap_name = 'cmocean - balance'
-        CONTOUR.legend.vertical = False
-        CONTOUR.legend.position[1] = 20
-        CONTOUR.legend.position[0] = 75
-        CONTOUR.levels.reset_levels(COLORBAR)
-        CONTOUR.labels.step = 2
+        #initialize objects for main frame
+        MAIN = tp.active_frame()
+        MP_INDEX = int(SWMF_DATA.zone('mp_zone').index)
+        Kin_INDEX = int(SWMF_DATA.variable('K_in *').index)
+        Kplus_INDEX = int(SWMF_DATA.variable('K_in+*').index)
+        Kminus_INDEX = int(SWMF_DATA.variable('K_in-*').index)
+
+        #adjust main frame settings
+        display_main_frame(MAIN, MP_INDEX, Kin_INDEX, COLORBAR, False)
 
         #integrate k flux
-        integrate_surface(Kin_INDEX+1, MP_INDEX+1, 'Total K_in [kW]')
-        FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
-        write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
+        integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_in [kW]', barid=0)
+        MAIN.activate()
+        integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_net [kW]', barid=1)
+        MAIN.activate()
+        integrate_surface(Kplus_INDEX, MP_INDEX, 'Total K_out [kW]',
+                          barid=2)
+        MAIN.activate()
+        for frames in tp.frames('Total K_in*'):
+            INFLUX = frames
+        for frames in tp.frames('Total K_net*'):
+            NETFLUX = frames
+        for frames in tp.frames('Total K_out*'):
+            OUTFLUX = frames
+        OUTFLUX.move_to_top()
+        NETFLUX.move_to_top()
+        INFLUX.move_to_top()
+        MAIN.move_to_bottom()
+        #FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
+        #write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
 
-        #adjust frame settings for k flux
-        tp.macro.execute_command('$!FrameLayout XYPos{X = 1}')
-        tp.macro.execute_command('$!FrameLayout XYPos{Y = 0}')
-        tp.macro.execute_command('$!FrameLayout Width = 1.5')
-        tp.active_frame().plot(PlotType.XYLine).show_bars = True
-        plt = tp.active_frame().plot()
-        plt.linemap(0).bars.show = True
-        plt.linemap(0).bars.size = 16
-        plt.axes.x_axis(0).show = False
-        plt.axes.y_axis(0).min = -14000
-        plt.axes.y_axis(0).max = 14000
-        plt.axes.y_axis(0).line.offset = -20
-        plt.axes.y_axis(0).title.offset = 15
 
         """
         #adjust frame settings for main frame
