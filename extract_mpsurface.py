@@ -455,7 +455,7 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     """
     oldframe.activate()
     tp.macro.execute_command('$!CreateNewFrame\n'+
-            'XYPos{X='+str(1+0.125*barid)+'\n'
+            'XYPos{X='+str(1.25+0.25*barid)+'\n'
                   'Y=0}\n'+
             'Width = 1\n'+
             'Height = 3.7\n')
@@ -468,7 +468,7 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     frame.transparent = True
     plt.show_bars = True
     plt.linemap(2).bars.show = True
-    plt.linemap(2).bars.size = 16
+    plt.linemap(2).bars.size = 32
     plt.linemap(2).bars.line_color = color
     plt.linemap(2).bars.fill_color = color
     plt.axes.x_axis(0).show = False
@@ -519,7 +519,7 @@ def integrate_surface(var_index, mpindex, qtname, barid):
                                               "KRange={MIN =1 MAX = 0 "+
                                                       "SKIP = 1} "+
                                               "PlotResults='T' "+
-                                              "PlotAs='"+qtname+"' "+
+                                    "PlotAs='Integrated Energy Flux [kW]' "+
                                               "TimeMin=0 TimeMax=0")
 
     #switch active frame to newly created one
@@ -534,7 +534,7 @@ def integrate_surface(var_index, mpindex, qtname, barid):
         color = Color.Red
     elif barid == 1:
         newaxis = False
-        color = Color.Green
+        color = Color.Black
     elif barid == 2:
         newaxis = False
         color = Color.Blue
@@ -569,7 +569,8 @@ def write_to_timelog(timelogname, sourcename, data):
         log.write('\n')
         for entry in timestamp:
             log.write(str(entry)+', ')
-        log.write(str(data.values[0,0])+',')
+        for num in data.values[0]:
+            log.write(str(num)+',')
 
 def display_main_frame(frame, mpindex, contourvar, colorbar, multiframe):
     """Function to center the magnetopause object and adjust colorbar
@@ -595,7 +596,7 @@ def display_main_frame(frame, mpindex, contourvar, colorbar, multiframe):
         view.translate(y=40)
         view.translate(x=30)
         contour = plt.contour(0)
-        contour.variable_index = SWMF_DATA.num_variables-1
+        contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'
         contour.legend.vertical = False
         contour.legend.position[1] = 20
@@ -630,7 +631,7 @@ if __name__ == "__main__":
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 10
+    N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
@@ -640,10 +641,10 @@ if __name__ == "__main__":
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 10
+    N_AZIMUTH_TAIL = 50
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -30
+    X_TAIL_CAP = -60
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
@@ -707,25 +708,38 @@ if __name__ == "__main__":
         display_main_frame(MAIN, MP_INDEX, Kin_INDEX, COLORBAR, False)
 
         #integrate k flux
-        integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_in [kW]', barid=0)
+        integrate_surface(Kplus_INDEX, MP_INDEX,
+                          'Total K_out [kW]', barid=0)
         MAIN.activate()
-        integrate_surface(Kin_INDEX, MP_INDEX, 'Total K_net [kW]', barid=1)
+        integrate_surface(Kin_INDEX, MP_INDEX,
+                          'Total K_net [kW]', barid=1)
         MAIN.activate()
-        integrate_surface(Kplus_INDEX, MP_INDEX, 'Total K_out [kW]',
-                          barid=2)
+        integrate_surface(Kminus_INDEX, MP_INDEX,
+                          'Total K_in [kW]', barid=2)
         MAIN.activate()
-        for frames in tp.frames('Total K_in*'):
+        for frames in tp.frames('Total K_out*'):
             INFLUX = frames
         for frames in tp.frames('Total K_net*'):
             NETFLUX = frames
-        for frames in tp.frames('Total K_out*'):
+        for frames in tp.frames('Total K_in*'):
             OUTFLUX = frames
         OUTFLUX.move_to_top()
         NETFLUX.move_to_top()
         INFLUX.move_to_top()
         MAIN.move_to_bottom()
-        #FLUX_DF, _ = dump_to_pandas([1],[4],'flux_example.csv')
-        #write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
+        OUTFLUX.activate()
+        OUTFLUX_DF, _ = dump_to_pandas([1],[4],'outflux.csv')
+        NETFLUX.activate()
+        NETFLUX_DF, _ = dump_to_pandas([1],[4],'netflux.csv')
+        INFLUX.activate()
+        INFLUX_DF, _ = dump_to_pandas([1],[4],'influx.csv')
+        FLUX_DF = OUTFLUX_DF.combine(NETFLUX_DF, np.minimum,
+                                     fill_value=1e12).combine(
+                                    INFLUX_DF, np.minimum,
+                                    fill_value=1e12).drop(
+                                            columns=['Unnamed: 1'])
+        print(FLUX_DF)
+        write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
 
 
         """
