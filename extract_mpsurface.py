@@ -458,9 +458,10 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
             'XYPos{X='+str(1.25+0.25*barid)+'\n'
                   'Y=0}\n'+
             'Width = 1\n'+
-            'Height = 3.7\n')
+            'Height = 3.7')
     frame = tp.active_frame()
-    tp.macro.execute_command('$!FrameLayout ShowBorder = No')
+    frame.show_border = False
+    #tp.macro.execute_command('$!FrameLayout ShowBorder = No')
     plt = frame.plot(PlotType.XYLine)
     frame.plot_type = PlotType.XYLine
     plt.linemap(0).show = False
@@ -480,9 +481,8 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
         plt.axes.y_axis(0).title.offset = 40
     else:
         plt.axes.y_axis(0).show = False
-    oldframe.activate()
-    oldframe.move_to_top()
-    tp.macro.execute_command('$!FrameControl DeleteTop')
+    oldframe.move_to_bottom()
+    #tp.macro.execute_command('$!FrameControl DeleteByNumber Frame = 3')
     frame.activate()
 
 
@@ -495,6 +495,7 @@ def integrate_surface(var_index, mpindex, qtname, barid):
         qtname- integrated quantity will be saved as this name
     """
     #Integrate total surface Flux
+    print('Active frame where integration is performed: ',tp.active_frame().name)
     #tp.active_frame().plot().scatter.variable_index = 3
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command="Integrate [{:d}] ".format(
@@ -519,15 +520,15 @@ def integrate_surface(var_index, mpindex, qtname, barid):
                                               "KRange={MIN =1 MAX = 0 "+
                                                       "SKIP = 1} "+
                                               "PlotResults='T' "+
-                                    "PlotAs='Integrated Energy Flux [kW]' "+
+                                              "PlotAs='"+qtname+"' "+
                                               "TimeMin=0 TimeMax=0")
 
     #switch active frame to newly created one
-    tp.macro.execute_command('''$!FrameControl ActivateAtPosition
-            X = 6
-            Y = 5''')
-    tp.macro.execute_command("$!FrameName = '"+qtname+"'")
-    oldframe = tp.active_frame()
+    for frames in tp.frames('Frame 001'):
+        tempframe = frames
+        print('Integral frame for ',qtname,'stored to "tempframe"')
+    tempframe.activate()
+    #tp.macro.execute_command("$!FrameName = '"+qtname+'_temp'+"'")
     #adjust new frame settings
     if barid == 0:
         newaxis = True
@@ -538,9 +539,16 @@ def integrate_surface(var_index, mpindex, qtname, barid):
     elif barid == 2:
         newaxis = False
         color = Color.Blue
-    display_variable_bar(tp.active_frame(), var_index, color, barid,
+    print('\nframelist before energy bar set:')
+    for frames in tp.frames():
+        print(frames.name)
+    display_variable_bar(tempframe, var_index, color, barid,
                          newaxis)
     tp.macro.execute_command("$!FrameName = '"+qtname+"'")
+    print('\nframelist after energy bar set:')
+    for frames in tp.frames():
+        print(frames.name)
+    del tempframe
 
 
 def write_to_timelog(timelogname, sourcename, data):
@@ -644,11 +652,11 @@ if __name__ == "__main__":
     N_AZIMUTH_TAIL = 50
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -60
+    X_TAIL_CAP = -30
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
-    N_SLICE = 20
+    N_SLICE = 60
     N_ALPHA = 50
 
     #Visualization
@@ -719,6 +727,7 @@ if __name__ == "__main__":
         MAIN.activate()
         for frames in tp.frames('Total K_out*'):
             INFLUX = frames
+        print(INFLUX.name)
         for frames in tp.frames('Total K_net*'):
             NETFLUX = frames
         for frames in tp.frames('Total K_in*'):
@@ -726,7 +735,6 @@ if __name__ == "__main__":
         OUTFLUX.move_to_top()
         NETFLUX.move_to_top()
         INFLUX.move_to_top()
-        MAIN.move_to_bottom()
         OUTFLUX.activate()
         OUTFLUX_DF, _ = dump_to_pandas([1],[4],'outflux.csv')
         NETFLUX.activate()
