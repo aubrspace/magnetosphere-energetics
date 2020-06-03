@@ -461,7 +461,6 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
             'Height = 3.7')
     frame = tp.active_frame()
     frame.show_border = False
-    #tp.macro.execute_command('$!FrameLayout ShowBorder = No')
     plt = frame.plot(PlotType.XYLine)
     frame.plot_type = PlotType.XYLine
     plt.linemap(0).show = False
@@ -482,7 +481,6 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     else:
         plt.axes.y_axis(0).show = False
     oldframe.move_to_bottom()
-    #tp.macro.execute_command('$!FrameControl DeleteByNumber Frame = 3')
     frame.activate()
 
 
@@ -495,8 +493,6 @@ def integrate_surface(var_index, mpindex, qtname, barid):
         qtname- integrated quantity will be saved as this name
     """
     #Integrate total surface Flux
-    print('Active frame where integration is performed: ',tp.active_frame().name)
-    #tp.active_frame().plot().scatter.variable_index = 3
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command="Integrate [{:d}] ".format(
                                                                 mpindex+1)+
@@ -528,7 +524,6 @@ def integrate_surface(var_index, mpindex, qtname, barid):
         tempframe = frames
         print('Integral frame for ',qtname,'stored to "tempframe"')
     tempframe.activate()
-    #tp.macro.execute_command("$!FrameName = '"+qtname+'_temp'+"'")
     #adjust new frame settings
     if barid == 0:
         newaxis = True
@@ -539,15 +534,9 @@ def integrate_surface(var_index, mpindex, qtname, barid):
     elif barid == 2:
         newaxis = False
         color = Color.Blue
-    print('\nframelist before energy bar set:')
-    for frames in tp.frames():
-        print(frames.name)
     display_variable_bar(tempframe, var_index, color, barid,
                          newaxis)
     tp.macro.execute_command("$!FrameName = '"+qtname+"'")
-    print('\nframelist after energy bar set:')
-    for frames in tp.frames():
-        print(frames.name)
     del tempframe
 
 
@@ -639,7 +628,7 @@ if __name__ == "__main__":
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 50
+    N_AZIMUTH_DAY = 10
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
@@ -649,14 +638,14 @@ if __name__ == "__main__":
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 50
+    N_AZIMUTH_TAIL = 10
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -30
+    X_TAIL_CAP = -20
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
-    N_SLICE = 60
+    N_SLICE = 30
     N_ALPHA = 50
 
     #Visualization
@@ -748,17 +737,6 @@ if __name__ == "__main__":
                                             columns=['Unnamed: 1'])
         print(FLUX_DF)
         write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
-
-
-        """
-        #adjust frame settings for main frame
-        tp.macro.execute_command('''$!FrameControl ActivateAtPosition
-            X = 5.75
-            Y = 4.25''')
-        plt = tp.active_frame().plot()
-        plt.fieldmap(MP_INDEX).show = True
-        plt.fieldmap(MP_INDEX).surfaces.surfaces_to_plot = SurfacesToPlot.BoundaryFaces
-        """
 
         #write .plt and .lay files
         tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
