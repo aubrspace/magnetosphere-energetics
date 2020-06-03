@@ -589,9 +589,8 @@ def display_main_frame(frame, mpindex, contourvar, colorbar, multiframe):
         plt.show_mesh = True
         plt.show_contour = True
         view = plt.view
-        view.magnification = 1.07565
-        view.translate(y=40)
-        view.translate(x=30)
+        view.center()
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         contour = plt.contour(0)
         contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'
@@ -628,7 +627,7 @@ if __name__ == "__main__":
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 10
+    N_AZIMUTH_DAY = 50
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
@@ -638,14 +637,14 @@ if __name__ == "__main__":
     PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 10
+    N_AZIMUTH_TAIL = 50
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -20
+    X_TAIL_CAP = -30
     PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
 
     #YZ slices
-    N_SLICE = 30
+    N_SLICE = 60
     N_ALPHA = 50
 
     #Visualization
