@@ -622,7 +622,7 @@ if __name__ == "__main__":
     SWMF_DATA = tp.data.load_tecplot(DATAFILE)
     #SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
     SWMF_DATA.zone(0).name = 'global_field'
-    OUTPUTNAME = DATAFILE.split('e')[1].split('-000')[0]+'done'
+    OUTPUTNAME = DATAFILE.split('e')[1].split('-000.')[0]+'done'
     print(SWMF_DATA)
 
     #Set parameters
@@ -738,7 +738,7 @@ if __name__ == "__main__":
         write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
 
         #write .plt and .lay files
-        tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
+        #tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
         #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
         tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
 
