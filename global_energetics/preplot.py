@@ -1,7 +1,11 @@
 #/usr/bin/env python
+"""Python script will find preplot tool in pytecplot library (for macOS)
+and run on set of .dat files
+"""
 
 import glob
 import os
+import sys
 from subprocess import check_output as read_out
 
 def unzip_files(path):
@@ -21,7 +25,8 @@ def preplot_files(path,pltfolder):
 
 #Main program
 if __name__ == '__main__':
+    PATH = sys.argv[1]
     print('unzipping')
-    unzip_files('./')
+    unzip_files(PATH)
     print('running preplot')
-    preplot_files('./', 'plt/')
+    preplot_files(PATH, 'plt/')
