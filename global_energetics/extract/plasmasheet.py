@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SWMF Energetics with Tecplot
+"""Extraction routine for plasmasheet surface
 """
 import logging as log
 import os
@@ -12,594 +12,150 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
-#import mpsurface_recon
+#custom packages
+from global_energetics.extract import surface_construct
+from global_energetics.extract import stream_tools
+from global_energetics.extract.stream_tools import (calc_dayside_mp,
+                                                    calc_tail_mp,
+                                                    dump_to_pandas,
+                                                    create_cylinder,
+                                                    load_cylinder,
+                                                    calculate_energetics,
+                                                    integrate_surface,
+                                                    write_to_timelog)
 
-log.basicConfig(level=log.INFO)
-start_time = time.time()
-
-def create_stream_zone(r_start, theta_start, phi_start,
-                       zone_name, stream_type):
-    """Function to create a streamline, created in 2 directions from
-       starting point
-    Inputs
-        r_start [R]- starting position for streamline
-        theta_start [rad]
-        phi_start [rad]
-        zone_name
-        stream_type- day, north or south for determining stream direction
-    """
-    # Get starting position in cartesian coordinates
-    [x_start, y_start, z_start] = sph_to_cart(r_start,
-                                              theta_start, phi_start)
-    # Create streamline
-    tp.active_frame().plot().show_streamtraces = True
-    field_line = tp.active_frame().plot().streamtraces
-    if stream_type == 'day':
-        field_line.add(seed_point=[x_start, y_start, z_start],
-                       stream_type=Streamtrace.VolumeLine,
-                       direction=StreamDir.Both)
-    elif stream_type == 'north':
-        field_line.add(seed_point=[x_start, y_start, z_start],
-                       stream_type=Streamtrace.VolumeLine,
-                       direction=StreamDir.Forward)
-    else:
-        field_line.add(seed_point=[x_start, y_start, z_start],
-                       stream_type=Streamtrace.VolumeLine,
-                       direction=StreamDir.Reverse)
-    # Create zone
-    field_line.extract()
-    SWMF_DATA.zone(-1).name = zone_name + '{}'.format(phi_start)
-    x_values = SWMF_DATA.zone(-1).values('X *').minimum()
-    print(np.minimum(x_values))
-    # Delete streamlines
-    field_line.delete_all()
-
-
-def check_streamline_closed(zone_name, r_seed, stream_type):
-    """Function to check if a streamline is open or closed
-    Inputs
-        zone_name
-        r_seed [R]- position used to seed field line
-        stream_type- dayside, north or south from tail
-    Outputs
-        isclosed- boolean, True for closed
-    """
-    # Get starting and endpoints of streamzone
-    r_values = SWMF_DATA.zone(zone_name+'*').values('r *').as_numpy_array()
-    if stream_type == 'north':
-        r_end_n = r_values[-1]
-        r_end_s = 0
-        r_seed = 2
-    elif stream_type == 'south':
-        r_end_n = 0
-        r_end_s = r_values[0]
-        r_seed = 2
-    else:
-        r_end_n, r_end_s = r_values[0], r_values[-1]
-    #check if closed
-    if (r_end_n > r_seed) or (r_end_s > r_seed):
-        isclosed = False
-    else:
-        isclosed = True
-    return isclosed
-
-def sph_to_cart(radius, theta, phi):
-    """Function converts spherical coordinates to cartesian coordinates
-    Inputs
-        radius- radial position
-        theta
-        phi
-    Outputs
-        [x_pos, y_pos, z_pos]- list of x y z_pos coordinates
-    """
-    x_pos = (radius * sin(theta) * cos(phi))
-    y_pos = (radius * sin(theta) * sin(phi))
-    z_pos = (radius * cos(theta))
-    return [x_pos, y_pos, z_pos]
-
-def find_tail_disc_point(rho, psi_disc, x_pos):
-    """Function find spherical coord of a point on a disc at a constant x
-       position in the tail
-    Inputs
-        rho- radial position relative to the center of the disc
-        psi_disc- angle relative to the axis pointing out from the center
-        of the disc
-        x_pos- x position of the disc
-    Outputs
-        [radius, theta, phi_disc]- spherical coord of the point relative
-        to the global origin
-    """
-    y_pos = rho*sin(psi_disc)
-    z_pos = rho*cos(psi_disc)
-    radius = sqrt(x_pos**2+rho**2)
-    theta = pi/2 - np.arctan(z_pos/abs(x_pos))
-    phi_disc = pi + np.arctan(y_pos/abs(x_pos))
-    return [radius, theta, phi_disc]
-
-
-def calc_dayside_mp(phi, r_max, r_min, itr_max, tolerance):
-    """"Function to create zones that will makeup dayside magnetopause
-    Inputs
-        phi- set of phi angle points
-        r_max- maxium radial distance for equitorial search
-        r_min
-        itr_max
-        tolerance- for searching algorithm
-    """
-    #Initialize objects that will be modified in creation loop
-    r_eq_mid = np.zeros(int(len(phi)))
-    itr = 0
-    r_eq_max, r_eq_min = r_max, r_min
-
-    #set B as the vector field
-    plot = tp.active_frame().plot()
-    plot.vector.u_variable = SWMF_DATA.variable('B_x*')
-    plot.vector.v_variable = SWMF_DATA.variable('B_y*')
-    plot.vector.w_variable = SWMF_DATA.variable('B_z*')
-
-
-    #Create Dayside Magnetopause field lines
-    stream_type = 'day'
-    for i in range(int(len(phi))):
-        #Create initial max min and mid field lines
-        create_stream_zone(r_min, pi/2, phi[i], 'min_field_line',
-                           stream_type)
-        create_stream_zone(r_max, pi/2, phi[i], 'max_field_line',
-                           stream_type)
-        #Check that last closed is bounded
-        min_closed = check_streamline_closed('min_field_line',
-                                                  r_min, stream_type)
-        max_closed = check_streamline_closed('max_field_line',
-                                                  r_max, stream_type)
-        SWMF_DATA.delete_zones(SWMF_DATA.zone('min_field*'),
-                               SWMF_DATA.zone('max_field*'))
-        print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(
-                                                    np.rad2deg(phi[i]),
-                                                    itr, r_eq_max-r_eq_min))
-        if max_closed and min_closed:
-            print('WARNING: field line closed at max {}R_e'.format(r_max))
-            create_stream_zone(r_max, pi/2, phi[i], 'field_phi_',
-                               stream_type)
-        elif not max_closed and not min_closed:
-            print('WARNING: first field line open at {}R_e'.format(r_min))
-            create_stream_zone(r_min, pi/2, phi[i], 'field_phi_',
-                               stream_type)
-        else:
-            r_eq_mid[i] = (r_max+r_min)/2
-            itr = 0
-            notfound = True
-            r_eq_min, r_eq_max = r_min, r_max
-            while(notfound and itr < itr_max):
-                #This is a bisection root finding algorithm
-                create_stream_zone(r_eq_mid[i], pi/2, phi[i],
-                                   'temp_field_phi_', stream_type)
-                mid_closed = check_streamline_closed('temp_field_phi_',
-                                                     r_eq_mid[i],
-                                                     stream_type)
-                if mid_closed:
-                    r_eq_min = r_eq_mid[i]
-                else:
-                    r_eq_max = r_eq_mid[i]
-                if abs(r_eq_min - r_eq_max) < tolerance and mid_closed:
-                    notfound = False
-                    SWMF_DATA.zone('temp*').name ='field_phi_{:.1f}'.format(
-                                                         np.rad2deg(phi[i]))
-                else:
-                    r_eq_mid[i] = (r_eq_max+r_eq_min)/2
-                    SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_field*'))
-                itr += 1
-
-
-
-
-def calc_cps(psi, x_disc, rho_max, rho_step):
-    """Function to create the zones that will become the plasma sheet in
-    the tail
-    Inputs
-        psi- set of disc azimuthal angles
-        x_disc- x position of the tail disc
-        rho_max- outer radial bounds of the tail disc
-        rho_step- radial distance increment for marching algorithm
-    """
-    #Initialize objects that will be modified in creation loop
-    rho_tail = rho_max
-
-    #set B as the vector field
-    plot = tp.active_frame().plot()
-    plot.vector.u_variable = SWMF_DATA.variable('B_x*')
-    plot.vector.v_variable = SWMF_DATA.variable('B_y*')
-    plot.vector.w_variable = SWMF_DATA.variable('B_z*')
-
-    #Create Tail Magnetopause field lines
-    for i in range(int(len(psi))):
-        for rho in np.linspace(0.1, rho_max):
-            r_tail, theta_tail, phi_tail = find_tail_disc_point(rho,
-                                                            psi[i], x_disc)
-            x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
-            create_stream_zone(r_tail, theta_tail, phi_tail,
-                               'temp_tail_line_', 'day')
+def magnetopause_analysis(field_data, colorbar):
+        """Function to calculate energy flux at magnetopause surface
+        Inputs
+            field_data- tecplot Dataset object with 3D field data and mp
+            colorbar- settings for the color to be displayed on frame
+        Outputs
+            mp_power- power, or energy flux at the magnetopause surface
         """
-        #check if north or south attached
-        x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
-        if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
-            stream_type = 'south'
-        else:
-            stream_type = 'north'
-        create_stream_zone(r_tail, theta_tail, phi_tail,
-                           'temp_tail_line_', stream_type)
-        #check if closed
-        tail_closed = check_streamline_closed('temp_tail_line_', r_tail,
-                                              stream_type)
-        #This is a basic marching algorithm from outside in starting at
-        #RHO_MAX
-        rho_tail = 0.1
-        notfound = True
-        while notfound and rho_tail > rho_step:
-            SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
-            rho_tail = rho_tail + rho_step
-            r_tail, theta_tail, phi_tail = find_tail_disc_point(
-                                                rho_tail, psi[i], x_disc)
-            #check if north or south attached
-            x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail,
-                                                  phi_tail)
-            if tp.data.query.probe_at_position(x_pos,
-                                                   y_pos, z_pos)[0][7] < 0:
-                stream_type = 'south'
-             else:
-                stream_type = 'north'
-            create_stream_zone(r_tail, theta_tail, phi_tail,
-                                   'temp_tail_line_', stream_type)
-            tail_closed =check_streamline_closed('temp_tail_line_',
-                                                     rho_tail, stream_type)
-            if not tail_closed:
-                SWMF_DATA.zone('temp*').name='tail_field_{:.1f}'.format(
-                                                        np.rad2deg(psi[i]))
-                notfound = False
-                print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
-                                                       np.rad2deg(psi[i])))
-            if rho_tail > rho_max:
-                    print('WARNING: not possible at psi={:.1f}'.format(
-                                                       np.rad2deg(psi[i])))
-        """
+        #calculate energetics
+        calculate_energetics(field_data)
+        #initialize objects for main frame
+        main = tp.active_frame()
+        mp_index = int(field_data.zone('mp_zone').index)
+        Knet_index = int(field_data.variable('K_in *').index)
+        Kplus_index = int(field_data.variable('K_in+*').index)
+        Kminus_index = int(field_data.variable('K_in-*').index)
+        #adjust main frame settings
+        display_magnetopause(main, mp_index, Knet_index, colorbar, False)
+        #integrate k flux
+        integrate_surface(Kplus_index, mp_index,
+                          'Total K_out [kW]', barid=0)
+        main.activate()
+        integrate_surface(Knet_index, mp_index,
+                          'Total K_net [kW]', barid=1)
+        main.activate()
+        integrate_surface(Kminus_index, mp_index,
+                          'Total K_in [kW]', barid=2)
+        main.activate()
+        for frames in tp.frames('Total K_in*'):
+            influx = frames
+        for frames in tp.frames('Total K_net*'):
+            netflux = frames
+        for frames in tp.frames('Total K_out*'):
+            outflux = frames
+        outflux.move_to_top()
+        netflux.move_to_top()
+        influx.move_to_top()
+        outflux.activate()
+        outflux_df, _ = dump_to_pandas([1],[4],'outflux.csv')
+        netflux.activate()
+        netflux_df, _ = dump_to_pandas([1],[4],'netflux.csv')
+        influx.activate()
+        influx_df, _ = dump_to_pandas([1],[4],'influx.csv')
+        mp_power = outflux_df.combine(netflux_df, np.minimum,
+                                     fill_value=1e12).combine(
+                                    influx_df, np.minimum,
+                                    fill_value=1e12).drop(
+                                            columns=['Unnamed: 1'])
+        return mp_power
 
-def dump_to_pandas(zonelist, varlist, filename):
-    """Function to hand zone data to pandas to do processing
-    Inputs-
-        zonelist- array like object of which zones to export
-        varlist- which variables
-        filename
-    Outputs-
-        loc_data- DataFrame of stream zone data
-        x_max
-    """
-    print('converting '+filename.split('.')[0]+' to DataFrame\n')
-    os.system('touch '+filename)
-    #Export 3D point data to csv file
-    tp.macro.execute_extended_command(command_processor_id='excsv',
-            command='VarNames:'+
-                    'FrOp=1:'+
-                    'ZnCount={:d}:'.format(len(zonelist))+
-                    'ZnList=[{:d}-{:d}]:'.format(int(zonelist[0]),
-                                                 int(zonelist[-1]))+
-                    'VarCount={:d}:'.format(len(varlist))+
-                    'VarList=[{:d}-{:d}]:'.format(int(varlist[0]),
-                                                  int(varlist[-1]))+
-                    'ValSep=",":'+
-                    'FNAME="'+os.getcwd()+'/'+filename+'"')
-    loc_data = pd.read_csv(filename)
-    if any(col == 'X [R]' for col in loc_data.columns):
-        loc_data = loc_data.drop(columns=['Unnamed: 3'])
-        loc_data = loc_data.sort_values(by=['X [R]'])
-        x_max = loc_data['X [R]'].max()
-    else: x_max = []
-    return loc_data, x_max
 
-def create_cylinder(nx, nalpha, x_min, x_max):
-    """Function creates empty cylindrical zone for loading of slice data
-    Inputs-
-        nx- number of x positions, same as n_slice
-        nalpha
-        x_min
-        x_max
-    """
-    #use built in create zone function for verticle cylinder
-    tp.macro.execute_command('''$!CreateCircularZone
-                             IMax = 2
-                             JMax = {:d}
-                             KMax = {:d}
-                             X = 0
-                             Y = 0
-                             Z1 = {:d}
-                             Z2 = {:f}
-                             Radius = 50'''.format(nalpha,nx,x_min,x_max))
-
-    #use built in function to rotate 90deg about y axis
-    tp.macro.execute_command('''$!AxialDuplicate
-                             ZoneList =  [{:d}]
-                             Angle = 90
-                             NumDuplicates = 1
-                             XVar = 1
-                             YVar = 2
-                             ZVar = 3
-                             UVarList =  [8]
-                             VVarList =  [9]
-                             WVarList =  [10]
-                             NormalX = 0
-                             NormalY = 1
-                             NormalZ = 0'''.format(SWMF_DATA.num_zones))
-
-    #delete verticle cylinder
-    SWMF_DATA.delete_zones(SWMF_DATA.zone('Circular zone'))
-    SWMF_DATA.zone('Circular*').name = 'mp_zone'
-    print('empty zone created')
-
-def load_cylinder(data, zonename, I, J, K):
-    """Function to load processed slice data into cylindrial ordered zone
-       I, J, K -> radial, azimuthal, axial
+def get_magnetopause(datafile, *, pltpath='./', laypath='./', pngpath='./',
+                     nstream_day=15, phi_max=122, rday_max=30,rday_min=3.5,
+                     dayitr_max=100, daytol=0.1,
+                     nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
+                     nslice=40, nalpha=50,
+                     rcolor=2.5):
+    """Function that finds, plots and calculates energetics on the
+        magnetopause surface.
     Inputs
-        filename- path to .csv file for loading data
-        zonename- name of cylindrical zone
-        I- vector of I coordinates (0 to 1)
-        J- vector of J coordinates (0 to num_alpha)
-        K- vector of K coordinates (0 to num_slices)
+        datafile- field data input, assumes .plt file
+        pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
+        nstream_day- number of streamlines generated for dayside algorithm
+        phi_max- azimuthal (sun=0) limit of dayside algorithm for streams
+        rday_max, rday_min- radial limits (in XY) for dayside algorithm
+        dayitr_max, daytol- settings for bisection search algorithm
+        nstream_tail- number of streamlines generated for tail algorithm
+        rho_max, rho_step- tail disc maximium radius and step (in YZ)
+        tail_cap- X position of tail cap
+        nslice, nalpha- cylindrical points used for surface reconstruction
+        rcolor- colorbar range, symmetrical about zero
     """
-    print('cylindrical zone loading')
-    mag_bound = SWMF_DATA.zone(zonename)
-    #data = pd.read_csv(filename)
-    xdata = data['X [R]'].values.copy()
-    ydata = data['Y [R]'].values.copy()
-    zdata = data['Z [R]'].values.copy()
-    #ndata = np.meshgrid(xdata,ydata,zdata)
-    mag_bound.values('X*')[1::2] = xdata
-    mag_bound.values('Y*')[1::2] = ydata
-    mag_bound.values('Z*')[1::2] = zdata
+    start_time = time.time()
+    #load datafile
+    field_data = tp.data.load_tecplot(datafile)
+    field_data.zone(0).name = 'global_field'
+    outputname = datafile.split('e')[1].split('-000.')[0]+'done'
+    print(field_data)
 
-def calculate_energetics():
-    """Function calculates values for energetics tracing
-    """
-    zone_index= SWMF_DATA.zone('mp_zone').index
-    tp.macro.execute_extended_command('CFDAnalyzer3',
-                                      'CALCULATE FUNCTION = '+
-                                      'GRIDKUNITNORMAL VALUELOCATION = '+
-                                      'CELLCENTERED')
-    eq = tp.data.operate.execute_equation
-    #Electric Field
-    eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
-                          '-{U_y [km/s]}*{B_z [nT]})')
-    eq('{E_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
-                         '-{U_z [km/s]}*{B_x [nT]})')
-    eq('{E_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
-                         '-{U_x [km/s]}*{B_y [nT]})')
+    #set parameters
+    phi = np.linspace(np.deg2rad(-1*phi_max),np.deg2rad(phi_max),
+                      nstream_day)
+    psi = np.linspace(-pi*(1-pi/nstream_tail), pi, nstream_tail)
+    colorbar = np.linspace(-1*rcolor,rcolor,int(4*rcolor+1))
+    with tp.session.suspend():
+        tp.macro.execute_command("$!FrameName = 'main'")
+        tp.data.operate.execute_equation(
+                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
-    #Poynting Flux
-    eq('{ExB_x [kW/km^2]} = -(1/1.25663706)*({E_z [mV/km]}*{B_y [nT]}'+
-                                            '-{E_y [mV/km]}*{B_z [nT]})'+
-                                            '*1e-6')
-    eq('{ExB_y [kW/km^2]} = -(1/1.25663706)*({E_x [mV/km]}*{B_z [nT]}'+
-                                            '-{E_z [mV/km]}*{B_x [nT]})'+
-                                            '*1e-6')
-    eq('{ExB_z [kW/km^2]} = -(1/1.25663706)*({E_y [mV/km]}*{B_x [nT]}'+
-                                            '-{E_x [mV/km]}*{B_y [nT]})'+
-                                            '*1e-6')
-    #Total Energy Flux
-    eq('{K_x [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
-                               '+1e-3*{Rho [amu/cm^3]}/2*'+
-                                   '({U_x [km/s]}**2+{U_y [km/s]}**2'+
-                                   '+{U_z [km/s]}**2))'+
-                          '*{U_x [km/s]}  +  {ExB_x [kW/km^2]}',
-        zones=[zone_index])
-    eq('{K_y [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
-                               '+1e-3*{Rho [amu/cm^3]}/2*'+
-                                   '({U_x [km/s]}**2+{U_y [km/s]}**2'+
-                                   '+{U_z [km/s]}**2))'+
-                          '*{U_y [km/s]}  +  {ExB_y [kW/km^2]}',
-        zones=[zone_index])
-    eq('{K_z [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
-                               '+1e-3*{Rho [amu/cm^3]}/2*'+
-                                   '({U_x [km/s]}**2+{U_y [km/s]}**2'+
-                                   '+{U_z [km/s]}**2))'+
-                          '*{U_z [km/s]}  +  {ExB_z [kW/km^2]}',
-        zones=[zone_index])
+        #Create Dayside Magnetopause field lines
+        calc_dayside_mp(field_data, phi, rday_max, rday_min, dayitr_max,
+                        daytol)
+        #Create Tail magnetopause field lines
+        calc_tail_mp(field_data, psi, tail_cap, rho_max, rho_step)
+        #Create Theta and Phi coordinates for all points in domain
+        tp.data.operate.execute_equation(
+                                   '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
+        tp.data.operate.execute_equation(
+                                   '{theta} = acos({Z [R]}/{r [R]}) * '+
+                                    '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
+        #port stream data to pandas DataFrame object
+        stream_zone_list = np.linspace(2,field_data.num_zones,
+                                       field_data.num_zones-2+1)
+        stream_df, x_subsolar = dump_to_pandas(stream_zone_list, [1,2,3],
+                                          'stream_points.csv')
+        #slice and construct XYZ data
+        mp_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
+                                              x_subsolar, nslice, nalpha,
+                                              False)
+        #create and load cylidrical zone
+        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar)
+        load_cylinder(field_data, mp_mesh, 'mp_zone',
+                      range(0,2), range(0,nslice), range(0,nalpha))
 
-    #Component Normal Flux
-    eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2'+
-                                  '+1e-25)'+
-                          '* {X Grid K Unit Normal}',
-       zones=[zone_index])
-    eq('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2'+
-                                  '+1e-25)'+
-                          '* {Y Grid K Unit Normal}',
-        zones=[zone_index])
-    eq('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2'+
-                                  '+1e-25)'+
-                          '* {Z Grid K Unit Normal}',
-        zones=[zone_index])
+        #interpolate field data to zone
+        print('interpolating field data to magnetopause')
+        tp.data.operate.interpolate_inverse_distance(
+                destination_zone=field_data.zone('mp_zone'),
+                source_zones=field_data.zone('global_field'))
+        magnetopause_power = magnetopause_analysis(field_data, colorbar)
+        print(magnetopause_power)
+        write_to_timelog('integral_log.csv',outputname, magnetopause_power)
 
-    #Magnitude Normal Flux
-    eq('{K_in [kW/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{Kn_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{Kn_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2 '+
-                                  '+{Z Grid K Unit Normal}**2'+
-                                  '+1e-25)',
-        zones=[zone_index])
+        #write .plt and .lay files
+        #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
+        #tp.save_layout(laypath+outputname+'.lay')
+        tp.export.save_png(pngpath+outputname+'.png')
 
-    #Split into + and - flux
-    eq('{K_in+} = max({K_in [kW/km^2]},0)', zones=[zone_index])
-    eq('{K_in-} = min({K_in [kW/km^2]},0)', zones=[zone_index])
-
-
-def display_variable_bar(oldframe, var_index, color, barid, newaxis):
-    """Function to display bargraph of variable quantity in upper right
-    Inputs
-        frame- tecplot frame object
-        var_index- index for displayed variable (4 for integrated qty)
-        color
-        barid- for multiple bars, setup to the right of the previous
-        newaxis- True if plotting on new axis
-    """
-    oldframe.activate()
-    tp.macro.execute_command('$!CreateNewFrame\n'+
-            'XYPos{X='+str(1.25+0.25*barid)+'\n'
-                  'Y=0}\n'+
-            'Width = 1\n'+
-            'Height = 3.7')
-    frame = tp.active_frame()
-    frame.show_border = False
-    plt = frame.plot(PlotType.XYLine)
-    frame.plot_type = PlotType.XYLine
-    plt.linemap(0).show = False
-    plt.linemap(2).show = True
-    frame.transparent = True
-    plt.show_bars = True
-    plt.linemap(2).bars.show = True
-    plt.linemap(2).bars.size = 32
-    plt.linemap(2).bars.line_color = color
-    plt.linemap(2).bars.fill_color = color
-    plt.axes.x_axis(0).show = False
-    plt.axes.y_axis(0).min = -14000
-    plt.axes.y_axis(0).max = 14000
-    if newaxis:
-        plt.axes.y_axis(0).show = True
-        plt.axes.y_axis(0).line.offset = -40
-        plt.axes.y_axis(0).title.offset = 40
-    else:
-        plt.axes.y_axis(0).show = False
-    oldframe.move_to_bottom()
-    frame.activate()
-
-
-
-def integrate_surface(var_index, mpindex, qtname, barid):
-    """Function to calculate integral of variable on mp surface
-    Inputs
-        var_index- variable to be integrated
-        mpindex- index of the mp zone
-        qtname- integrated quantity will be saved as this name
-    """
-    #Integrate total surface Flux
-    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-                                      command="Integrate [{:d}] ".format(
-                                                                mpindex+1)+
-                                              "VariableOption='Scalar' "+
-                                              "XOrigin=0 "+
-                                              "YOrigin=0 "+
-                                              "ZOrigin=0 "+
-                                              "ScalarVar={:d} ".format(
-                                                              var_index+1)+
-                                              "Absolute='F' "+
-                                              "ExcludeBlanked='F' "+
-                                              "XVariable=1 "+
-                                              "YVariable=2 "+
-                                              "ZVariable=3 "+
-                                              "IntegrateOver='Cells' "+
-                                              "IntegrateBy='Zones' "+
-                                              "IRange={MIN =1 MAX = 0 "+
-                                                      "SKIP = 1} "+
-                                              "JRange={MIN =1 MAX = 0 "+
-                                                      "SKIP = 1} "+
-                                              "KRange={MIN =1 MAX = 0 "+
-                                                      "SKIP = 1} "+
-                                              "PlotResults='T' "+
-                                              "PlotAs='"+qtname+"' "+
-                                              "TimeMin=0 TimeMax=0")
-
-    #switch active frame to newly created one
-    for frames in tp.frames('Frame 001'):
-        tempframe = frames
-        print('Integral frame for ',qtname,'stored to "tempframe"')
-    tempframe.activate()
-    #adjust new frame settings
-    if barid == 0:
-        newaxis = True
-        color = Color.Red
-    elif barid == 1:
-        newaxis = False
-        color = Color.Black
-    elif barid == 2:
-        newaxis = False
-        color = Color.Blue
-    display_variable_bar(tempframe, var_index, color, barid,
-                         newaxis)
-    tp.macro.execute_command("$!FrameName = '"+qtname+"'")
-    del tempframe
-
-
-def write_to_timelog(timelogname, sourcename, data):
-    """Function for writing the results from the current file to a file that contains time integrated data
-    Inputs
-        timelogname
-        sourcename
-        data- pandas DataFrame object that will be written into the file
-    """
-    #get the time entries for this file
-    from makevideo import get_time
-    abstime = get_time(sourcename)
-    secyear = 60*60*24*12*30
-    year = np.floor(abstime/secyear)
-    month = np.floor((abstime/secyear-year)*12)
-    day = np.floor((((abstime/secyear-year)*12)-month)*30)
-    hour = np.floor((((((abstime/secyear-year)*12)-month)*30)-day)*24)
-    minute = np.floor((((((((abstime/secyear-year)*12)-month)*30)
-                             -day)*24)-hour)*60)
-    second = np.floor((((((((((abstime/secyear-year)*12)-month)*30)
-                             -day)*24)-hour)*60)-minute)*60)
-    timestamp = [year, month, day, hour, minute, second, abstime]
-    #write data to file
-    with open(timelogname, 'a') as log:
-        log.seek(0,2)
-        log.write('\n')
-        for entry in timestamp:
-            log.write(str(entry)+', ')
-        for num in data.values[0]:
-            log.write(str(num)+',')
-
-def display_main_frame(frame, mpindex, contourvar, colorbar, multiframe):
-    """Function to center the magnetopause object and adjust colorbar
-        settings
-    Inputs
-        frame- object for the tecplot frame
-        mpindex
-        contourvar- variable to be used for the contour
-        colorbar- levels for colorbar
-        multiframe- boolean, false for single frame
-    """
-    plt = frame.plot()
-    for zone in range(0,mpindex-1):
-            plt.fieldmap(zone).show=False
-    if not multiframe:
-        plt.fieldmap(mpindex).show = True
-        plt.fieldmap(mpindex).surfaces.surfaces_to_plot = (
-                                               SurfacesToPlot.BoundaryFaces)
-        plt.show_mesh = True
-        plt.show_contour = True
-        view = plt.view
-        view.center()
-        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
-        contour = plt.contour(0)
-        contour.variable_index = contourvar
-        contour.colormap_name = 'cmocean - balance'
-        contour.legend.vertical = False
-        contour.legend.position[1] = 20
-        contour.legend.position[0] = 75
-        contour.levels.reset_levels(colorbar)
-        contour.labels.step = 2
+        #timestamp
+        ltime = time.time()-start_time
+        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
+                                           np.mod(ltime,60)))
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
@@ -609,143 +165,32 @@ def display_main_frame(frame, mpindex, contourvar, colorbar, multiframe):
 if __name__ == "__main__":
     if '-c' in sys.argv:
         tp.session.connect()
-
     os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
-    DATAFILE = sys.argv[1]
-    PLTPATH = sys.argv[2]
-    LAYPATH = sys.argv[3]
-    PNGPATH = sys.argv[4]
-    print('Processing '+DATAFILE)
     tp.new_layout()
 
     #Load .plt file, come back to this later for batching
-    log.info('loading .plt and reformatting')
-    SWMF_DATA = tp.data.load_tecplot(DATAFILE)
-    #SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
-    SWMF_DATA.zone(0).name = 'global_field'
-    OUTPUTNAME = DATAFILE.split('e')[1].split('-000.')[0]+'done'
-    print(SWMF_DATA)
+    SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
 
     #Set parameters
     #DaySide
-    N_AZIMUTH_DAY = 50
+    N_AZIMUTH_DAY = 15
     AZIMUTH_MAX = 122
     R_MAX = 30
     R_MIN = 3.5
     ITR_MAX = 100
     TOL = 0.1
-    AZIMUTH_RANGE = [np.deg2rad(-1*AZIMUTH_MAX), np.deg2rad(AZIMUTH_MAX)]
-    PHI = np.linspace(AZIMUTH_RANGE[0], AZIMUTH_RANGE[1], N_AZIMUTH_DAY)
 
     #Tail
-    N_AZIMUTH_TAIL = 50
+    N_AZIMUTH_TAIL = 15
     RHO_MAX = 50
     RHO_STEP = 0.5
-    X_TAIL_CAP = -30
-    PSI = np.linspace(-pi*(1-pi/N_AZIMUTH_TAIL), pi, N_AZIMUTH_TAIL)
+    X_TAIL_CAP = -20
 
     #YZ slices
-    N_SLICE = 60
+    N_SLICE = 40
     N_ALPHA = 50
 
     #Visualization
     RCOLOR = 4
-    COLORBAR = np.linspace(-1*RCOLOR,RCOLOR,4*RCOLOR+1)
 
-    with tp.session.suspend():
-        tp.macro.execute_command("$!FrameName = 'main'")
-        #Create R from cartesian coordinates
-        tp.data.operate.execute_equation(
-                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-        #Create Dayside Magnetopause field lines
-        #calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
-
-        #Create Tail magnetopause field lines
-        calc_cps(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
-        """
-        #Create Theta and Phi coordinates for all points in domain
-        tp.data.operate.execute_equation(
-                                   '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
-        tp.data.operate.execute_equation(
-                                   '{theta} = acos({Z [R]}/{r [R]}) * '+
-                                    '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
-
-        #port stream data to pandas DataFrame object
-        STREAM_ZONE_LIST = np.linspace(2,SWMF_DATA.num_zones,
-                                       SWMF_DATA.num_zones-2+1)
-
-        STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
-                                          'stream_points.csv')
-
-        #slice and construct XYZ data
-        MP_MESH = mpsurface_recon.yz_slicer(STREAM_DF, X_TAIL_CAP, X_MAX,
-                                         N_SLICE, N_ALPHA, True)
-
-        #create and load cylidrical zone
-        create_cylinder(N_SLICE, N_ALPHA, X_TAIL_CAP, X_MAX)
-        load_cylinder(MP_MESH, 'mp_zone',
-                      range(0,2), range(0,N_SLICE), range(0,N_ALPHA))
-
-        #interpolate field data to zone
-        print('interpolating field data to magnetopause')
-        tp.data.operate.interpolate_inverse_distance(
-                destination_zone=SWMF_DATA.zone('mp_zone'),
-                source_zones=SWMF_DATA.zone('global_field'))
-
-        #calculate energetics
-        calculate_energetics()
-
-        #initialize objects for main frame
-        MAIN = tp.active_frame()
-        MP_INDEX = int(SWMF_DATA.zone('mp_zone').index)
-        Kin_INDEX = int(SWMF_DATA.variable('K_in *').index)
-        Kplus_INDEX = int(SWMF_DATA.variable('K_in+*').index)
-        Kminus_INDEX = int(SWMF_DATA.variable('K_in-*').index)
-
-        #adjust main frame settings
-        display_main_frame(MAIN, MP_INDEX, Kin_INDEX, COLORBAR, False)
-
-        #integrate k flux
-        integrate_surface(Kplus_INDEX, MP_INDEX,
-                          'Total K_out [kW]', barid=0)
-        MAIN.activate()
-        integrate_surface(Kin_INDEX, MP_INDEX,
-                          'Total K_net [kW]', barid=1)
-        MAIN.activate()
-        integrate_surface(Kminus_INDEX, MP_INDEX,
-                          'Total K_in [kW]', barid=2)
-        MAIN.activate()
-        for frames in tp.frames('Total K_out*'):
-            INFLUX = frames
-        print(INFLUX.name)
-        for frames in tp.frames('Total K_net*'):
-            NETFLUX = frames
-        for frames in tp.frames('Total K_in*'):
-            OUTFLUX = frames
-        OUTFLUX.move_to_top()
-        NETFLUX.move_to_top()
-        INFLUX.move_to_top()
-        OUTFLUX.activate()
-        OUTFLUX_DF, _ = dump_to_pandas([1],[4],'outflux.csv')
-        NETFLUX.activate()
-        NETFLUX_DF, _ = dump_to_pandas([1],[4],'netflux.csv')
-        INFLUX.activate()
-        INFLUX_DF, _ = dump_to_pandas([1],[4],'influx.csv')
-        FLUX_DF = OUTFLUX_DF.combine(NETFLUX_DF, np.minimum,
-                                     fill_value=1e12).combine(
-                                    INFLUX_DF, np.minimum,
-                                    fill_value=1e12).drop(
-                                            columns=['Unnamed: 1'])
-        print(FLUX_DF)
-        write_to_timelog('integral_log.csv', OUTPUTNAME, FLUX_DF)
-
-        #write .plt and .lay files
-        #tp.data.save_tecplot_plt(PLTPATH+OUTPUTNAME+'.plt')
-        #tp.save_layout(LAYPATH+OUTPUTNAME+'.lay')
-        tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
-
-        #timestamp
-        ltime = time.time()-start_time
-        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
-                                           np.mod(ltime,60)))
-        """
+    get_magnetopause('./3d__mhd_2_e20140219_123000-000.plt')

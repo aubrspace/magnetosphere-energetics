@@ -31,10 +31,10 @@ def create_stream_zone(field_data, r_start, theta_start, phi_start,
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
-    if stream_type == 'day':
+    if stream_type == 'south':
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
-                       direction=StreamDir.Both)
+                       direction=StreamDir.Reverse)
     elif stream_type == 'north':
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
@@ -42,10 +42,11 @@ def create_stream_zone(field_data, r_start, theta_start, phi_start,
     else:
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
-                       direction=StreamDir.Reverse)
+                       direction=StreamDir.Both)
     # Create zone
     field_line.extract()
-    field_data.zone(-1).name = zone_name + '{}'.format(phi_start)
+    field_data.zone(-1).name = zone_name + '{}'.format(
+                                                    np.rad2deg(phi_start))
     # Delete streamlines
     field_line.delete_all()
 
@@ -61,6 +62,7 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         isclosed- boolean, True for closed
     """
     # Get starting and endpoints of streamzone
+    print(field_data.zone(zone_name+'*'))
     r_values = field_data.zone(zone_name+'*').values('r *').as_numpy_array()
     if stream_type == 'north':
         r_end_n = r_values[-1]
@@ -70,8 +72,19 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         r_end_n = 0
         r_end_s = r_values[0]
         r_seed = 2
+    elif stream_type == 'inner_mag':
+        r_end_n = np.max(r_values)
+        r_end_s = np.max(r_values)
+        print('value: {:.1f}'.format(r_end_s))
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
+        '''
+        print('r values: {:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(
+                                         r_values[0],
+                                         r_values[4],
+                                         r_values[8],
+                                         r_values[-8]))
+        '''
     #check if closed
     if (r_end_n > r_seed) or (r_end_s > r_seed):
         isclosed = False
@@ -261,6 +274,100 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
                 if rho_tail <= rho_step:
                     print('WARNING: not possible at psi={:.1f}'.format(
                                                        np.rad2deg(psi[i])))
+
+
+def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
+                     max_iter, tolerance):
+    """Function to create tecplot zones that define the plasmasheet boundary
+    Inputs
+        field_data- tecplot Dataset containing 3D field data
+        theta_max- max co-latitude value corresponding to near equator
+        phi_list- list containing longitudinal positions to be searched
+        tail_cap
+        max_iter- max iterations for bisection algorithm
+        tolerance
+    """
+    #set B as the vector field
+    plot = tp.active_frame().plot()
+    plot.vector.u_variable = field_data.variable('B_x*')
+    plot.vector.v_variable = field_data.variable('B_y*')
+    plot.vector.w_variable = field_data.variable('B_z*')
+    seed_radius = 1.5
+
+    #iterate through northside zones
+    for phi in phi_list:
+        #initialize latitude search bounds
+        pole_theta = 0
+        equat_theta = theta_max
+        mid_theta = (pole_theta+equat_theta)/2
+        print('phi {:.1f}'.format(np.rad2deg(phi)))
+        create_stream_zone(field_data, seed_radius, pole_theta, phi,
+                           'temp_poleward_', 'inner_mag')
+        poleward_closed = check_streamline_closed(field_data,
+                                                  'temp_poleward',
+                                                  abs(tail_cap),
+                                                  'inner_mag')
+        create_stream_zone(field_data, seed_radius-0.5, equat_theta, phi,
+                           'temp_equatorward_', 'inner_mag')
+        equatorward_closed = check_streamline_closed(field_data,
+                                                 'temp_equatorward',
+                                                 abs(tail_cap),
+                                                 'inner_mag')
+        print(poleward_closed)
+        print(equatorward_closed)
+        print('\n')
+        #check if both are open are close to start
+        if poleward_closed and equatorward_closed:
+            print('Warning: high and low lat {:.2f}, {:.2f} '.format(
+                                                  np.rad2deg(pole_theta),
+                                                  np.rad2deg(equat_theta))+
+                  'closed at lon {:.1f}'.format(np.rad2deg(phi)))
+            create_stream_zone(field_data, seed_radius-0.5, mid_theta,
+                               phi, 'plasma_sheet_', 'inner_mag')
+            field_data.delete_zones(field_data.zone('temp*'))
+        elif not poleward_closed and (not equatorward_closed):
+            print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
+                        np.rad2deg(pole_theta), np.rad2deg(equat_theta)))
+            create_stream_zone(field_data, seed_radius-0.5, mid_theta,
+                               phi, 'plasma_sheet_', 'inner_mag')
+            field_data.delete_zones(field_data.zone('temp*'))
+        else:
+            print('\ndeleted:')
+            print(field_data.zone('temp*'))
+            field_data.delete_zones(field_data.zone('temp*'))
+            print('\ndeleted:')
+            print(field_data.zone('temp*'))
+            field_data.delete_zones(field_data.zone('temp*'))
+            notfound = True
+            itr = 0
+            while (notfound and itr < max_iter):
+                mid_theta = (pole_theta+equat_theta)/2
+                print('max= {:.3f}, theta= {:.3f}, min={:.3f}'.format(
+                                                  np.rad2deg(pole_theta),
+                                                  np.rad2deg(mid_theta),
+                                                  np.rad2deg(equat_theta)))
+                create_stream_zone(field_data, seed_radius-0.5,
+                                   mid_theta, phi,
+                                   'temp_ps_line_', 'inner_mag')
+                mid_lat_closed = check_streamline_closed(field_data,
+                                                         'temp_ps_line_',
+                                                         abs(tail_cap),
+                                                         'inner_mag')
+                if mid_lat_closed:
+                    equat_theta = mid_theta
+                else:
+                    pole_theta = mid_theta
+                if abs(pole_theta - equat_theta)<tolerance and (
+                                                        mid_lat_closed):
+                    notfound = False
+                    field_data.zone('temp*').name = 'plasma_sheet_'.format(
+                                                   np.rad2deg(equat_theta))
+                else:
+                    field_data.delete_zones(field_data.zone('temp*'))
+                print('iteration: {:d}'.format(itr))
+                print(mid_lat_closed)
+                print('\n')
+                itr += 1
 
 
 def dump_to_pandas(zonelist, varlist, filename):
