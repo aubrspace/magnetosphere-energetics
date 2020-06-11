@@ -12,7 +12,7 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
-import mpsurface_recon
+#import mpsurface_recon
 
 log.basicConfig(level=log.INFO)
 start_time = time.time()
@@ -49,6 +49,8 @@ def create_stream_zone(r_start, theta_start, phi_start,
     # Create zone
     field_line.extract()
     SWMF_DATA.zone(-1).name = zone_name + '{}'.format(phi_start)
+    x_values = SWMF_DATA.zone(-1).values('X *').minimum()
+    print(np.minimum(x_values))
     # Delete streamlines
     field_line.delete_all()
 
@@ -190,8 +192,9 @@ def calc_dayside_mp(phi, r_max, r_min, itr_max, tolerance):
 
 
 
-def calc_tail_mp(psi, x_disc, rho_max, rho_step):
-    """Function to create the zones that will become the tail magnetopause
+def calc_cps(psi, x_disc, rho_max, rho_step):
+    """Function to create the zones that will become the plasma sheet in
+    the tail
     Inputs
         psi- set of disc azimuthal angles
         x_disc- x position of the tail disc
@@ -209,9 +212,13 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
 
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
-        #Find global position based on seed point
-        r_tail, theta_tail, phi_tail = find_tail_disc_point(rho_max, psi[i],
-                                                            x_disc)
+        for rho in np.linspace(0.1, rho_max):
+            r_tail, theta_tail, phi_tail = find_tail_disc_point(rho,
+                                                            psi[i], x_disc)
+            x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
+            create_stream_zone(r_tail, theta_tail, phi_tail,
+                               'temp_tail_line_', 'day')
+        """
         #check if north or south attached
         x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
         if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
@@ -223,43 +230,37 @@ def calc_tail_mp(psi, x_disc, rho_max, rho_step):
         #check if closed
         tail_closed = check_streamline_closed('temp_tail_line_', r_tail,
                                               stream_type)
-        if tail_closed:
-            print('WARNING: field line closed at RHO_MAX={}R_e'.format(
-                                                                   rho_max))
-            SWMF_DATA.zone('temp_tail*').name = 'tail_field_{:.1f}'.format(
-                                                        np.rad2deg(psi[i]))
-        else:
-            #This is a basic marching algorithm from outside in starting at
-            #RHO_MAX
-            rho_tail = rho_max
-            notfound = True
-            while notfound and rho_tail > rho_step:
-                SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
-                rho_tail = rho_tail - rho_step
-                r_tail, theta_tail, phi_tail = find_tail_disc_point(
+        #This is a basic marching algorithm from outside in starting at
+        #RHO_MAX
+        rho_tail = 0.1
+        notfound = True
+        while notfound and rho_tail > rho_step:
+            SWMF_DATA.delete_zones(SWMF_DATA.zone('temp_tail_line*'))
+            rho_tail = rho_tail + rho_step
+            r_tail, theta_tail, phi_tail = find_tail_disc_point(
                                                 rho_tail, psi[i], x_disc)
-                #check if north or south attached
-                x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail,
+            #check if north or south attached
+            x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail,
                                                   phi_tail)
-                if tp.data.query.probe_at_position(x_pos,
+            if tp.data.query.probe_at_position(x_pos,
                                                    y_pos, z_pos)[0][7] < 0:
-                    stream_type = 'south'
-                else:
-                    stream_type = 'north'
-                create_stream_zone(r_tail, theta_tail, phi_tail,
+                stream_type = 'south'
+             else:
+                stream_type = 'north'
+            create_stream_zone(r_tail, theta_tail, phi_tail,
                                    'temp_tail_line_', stream_type)
-                tail_closed =check_streamline_closed('temp_tail_line_',
+            tail_closed =check_streamline_closed('temp_tail_line_',
                                                      rho_tail, stream_type)
-                if tail_closed:
-                    SWMF_DATA.zone('temp*').name='tail_field_{:.1f}'.format(
+            if not tail_closed:
+                SWMF_DATA.zone('temp*').name='tail_field_{:.1f}'.format(
                                                         np.rad2deg(psi[i]))
-                    notfound = False
-                    print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
+                notfound = False
+                print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
                                                        np.rad2deg(psi[i])))
-                if rho_tail <= rho_step:
+            if rho_tail > rho_max:
                     print('WARNING: not possible at psi={:.1f}'.format(
                                                        np.rad2deg(psi[i])))
-
+        """
 
 def dump_to_pandas(zonelist, varlist, filename):
     """Function to hand zone data to pandas to do processing
@@ -657,10 +658,11 @@ if __name__ == "__main__":
         tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
         #Create Dayside Magnetopause field lines
-        calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
+        #calc_dayside_mp(PHI, R_MAX, R_MIN, ITR_MAX, TOL)
 
         #Create Tail magnetopause field lines
-        calc_tail_mp(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
+        calc_cps(PSI, X_TAIL_CAP, RHO_MAX, RHO_STEP)
+        """
         #Create Theta and Phi coordinates for all points in domain
         tp.data.operate.execute_equation(
                                    '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
@@ -746,3 +748,4 @@ if __name__ == "__main__":
         ltime = time.time()-start_time
         print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
                                            np.mod(ltime,60)))
+        """
