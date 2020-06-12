@@ -62,7 +62,6 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         isclosed- boolean, True for closed
     """
     # Get starting and endpoints of streamzone
-    print(field_data.zone(zone_name+'*'))
     r_values = field_data.zone(zone_name+'*').values('r *').as_numpy_array()
     if stream_type == 'north':
         r_end_n = r_values[-1]
@@ -73,6 +72,10 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         r_end_s = r_values[0]
         r_seed = 2
     elif stream_type == 'inner_mag':
+        '''
+        x_values = field_data.zone(zone_name+'*').values(
+                                                    'X *').as_numpy_array()
+        '''
         r_end_n = np.max(r_values)
         r_end_s = np.max(r_values)
         print('value: {:.1f}'.format(r_end_s))
@@ -325,11 +328,13 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
             create_stream_zone(field_data, seed_radius-0.5, mid_theta,
                                phi, 'plasma_sheet_', 'inner_mag')
             field_data.delete_zones(field_data.zone('temp*'))
+            field_data.delete_zones(field_data.zone('temp*'))
         elif not poleward_closed and (not equatorward_closed):
             print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
                         np.rad2deg(pole_theta), np.rad2deg(equat_theta)))
             create_stream_zone(field_data, seed_radius-0.5, mid_theta,
                                phi, 'plasma_sheet_', 'inner_mag')
+            field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
         else:
             print('\ndeleted:')

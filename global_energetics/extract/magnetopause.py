@@ -73,10 +73,11 @@ def magnetopause_analysis(field_data, colorbar):
                                     influx_df, np.minimum,
                                     fill_value=1e12).drop(
                                             columns=['Unnamed: 1'])
+        main.activate()
         return mp_power
 
 
-def get_magnetopause(datafile, *, pltpath='./', laypath='./', pngpath='./',
+def get_magnetopause(field_data, *, pltpath='./', laypath='./', pngpath='./',
                      nstream_day=15, phi_max=122, rday_max=30,rday_min=3.5,
                      dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
@@ -97,9 +98,9 @@ def get_magnetopause(datafile, *, pltpath='./', laypath='./', pngpath='./',
         nslice, nalpha- cylindrical points used for surface reconstruction
         rcolor- colorbar range, symmetrical about zero
     """
-    start_time = time.time()
     #load datafile
-    field_data = tp.data.load_tecplot(datafile)
+    #field_data = tp.data.load_tecplot(datafile)
+    datafile = '3d__mhd_2_e20140219-123000-000.plt'
     field_data.zone(0).name = 'global_field'
     outputname = datafile.split('e')[1].split('-000.')[0]+'done'
     print(field_data)
@@ -153,10 +154,6 @@ def get_magnetopause(datafile, *, pltpath='./', laypath='./', pngpath='./',
         #tp.save_layout(laypath+outputname+'.lay')
         tp.export.save_png(pngpath+outputname+'.png')
 
-        #timestamp
-        ltime = time.time()-start_time
-        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
-                                           np.mod(ltime,60)))
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
