@@ -15,8 +15,7 @@ import pandas as pd
 #custom packages
 from global_energetics.extract import surface_construct
 from global_energetics.extract import stream_tools
-from global_energetics.extract.stream_tools import (calc_dayside_mp,
-                                                    calc_tail_mp,
+from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
@@ -24,14 +23,15 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     integrate_surface,
                                                     write_to_timelog)
 
+"""
 def magnetopause_analysis(field_data, colorbar):
-        """Function to calculate energy flux at magnetopause surface
+        '''Function to calculate energy flux at magnetopause surface
         Inputs
             field_data- tecplot Dataset object with 3D field data and mp
             colorbar- settings for the color to be displayed on frame
         Outputs
             mp_power- power, or energy flux at the magnetopause surface
-        """
+        '''
         #calculate energetics
         calculate_energetics(field_data)
         #initialize objects for main frame
@@ -73,89 +73,72 @@ def magnetopause_analysis(field_data, colorbar):
                                     fill_value=1e12).drop(
                                             columns=['Unnamed: 1'])
         return mp_power
+"""
 
-
-def get_magnetopause(datafile, *, pltpath='./', laypath='./', pngpath='./',
-                     nstream_day=15, phi_max=122, rday_max=30,rday_min=3.5,
-                     dayitr_max=100, daytol=0.1,
-                     nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
+def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
+                     pngpath='./', nstream=50, theta_max=55,
+                     phi_limit=160, rday_max=30,rday_min=3.5,
+                     itr_max=100, searchtol=pi/90, tail_cap=-20,
                      nslice=40, nalpha=50,
                      rcolor=2.5):
     """Function that finds, plots and calculates energetics on the
-        magnetopause surface.
+        plasmasheet surface.
     Inputs
+        field_data- tecplot DataSet object with 3D field data
         datafile- field data input, assumes .plt file
         pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
-        nstream_day- number of streamlines generated for dayside algorithm
-        phi_max- azimuthal (sun=0) limit of dayside algorithm for streams
-        rday_max, rday_min- radial limits (in XY) for dayside algorithm
-        dayitr_max, daytol- settings for bisection search algorithm
-        nstream_tail- number of streamlines generated for tail algorithm
-        rho_max, rho_step- tail disc maximium radius and step (in YZ)
+        nstream- number of streamlines generated for algorithm
+        theta_max- colatitude limit of algorithm for streams
+        itr_max, searchtol- settings for bisection search algorithm
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
         rcolor- colorbar range, symmetrical about zero
     """
-    start_time = time.time()
-    #load datafile
-    field_data = tp.data.load_tecplot(datafile)
-    field_data.zone(0).name = 'global_field'
-    outputname = datafile.split('e')[1].split('-000.')[0]+'done'
+    #set unique outputname
+    outputname = datafile.split('e')[1].split('-000.')[0]+'cps'
     print(field_data)
 
     #set parameters
-    phi = np.linspace(np.deg2rad(-1*phi_max),np.deg2rad(phi_max),
-                      nstream_day)
-    psi = np.linspace(-pi*(1-pi/nstream_tail), pi, nstream_tail)
+    phi = np.append(np.linspace(-pi,np.deg2rad(-phi_limit),int(nstream/2)),
+                    np.linspace(pi,np.deg2rad(phi_limit),int(nstream/2)))
     colorbar = np.linspace(-1*rcolor,rcolor,int(4*rcolor+1))
     with tp.session.suspend():
-        tp.macro.execute_command("$!FrameName = 'main'")
-        tp.data.operate.execute_equation(
-                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-
-        #Create Dayside Magnetopause field lines
-        calc_dayside_mp(field_data, phi, rday_max, rday_min, dayitr_max,
-                        daytol)
-        #Create Tail magnetopause field lines
-        calc_tail_mp(field_data, psi, tail_cap, rho_max, rho_step)
-        #Create Theta and Phi coordinates for all points in domain
-        tp.data.operate.execute_equation(
-                                   '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
-        tp.data.operate.execute_equation(
-                                   '{theta} = acos({Z [R]}/{r [R]}) * '+
-                                    '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
+        #Create plasmasheet field lines
+        calc_plasmasheet(field_data, np.deg2rad(theta_max), phi, tail_cap,
+                         itr_max, searchtol)
         #port stream data to pandas DataFrame object
-        stream_zone_list = np.linspace(2,field_data.num_zones,
-                                       field_data.num_zones-2+1)
+        stream_zone_list = []
+        for zone in range(field_data.num_zones):
+            if field_data.zone(zone).name.find('plasmasheet') != -1:
+                stream_zone_list.append(zone)
+        stream_zone_list = np.linspace(3,field_data.num_zones,
+                                       field_data.num_zones-3+1)
         stream_df, x_subsolar = dump_to_pandas(stream_zone_list, [1,2,3],
                                           'stream_points.csv')
         #slice and construct XYZ data
-        mp_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
+        print(stream_df)
+        print('subsolar: {:.2f}'.format(x_subsolar))
+        cps_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
                                               x_subsolar, nslice, nalpha,
                                               False)
         #create and load cylidrical zone
         create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar)
-        load_cylinder(field_data, mp_mesh, 'mp_zone',
+        load_cylinder(field_data, cps_mesh, 'cps_zone',
                       range(0,2), range(0,nslice), range(0,nalpha))
 
         #interpolate field data to zone
-        print('interpolating field data to magnetopause')
+        print('interpolating field data to plasmasheet')
         tp.data.operate.interpolate_inverse_distance(
-                destination_zone=field_data.zone('mp_zone'),
+                destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        magnetopause_power = magnetopause_analysis(field_data, colorbar)
-        print(magnetopause_power)
-        write_to_timelog('integral_log.csv',outputname, magnetopause_power)
+        #magnetopause_power = magnetopause_analysis(field_data, colorbar)
+        #write_to_timelog('integral_log.csv',outputname, magnetopause_power)
 
         #write .plt and .lay files
         #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
         #tp.save_layout(laypath+outputname+'.lay')
         tp.export.save_png(pngpath+outputname+'.png')
 
-        #timestamp
-        ltime = time.time()-start_time
-        print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
-                                           np.mod(ltime,60)))
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

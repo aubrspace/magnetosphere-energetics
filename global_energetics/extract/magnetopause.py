@@ -77,16 +77,17 @@ def magnetopause_analysis(field_data, colorbar):
         return mp_power
 
 
-def get_magnetopause(field_data, *, pltpath='./', laypath='./', pngpath='./',
-                     nstream_day=15, phi_max=122, rday_max=30,rday_min=3.5,
-                     dayitr_max=100, daytol=0.1,
+def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
+                     pngpath='./', nstream_day=15, phi_max=122,
+                     rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
                      nslice=40, nalpha=50,
                      rcolor=2.5):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
-        datafile- field data input, assumes .plt file
+        field_data- tecplot DataSet object with 3D field data
+        datafile- field data filename, assumes .plt file
         pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
         nstream_day- number of streamlines generated for dayside algorithm
         phi_max- azimuthal (sun=0) limit of dayside algorithm for streams
@@ -98,10 +99,7 @@ def get_magnetopause(field_data, *, pltpath='./', laypath='./', pngpath='./',
         nslice, nalpha- cylindrical points used for surface reconstruction
         rcolor- colorbar range, symmetrical about zero
     """
-    #load datafile
-    #field_data = tp.data.load_tecplot(datafile)
-    datafile = '3d__mhd_2_e20140219-123000-000.plt'
-    field_data.zone(0).name = 'global_field'
+    #make unique outputname based on datafile string
     outputname = datafile.split('e')[1].split('-000.')[0]+'done'
     print(field_data)
 
@@ -148,6 +146,13 @@ def get_magnetopause(field_data, *, pltpath='./', laypath='./', pngpath='./',
         magnetopause_power = magnetopause_analysis(field_data, colorbar)
         print(magnetopause_power)
         write_to_timelog('integral_log.csv',outputname, magnetopause_power)
+
+        #delete stream zones
+        for zone in reversed(range(field_data.num_zones)):
+            tp.active_frame().plot().fieldmap(zone).show=True
+            if (field_data.zone(zone).name != 'mp_zone' and
+                field_data.zone(zone).name != 'global_field'):
+                field_data.delete_zones(field_data.zone(zone))
 
         #write .plt and .lay files
         #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')

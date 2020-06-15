@@ -56,6 +56,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         radius = pd.DataFrame(
                     np.sqrt(zone_temp['Z [R]']**2+zone_temp['Y [R]']**2),
                               columns = ['r'])
+        print(radius)
         zone_temp = zone_temp.combine(radius, np.minimum, fill_value=1000)
         r_min = 0.2 * zone_temp['r'].max()
 
