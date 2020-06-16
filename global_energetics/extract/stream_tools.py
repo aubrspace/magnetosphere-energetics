@@ -72,13 +72,10 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         r_end_s = r_values[0]
         r_seed = 2
     elif stream_type == 'inner_mag':
-        '''
         x_values = field_data.zone(zone_name+'*').values(
                                                     'X *').as_numpy_array()
-        '''
-        r_end_n = np.max(r_values)
-        r_end_s = np.max(r_values)
-        print('value: {:.1f}'.format(r_end_s))
+        r_end_n = abs(x_values.min())
+        r_end_s = abs(x_values.min())
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
         '''
@@ -316,9 +313,6 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
                                                  'temp_equatorward',
                                                  abs(tail_cap),
                                                  'inner_mag')
-        print(poleward_closed)
-        print(equatorward_closed)
-        print('\n')
         #check if both are open are close to start
         if poleward_closed and equatorward_closed:
             print('Warning: high and low lat {:.2f}, {:.2f} '.format(
@@ -337,20 +331,12 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
             field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
         else:
-            print('\ndeleted:')
-            print(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
-            print('\ndeleted:')
-            print(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
             notfound = True
             itr = 0
             while (notfound and itr < max_iter):
                 mid_theta = (pole_theta+equat_theta)/2
-                print('max= {:.3f}, theta= {:.3f}, min={:.3f}'.format(
-                                                  np.rad2deg(pole_theta),
-                                                  np.rad2deg(mid_theta),
-                                                  np.rad2deg(equat_theta)))
                 create_stream_zone(field_data, seed_radius-0.5,
                                    mid_theta, phi,
                                    'temp_ps_line_', 'inner_mag')
@@ -369,9 +355,6 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
                                                    np.rad2deg(equat_theta))
                 else:
                     field_data.delete_zones(field_data.zone('temp*'))
-                print('iteration: {:d}'.format(itr))
-                print(mid_lat_closed)
-                print('\n')
                 itr += 1
 
 
@@ -407,7 +390,7 @@ def dump_to_pandas(zonelist, varlist, filename):
     else: x_max = []
     return loc_data, x_max
 
-def create_cylinder(field_data, nx, nalpha, x_min, x_max):
+def create_cylinder(field_data, nx, nalpha, x_min, x_max, zone_name):
     """Function creates empty cylindrical zone for loading of slice data
     Inputs
         field_data- tecplot Dataset class with 3D field data
@@ -415,6 +398,7 @@ def create_cylinder(field_data, nx, nalpha, x_min, x_max):
         nalpha
         x_min
         x_max
+        zone_name
     """
     #use built in create zone function for verticle cylinder
     tp.macro.execute_command('''$!CreateCircularZone
@@ -444,7 +428,7 @@ def create_cylinder(field_data, nx, nalpha, x_min, x_max):
 
     #delete verticle cylinder
     field_data.delete_zones(field_data.zone('Circular zone'))
-    field_data.zone('Circular*').name = 'mp_zone'
+    field_data.zone('Circular*').name = zone_name
     print('empty zone created')
 
 def load_cylinder(field_data, data, zonename, I, J, K):
@@ -470,12 +454,12 @@ def load_cylinder(field_data, data, zonename, I, J, K):
     mag_bound.values('Z*')[1::2] = zdata
 
 
-def calculate_energetics(field_data):
+def calculate_energetics(field_data, zone_name):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
     """
-    zone_index= field_data.zone('mp_zone').index
+    zone_index= field_data.zone(zone_name).index
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
@@ -602,17 +586,17 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     oldframe.move_to_bottom()
     frame.activate()
 
-def integrate_surface(var_index, mpindex, qtname, barid):
+def integrate_surface(var_index, zone_index, qtname, barid):
     """Function to calculate integral of variable on mp surface
     Inputs
         var_index- variable to be integrated
-        mpindex- index of the mp zone
+        zone_index- index of the zone to perform integration
         qtname- integrated quantity will be saved as this name
     """
     #Integrate total surface Flux
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command="Integrate [{:d}] ".format(
-                                                                mpindex+1)+
+                                                            zone_index+1)+
                                               "VariableOption='Scalar' "+
                                               "XOrigin=0 "+
                                               "YOrigin=0 "+
@@ -651,6 +635,15 @@ def integrate_surface(var_index, mpindex, qtname, barid):
     elif barid == 2:
         newaxis = False
         color = Color.Blue
+    elif barid == 3:
+        newaxis = False
+        color = Color.Yellow
+    elif barid == 4:
+        newaxis = False
+        color = Color.Green
+    elif barid == 5:
+        newaxis = False
+        color = Color.Purple
     display_variable_bar(tempframe, var_index, color, barid,
                          newaxis)
     tp.macro.execute_command("$!FrameName = '"+qtname+"'")

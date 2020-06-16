@@ -22,7 +22,7 @@ def show_video(image_folder):
     Inputs
         image_folder
     """
-    from makevideo import vid_compile
+    from global_energetics.makevideo import vid_compile
     framerate = 2
     title = 'video'
     vid_compile(image_folder, framerate, title)
@@ -56,7 +56,6 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         radius = pd.DataFrame(
                     np.sqrt(zone_temp['Z [R]']**2+zone_temp['Y [R]']**2),
                               columns = ['r'])
-        print(radius)
         zone_temp = zone_temp.combine(radius, np.minimum, fill_value=1000)
         r_min = 0.2 * zone_temp['r'].max()
 
@@ -79,9 +78,6 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             #if the section has values
             if not zone_temp[(zone_temp['alpha'] < a+da) &
                              (zone_temp['alpha'] > a-da)].empty:
-                #print('before: ',
-                #        len(zone_temp[(zone_temp['alpha'] < a+da) &
-                #                    (zone_temp['alpha'] > a-da)]))
                 #identify the index of row with maximum r within section
                 max_r_index = zone_temp[
                             (zone_temp['alpha'] < a+da) &
@@ -94,14 +90,15 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         print('X=: {:.2f}'.format(x))
 
         #Created closed interpolation of data
-        tck, u = interp.splprep([zone_temp['Y [R]'],
-                                 zone_temp['Z [R]']],
-                                 s=20, per=True)
+        y_points = np.r_[zone_temp['Y [R]'].values,
+                         zone_temp['Y [R]'].values[0]]
+        z_points = np.r_[zone_temp['Z [R]'].values,
+                         zone_temp['Z [R]'].values[0]]
+        tck, u = interp.splprep([y_points, z_points], s=10, per=True)
         y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
         dat_angles = np.sort(np.arctan2(z_curve, y_curve))
         #print(dat_angles)
         #setup angle bins for mesh loading
-        x_load, y_load, z_load = [], [], []
         spoke, spoketxt = [], []
         n_angle = n_theta
         da = 2*pi/n_angle/5
@@ -110,11 +107,13 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             condition = ((np.arctan2(z_curve, y_curve)>a-da) &
                          (np.arctan2(z_curve, y_curve)<a+da))
             if condition.any():
+                x_load = x
                 y_load = np.extract(condition, y_curve)[0]
                 z_load = np.extract(condition, z_curve)[0]
             else:
                 print("WARNING: No extraction at X={:.2f}, alpha={:.2f}".format(x,a))
                 r_load = np.sqrt(y_load**2+z_load**2)
+                x_load = x
                 y_load = y_load + r_load*(np.cos(a+da)-np.cos(a))
                 z_load = z_load + r_load*(np.sin(a+da)-np.sin(a))
                 print('y_load:',y_load)
@@ -122,7 +121,6 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                         'X= {:.2f}'.format(x),
                         'Y= {:.2f}'.format(y_load),
                         'Z= {:.2f}'.format(z_load))
-            x_load = x
             mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
                                columns = ['X [R]','Y [R]','Z [R]']),
                                ignore_index=True)

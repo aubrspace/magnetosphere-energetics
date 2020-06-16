@@ -23,34 +23,33 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     integrate_surface,
                                                     write_to_timelog)
 
-"""
-def magnetopause_analysis(field_data, colorbar):
-        '''Function to calculate energy flux at magnetopause surface
+def plasmasheet_analysis(field_data, colorbar):
+        '''Function to calculate energy flux at plasmasheet surface
         Inputs
             field_data- tecplot Dataset object with 3D field data and mp
             colorbar- settings for the color to be displayed on frame
         Outputs
-            mp_power- power, or energy flux at the magnetopause surface
+            plasmasheet_power- power at the magnetopause surface
         '''
         #calculate energetics
-        calculate_energetics(field_data)
+        calculate_energetics(field_data, 'cps_zone')
         #initialize objects for main frame
         main = tp.active_frame()
-        mp_index = int(field_data.zone('mp_zone').index)
+        cps_index = int(field_data.zone('cps_zone').index)
         Knet_index = int(field_data.variable('K_in *').index)
         Kplus_index = int(field_data.variable('K_in+*').index)
         Kminus_index = int(field_data.variable('K_in-*').index)
         #adjust main frame settings
-        display_magnetopause(main, mp_index, Knet_index, colorbar, False)
+        #display_magnetopause(main, cps_index, Knet_index, colorbar, False)
         #integrate k flux
-        integrate_surface(Kplus_index, mp_index,
-                          'Total K_out [kW]', barid=0)
+        integrate_surface(Kplus_index, cps_index,
+                          'Total K_out [kW]', barid=3)
         main.activate()
-        integrate_surface(Knet_index, mp_index,
-                          'Total K_net [kW]', barid=1)
+        integrate_surface(Knet_index, cps_index,
+                          'Total K_net [kW]', barid=4)
         main.activate()
-        integrate_surface(Kminus_index, mp_index,
-                          'Total K_in [kW]', barid=2)
+        integrate_surface(Kminus_index, cps_index,
+                          'Total K_in [kW]', barid=5)
         main.activate()
         for frames in tp.frames('Total K_in*'):
             influx = frames
@@ -67,19 +66,18 @@ def magnetopause_analysis(field_data, colorbar):
         netflux_df, _ = dump_to_pandas([1],[4],'netflux.csv')
         influx.activate()
         influx_df, _ = dump_to_pandas([1],[4],'influx.csv')
-        mp_power = outflux_df.combine(netflux_df, np.minimum,
+        plasmasheet_power = outflux_df.combine(netflux_df, np.minimum,
                                      fill_value=1e12).combine(
                                     influx_df, np.minimum,
                                     fill_value=1e12).drop(
                                             columns=['Unnamed: 1'])
-        return mp_power
-"""
+        return plasmasheet_power
 
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=50, theta_max=55,
                      phi_limit=160, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
-                     nslice=40, nalpha=50,
+                     nslice=40, nalpha=30,
                      rcolor=2.5):
     """Function that finds, plots and calculates energetics on the
         plasmasheet surface.
@@ -104,8 +102,8 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
     colorbar = np.linspace(-1*rcolor,rcolor,int(4*rcolor+1))
     with tp.session.suspend():
         #Create plasmasheet field lines
-        calc_plasmasheet(field_data, np.deg2rad(theta_max), phi, tail_cap,
-                         itr_max, searchtol)
+        calc_plasmasheet(field_data, np.deg2rad(theta_max), phi,
+                         2*tail_cap, itr_max, searchtol)
         #port stream data to pandas DataFrame object
         stream_zone_list = []
         for zone in range(field_data.num_zones):
@@ -120,9 +118,10 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         print('subsolar: {:.2f}'.format(x_subsolar))
         cps_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
                                               x_subsolar, nslice, nalpha,
-                                              False)
+                                              True)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar)
+        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar,
+                        'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
                       range(0,2), range(0,nslice), range(0,nalpha))
 
@@ -131,7 +130,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        #magnetopause_power = magnetopause_analysis(field_data, colorbar)
+        plasmasheet_power = plasmasheet_analysis(field_data, colorbar)
         #write_to_timelog('integral_log.csv',outputname, magnetopause_power)
 
         #write .plt and .lay files

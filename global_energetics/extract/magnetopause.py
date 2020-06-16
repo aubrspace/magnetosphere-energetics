@@ -34,7 +34,7 @@ def magnetopause_analysis(field_data, colorbar):
             mp_power- power, or energy flux at the magnetopause surface
         """
         #calculate energetics
-        calculate_energetics(field_data)
+        calculate_energetics(field_data, 'mp_zone')
         #initialize objects for main frame
         main = tp.active_frame()
         mp_index = int(field_data.zone('mp_zone').index)
@@ -134,7 +134,8 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                               x_subsolar, nslice, nalpha,
                                               False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar)
+        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar,
+                        'mp_zone')
         load_cylinder(field_data, mp_mesh, 'mp_zone',
                       range(0,2), range(0,nslice), range(0,nalpha))
 
