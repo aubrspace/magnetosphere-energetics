@@ -358,9 +358,10 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
                 itr += 1
 
 
-def dump_to_pandas(zonelist, varlist, filename):
+def dump_to_pandas(frame, zonelist, varlist, filename):
     """Function to hand zone data to pandas to do processing
     Inputs-
+        frame- tecplot frame object to export
         zonelist- array like object of which zones to export
         varlist- which variables
         filename
@@ -368,6 +369,7 @@ def dump_to_pandas(zonelist, varlist, filename):
         loc_data- DataFrame of stream zone data
         x_max
     """
+    frame.activate()
     print('converting '+filename.split('.')[0]+' to DataFrame\n')
     os.system('touch '+filename)
     #Export 3D point data to csv file
@@ -571,29 +573,49 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     frame.transparent = True
     plt.show_bars = True
     plt.linemap(2).bars.show = True
-    plt.linemap(2).bars.size = 32
+    plt.linemap(2).bars.size = 16
     plt.linemap(2).bars.line_color = color
     plt.linemap(2).bars.fill_color = color
+    plt.view.translate(x=-10,y=0)
     plt.axes.x_axis(0).show = False
-    plt.axes.y_axis(0).min = -14000
-    plt.axes.y_axis(0).max = 14000
+    plt.axes.y_axis(0).title.title_mode = AxisTitleMode.UseText
+    plt.axes.y_axis(0).title.text='Plasmasheet Power [kW]'
+    plt.axes.y_axis(0).min = -1400
+    plt.axes.y_axis(0).max = 1400
     if newaxis:
         plt.axes.y_axis(0).show = True
+        plt.axes.y_axis(0).title.text='Magnetopause Power [kW]'
         plt.axes.y_axis(0).line.offset = -40
         plt.axes.y_axis(0).title.offset = 40
+        if barid > 2:
+            plt.axes.y_axis(0).min = -140
+            plt.axes.y_axis(0).max = 140
+            plt.axes.y_axis(0).line.alignment = AxisAlignment.WithGridMax
+            plt.axes.y_axis(0).title.text='Plasmasheet Power [kW]'
+            plt.axes.y_axis(0).line.offset = -20
+            plt.axes.y_axis(0).title.offset = 20
+            plt.axes.y_axis(0).tick_labels.offset = 5
+            plt.view.translate(x=-25,y=0)
     else:
         plt.axes.y_axis(0).show = False
     oldframe.move_to_bottom()
     frame.activate()
 
-def integrate_surface(var_index, zone_index, qtname, barid):
+def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
     """Function to calculate integral of variable on mp surface
     Inputs
         var_index- variable to be integrated
         zone_index- index of the zone to perform integration
         qtname- integrated quantity will be saved as this name
+        frame_id- frame name with the surface that integral is performed
+    Output
+        newframe- created frame with integrated quantity
     """
     #Integrate total surface Flux
+    for frames in tp.frames():
+        print(frames.name)
+    frame=[fr for fr in tp.frames(frame_id)][0]
+    frame.activate()
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command="Integrate [{:d}] ".format(
                                                             zone_index+1)+
@@ -620,11 +642,14 @@ def integrate_surface(var_index, zone_index, qtname, barid):
                                               "PlotAs='"+qtname+"' "+
                                               "TimeMin=0 TimeMax=0")
 
-    #switch active frame to newly created one
+    #Rename and hide newly created frame
+    newframe = [fr for fr in tp.frames('Frame 001')][0]
+    newframe.name = qtname
+    newframe.move_to_bottom()
+    return newframe
+    '''
     for frames in tp.frames('Frame 001'):
         tempframe = frames
-        print('Integral frame for ',qtname,'stored to "tempframe"')
-    tempframe.activate()
     #adjust new frame settings
     if barid == 0:
         newaxis = True
@@ -637,17 +662,17 @@ def integrate_surface(var_index, zone_index, qtname, barid):
         color = Color.Blue
     elif barid == 3:
         newaxis = False
-        color = Color.Yellow
+        color = Color.Orange
     elif barid == 4:
         newaxis = False
         color = Color.Green
-    elif barid == 5:
-        newaxis = False
+    elif barid == 6:
+        newaxis = True
         color = Color.Purple
     display_variable_bar(tempframe, var_index, color, barid,
                          newaxis)
     tp.macro.execute_command("$!FrameName = '"+qtname+"'")
-    del tempframe
+    '''
 
 def write_to_timelog(timelogname, sourcename, data):
     """Function for writing the results from the current file to a file that contains time integrated data

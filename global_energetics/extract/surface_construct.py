@@ -94,7 +94,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                          zone_temp['Y [R]'].values[0]]
         z_points = np.r_[zone_temp['Z [R]'].values,
                          zone_temp['Z [R]'].values[0]]
-        tck, u = interp.splprep([y_points, z_points], s=10, per=True)
+        tck, u = interp.splprep([y_points, z_points], s=20, per=True)
         y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
         dat_angles = np.sort(np.arctan2(z_curve, y_curve))
         #print(dat_angles)

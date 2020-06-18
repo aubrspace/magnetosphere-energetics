@@ -14,64 +14,15 @@ from tecplot.exception import *
 import pandas as pd
 #custom packages
 from global_energetics.extract import surface_construct
+from global_energetics.extract import surface_tools
+from global_energetics.extract.surface_tools import surface_analysis
 from global_energetics.extract import stream_tools
+#from global_energetics.extract.view_set import display_magnetopause
 from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
-                                                    calculate_energetics,
-                                                    integrate_surface,
                                                     write_to_timelog)
-
-def plasmasheet_analysis(field_data, colorbar):
-        '''Function to calculate energy flux at plasmasheet surface
-        Inputs
-            field_data- tecplot Dataset object with 3D field data and mp
-            colorbar- settings for the color to be displayed on frame
-        Outputs
-            plasmasheet_power- power at the magnetopause surface
-        '''
-        #calculate energetics
-        calculate_energetics(field_data, 'cps_zone')
-        #initialize objects for main frame
-        main = tp.active_frame()
-        cps_index = int(field_data.zone('cps_zone').index)
-        Knet_index = int(field_data.variable('K_in *').index)
-        Kplus_index = int(field_data.variable('K_in+*').index)
-        Kminus_index = int(field_data.variable('K_in-*').index)
-        #adjust main frame settings
-        #display_magnetopause(main, cps_index, Knet_index, colorbar, False)
-        #integrate k flux
-        integrate_surface(Kplus_index, cps_index,
-                          'Total K_out [kW]', barid=3)
-        main.activate()
-        integrate_surface(Knet_index, cps_index,
-                          'Total K_net [kW]', barid=4)
-        main.activate()
-        integrate_surface(Kminus_index, cps_index,
-                          'Total K_in [kW]', barid=5)
-        main.activate()
-        for frames in tp.frames('Total K_in*'):
-            influx = frames
-        for frames in tp.frames('Total K_net*'):
-            netflux = frames
-        for frames in tp.frames('Total K_out*'):
-            outflux = frames
-        outflux.move_to_top()
-        netflux.move_to_top()
-        influx.move_to_top()
-        outflux.activate()
-        outflux_df, _ = dump_to_pandas([1],[4],'outflux.csv')
-        netflux.activate()
-        netflux_df, _ = dump_to_pandas([1],[4],'netflux.csv')
-        influx.activate()
-        influx_df, _ = dump_to_pandas([1],[4],'influx.csv')
-        plasmasheet_power = outflux_df.combine(netflux_df, np.minimum,
-                                     fill_value=1e12).combine(
-                                    influx_df, np.minimum,
-                                    fill_value=1e12).drop(
-                                            columns=['Unnamed: 1'])
-        return plasmasheet_power
 
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=50, theta_max=55,
@@ -93,7 +44,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         rcolor- colorbar range, symmetrical about zero
     """
     #set unique outputname
-    outputname = datafile.split('e')[1].split('-000.')[0]+'cps'
+    outputname = datafile.split('e')[1].split('-000.')[0]+'-cps'
     print(field_data)
 
     #set parameters
@@ -101,6 +52,11 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                     np.linspace(pi,np.deg2rad(phi_limit),int(nstream/2)))
     colorbar = np.linspace(-1*rcolor,rcolor,int(4*rcolor+1))
     with tp.session.suspend():
+        main_frame = tp.active_frame()
+        main_frame.name = 'main'
+        tp.data.operate.execute_equation(
+                  '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+
         #Create plasmasheet field lines
         calc_plasmasheet(field_data, np.deg2rad(theta_max), phi,
                          2*tail_cap, itr_max, searchtol)
@@ -111,16 +67,15 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                 stream_zone_list.append(zone)
         stream_zone_list = np.linspace(3,field_data.num_zones,
                                        field_data.num_zones-3+1)
-        stream_df, x_subsolar = dump_to_pandas(stream_zone_list, [1,2,3],
-                                          'stream_points.csv')
+        stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
+                                          [1,2,3], 'stream_points.csv')
         #slice and construct XYZ data
-        print(stream_df)
-        print('subsolar: {:.2f}'.format(x_subsolar))
+        print('max x: {:.2f}'.format(max_x))
         cps_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
-                                              x_subsolar, nslice, nalpha,
-                                              True)
+                                              max_x, nslice, nalpha,
+                                              False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar,
+        create_cylinder(field_data, nslice, nalpha, tail_cap, max_x,
                         'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
                       range(0,2), range(0,nslice), range(0,nalpha))
@@ -130,8 +85,20 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        plasmasheet_power = plasmasheet_analysis(field_data, colorbar)
-        #write_to_timelog('integral_log.csv',outputname, magnetopause_power)
+        plasmasheet_power = surface_analysis(field_data,'cps_zone',
+                                             colorbar)
+        print(plasmasheet_power)
+        write_to_timelog('cps_integral_log.csv',outputname,
+                         plasmasheet_power)
+
+        #delete stream zones
+        main_frame.activate()
+        for zone in reversed(range(field_data.num_zones)):
+            tp.active_frame().plot().fieldmap(zone).show=True
+            if (field_data.zone(zone).name.find('cps_zone') == -1 and
+                field_data.zone(zone).name.find('global_field') == -1 and
+                field_data.zone(zone).name.find('mp_zone') == -1):
+                field_data.delete_zones(field_data.zone(zone))
 
         #write .plt and .lay files
         #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')

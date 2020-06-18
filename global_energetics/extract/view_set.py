@@ -5,20 +5,25 @@ import tecplot as tp
 from tecplot.constant import *
 import numpy as np
 
-def display_magnetopause(frame, zoneid, contourvar, colorbar, multiframe):
-    """Function to center the magnetopause object and adjust colorbar
+def display_boundary(frame, zoneid, contourvar, colorbar, *,
+                     fullview=True):
+    """Function to center a boundary object and adjust colorbar
         settings
     Inputs
         frame- object for the tecplot frame
         zoneid- index for zone of interest
         contourvar- variable to be used for the contour
         colorbar- levels for colorbar
-        multiframe- boolean, false for single frame
+        fullview- True for global view of mangetopause, false for zoomed
     """
     plt = frame.plot()
-    for zone in range(0,zoneid-1):
-            plt.fieldmap(zone).show=False
-    if not multiframe:
+    #hide all non essential zones
+    for map_index in plt.fieldmaps().fieldmap_indices:
+        for zone in plt.fieldmap(map_index).zones:
+            if (zone.name.find('global_field') == -1 and
+                zone.name.find('cps_zone') == -1 and
+                zone.name.find('mp_zone') == -1):
+                plt.fieldmap(map_index).show = False
         plt.fieldmap(zoneid).show = True
         plt.fieldmap(zoneid).surfaces.surfaces_to_plot = (
                                             SurfacesToPlot.BoundaryFaces)
@@ -26,6 +31,7 @@ def display_magnetopause(frame, zoneid, contourvar, colorbar, multiframe):
         plt.show_contour = True
         view = plt.view
         view.center()
+    if fullview:
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         contour = plt.contour(0)
         contour.variable_index = contourvar
@@ -35,6 +41,28 @@ def display_magnetopause(frame, zoneid, contourvar, colorbar, multiframe):
         contour.legend.position[0] = 75
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
+
+def integral_display(frame, zoneid, *, influx=True, netflux=True,
+                     outflux=True):
+    '''Function to adjust settings for colorbars to be displayed
+    '''
+    #adjust main frame settings
+    display_magnetopause(main, mp_index, Knet_index, colorbar, False)
+    for frames in tp.frames('MP K_in*'):
+        influx = frames
+    for frames in tp.frames('MP K_net*'):
+        netflux = frames
+    for frames in tp.frames('MP K_out*'):
+        outflux = frames
+    outflux.move_to_top()
+    netflux.move_to_top()
+    influx.move_to_top()
+    outflux.activate()
+    outflux_df, _ = dump_to_pandas([1],[4],'outflux.csv')
+    netflux.activate()
+    netflux_df, _ = dump_to_pandas([1],[4],'netflux.csv')
+    influx.activate()
+    influx_df, _ = dump_to_pandas([1],[4],'influx.csv')
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

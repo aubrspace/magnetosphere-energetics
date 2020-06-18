@@ -19,7 +19,7 @@ def get_time(filename):
     year = int(''.join(list(date)[-8:-4]))
     month = int(''.join(list(date)[-4:-2]))
     day = int(''.join(list(date)[-2:]))
-    time = int(filename.split('/')[-1].split('-')[1].split('d')[0])
+    time = int(filename.split('/')[-1].split('-')[1].split('-')[0])
     hour = np.floor(time/10000)
     minute = np.mod(time/100, 100)
     second = np.mod(time, 100)
