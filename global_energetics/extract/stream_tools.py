@@ -612,8 +612,6 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
         newframe- created frame with integrated quantity
     """
     #Integrate total surface Flux
-    for frames in tp.frames():
-        print(frames.name)
     frame=[fr for fr in tp.frames(frame_id)][0]
     frame.activate()
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',

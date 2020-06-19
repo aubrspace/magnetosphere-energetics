@@ -11,10 +11,15 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
-#interpackage modules
-from global_energetics.extract.stream_tools import (calculate_energetics,
-                                                    integrate_surface,
-                                                    dump_to_pandas)
+#interpackage modules, different path if running as main to test
+if __name__ != "__main__":
+    from global_energetics.extract.stream_tools import (
+                                                      integrate_surface,
+                                                      calculate_energetics,
+                                                      dump_to_pandas)
+else:
+    from stream_tools import (calculate_energetics, integrate_surface,
+                              dump_to_pandas)
 
 
 def surface_analysis(field_data, zone_name, colorbar):
@@ -43,9 +48,9 @@ def surface_analysis(field_data, zone_name, colorbar):
         #port data to pandas dataframes
         kout_df, _ = dump_to_pandas(kout_frame, [1],[4],
                                     surface_name+'_outflux.csv')
-        knet_df, _ = dump_to_pandas(kout_frame, [1],[4],
+        knet_df, _ = dump_to_pandas(knet_frame, [1],[4],
                                     surface_name+'_netflux.csv')
-        kin_df, _ = dump_to_pandas(kout_frame, [1],[4],
+        kin_df, _ = dump_to_pandas(kin_frame, [1],[4],
                                     surface_name+'_influx.csv')
         #Combine into single dataframe
         surface_power = kout_df.combine(
@@ -55,16 +60,18 @@ def surface_analysis(field_data, zone_name, colorbar):
         return surface_power
 
 
-# Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
 # To enable connections in Tecplot 360, click on:
 #   "Scripting" -> "PyTecplot Connections..." -> "Accept connections"
+# Run as main to test script functionality, will need valid .plt file that
+# can handle the dummy circular zone
 
 if __name__ == "__main__":
     if '-c' in sys.argv:
         tp.session.connect()
-    #os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
+    os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     tp.new_layout()
+    tp.active_frame().name = 'main'
     #Give valid test dataset here!
     DATASET = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
     #Create small test zone
@@ -78,4 +85,4 @@ if __name__ == "__main__":
                              Z2 = 5
                              Radius = 5''')
     POWER = surface_analysis(DATASET, 'Circular zone', [-5,0,5])
-    print('power: {:.2f}'.format(POWER))
+    print(POWER)
