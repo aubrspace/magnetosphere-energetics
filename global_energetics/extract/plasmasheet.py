@@ -28,8 +28,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=50, theta_max=55,
                      phi_limit=160, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
-                     nslice=40, nalpha=30,
-                     rcolor=2.5):
+                     nslice=40, nalpha=30):
     """Function that finds, plots and calculates energetics on the
         plasmasheet surface.
     Inputs
@@ -41,7 +40,6 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         itr_max, searchtol- settings for bisection search algorithm
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
-        rcolor- colorbar range, symmetrical about zero
     """
     #set unique outputname
     outputname = datafile.split('e')[1].split('-000.')[0]+'-cps'
@@ -50,7 +48,6 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
     #set parameters
     phi = np.append(np.linspace(-pi,np.deg2rad(-phi_limit),int(nstream/2)),
                     np.linspace(pi,np.deg2rad(phi_limit),int(nstream/2)))
-    colorbar = np.linspace(-1*rcolor,rcolor,int(4*rcolor+1))
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
@@ -85,8 +82,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        plasmasheet_power = surface_analysis(field_data,'cps_zone',
-                                             colorbar)
+        plasmasheet_power = surface_analysis(field_data,'cps_zone')
         print(plasmasheet_power)
         write_to_timelog('cps_integral_log.csv',outputname,
                          plasmasheet_power)

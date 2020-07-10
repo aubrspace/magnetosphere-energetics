@@ -29,8 +29,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream_day=15, phi_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
-                     nslice=40, nalpha=50,
-                     rcolor=2.5):
+                     nslice=40, nalpha=50):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -45,7 +44,6 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         rho_max, rho_step- tail disc maximium radius and step (in YZ)
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
-        rcolor- colorbar range, symmetrical about zero
     """
     #make unique outputname based on datafile string
     outputname = datafile.split('e')[1].split('-000.')[0]+'-mp'
@@ -55,7 +53,6 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
     phi = np.linspace(np.deg2rad(-1*phi_max),np.deg2rad(phi_max),
                       nstream_day)
     psi = np.linspace(-pi*(1-pi/nstream_tail), pi, nstream_tail)
-    colorbar = np.linspace(-1*rcolor,rcolor,int(4*rcolor+1))
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
@@ -94,8 +91,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
-        magnetopause_power = surface_analysis(field_data, 'mp_zone',
-                                              colorbar)
+        magnetopause_power = surface_analysis(field_data, 'mp_zone')
         print(magnetopause_power)
         write_to_timelog('mp_integral_log.csv',outputname,
                          magnetopause_power)

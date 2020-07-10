@@ -22,11 +22,11 @@ else:
                               dump_to_pandas)
 
 
-def surface_analysis(field_data, zone_name, colorbar):
+def surface_analysis(field_data, zone_name):
         """Function to calculate energy flux at magnetopause surface
         Inputs
             field_data- tecplot Dataset object with 3D field data and mp
-            colorbar- settings for the color to be displayed on frame
+            zone_name
         Outputs
             surface_power- power, or energy flux at the magnetopause surface
         """
