@@ -23,41 +23,55 @@ else:
 
 
 def surface_analysis(field_data, zone_name):
-        """Function to calculate energy flux at magnetopause surface
-        Inputs
-            field_data- tecplot Dataset object with 3D field data and mp
-            zone_name
-        Outputs
-            surface_power- power, or energy flux at the magnetopause surface
-        """
-        #calculate energetics field variables
-        calculate_energetics(field_data, zone_name)
-        #initialize objects for main frame
-        surface_name = zone_name.split('_')[0]
-        zone_index = int(field_data.zone(zone_name).index)
-        Knet_index = int(field_data.variable('K_in *').index)
-        Kplus_index = int(field_data.variable('K_in+*').index)
-        Kminus_index = int(field_data.variable('K_in-*').index)
-        #integrate k flux
-        kout_frame = integrate_surface(Kplus_index, zone_index,
-                                       surface_name+' K_out [kW]')
-        knet_frame = integrate_surface(Knet_index, zone_index,
-                                       surface_name+' K_net [kW]')
-        kin_frame = integrate_surface(Kminus_index, zone_index,
-                                       surface_name+' K_in [kW]')
-        #port data to pandas dataframes
-        kout_df, _ = dump_to_pandas(kout_frame, [1],[4],
-                                    surface_name+'_outflux.csv')
-        knet_df, _ = dump_to_pandas(knet_frame, [1],[4],
-                                    surface_name+'_netflux.csv')
-        kin_df, _ = dump_to_pandas(kin_frame, [1],[4],
-                                    surface_name+'_influx.csv')
-        #Combine into single dataframe
-        surface_power = kout_df.combine(
-                        knet_df, np.minimum, fill_value=1e12).combine(
-                        kin_df, np.minimum, fill_value=1e12).drop(
-                        columns=['Unnamed: 1'])
-        return surface_power
+    """Function to calculate energy flux at magnetopause surface
+    Inputs
+        field_data- tecplot Dataset object with 3D field data and mp
+        zone_name
+    Outputs
+        surface_power- power, or energy flux at the magnetopause surface
+    """
+    #calculate energetics field variables
+    calculate_energetics(field_data, zone_name)
+    #initialize objects for main frame
+    main_frame = [fr for fr in tp.frames('main')][0]
+    surface_name = zone_name.split('_')[0]
+    zone_index = int(field_data.zone(zone_name).index)
+    knet_index = int(field_data.variable('K_in *').index)
+    kplus_index = int(field_data.variable('K_in+*').index)
+    kminus_index = int(field_data.variable('K_in-*').index)
+    #integrate k flux
+    kout_frame = integrate_surface(kplus_index, zone_index,
+                                   surface_name+' K_out [kW]')
+
+    knet_frame = integrate_surface(knet_index, zone_index,
+                                   surface_name+' K_net [kW]')
+
+    kin_frame = integrate_surface(kminus_index, zone_index,
+                                  surface_name+' K_in [kW]')
+
+    #Identify and delete dummy frame as workaround
+    dummy_frame = [fr for fr in tp.frames('Frame 001')][0]
+    dummy_frame.activate()
+    tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
+
+    print('\nframes:')
+    for frame in tp.frames():
+        print(frame.name)
+
+    #port data to pandas dataframes
+    kout_df, _ = dump_to_pandas(kout_frame, [1], [4],
+                                surface_name+'_outflux.csv')
+    knet_df, _ = dump_to_pandas(knet_frame, [1], [4],
+                                surface_name+'_netflux.csv')
+    kin_df, _ = dump_to_pandas(kin_frame, [1], [4],
+                               surface_name+'_influx.csv')
+    #Combine into single dataframe
+    surface_power = kout_df.combine(knet_df, np.minimum,
+                                    fill_value=1e12).combine(
+                                    kin_df, np.minimum,
+                                    fill_value=1e12).drop(
+                                    columns=['Unnamed: 1'])
+    return surface_power
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

@@ -614,63 +614,25 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
     #Integrate total surface Flux
     frame=[fr for fr in tp.frames(frame_id)][0]
     frame.activate()
+    print('\nframe selected: {}\n'.format(tp.active_frame().name))
+    integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
+                       "ScalarVar={:d} ".format(var_index+1)+
+                       "XVariable=1 "+
+                       "YVariable=2 "+
+                       "ZVariable=3 "+
+                       "PlotResults='T' "+
+                       "PlotAs='"+qtname+"' "+
+                       "TimeMin=0 TimeMax=0")
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-                                      command="Integrate [{:d}] ".format(
-                                                            zone_index+1)+
-                                              "VariableOption='Scalar' "+
-                                              "XOrigin=0 "+
-                                              "YOrigin=0 "+
-                                              "ZOrigin=0 "+
-                                              "ScalarVar={:d} ".format(
-                                                              var_index+1)+
-                                              "Absolute='F' "+
-                                              "ExcludeBlanked='F' "+
-                                              "XVariable=1 "+
-                                              "YVariable=2 "+
-                                              "ZVariable=3 "+
-                                              "IntegrateOver='Cells' "+
-                                              "IntegrateBy='Zones' "+
-                                              "IRange={MIN =1 MAX = 0 "+
-                                                      "SKIP = 1} "+
-                                              "JRange={MIN =1 MAX = 0 "+
-                                                      "SKIP = 1} "+
-                                              "KRange={MIN =1 MAX = 0 "+
-                                                      "SKIP = 1} "+
-                                              "PlotResults='T' "+
-                                              "PlotAs='"+qtname+"' "+
-                                              "TimeMin=0 TimeMax=0")
+                                      command=integrate_command)
 
     #Rename and hide newly created frame
     newframe = [fr for fr in tp.frames('Frame 001')][0]
     newframe.name = qtname
+    #Create dummy frame as workaround, possibly version dependent issue??
+    tp.macro.execute_command('$!CreateNewFrame')
     newframe.move_to_bottom()
     return newframe
-    '''
-    for frames in tp.frames('Frame 001'):
-        tempframe = frames
-    #adjust new frame settings
-    if barid == 0:
-        newaxis = True
-        color = Color.Red
-    elif barid == 1:
-        newaxis = False
-        color = Color.Black
-    elif barid == 2:
-        newaxis = False
-        color = Color.Blue
-    elif barid == 3:
-        newaxis = False
-        color = Color.Orange
-    elif barid == 4:
-        newaxis = False
-        color = Color.Green
-    elif barid == 6:
-        newaxis = True
-        color = Color.Purple
-    display_variable_bar(tempframe, var_index, color, barid,
-                         newaxis)
-    tp.macro.execute_command("$!FrameName = '"+qtname+"'")
-    '''
 
 def write_to_timelog(timelogname, sourcename, data):
     """Function for writing the results from the current file to a file that contains time integrated data
