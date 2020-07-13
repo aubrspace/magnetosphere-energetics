@@ -74,11 +74,12 @@ def vid_compile(folder, framerate, title):
         framerate
         title
     """
-    os.system('rm '+folder+'/'+title+'.avi')
-    print(glob.glob(folder+'/img-??.png'))
+    if glob.glob(folder+'/'+title+'.avi') != []:
+        os.system('rm '+folder+'/'+title+'.avi')
+    print(glob.glob(folder+'/img-???.png'))
     if glob.glob(folder+'/img-???.png') != []:
         make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%03d.png '+folder+'/'+title+'.avi'
-    elif glob.glob(folder+'/img-??.png') != []:
+    elif glob.glob(folder+'img-??.png') != []:
         make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%02d.png '+folder+'/'+title+'.avi'
     elif glob.glob(folder+'/img-?.png') != []:
         make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%01d.png '+folder+'/'+title+'.avi'
@@ -93,8 +94,8 @@ if __name__ == '__main__':
     FRAMERATE = 2
     FOLDER = sys.argv[1]
     #determine file frame order
-    #FRAME_LOC = set_frames(FOLDER)
-    FRAME_LOC = FOLDER
+    FRAME_LOC = set_frames(FOLDER)
+    #FRAME_LOC = FOLDER
     #Convert all img .pdf to img.png
     #convert_pdf(FOLDER, RES)
     #Create video from .png

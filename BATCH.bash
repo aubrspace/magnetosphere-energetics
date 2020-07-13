@@ -2,7 +2,7 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=pltdbug/
+PLTDIR=plt/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
@@ -27,5 +27,8 @@ echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_
 #execute script on .plt files
 for file in $PLTDIR*.plt
 do
-    python main.py $file
+    python main.py $file $PNGOUT
 done
+
+#create video from png file
+python global_energetics/makevideo.py $PNGOUT
