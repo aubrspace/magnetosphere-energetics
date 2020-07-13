@@ -29,7 +29,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream_day=15, phi_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
-                     nslice=40, nalpha=50):
+                     nslice=40, nalpha=50, save_img=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -44,6 +44,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         rho_max, rho_step- tail disc maximium radius and step (in YZ)
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
+        save_img- default True
     """
     #make unique outputname based on datafile string
     outputname = datafile.split('e')[1].split('-000.')[0]+'-mp'
@@ -105,10 +106,11 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                 field_data.zone(zone).name.find('mp_zone') == -1):
                 field_data.delete_zones(field_data.zone(zone))
 
-        #write .plt and .lay files
-        #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
-        #tp.save_layout(laypath+outputname+'.lay')
-        tp.export.save_png(pngpath+outputname+'.png')
+        if save_img:
+            #write .plt and .lay files
+            #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
+            #tp.save_layout(laypath+outputname+'.lay')
+            tp.export.save_png(pngpath+outputname+'.png')
 
 
 # Must list .plt that script is applied for proper execution

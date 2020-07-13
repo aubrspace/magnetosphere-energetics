@@ -74,8 +74,10 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
     elif stream_type == 'inner_mag':
         x_values = field_data.zone(zone_name+'*').values(
                                                     'X *').as_numpy_array()
+        x_values = np.multiply(x_values,-1)
         r_end_n = abs(x_values.min())
-        r_end_s = abs(x_values.min())
+        r_end_s = abs(x_values).min()
+        print('x values: {}'.format(x_values))
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
         '''
@@ -292,15 +294,21 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
     plot.vector.u_variable = field_data.variable('B_x*')
     plot.vector.v_variable = field_data.variable('B_y*')
     plot.vector.w_variable = field_data.variable('B_z*')
-    seed_radius = 1.5
+    seed_radius = 1.1
 
     #iterate through northside zones
-    for phi in phi_list:
+    for phi in phi_list[0:1]:
         #initialize latitude search bounds
         pole_theta = 0
         equat_theta = theta_max
         mid_theta = (pole_theta+equat_theta)/2
+
+        #Testing for XZ visulalizations
         print('phi {:.1f}'.format(np.rad2deg(phi)))
+        for i in np.linspace(0,theta_max, 45):
+            create_stream_zone(field_data, seed_radius, i,
+                               phi, 'temp_'+str(i), 'inner_mag')
+        """
         create_stream_zone(field_data, seed_radius, pole_theta, phi,
                            'temp_poleward_', 'inner_mag')
         poleward_closed = check_streamline_closed(field_data,
@@ -321,18 +329,24 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
                   'closed at lon {:.1f}'.format(np.rad2deg(phi)))
             create_stream_zone(field_data, seed_radius-0.5, mid_theta,
                                phi, 'plasma_sheet_', 'inner_mag')
+            '''
             field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
+            '''
         elif not poleward_closed and (not equatorward_closed):
             print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
                         np.rad2deg(pole_theta), np.rad2deg(equat_theta)))
             create_stream_zone(field_data, seed_radius-0.5, mid_theta,
                                phi, 'plasma_sheet_', 'inner_mag')
+            '''
             field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
+            '''
         else:
+            '''
             field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
+            '''
             notfound = True
             itr = 0
             while (notfound and itr < max_iter):
@@ -356,6 +370,7 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
                 else:
                     field_data.delete_zones(field_data.zone('temp*'))
                 itr += 1
+        """
 
 
 def dump_to_pandas(frame, zonelist, varlist, filename):

@@ -56,7 +56,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
 
         #Create plasmasheet field lines
         calc_plasmasheet(field_data, np.deg2rad(theta_max), phi,
-                         2*tail_cap, itr_max, searchtol)
+                         tail_cap, itr_max, searchtol)
         #port stream data to pandas DataFrame object
         stream_zone_list = []
         for zone in range(field_data.num_zones):
