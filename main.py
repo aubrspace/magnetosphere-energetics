@@ -35,20 +35,23 @@ if __name__ == "__main__":
     #python objects
     field_data=tp.data.load_tecplot(datafile)
     field_data.zone(0).name = 'global_field'
+    tp.data.operate.execute_equation(
+                '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
+    '''
     magnetopause.get_magnetopause(field_data, datafile, save_img=False)
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index)
+
+    #load already calculated surface
+    tp.load_layout('freshview.lay')
+    '''
 
     #Create stream zones along meridional plane for visualization
     phi = np.append(np.linspace(-pi,np.deg2rad(-160),int(50/2)),
                     np.linspace(pi,np.deg2rad(160),int(50/2)))
     stream_tools.calc_plasmasheet(field_data, np.deg2rad(55), phi, -20,
                                   100, pi/90)
-    '''
-    #load already calculated surface
-    tp.load_layout('freshview.lay')
-    '''
 
     #Display meridional streamlines for visualization with x scale slice
     plt = tp.active_frame().plot()
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     x_color_bar = np.linspace(0,-40,11)
     plt.contour(1).levels.reset_levels(x_color_bar)
     plt.slice(0).origin=(plt.slice(0).origin[0],
-                         -5,
+                         -15,
                          plt.slice(0).origin[1])
 
     #save image of streamlines

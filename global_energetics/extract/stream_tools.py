@@ -7,7 +7,7 @@ import sys
 import time
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt
+from numpy import abs, pi, cos, sin, sqrt, rad2deg
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
@@ -46,7 +46,7 @@ def create_stream_zone(field_data, r_start, theta_start, phi_start,
     # Create zone
     field_line.extract()
     field_data.zone(-1).name = zone_name + '{}'.format(
-                                                    np.rad2deg(phi_start))
+                                                    rad2deg(phi_start))
     # Delete streamlines
     field_line.delete_all()
 
@@ -67,17 +67,17 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         r_end_n = r_values[-1]
         r_end_s = 0
         r_seed = 2
+        x_max = 0
     elif stream_type == 'south':
         r_end_n = 0
         r_end_s = r_values[0]
         r_seed = 2
+        x_max = 0
     elif stream_type == 'inner_mag':
         x_values = field_data.zone(zone_name+'*').values(
                                                     'X *').as_numpy_array()
-        x_values = np.multiply(x_values,-1)
-        r_end_n = abs(x_values.min())
-        r_end_s = abs(x_values).min()
-        print('x values: {}'.format(x_values))
+        x_max = abs(x_values.min())
+        r_end_n, r_end_s = r_values[0], r_values[-1]
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
         '''
@@ -88,7 +88,7 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
                                          r_values[-8]))
         '''
     #check if closed
-    if (r_end_n > r_seed) or (r_end_s > r_seed):
+    if (r_end_n > r_seed) or (r_end_s > r_seed) or (x_max > r_seed):
         isclosed = False
     else:
         isclosed = True
@@ -166,7 +166,7 @@ def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
         field_data.delete_zones(field_data.zone('min_field*'),
                                field_data.zone('max_field*'))
         print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(
-                                                    np.rad2deg(phi[i]),
+                                                  rad2deg(phi[i]),
                                                   itr, r_eq_max-r_eq_min))
         if max_closed and min_closed:
             print('WARNING: field line closed at max {}R_e'.format(r_max))
@@ -196,7 +196,7 @@ def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
                 if abs(r_eq_min - r_eq_max) < tolerance and mid_closed:
                     notfound = False
                     field_data.zone('temp*').name ='field_phi_{:.1f}'.format(
-                                                         np.rad2deg(phi[i]))
+                                                         rad2deg(phi[i]))
                 else:
                     r_eq_mid[i] = (r_eq_max+r_eq_min)/2
                     field_data.delete_zones(field_data.zone('temp_field*'))
@@ -243,7 +243,7 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
             print('WARNING: field line closed at RHO_MAX={}R_e'.format(
                                                                  rho_max))
             field_data.zone('temp_tail*').name='tail_field_{:.1f}'.format(
-                                                        np.rad2deg(psi[i]))
+                                                        rad2deg(psi[i]))
         else:
             #This is a basic marching algorithm from outside in starting at
             #RHO_MAX
@@ -269,13 +269,13 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
                                                     rho_tail, stream_type)
                 if tail_closed:
                     field_data.zone('temp*').name='tail_field_{:.1f}'.format(
-                                                        np.rad2deg(psi[i]))
+                                                        rad2deg(psi[i]))
                     notfound = False
                     print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
-                                                       np.rad2deg(psi[i])))
+                                                       rad2deg(psi[i])))
                 if rho_tail <= rho_step:
                     print('WARNING: not possible at psi={:.1f}'.format(
-                                                       np.rad2deg(psi[i])))
+                                                       rad2deg(psi[i])))
 
 
 def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
@@ -294,7 +294,7 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
     plot.vector.u_variable = field_data.variable('B_x*')
     plot.vector.v_variable = field_data.variable('B_y*')
     plot.vector.w_variable = field_data.variable('B_z*')
-    seed_radius = 1.1
+    seed_radius = 1.5
 
     #iterate through northside zones
     for phi in phi_list[0:1]:
@@ -304,10 +304,21 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
         mid_theta = (pole_theta+equat_theta)/2
 
         #Testing for XZ visulalizations
-        print('phi {:.1f}'.format(np.rad2deg(phi)))
-        for i in np.linspace(0,theta_max, 45):
+        print('phi {:.1f}'.format(rad2deg(phi)))
+        map_index = 0
+        for i in np.append(np.linspace(pi/18,theta_max, 20),
+                           np.linspace(pi+pi/18, pi-theta_max, 20)):
             create_stream_zone(field_data, seed_radius, i,
-                               phi, 'temp_'+str(i), 'inner_mag')
+                               phi, 'temp_'+str(rad2deg(i)), 'inner_mag')
+            map_index +=1
+            poleward_closed = check_streamline_closed(field_data,
+                                                'temp_'+str(rad2deg(i)),
+                                                abs(tail_cap),
+                                                'inner_mag')
+            if map_index > 18:
+                plot.fieldmap(map_index).mesh.color=Color.Blue
+            if not poleward_closed:
+                plot.fieldmap(map_index).mesh.color=Color.Red
         """
         create_stream_zone(field_data, seed_radius, pole_theta, phi,
                            'temp_poleward_', 'inner_mag')
