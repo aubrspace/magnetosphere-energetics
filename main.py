@@ -41,8 +41,8 @@ if __name__ == "__main__":
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, save_img=False)
     plasmasheet.get_plasmasheet(field_data, datafile, pngpath=PNGPATH)
-    [frame for frame in tp.frames('Frame 001')][0].activate()
-    tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
+    [frame for frame in tp.frames('Frame 001')][0].move_to_bottom
+    #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
     print('\nfinal frames:')
     for frame in tp.frames():
