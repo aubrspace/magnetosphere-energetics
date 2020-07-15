@@ -93,10 +93,13 @@ if __name__ == '__main__':
     RES = 400
     FRAMERATE = 2
     FOLDER = sys.argv[1]
-    #determine file frame order
-    FRAME_LOC = set_frames(FOLDER)
-    #FRAME_LOC = FOLDER
-    #Convert all img .pdf to img.png
+
+    #determine if already in img-??.png form
+    if '-q' in sys.argv:
+        FRAME_LOC = FOLDER
+    else:
+        FRAME_LOC = set_frames(FOLDER)
     #convert_pdf(FOLDER, RES)
+
     #Create video from .png
     vid_compile(FRAME_LOC, FRAMERATE, 'video')

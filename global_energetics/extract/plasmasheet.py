@@ -28,7 +28,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=50, theta_max=55,
                      phi_limit=160, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
-                     nslice=40, nalpha=30):
+                     nslice=40, nalpha=15):
     """Function that finds, plots and calculates energetics on the
         plasmasheet surface.
     Inputs
@@ -55,7 +55,11 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                   '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
         #Create plasmasheet field lines
+        print('\nfinding north hemisphere boundary')
         calc_plasmasheet(field_data, np.deg2rad(theta_max), phi,
+                         tail_cap, itr_max, searchtol)
+        print('\nfinding south hemisphere boundary')
+        calc_plasmasheet(field_data, pi+pi/18, phi,
                          tail_cap, itr_max, searchtol)
         #port stream data to pandas DataFrame object
         stream_zone_list = []
@@ -66,13 +70,16 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                                        field_data.num_zones-3+1)
         stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
                                           [1,2,3], 'stream_points.csv')
+        min_x = stream_df['X [R]'].min()
+        print(stream_df)
         #slice and construct XYZ data
-        print('max x: {:.2f}'.format(max_x))
-        cps_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
-                                              max_x, nslice, nalpha,
-                                              False)
+        print('max x: {:.2f}, set to x=-1\nmin x: {:.2f}'.format(max_x,
+                                                                min_x))
+        cps_mesh = surface_construct.yz_slicer(stream_df, min_x+5,
+                                               -2, nslice, nalpha,
+                                               False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, tail_cap, max_x,
+        create_cylinder(field_data, nslice, nalpha, min_x+5, -1,
                         'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
                       range(0,2), range(0,nslice), range(0,nalpha))

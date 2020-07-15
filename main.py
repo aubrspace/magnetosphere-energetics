@@ -30,7 +30,7 @@ if __name__ == "__main__":
     #pass in arguments
     datafile = sys.argv[1]
     PNGPATH = sys.argv[2]
-    OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-cps_m'
+    #OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-cps_m'
 
     #python objects
     field_data=tp.data.load_tecplot(datafile)
@@ -38,14 +38,21 @@ if __name__ == "__main__":
     tp.data.operate.execute_equation(
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
-    '''
-    magnetopause.get_magnetopause(field_data, datafile, save_img=False)
+    #Caclulate surfaces
+    #magnetopause.get_magnetopause(field_data, datafile, save_img=False)
+    plasmasheet.get_plasmasheet(field_data, datafile)
+
+    #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index)
 
+    #display power in bar chart on frame
+    #view_set.integral_display('mp')
+    #view_set.integral_display('cps', left_aligned=False)
+
+    '''
     #load already calculated surface
     tp.load_layout('freshview.lay')
-    '''
 
     #Create stream zones along meridional plane for visualization
     phi = np.append(np.linspace(-pi,np.deg2rad(-160),int(50/2)),
@@ -72,15 +79,9 @@ if __name__ == "__main__":
     plt.slice(0).origin=(plt.slice(0).origin[0],
                          -15,
                          plt.slice(0).origin[1])
-
     #save image of streamlines
-    tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
-
-    #plasmasheet.get_plasmasheet(field_data, datafile)
-
-    #view_set.integral_display('mp')
-    #view_set.integral_display('cps', left_aligned=False)
-
+    #tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
