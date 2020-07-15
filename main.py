@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile)
-    plasmasheet.get_plasmasheet(field_data, datafile)
+    #plasmasheet.get_plasmasheet(field_data, datafile)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
@@ -51,10 +51,11 @@ if __name__ == "__main__":
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index,
-                              pngpath=PNGPATH, outputname=OUTPUTNAME, show_contour=False)
+                              save_img=False)
 
     #display power in bar chart on frame
-    #view_set.integral_display('mp')
+    view_set.integral_display('mp', outputname=OUTPUTNAME,
+                               pngpath=PNGPATH, save_img=True)
     #view_set.integral_display('cps', left_aligned=False)
 
     '''

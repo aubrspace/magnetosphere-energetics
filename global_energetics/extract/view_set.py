@@ -81,10 +81,18 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
     plt.contour(5).legend.show = False
 
     if save_img:
-        #write .plt and .lay files
-        #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
-        #tp.save_layout(laypath+outputname+'.lay')
-        tp.export.save_png(pngpath+outputname+'.png')
+        save_to_png(outputname=outputname, pngpath=pngpath)
+
+def save_to_png(*,outputname='output.png',pngpath='./'):
+    """Function to save current display to a .png file
+    Input
+        outputname- filename
+        pngpath- path for .png file save
+    """
+    #write .plt and .lay files
+    #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
+    #tp.save_layout(laypath+outputname+'.lay')
+    tp.export.save_png(pngpath+outputname+'.png')
 
 def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
                    var_index=0, newaxis=True):
@@ -100,6 +108,7 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
     """
     #Position frame
     frame.position = [1.25+0.25*barid, 0]
+    print(frame.position)
     frame.width = 2
     frame.show_border = False
     frame.transparent = True
@@ -120,6 +129,7 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
     plt.axes.y_axis(0).title.text= axis_title
     plt.axes.y_axis(0).min = axis_range.min()
     plt.axes.y_axis(0).max = axis_range.max()
+    print(frame.position)
     #Adjust axis settings if shown
     if newaxis:
         plt.axes.y_axis(0).show = True
@@ -132,9 +142,12 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
             plt.axes.y_axis(0).tick_labels.offset = 5
     else:
         plt.axes.y_axis(0).show = False
+    print(frame.position)
 
 def integral_display(searchkey, *, left_aligned=True, show_influx=True,
-                     show_netflux=True, show_outflux=True):
+                     show_netflux=True, show_outflux=True,
+                     save_img=True, pngpath='./', outputname='output.png',
+                     show_contour=True):
     '''Function to adjust settings for colorbars to be displayed
     Inputs
         searchkey- string used to identify appropriate integral frames
@@ -143,6 +156,9 @@ def integral_display(searchkey, *, left_aligned=True, show_influx=True,
         show_influx
         show_netflux
         show_outflux
+        pngpath- path for saving .png file
+        outputname- default is 'output.png'
+        save_img- default True
     '''
     #Set frame objects for selected zone
     framelist = []
@@ -180,6 +196,10 @@ def integral_display(searchkey, *, left_aligned=True, show_influx=True,
                        frame.name, axis_range, newaxis=show_axis)
         bar_id +=1
         frame.move_to_top()
+        print('frame moved to top')
+
+    if save_img:
+        save_to_png(outputname=outputname, pngpath=pngpath)
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
