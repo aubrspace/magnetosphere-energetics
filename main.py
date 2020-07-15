@@ -39,7 +39,7 @@ if __name__ == "__main__":
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
     #Caclulate surfaces
-    #magnetopause.get_magnetopause(field_data, datafile, save_img=False)
+    magnetopause.get_magnetopause(field_data, datafile, save_img=False)
     plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
@@ -47,8 +47,8 @@ if __name__ == "__main__":
                               field_data.variable('K_in *').index)
 
     #display power in bar chart on frame
-    #view_set.integral_display('mp')
-    #view_set.integral_display('cps', left_aligned=False)
+    view_set.integral_display('mp')
+    view_set.integral_display('cps', left_aligned=False)
 
     '''
     #load already calculated surface
