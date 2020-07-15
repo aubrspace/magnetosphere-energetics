@@ -651,11 +651,17 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
                                       command=integrate_command)
 
     #Rename and hide newly created frame
-    newframe = [fr for fr in tp.frames('Frame 001')][0]
+    print('after integration')
+    for fr in tp.frames():
+        print(fr.name)
+    newframe = [fr for fr in tp.frames('Frame*')][0]
     newframe.name = qtname
     #Create dummy frame as workaround, possibly version dependent issue??
     tp.macro.execute_command('$!CreateNewFrame')
     newframe.move_to_bottom()
+    print('after dummy frame')
+    for fr in tp.frames():
+        print(fr.name)
     return newframe
 
 def write_to_timelog(timelogname, sourcename, data):

@@ -39,22 +39,29 @@ def surface_analysis(field_data, zone_name):
     knet_index = int(field_data.variable('K_in *').index)
     kplus_index = int(field_data.variable('K_in+*').index)
     kminus_index = int(field_data.variable('K_in-*').index)
+    print('\nbefore 1st integration:')
+    for frame in tp.frames():
+        print(frame.name)
     #integrate k flux
     kout_frame = integrate_surface(kplus_index, zone_index,
                                    surface_name+' K_out [kW]')
+    print('\nbefore 2nd integration:')
+    for frame in tp.frames():
+        print(frame.name)
 
     knet_frame = integrate_surface(knet_index, zone_index,
                                    surface_name+' K_net [kW]')
+    print('\nbefore 3rd integration:')
+    for frame in tp.frames():
+        print(frame.name)
 
     kin_frame = integrate_surface(kminus_index, zone_index,
                                   surface_name+' K_in [kW]')
 
     #Identify and delete dummy frame as workaround
-    dummy_frame = [fr for fr in tp.frames('Frame 001')][0]
+    dummy_frame = [fr for fr in tp.frames('Frame*')][0]
     dummy_frame.activate()
-    tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
-
-    print('\nframes:')
+    print('\nactivated dummy')
     for frame in tp.frames():
         print(frame.name)
 

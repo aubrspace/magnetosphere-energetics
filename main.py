@@ -40,15 +40,21 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, save_img=False)
-    plasmasheet.get_plasmasheet(field_data, datafile)
+    plasmasheet.get_plasmasheet(field_data, datafile, pngpath=PNGPATH)
+    [frame for frame in tp.frames('Frame 001')][0].activate()
+    tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
+
+    print('\nfinal frames:')
+    for frame in tp.frames():
+        print(frame.name)
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index)
 
     #display power in bar chart on frame
-    view_set.integral_display('mp')
-    view_set.integral_display('cps', left_aligned=False)
+    #view_set.integral_display('mp')
+    #view_set.integral_display('cps', left_aligned=False)
 
     '''
     #load already calculated surface
@@ -79,10 +85,11 @@ if __name__ == "__main__":
     plt.slice(0).origin=(plt.slice(0).origin[0],
                          -15,
                          plt.slice(0).origin[1])
+    '''
     #save image of streamlines
     #tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
-    '''
     #timestamp
+
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
                                            np.mod(ltime,60)))
