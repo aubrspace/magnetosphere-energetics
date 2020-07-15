@@ -8,7 +8,7 @@ import numpy as np
 def display_boundary(frame, contourvar, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
                      fullview=True, save_img=True, pngpath='./',
-                     outputname='output.png'):
+                     outputname='output.png', show_contour=True):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
@@ -41,7 +41,7 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
                                             SurfacesToPlot.BoundaryFaces)
     plt.show_mesh = False
-    plt.show_contour = True
+    plt.show_contour = show_contour
     view = plt.view
     view.center()
 
@@ -52,6 +52,12 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
                     plt.fieldmap(map_index).effects.use_translucency=True
                     frame.plot(PlotType.Cartesian3D).use_translucency=True
                     plt.fieldmap(map_index).effects.surface_translucency = 60
+                    plt.fieldmap(map_index).shade.color = Color.Custom34
+                else:
+                    plt.fieldmap(map_index).effects.use_translucency=True
+                    frame.plot(PlotType.Cartesian3D).use_translucency=True
+                    plt.fieldmap(map_index).effects.surface_translucency = 10
+                    plt.fieldmap(map_index).shade.color = Color.Custom15
     if fullview:
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         contour = plt.contour(0)

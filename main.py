@@ -51,7 +51,7 @@ if __name__ == "__main__":
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index,
-                              pngpath=PNGPATH, outputname=OUTPUTNAME)
+                              pngpath=PNGPATH, outputname=OUTPUTNAME, show_contour=False)
 
     #display power in bar chart on frame
     #view_set.integral_display('mp')
