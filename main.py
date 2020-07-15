@@ -30,7 +30,7 @@ if __name__ == "__main__":
     #pass in arguments
     datafile = sys.argv[1]
     PNGPATH = sys.argv[2]
-    OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]
+    OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
     field_data=tp.data.load_tecplot(datafile)
