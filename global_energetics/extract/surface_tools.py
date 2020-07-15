@@ -60,10 +60,8 @@ def surface_analysis(field_data, zone_name):
 
     #Identify and delete dummy frame as workaround
     dummy_frame = [fr for fr in tp.frames('Frame*')][0]
-    dummy_frame.activate()
-    print('\nactivated dummy')
-    for frame in tp.frames():
-        print(frame.name)
+    dummy_frame.move_to_bottom()
+    print('\nactivated frame: {}'.format(tp.active_frame().name))
 
     #port data to pandas dataframes
     kout_df, _ = dump_to_pandas(kout_frame, [1], [4],

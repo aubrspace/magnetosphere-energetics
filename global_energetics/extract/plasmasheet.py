@@ -103,11 +103,6 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                 field_data.zone(zone).name.find('mp_zone') == -1):
                 field_data.delete_zones(field_data.zone(zone))
 
-        #write .plt and .lay files
-        #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
-        #tp.save_layout(laypath+outputname+'.lay')
-        tp.export.save_png(pngpath+outputname+'.png')
-
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

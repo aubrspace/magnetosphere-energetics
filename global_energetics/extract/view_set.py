@@ -7,7 +7,8 @@ import numpy as np
 
 def display_boundary(frame, contourvar, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
-                     fullview=True):
+                     fullview=True, save_img=True, pngpath='./',
+                     outputname='output.png'):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
@@ -16,6 +17,9 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
         contourvar- variable to be used for the contour
         colorbar- levels for colorbar
         fullview- True for global view of mangetopause, false for zoomed
+        save_img- default True
+        pngpath- path for saving .png file
+        outputname- default is 'output.png'
     """
     plt = frame.plot()
     field_data = frame.dataset
@@ -58,6 +62,23 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
         contour.legend.position[0] = 75
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
+
+    #create iso-surface of r=1 for the earth
+    plt.show_isosurfaces = True
+    iso = plt.isosurface(0)
+    iso.definition_contour_group_index = 5
+    iso.contour.flood_contour_group_index = 5
+    plt.contour(5).variable_index = 14
+    iso.isosurface_values[0] = 1
+    plt.contour(5).colormap_name = 'Sequential - Green/Blue'
+    plt.contour(5).colormap_filter.reversed = True
+    plt.contour(5).legend.show = False
+
+    if save_img:
+        #write .plt and .lay files
+        #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
+        #tp.save_layout(laypath+outputname+'.lay')
+        tp.export.save_png(pngpath+outputname+'.png')
 
 def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
                    var_index=0, newaxis=True):

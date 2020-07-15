@@ -30,7 +30,7 @@ if __name__ == "__main__":
     #pass in arguments
     datafile = sys.argv[1]
     PNGPATH = sys.argv[2]
-    #OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-cps_m'
+    OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]
 
     #python objects
     field_data=tp.data.load_tecplot(datafile)
@@ -39,9 +39,9 @@ if __name__ == "__main__":
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, save_img=False)
-    plasmasheet.get_plasmasheet(field_data, datafile, pngpath=PNGPATH)
-    [frame for frame in tp.frames('Frame 001')][0].move_to_bottom
+    magnetopause.get_magnetopause(field_data, datafile)
+    plasmasheet.get_plasmasheet(field_data, datafile)
+    #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
     print('\nfinal frames:')
@@ -50,7 +50,8 @@ if __name__ == "__main__":
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
-                              field_data.variable('K_in *').index)
+                              field_data.variable('K_in *').index,
+                              pngpath=PNGPATH, outputname=OUTPUTNAME)
 
     #display power in bar chart on frame
     #view_set.integral_display('mp')
