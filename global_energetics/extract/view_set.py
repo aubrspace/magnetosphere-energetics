@@ -25,6 +25,18 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
     field_data = frame.dataset
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
+    '''
+    #add scale
+    plt.fieldmap(0).show = False
+    plt.axes.x_axis.show = True
+    plt.axes.y_axis.show = True
+    plt.axes.z_axis.show = True
+    plt.axes.x_axis.fit_range()
+    plt.axes.y_axis.fit_range()
+    plt.axes.z_axis.fit_range()
+    plt.fieldmap(0).show = True
+    plt.view.fit_data()
+    '''
     #create list of zones to be displayed based on inputs
     zone_list = ['global_field']
     if magnetopause:
@@ -110,6 +122,7 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
     frame.position = [1.25+0.25*barid, 0]
     print(frame.position)
     frame.width = 2
+    frame.height = 4
     frame.show_border = False
     frame.transparent = True
     frame.plot_type = PlotType.XYLine

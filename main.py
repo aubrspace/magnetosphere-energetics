@@ -39,8 +39,9 @@ if __name__ == "__main__":
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile)
-    #plasmasheet.get_plasmasheet(field_data, datafile)
+    magnetopause.get_magnetopause(field_data, datafile, nstream_day=20,
+                                  nstream_tail=50)
+    plasmasheet.get_plasmasheet(field_data, datafile, nstream=100, searchtol=pi/360)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
