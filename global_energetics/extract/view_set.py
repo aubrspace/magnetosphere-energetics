@@ -26,16 +26,6 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
     '''
-    #add scale
-    plt.fieldmap(0).show = False
-    plt.axes.x_axis.show = True
-    plt.axes.y_axis.show = True
-    plt.axes.z_axis.show = True
-    plt.axes.x_axis.fit_range()
-    plt.axes.y_axis.fit_range()
-    plt.axes.z_axis.fit_range()
-    plt.fieldmap(0).show = True
-    plt.view.fit_data()
     '''
     #create list of zones to be displayed based on inputs
     zone_list = ['global_field']
@@ -63,23 +53,43 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
                 if zone.name.find('mp_zone') != -1:
                     plt.fieldmap(map_index).effects.use_translucency=True
                     frame.plot(PlotType.Cartesian3D).use_translucency=True
-                    plt.fieldmap(map_index).effects.surface_translucency = 60
+                    plt.fieldmap(map_index).effects.surface_translucency=60
                     plt.fieldmap(map_index).shade.color = Color.Custom34
                 else:
                     plt.fieldmap(map_index).effects.use_translucency=True
                     frame.plot(PlotType.Cartesian3D).use_translucency=True
-                    plt.fieldmap(map_index).effects.surface_translucency = 10
+                    plt.fieldmap(map_index).effects.surface_translucency=10
                     plt.fieldmap(map_index).shade.color = Color.Custom15
     if fullview:
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         contour = plt.contour(0)
         contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'
-        contour.legend.vertical = False
-        contour.legend.position[1] = 20
-        contour.legend.position[0] = 75
+        contour.legend.vertical = True
+        contour.legend.position[1] = 75
+        contour.legend.position[0] = 30
+        contour.legend.box.box_type = TextBox.Filled
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
+
+    #add scale
+    print('pos:{}\nmag:{}\ndis:{}\npsi:{}\ntheta:{}\nalpha:{}\n'.format(view.position, view.magnification, view.distance, view.psi, view.theta, view.alpha))
+    savedposition = (view.position[0], view.position[1], view.position[2])
+    savedmag = view.magnification
+    saveddistance = view.distance
+    plt.axes.axis_mode = AxisMode.Independent
+    plt.axes.x_axis.show = True
+    plt.axes.x_axis.max = 15
+    plt.axes.x_axis.min = -40
+    plt.axes.y_axis.show = True
+    plt.axes.y_axis.max = 40
+    plt.axes.y_axis.min = -40
+    plt.axes.z_axis.show = True
+    plt.axes.z_axis.max = 40
+    plt.axes.z_axis.min = -40
+    plt.axes.z_axis.title.offset = 15
+    view.magnification = savedmag
+    view.translate(x=-5)
 
     #create iso-surface of r=1 for the earth
     plt.show_isosurfaces = True
