@@ -22,6 +22,7 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
+                                                    abs_to_timestamp,
                                                     write_to_timelog)
 
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',

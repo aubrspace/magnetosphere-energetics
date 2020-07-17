@@ -664,16 +664,13 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
         print(fr.name)
     return newframe
 
-def write_to_timelog(timelogname, sourcename, data):
-    """Function for writing the results from the current file to a file that contains time integrated data
+def abs_to_timestamp(abstime):
+    """Function converts absolute time in sec to a timestamp list
     Inputs
-        timelogname
-        sourcename
-        data- pandas DataFrame object that will be written into the file
+        abstime
+    Outpus
+        timestamp
     """
-    #get the time entries for this file
-    from global_energetics.makevideo import get_time
-    abstime = get_time(sourcename)
     secyear = 60*60*24*12*30
     year = np.floor(abstime/secyear)
     month = np.floor((abstime/secyear-year)*12)
@@ -684,6 +681,19 @@ def write_to_timelog(timelogname, sourcename, data):
     second = np.floor((((((((((abstime/secyear-year)*12)-month)*30)
                              -day)*24)-hour)*60)-minute)*60)
     timestamp = [year, month, day, hour, minute, second, abstime]
+    return timestamp
+
+def write_to_timelog(timelogname, sourcename, data):
+    """Function for writing the results from the current file to a file that contains time integrated data
+    Inputs
+        timelogname
+        sourcename
+        data- pandas DataFrame object that will be written into the file
+    """
+    #get the time entries for this file
+    from global_energetics.makevideo import get_time
+    abstime = get_time(sourcename)
+    timestamp = abs_to_timestamp(abstime)
     #write data to file
     with open(timelogname, 'a') as log:
         log.seek(0,2)
@@ -692,6 +702,7 @@ def write_to_timelog(timelogname, sourcename, data):
             log.write(str(entry)+', ')
         for num in data.values[0]:
             log.write(str(num)+',')
+    return timestamp
 
 
 # Must list .plt that script is applied for proper execution

@@ -4,8 +4,12 @@
 import tecplot as tp
 from tecplot.constant import *
 import numpy as np
+from global_energetics.makevideo import get_time
+from global_energetics.extract import stream_tools
+from global_energetics.extract.stream_tools import abs_to_timestamp
 
-def display_boundary(frame, contourvar, *, magnetopause=True,
+
+def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
                      fullview=True, save_img=True, pngpath='./',
                      outputname='output.png', show_contour=True):
@@ -13,7 +17,7 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
         settings
     Inputs
         frame- object for the tecplot frame
-        zoneid- index for zone of interest
+        filename
         contourvar- variable to be used for the contour
         colorbar- levels for colorbar
         fullview- True for global view of mangetopause, false for zoomed
@@ -25,8 +29,6 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
     field_data = frame.dataset
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
-    '''
-    '''
     #create list of zones to be displayed based on inputs
     zone_list = ['global_field']
     if magnetopause:
@@ -66,30 +68,11 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
         contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'
         contour.legend.vertical = True
-        contour.legend.position[1] = 75
+        contour.legend.position[1] = 90
         contour.legend.position[0] = 30
         contour.legend.box.box_type = TextBox.Filled
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
-
-    #add scale
-    print('pos:{}\nmag:{}\ndis:{}\npsi:{}\ntheta:{}\nalpha:{}\n'.format(view.position, view.magnification, view.distance, view.psi, view.theta, view.alpha))
-    savedposition = (view.position[0], view.position[1], view.position[2])
-    savedmag = view.magnification
-    saveddistance = view.distance
-    plt.axes.axis_mode = AxisMode.Independent
-    plt.axes.x_axis.show = True
-    plt.axes.x_axis.max = 15
-    plt.axes.x_axis.min = -40
-    plt.axes.y_axis.show = True
-    plt.axes.y_axis.max = 40
-    plt.axes.y_axis.min = -40
-    plt.axes.z_axis.show = True
-    plt.axes.z_axis.max = 40
-    plt.axes.z_axis.min = -40
-    plt.axes.z_axis.title.offset = 15
-    view.magnification = savedmag
-    view.translate(x=-5)
 
     #create iso-surface of r=1 for the earth
     plt.show_isosurfaces = True
@@ -101,6 +84,48 @@ def display_boundary(frame, contourvar, *, magnetopause=True,
     plt.contour(5).colormap_name = 'Sequential - Green/Blue'
     plt.contour(5).colormap_filter.reversed = True
     plt.contour(5).legend.show = False
+
+    #add scale
+    print('pos:{}\nmag:{}\ndis:{}\npsi:{}\ntheta:{}\nalpha:{}\n'.format(view.position, view.magnification, view.distance, view.psi, view.theta, view.alpha))
+    savedposition = (view.position[0], view.position[1], view.position[2])
+    savedmag = view.magnification
+    saveddistance = view.distance
+    plt.axes.axis_mode = AxisMode.Independent
+    plt.axes.x_axis.show = True
+    plt.axes.x_axis.max = 15
+    plt.axes.x_axis.min = -40
+    plt.axes.x_axis.scale_factor = 1
+    plt.axes.y_axis.show = True
+    plt.axes.y_axis.max = 40
+    plt.axes.y_axis.min = -40
+    plt.axes.y_axis.scale_factor = 1
+    plt.axes.z_axis.show = True
+    plt.axes.z_axis.max = 40
+    plt.axes.z_axis.min = -40
+    plt.axes.z_axis.scale_factor = 1
+    plt.axes.z_axis.title.offset = 15
+    view.magnification = savedmag
+    view.position = savedposition
+    view.translate(x=10, y=10)
+
+    #add timestamp
+    abstime = get_time(filename)
+    #timestamp -> [year, month, day, hour, minute, second, abstime]
+    timestamp = abs_to_timestamp(abstime)
+    [year, month, day, hour, minute, second, abstime] = timestamp
+    if second == 59:
+        minute = '{:.0f}'.format(minute+1)
+        second = '00'
+    else:
+        second = str(second)
+    time_text = '{:.0f} Feb {:.0f} UT{:.0f}:'.format(year, day, hour,
+                                                     minute, second)
+    timebox = frame.add_text(time_text+minute+':'+second)
+    timebox.position = (2,5)
+    timebox.font.size = 28
+    timebox.font.bold = False
+    timebox.font.typeface = 'Helvetica'
+
 
     if save_img:
         save_to_png(outputname=outputname, pngpath=pngpath)

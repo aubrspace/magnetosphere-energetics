@@ -23,6 +23,7 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
+                                                    abs_to_timestamp,
                                                     write_to_timelog)
 
 def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
