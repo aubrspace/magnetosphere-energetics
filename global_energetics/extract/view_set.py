@@ -77,8 +77,8 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'
         contour.legend.vertical = True
-        contour.legend.position[1] = 90
-        contour.legend.position[0] = 30
+        contour.legend.position[1] = 98
+        contour.legend.position[0] = 92
         contour.legend.box.box_type = TextBox.Filled
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
@@ -133,14 +133,18 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         second = twodigit(second)
     print(day)
     time_text = ('{:.0f} '.format(year)+
-                 'Feb {} '.format(twodigit(day))+
-                 'UT{}:'.format(twodigit(hour))+
-                 '{}:{}'.format(minute, second))
+                 'Feb {}, '.format(twodigit(day))+
+                 '{}:'.format(twodigit(hour))+
+                 '{}:{}UT'.format(minute, second))
     timebox = frame.add_text(time_text)
     timebox.position = (2,5)
     timebox.font.size = 28
     timebox.font.bold = False
     timebox.font.typeface = 'Helvetica'
+
+    #move orientation axis out of the way
+    plt.axes.orientation_axis.size = 8
+    plt.axes.orientation_axis.position = [91, 7]
 
 
     if save_img:
@@ -171,9 +175,9 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
         newaxis- True if plotting on new axis
     """
     #Position frame
-    frame.position = [1.25+0.25*barid, 0]
+    frame.position = [1.75+0.25*barid, 0.5]
     print(frame.position)
-    frame.width = 2
+    frame.width = 1.5
     frame.height = 4
     frame.show_border = False
     frame.transparent = True
@@ -200,6 +204,7 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
         plt.axes.y_axis(0).show = True
         plt.axes.y_axis(0).line.offset = -20
         plt.axes.y_axis(0).title.offset = 20
+        frame.transparent = False
         if barid > 2:
             plt.axes.y_axis(0).line.alignment = AxisAlignment.WithGridMax
             plt.axes.y_axis(0).line.offset = -30
