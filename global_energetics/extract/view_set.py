@@ -131,9 +131,11 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     else:
         minute = twodigit(minute)
         second = twodigit(second)
-    time_text = '{:.0f} Feb {:.0f} UT{:.0f}:'.format(year, day, hour,
-                                                     minute, second)
-    timebox = frame.add_text(time_text+minute+':'+second)
+    time_text = ('{:.0f}'.format(year)+
+                 'Feb {}'.format(twodigit(day))+
+                 'UT{}:'.format(twodigit(hour))+
+                 '{}:{}'.format(minute, second))
+    timebox = frame.add_text(time_text)
     timebox.position = (2,5)
     timebox.font.size = 28
     timebox.font.bold = False
