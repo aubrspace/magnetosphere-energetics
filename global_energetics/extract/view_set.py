@@ -9,6 +9,15 @@ from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
 
 
+def twodigit(num):
+    """Function makes two digit str from a number
+    Inputs
+        num
+    Ouputs
+        num_str
+    """
+    return '{:.0f}{:.0f}'.format(np.floor(num)/10,num%10)
+
 def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
                      fullview=True, save_img=True, pngpath='./',
@@ -114,10 +123,14 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     timestamp = abs_to_timestamp(abstime)
     [year, month, day, hour, minute, second, abstime] = timestamp
     if second == 59:
-        minute = '{:.0f}'.format(minute+1)
+        minute = twodigit(minute+1)
         second = '00'
+    elif second == 29:
+        minute = twodigit(minute)
+        second = '30'
     else:
-        second = str(second)
+        minute = twodigit(minute)
+        second = twodigit(second)
     time_text = '{:.0f} Feb {:.0f} UT{:.0f}:'.format(year, day, hour,
                                                      minute, second)
     timebox = frame.add_text(time_text+minute+':'+second)
@@ -129,6 +142,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
 
     if save_img:
         save_to_png(outputname=outputname, pngpath=pngpath)
+
 
 def save_to_png(*,outputname='output.png',pngpath='./'):
     """Function to save current display to a .png file
