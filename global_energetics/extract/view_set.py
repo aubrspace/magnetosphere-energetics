@@ -16,7 +16,7 @@ def twodigit(num):
     Ouputs
         num_str
     """
-    return '{:.0f}{:.0f}'.format(np.floor(num)/10,num%10)
+    return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
 
 def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
@@ -131,8 +131,9 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     else:
         minute = twodigit(minute)
         second = twodigit(second)
-    time_text = ('{:.0f}'.format(year)+
-                 'Feb {}'.format(twodigit(day))+
+    print(day)
+    time_text = ('{:.0f} '.format(year)+
+                 'Feb {} '.format(twodigit(day))+
                  'UT{}:'.format(twodigit(hour))+
                  '{}:{}'.format(minute, second))
     timebox = frame.add_text(time_text)
