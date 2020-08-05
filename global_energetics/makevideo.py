@@ -52,7 +52,7 @@ def set_frames(folder):
     #create sorted list of image files
     framelist = sorted(glob.glob(folder+'/*.png'), key=get_time)
     os.system('mkdir '+folder+'/frames/')
-    n=0
+    n=0.03
     for image in framelist:
         if n<0.099:
             filename = 'img-00{:.0f}.png'.format(100*n)

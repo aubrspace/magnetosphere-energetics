@@ -52,6 +52,7 @@ if __name__ == "__main__":
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index,
+                              datafile,
                               save_img=False)
 
     #display power in bar chart on frame
