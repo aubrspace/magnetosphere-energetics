@@ -30,7 +30,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream_day=15, phi_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
-                     nslice=40, nalpha=50):
+                     nslice=40, nalpha=50, nfill=2):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -82,10 +82,10 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                               x_subsolar, nslice, nalpha,
                                               False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, tail_cap, x_subsolar,
-                        'mp_zone')
-        load_cylinder(field_data, mp_mesh, 'mp_zone',
-                      range(0,2), range(0,nslice), range(0,nalpha))
+        create_cylinder(field_data, nslice, nalpha, nfill, tail_cap,
+                        x_subsolar, 'mp_zone')
+        load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
+                      K=nalpha)
 
         #interpolate field data to zone
         print('interpolating field data to magnetopause')

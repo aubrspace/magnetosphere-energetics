@@ -95,7 +95,6 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.contour(5).legend.show = False
 
     #add scale
-    print('pos:{}\nmag:{}\ndis:{}\npsi:{}\ntheta:{}\nalpha:{}\n'.format(view.position, view.magnification, view.distance, view.psi, view.theta, view.alpha))
     savedposition = (view.position[0], view.position[1], view.position[2])
     savedmag = view.magnification
     saveddistance = view.distance
@@ -127,7 +126,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         minute +=1
     elif second == 29:
         second +=1
-    if minute == 59:
+    if minute == 59 or minute == 60:
         minute = 0
         hour +=1
     elif minute == 29:

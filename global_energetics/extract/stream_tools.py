@@ -416,26 +416,29 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     else: x_max = []
     return loc_data, x_max
 
-def create_cylinder(field_data, nx, nalpha, x_min, x_max, zone_name):
+def create_cylinder(field_data, nx, nalpha, nfill, x_min, x_max,
+                    zone_name):
     """Function creates empty cylindrical zone for loading of slice data
     Inputs
         field_data- tecplot Dataset class with 3D field data
         nx- number of x positions, same as n_slice
-        nalpha
+        nalpha- number of aximuthal points
+        nfill- number of radial points
         x_min
         x_max
         zone_name
     """
     #use built in create zone function for verticle cylinder
     tp.macro.execute_command('''$!CreateCircularZone
-                             IMax = 2
+                             IMax = {:d}
                              JMax = {:d}
                              KMax = {:d}
                              X = 0
                              Y = 0
                              Z1 = {:f}
                              Z2 = {:f}
-                             Radius = 50'''.format(nalpha,nx,x_min,x_max))
+                             Radius = 50'''.format(nfill, nalpha, nx,
+                                                   x_min, x_max))
 
     #use built in function to rotate 90deg about y axis
     tp.macro.execute_command('''$!AxialDuplicate
@@ -470,14 +473,19 @@ def load_cylinder(field_data, data, zonename, I, J, K):
     """
     print('cylindrical zone loading')
     mag_bound = field_data.zone(zonename)
+    fill = I
     #data = pd.read_csv(filename)
     xdata = data['X [R]'].values.copy()
     ydata = data['Y [R]'].values.copy()
     zdata = data['Z [R]'].values.copy()
     #ndata = np.meshgrid(xdata,ydata,zdata)
-    mag_bound.values('X*')[1::2] = xdata
-    mag_bound.values('Y*')[1::2] = ydata
-    mag_bound.values('Z*')[1::2] = zdata
+    mag_bound.values('X*')[0::fill] = xdata
+    mag_bound.values('Y*')[0::fill] = np.zeros(J*K)
+    mag_bound.values('Z*')[0::fill] = np.zeros(J*K)
+    for i in range(1,fill):
+        mag_bound.values('X*')[i::fill] = xdata
+        mag_bound.values('Y*')[i::fill] = ydata * i/fill
+        mag_bound.values('Z*')[i::fill] = zdata * i/fill
 
 
 def calculate_energetics(field_data, zone_name):

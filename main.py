@@ -39,9 +39,8 @@ if __name__ == "__main__":
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, nstream_day=20,
-                                  nstream_tail=50)
-    plasmasheet.get_plasmasheet(field_data, datafile, nstream=100, searchtol=pi/360)
+    magnetopause.get_magnetopause(field_data, datafile)
+    #plasmasheet.get_plasmasheet(field_data, datafile, nstream=100, searchtol=pi/360)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
@@ -52,12 +51,12 @@ if __name__ == "__main__":
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index,
-                              datafile,
+                              datafile, show_contour=False,
                               save_img=False)
 
     #display power in bar chart on frame
-    view_set.integral_display('mp', outputname=OUTPUTNAME,
-                               pngpath=PNGPATH, save_img=True)
+    #view_set.integral_display('mp', outputname=OUTPUTNAME,
+    #                           pngpath=PNGPATH, save_img=True)
     #view_set.integral_display('cps', left_aligned=False)
 
     '''
