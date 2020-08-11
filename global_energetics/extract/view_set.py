@@ -133,7 +133,6 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         minute +=1
     if hour == 24:
         hour = 0
-    print(day)
     time_text = ('{:.0f} '.format(year)+
                  'Feb {}, '.format(twodigit(day))+
                  '{}:'.format(twodigit(hour))+
@@ -178,7 +177,6 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
     """
     #Position frame
     frame.position = [1.75+0.25*barid, 0.5]
-    print(frame.position)
     frame.width = 1.5
     frame.height = 4
     frame.show_border = False
@@ -200,7 +198,6 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
     plt.axes.y_axis(0).title.text= axis_title
     plt.axes.y_axis(0).min = axis_range.min()
     plt.axes.y_axis(0).max = axis_range.max()
-    print(frame.position)
     #Adjust axis settings if shown
     if newaxis:
         plt.axes.y_axis(0).show = True
@@ -214,7 +211,6 @@ def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
             plt.axes.y_axis(0).tick_labels.offset = 5
     else:
         plt.axes.y_axis(0).show = False
-    print(frame.position)
 
 def integral_display(searchkey, *, left_aligned=True, show_influx=True,
                      show_netflux=True, show_outflux=True,
@@ -268,7 +264,6 @@ def integral_display(searchkey, *, left_aligned=True, show_influx=True,
                        frame.name, axis_range, newaxis=show_axis)
         bar_id +=1
         frame.move_to_top()
-        print('frame moved to top')
 
     if save_img:
         save_to_png(outputname=outputname, pngpath=pngpath)

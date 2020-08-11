@@ -498,7 +498,23 @@ def calculate_energetics(field_data, zone_name):
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
                                       'CELLCENTERED')
+    tp.macro.execute_extended_command('CFDAnalyzer3',
+                                      'CALCULATE FUNCTION = '+
+                                      'GRIDIUNITNORMAL VALUELOCATION = '+
+                                      'CELLCENTERED')
     eq = tp.data.operate.execute_equation
+
+    #Surface normal vector components
+    eq('{surface_normal_x} = IF(K==40||K==1,'+
+                            '-1*{X Grid K Unit Normal},'+
+                            '{X Grid I Unit Normal})')
+    eq('{surface_normal_y} = IF(K==40||K==1,'+
+                            '-1*{Y Grid K Unit Normal},'+
+                            '{Y Grid I Unit Normal})')
+    eq('{surface_normal_z} = IF(K==40||K==1,'+
+                            '-1*{Z Grid K Unit Normal},'+
+                            '{Z Grid I Unit Normal})')
+
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
                           '-{U_y [km/s]}*{B_z [nT]})')
@@ -538,41 +554,41 @@ def calculate_energetics(field_data, zone_name):
         zones=[zone_index])
 
     #Component Normal Flux
-    eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2'+
+    eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+
+                            '+{K_y [kW/km^2]}*{surface_normal_y}'+
+                            '+{K_z [kW/km^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
                                   '+1e-25)'+
-                          '* {X Grid K Unit Normal}',
+                          '* {surface_normal_x}',
        zones=[zone_index])
-    eq('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2'+
+    eq('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+
+                            '+{K_y [kW/km^2]}*{surface_normal_y}'+
+                            '+{K_z [kW/km^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
                                   '+1e-25)'+
-                          '* {Y Grid K Unit Normal}',
+                          '* {surface_normal_y}',
         zones=[zone_index])
-    eq('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{K_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{K_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2'+
-                                  '+{Z Grid K Unit Normal}**2'+
+    eq('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+
+                            '+{K_y [kW/km^2]}*{surface_normal_y}'+
+                            '+{K_z [kW/km^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
                                   '+1e-25)'+
-                          '* {Z Grid K Unit Normal}',
+                          '* {surface_normal_z}',
         zones=[zone_index])
 
     #Magnitude Normal Flux
-    eq('{K_in [kW/km^2]} = ({Kn_x [kW/km^2]}*{X Grid K Unit Normal}'+
-                            '+{Kn_y [kW/km^2]}*{Y Grid K Unit Normal}'+
-                            '+{Kn_z [kW/km^2]}*{Z Grid K Unit Normal})'+
-                          '/ sqrt({X Grid K Unit Normal}**2'+
-                                  '+{Y Grid K Unit Normal}**2 '+
-                                  '+{Z Grid K Unit Normal}**2'+
+    eq('{K_in [kW/km^2]} = ({Kn_x [kW/km^2]}*{surface_normal_x}'+
+                            '+{Kn_y [kW/km^2]}*{surface_normal_y}'+
+                            '+{Kn_z [kW/km^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2 '+
+                                  '+{surface_normal_z}**2'+
                                   '+1e-25)',
         zones=[zone_index])
 
