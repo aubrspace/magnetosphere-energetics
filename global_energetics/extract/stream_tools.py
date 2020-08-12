@@ -494,6 +494,7 @@ def calculate_energetics(field_data, zone_name):
         field_data- tecplot Dataset class containing 3D field data
     """
     zone_index= field_data.zone(zone_name).index
+    mu0 = 4*pi*1e-7
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
@@ -514,6 +515,10 @@ def calculate_energetics(field_data, zone_name):
     eq('{surface_normal_z} = IF(K==40||K==1,'+
                             '-1*{Z Grid K Unit Normal},'+
                             '{Z Grid I Unit Normal})')
+
+    #Magnetic Energy per volume
+    eq('{uB [J/km^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                        '/(2*4*3.14159*1e-7) * 1e-9')
 
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
@@ -662,7 +667,6 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
     #Integrate total surface Flux
     frame=[fr for fr in tp.frames(frame_id)][0]
     frame.activate()
-    print('\nframe selected: {}\n'.format(tp.active_frame().name))
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
                        "ScalarVar={:d} ".format(var_index+1)+
                        "XVariable=1 "+
@@ -675,17 +679,11 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
                                       command=integrate_command)
 
     #Rename and hide newly created frame
-    print('after integration')
-    for fr in tp.frames():
-        print(fr.name)
     newframe = [fr for fr in tp.frames('Frame*')][0]
     newframe.name = qtname
     #Create dummy frame as workaround, possibly version dependent issue??
     tp.macro.execute_command('$!CreateNewFrame')
     newframe.move_to_bottom()
-    print('after dummy frame')
-    for fr in tp.frames():
-        print(fr.name)
     return newframe
 
 def abs_to_timestamp(abstime):

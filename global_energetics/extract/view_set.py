@@ -52,7 +52,9 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                 plt.fieldmap(map_index).show = True
             elif zone.name != 'global_field':
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
-                                            SurfacesToPlot.BoundaryFaces)
+                                            SurfacesToPlot.IKPlanes)
+                plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
+                plt.fieldmap(map_index).surfaces.k_range = (0,-1,39)
     plt.show_mesh = False
     plt.show_contour = show_contour
     view = plt.view
@@ -83,13 +85,19 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
 
-    #create iso-surface of r=1 for the earth
+    #value blank domain around r=1
+    plt.value_blanking.active = True
+    plt.value_blanking.constraint(0).active = True
+    plt.value_blanking.constraint(0).variable = field_data.variable('r *')
+    plt.value_blanking.constraint(0).comparison_value = 1
+
+    #create iso-surface of r=1.2 for the earth
     plt.show_isosurfaces = True
     iso = plt.isosurface(0)
     iso.definition_contour_group_index = 5
     iso.contour.flood_contour_group_index = 5
     plt.contour(5).variable_index = 14
-    iso.isosurface_values[0] = 1
+    iso.isosurface_values[0] = 1.2
     plt.contour(5).colormap_name = 'Sequential - Green/Blue'
     plt.contour(5).colormap_filter.reversed = True
     plt.contour(5).legend.show = False

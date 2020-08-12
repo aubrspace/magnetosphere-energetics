@@ -21,6 +21,35 @@ else:
     from stream_tools import (calculate_energetics, integrate_surface,
                               dump_to_pandas)
 
+def volume_analysis(field_data, zone_name):
+    """Function to calculate forms of total energy inside magnetopause or
+    other zones
+    Inputs
+        field_data- tecplot Dataset object with 3d field data and mp
+        zone_name
+    Outputs
+        magnetic_energy- volume integrated magnetic energy B2/2mu0
+    """
+    if [var.name for var in field_data.variables()][::].count('K_in+')==0:
+        calculate_energetics(field_data, zone_name)
+    #initialize objects for main frame
+    main_frame = [fr for fr in tp.frames('main')][0]
+    volume_name = zone_name.split('_')[0]
+    zone_index = int(field_data.zone(zone_name).index)
+    uB_index = int(field_data.variable('uB *').index)
+    #integrate magnetic energy
+    uB_frame = integrate_surface(uB_index, zone_index,
+                                   volume_name+' uB [J]')
+    #Identify and delete dummy frame as workaround
+    dummy_frame = [fr for fr in tp.frames('Frame*')][0]
+    dummy_frame.move_to_bottom()
+    #port data to pandas dataframes
+    uB_df, _ = dump_to_pandas(uB_frame, [1], [4],
+                                volume_name+'.csv')
+    magnetic_energy = uB_df.drop(columns=['Unnamed: 1'])
+
+    return magnetic_energy
+
 
 def surface_analysis(field_data, zone_name):
     """Function to calculate energy flux at magnetopause surface
@@ -31,7 +60,8 @@ def surface_analysis(field_data, zone_name):
         surface_power- power, or energy flux at the magnetopause surface
     """
     #calculate energetics field variables
-    calculate_energetics(field_data, zone_name)
+    if [var.name for var in ds.variables()][::].count('K_in+')!=0:
+        calculate_energetics(field_data, zone_name)
     #initialize objects for main frame
     main_frame = [fr for fr in tp.frames('main')][0]
     surface_name = zone_name.split('_')[0]
@@ -39,21 +69,12 @@ def surface_analysis(field_data, zone_name):
     knet_index = int(field_data.variable('K_in *').index)
     kplus_index = int(field_data.variable('K_in+*').index)
     kminus_index = int(field_data.variable('K_in-*').index)
-    print('\nbefore 1st integration:')
-    for frame in tp.frames():
-        print(frame.name)
     #integrate k flux
     kout_frame = integrate_surface(kplus_index, zone_index,
                                    surface_name+' K_out [kW]')
-    print('\nbefore 2nd integration:')
-    for frame in tp.frames():
-        print(frame.name)
 
     knet_frame = integrate_surface(knet_index, zone_index,
                                    surface_name+' K_net [kW]')
-    print('\nbefore 3rd integration:')
-    for frame in tp.frames():
-        print(frame.name)
 
     kin_frame = integrate_surface(kminus_index, zone_index,
                                   surface_name+' K_in [kW]')
@@ -61,7 +82,6 @@ def surface_analysis(field_data, zone_name):
     #Identify and delete dummy frame as workaround
     dummy_frame = [fr for fr in tp.frames('Frame*')][0]
     dummy_frame.move_to_bottom()
-    print('\nactivated frame: {}'.format(tp.active_frame().name))
 
     #port data to pandas dataframes
     kout_df, _ = dump_to_pandas(kout_frame, [1], [4],
