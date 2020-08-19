@@ -12,44 +12,9 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
-if __name__ != "__main__":
-    from global_energetics.extract.stream_tools import (
-                                                      integrate_surface,
+from global_energetics.extract.stream_tools import (integrate_surface,
                                                       calculate_energetics,
                                                       dump_to_pandas)
-else:
-    from stream_tools import (calculate_energetics, integrate_surface,
-                              dump_to_pandas)
-
-def volume_analysis(field_data, zone_name):
-    """Function to calculate forms of total energy inside magnetopause or
-    other zones
-    Inputs
-        field_data- tecplot Dataset object with 3d field data and mp
-        zone_name
-    Outputs
-        magnetic_energy- volume integrated magnetic energy B2/2mu0
-    """
-    if [var.name for var in field_data.variables()][::].count('K_in+')==0:
-        calculate_energetics(field_data, zone_name)
-    #initialize objects for main frame
-    main_frame = [fr for fr in tp.frames('main')][0]
-    volume_name = zone_name.split('_')[0]
-    zone_index = int(field_data.zone(zone_name).index)
-    uB_index = int(field_data.variable('uB *').index)
-    #integrate magnetic energy
-    uB_frame = integrate_surface(uB_index, zone_index,
-                                   volume_name+' uB [J]')
-    #Identify and delete dummy frame as workaround
-    dummy_frame = [fr for fr in tp.frames('Frame*')][0]
-    dummy_frame.move_to_bottom()
-    #port data to pandas dataframes
-    uB_df, _ = dump_to_pandas(uB_frame, [1], [4],
-                                volume_name+'.csv')
-    magnetic_energy = uB_df.drop(columns=['Unnamed: 1'])
-
-    return magnetic_energy
-
 
 def surface_analysis(field_data, zone_name):
     """Function to calculate energy flux at magnetopause surface

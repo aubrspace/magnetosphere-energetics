@@ -15,6 +15,7 @@ from global_energetics.extract import magnetopause
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import stream_tools
 from global_energetics.extract import surface_tools
+from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
 
 if __name__ == "__main__":

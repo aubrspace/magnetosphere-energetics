@@ -16,8 +16,9 @@ import pandas as pd
 from global_energetics.extract import surface_construct
 #from global_energetics.extract.view_set import display_magnetopause
 from global_energetics.extract import surface_tools
-from global_energetics.extract.surface_tools import (surface_analysis,
-                                                     volume_analysis)
+from global_energetics.extract.surface_tools import surface_analysis
+from global_energetics.extract import volume_tools
+from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     calc_tail_mp,
@@ -95,6 +96,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                 source_zones=field_data.zone('global_field'))
         #magnetopause_power = surface_analysis(field_data, 'mp_zone')
         #print(magnetopause_power)
+        from IPython import embed; embed()
         mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
         print(mp_magnetic_energy)
         #write_to_timelog('mp_integral_log.csv',outputname,
