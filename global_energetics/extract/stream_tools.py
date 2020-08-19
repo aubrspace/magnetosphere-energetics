@@ -654,7 +654,8 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     oldframe.move_to_bottom()
     frame.activate()
 
-def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
+def integrate_surface(var_index, zone_index, qtname, *, is_volume=False,
+                      frame_id='main'):
     """Function to calculate integral of variable on mp surface
     Inputs
         var_index- variable to be integrated
@@ -667,11 +668,23 @@ def integrate_surface(var_index, zone_index, qtname, *, frame_id='main'):
     #Integrate total surface Flux
     frame=[fr for fr in tp.frames(frame_id)][0]
     frame.activate()
+    if is_volume:
+        surface_planes_only = ""
+    else:
+        surface_planes_only = ["IRange={MIN =0 MAX = 0 SKIP =1} "+
+                               "JRange={MIN =1 MAX = 0 SKIP =1} "+
+                               "KRange={MIN =1 MAX = 0 SKIP =39} "]
+
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
+                       "VariableOption='Scalar' "
                        "ScalarVar={:d} ".format(var_index+1)+
                        "XVariable=1 "+
                        "YVariable=2 "+
                        "ZVariable=3 "+
+                       "ExcludeBlanked='T' "+
+                       "IntegrateOver='Cells' "+
+                       "IntegrateBy='Zones' "+
+                       surface_planes_only[0]+
                        "PlotResults='T' "+
                        "PlotAs='"+qtname+"' "+
                        "TimeMin=0 TimeMax=0")

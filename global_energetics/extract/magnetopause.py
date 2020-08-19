@@ -32,7 +32,8 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream_day=15, phi_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
-                     nslice=40, nalpha=50, nfill=2):
+                     nslice=40, nalpha=50, nfill=2,
+                     integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -94,11 +95,13 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
-        #magnetopause_power = surface_analysis(field_data, 'mp_zone')
-        #print(magnetopause_power)
+        if integrate_surface:
+            magnetopause_power = surface_analysis(field_data, 'mp_zone')
+            print(magnetopause_power)
         from IPython import embed; embed()
-        mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
-        print(mp_magnetic_energy)
+        if integrate_volume:
+            mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
+            print(mp_magnetic_energy)
         #write_to_timelog('mp_integral_log.csv',outputname,
         #                 magnetopause_power)
 

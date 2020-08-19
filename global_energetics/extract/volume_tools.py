@@ -34,7 +34,7 @@ def volume_analysis(field_data, zone_name):
     uB_index = int(field_data.variable('uB *').index)
     #integrate magnetic energy
     uB_frame = integrate_surface(uB_index, zone_index,
-                                   volume_name+' uB [J]')
+                                   volume_name+' uB [J]', is_volume=True)
     #Identify and delete dummy frame as workaround
     dummy_frame = [fr for fr in tp.frames('Frame*')][0]
     dummy_frame.move_to_bottom()

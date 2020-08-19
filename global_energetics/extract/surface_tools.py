@@ -25,7 +25,7 @@ def surface_analysis(field_data, zone_name):
         surface_power- power, or energy flux at the magnetopause surface
     """
     #calculate energetics field variables
-    if [var.name for var in ds.variables()][::].count('K_in+')!=0:
+    if [var.name for var in field_data.variables()][::].count('K_in+')==0:
         calculate_energetics(field_data, zone_name)
     #initialize objects for main frame
     main_frame = [fr for fr in tp.frames('main')][0]
@@ -61,6 +61,7 @@ def surface_analysis(field_data, zone_name):
                                     kin_df, np.minimum,
                                     fill_value=1e12).drop(
                                     columns=['Unnamed: 1'])
+    surface_power = surface_power*6371**2
     return surface_power
 
 
