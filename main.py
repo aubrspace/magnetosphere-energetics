@@ -29,18 +29,19 @@ if __name__ == "__main__":
     tp.new_layout()
     #datafile = '3d__mhd_2_e20140219-123000-000.plt'
     #pass in arguments
-    datafile = sys.argv[1]
+    datafile = sys.argv[1].split('/')[1]
     PNGPATH = sys.argv[2]
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
-    field_data=tp.data.load_tecplot(datafile)
+    field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
     tp.data.operate.execute_equation(
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, nfill=10)
+    magnetopause.get_magnetopause(field_data, datafile, nfill=10,
+                                  integrate_surface=False)
     #plasmasheet.get_plasmasheet(field_data, datafile, nstream=100, searchtol=pi/360)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
@@ -49,11 +50,13 @@ if __name__ == "__main__":
     for frame in tp.frames():
         print(frame.name)
 
+    #from IPython import embed; embed()
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index,
-                              datafile, show_contour=False,
-                              save_img=False)
+                              datafile, plasmasheet=False,
+                              show_contour=True,
+                              save_img=True)
 
     #display power in bar chart on frame
     #view_set.integral_display('mp', outputname=OUTPUTNAME,

@@ -654,9 +654,9 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     oldframe.move_to_bottom()
     frame.activate()
 
-def integrate_surface(var_index, zone_index, qtname, *, is_volume=False,
+def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
                       frame_id='main'):
-    """Function to calculate integral of variable on mp surface
+    """Function to calculate integral of variable on a 3D exterior surface
     Inputs
         var_index- variable to be integrated
         zone_index- index of the zone to perform integration
@@ -668,13 +668,67 @@ def integrate_surface(var_index, zone_index, qtname, *, is_volume=False,
     #Integrate total surface Flux
     frame=[fr for fr in tp.frames(frame_id)][0]
     frame.activate()
-    if is_volume:
-        surface_planes_only = ""
-    else:
-        surface_planes_only = ["IRange={MIN =0 MAX = 0 SKIP =1} "+
-                               "JRange={MIN =1 MAX = 0 SKIP =1} "+
-                               "KRange={MIN =1 MAX = 0 SKIP =39} "]
+    if not is_cylinder:
+        print("Warning: not cylindrical object, check surface integrals")
+    surface_planes_I = ["IRange={MIN =0 MAX = 0 SKIP =1} "+
+                           "JRange={MIN =1 MAX = 0 SKIP =1} "+
+                           "KRange={MIN =1 MAX = 0 SKIP =39} "]
+    surface_planes_K = ["IRange={MIN =1 MAX = 0 SKIP =1} "+
+                           "JRange={MIN =1 MAX = 0 SKIP =1} "+
+                           "KRange={MIN =1 MAX = 0 SKIP =39} "]
 
+    integrate_command_I=("Integrate [{:d}] ".format(zone_index+1)+
+                         "VariableOption='Scalar' "
+                         "ScalarVar={:d} ".format(var_index+1)+
+                         "XVariable=1 "+
+                         "YVariable=2 "+
+                         "ZVariable=3 "+
+                         "ExcludeBlanked='T' "+
+                         "IntegrateOver='Cells' "+
+                         "IntegrateBy='Zones' "+
+                         surface_planes_only[0]+
+                         "PlotResults='T' "+
+                         "PlotAs='"+qtname+"_I' "+
+                         "TimeMin=0 TimeMax=0")
+    integrate_command_K=("Integrate [{:d}] ".format(zone_index+1)+
+                         "VariableOption='Scalar' "
+                         "ScalarVar={:d} ".format(var_index+1)+
+                         "XVariable=1 "+
+                         "YVariable=2 "+
+                         "ZVariable=3 "+
+                         "ExcludeBlanked='T' "+
+                         "IntegrateOver='Cells' "+
+                         "IntegrateBy='Zones' "+
+                         surface_planes_only[0]+
+                         "PlotResults='T' "+
+                         "PlotAs='"+qtname+"_K' "+
+                         "TimeMin=0 TimeMax=0")
+    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
+                                      command=integrate_command_I)
+    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
+                                      command=integrate_command_K)
+
+    #Rename and hide newly created frame
+    newframe = [fr for fr in tp.frames('Frame*')][0]
+    newframe.name = qtname
+    #Create dummy frame as workaround, possibly version dependent issue??
+    tp.macro.execute_command('$!CreateNewFrame')
+    newframe.move_to_bottom()
+    return newframe
+
+def integrate_volume(var_index, zone_index, qtname, *, frame_id='main'):
+    """Function to calculate integral of variable within a 3D volume
+    Inputs
+        var_index- variable to be integrated
+        zone_index- index of the zone to perform integration
+        qtname- integrated quantity will be saved as this name
+        frame_id- frame name with the surface that integral is performed
+    Output
+        newframe- created frame with integrated quantity
+    """
+    #Integrate total surface Flux
+    frame=[fr for fr in tp.frames(frame_id)][0]
+    frame.activate()
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
                        "VariableOption='Scalar' "
                        "ScalarVar={:d} ".format(var_index+1)+
@@ -684,7 +738,6 @@ def integrate_surface(var_index, zone_index, qtname, *, is_volume=False,
                        "ExcludeBlanked='T' "+
                        "IntegrateOver='Cells' "+
                        "IntegrateBy='Zones' "+
-                       surface_planes_only[0]+
                        "PlotResults='T' "+
                        "PlotAs='"+qtname+"' "+
                        "TimeMin=0 TimeMax=0")

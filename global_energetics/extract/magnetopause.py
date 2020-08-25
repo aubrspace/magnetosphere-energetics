@@ -95,15 +95,20 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
+        magnetopause_power = pd.DataFrame([[0]],
+                                      columns=['mp_surf_not_integrated'])
+        mp_magnetic_energy = pd.DataFrame([[0]],
+                                      columns=['mp_vol_not_integrated'])
         if integrate_surface:
             magnetopause_power = surface_analysis(field_data, 'mp_zone')
             print(magnetopause_power)
-        from IPython import embed; embed()
         if integrate_volume:
             mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
             print(mp_magnetic_energy)
-        #write_to_timelog('mp_integral_log.csv',outputname,
-        #                 magnetopause_power)
+        write_to_timelog('mp_integral_log.csv',outputname,
+                          magnetopause_power.combine(mp_magnetic_energy,
+                                                     np.minimum,
+                                                     fill_value=-1e12))
 
         #delete stream zones
         main_frame.activate()

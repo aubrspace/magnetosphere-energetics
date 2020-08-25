@@ -13,6 +13,7 @@ from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
 from global_energetics.extract.stream_tools import (integrate_surface,
+                                                    integrate_volume,
                                                       calculate_energetics,
                                                       dump_to_pandas)
 
@@ -33,8 +34,8 @@ def volume_analysis(field_data, zone_name):
     zone_index = int(field_data.zone(zone_name).index)
     uB_index = int(field_data.variable('uB *').index)
     #integrate magnetic energy
-    uB_frame = integrate_surface(uB_index, zone_index,
-                                   volume_name+' uB [J]', is_volume=True)
+    uB_frame = integrate_volume(uB_index, zone_index,
+                                   volume_name+' uB [J]')
     #Identify and delete dummy frame as workaround
     dummy_frame = [fr for fr in tp.frames('Frame*')][0]
     dummy_frame.move_to_bottom()

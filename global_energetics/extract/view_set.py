@@ -21,7 +21,7 @@ def twodigit(num):
 def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
                      fullview=True, save_img=True, pngpath='./',
-                     outputname='output.png', show_contour=True):
+                     outputname='output', show_contour=True):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
