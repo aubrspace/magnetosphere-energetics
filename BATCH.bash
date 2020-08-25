@@ -2,7 +2,7 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=plt/
+PLTDIR=one_minute/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
@@ -20,9 +20,9 @@ echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #create log file for integral quantities
 touch mp_integral_log.csv
-echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW]'>>mp_integral_log.csv
-touch cps_integral_log.csv
-echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW]'>>cps_integral_log.csv
+echo $'year, month, day, hour, minute, second, abstime, uB[J], k_out[kW], k_net[kW], k_in[kW]'>>mp_integral_log.csv
+#touch cps_integral_log.csv
+#echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW]'>>cps_integral_log.csv
 
 #execute script on .plt files
 for file in $PLTDIR*.plt

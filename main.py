@@ -30,6 +30,7 @@ if __name__ == "__main__":
     #datafile = '3d__mhd_2_e20140219-123000-000.plt'
     #pass in arguments
     datafile = sys.argv[1].split('/')[1]
+    nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
     PNGPATH = sys.argv[2]
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
@@ -54,8 +55,8 @@ if __name__ == "__main__":
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_in *').index,
-                              datafile, plasmasheet=False,
-                              show_contour=True,
+                              datafile, plasmasheet=False, pngpath=PNGPATH,
+                              show_contour=True, outputname=nameout,
                               save_img=True)
 
     #display power in bar chart on frame
