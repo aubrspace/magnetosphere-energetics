@@ -655,7 +655,7 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     frame.activate()
 
 def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
-                      frame_id='main'):
+                      frame_id='main', nslice=40):
     """Function to calculate integral of variable on a 3D exterior surface
     Inputs
         var_index- variable to be integrated
@@ -672,10 +672,12 @@ def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
         print("Warning: not cylindrical object, check surface integrals")
     surface_planes_I = ["IRange={MIN =0 MAX = 0 SKIP =1} "+
                            "JRange={MIN =1 MAX = 0 SKIP =1} "+
-                           "KRange={MIN =1 MAX = 0 SKIP =39} "]
+                           "KRange={MIN =1 MAX = 0 SKIP ={:d}} ".format(
+                                                                 nslice-1)]
     surface_planes_K = ["IRange={MIN =1 MAX = 0 SKIP =1} "+
                            "JRange={MIN =1 MAX = 0 SKIP =1} "+
-                           "KRange={MIN =1 MAX = 0 SKIP =39} "]
+                           "KRange={MIN =1 MAX = 0 SKIP ={:d}} ".format(
+                                                                 nslice-1)]
 
     integrate_command_I=("Integrate [{:d}] ".format(zone_index+1)+
                          "VariableOption='Scalar' "

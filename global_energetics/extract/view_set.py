@@ -21,7 +21,7 @@ def twodigit(num):
 def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
                      fullview=True, save_img=True, pngpath='./',
-                     outputname='output', show_contour=True):
+                     outputname='output', show_contour=True, nslice=40):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
@@ -54,7 +54,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
                                             SurfacesToPlot.IKPlanes)
                 plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
-                plt.fieldmap(map_index).surfaces.k_range = (0,-1,39)
+                plt.fieldmap(map_index).surfaces.k_range = (0,-1,nslice-1)
     plt.show_mesh = False
     plt.show_contour = show_contour
     view = plt.view
