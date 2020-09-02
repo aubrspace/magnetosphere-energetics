@@ -30,6 +30,7 @@ if __name__ == "__main__":
     #datafile = '3d__mhd_2_e20140219-123000-000.plt'
     #pass in arguments
     datafile = sys.argv[1].split('/')[1]
+    '''
     nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
     PNGPATH = sys.argv[2]
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
@@ -39,27 +40,25 @@ if __name__ == "__main__":
     field_data.zone(0).name = 'global_field'
     tp.data.operate.execute_equation(
                 '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+    '''
+    tp.load_layout('surface_prep/surface_load.lay')
+    field_data=tp.active_frame().dataset
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, nfill=20,
-                                  nstream_day=30, nstream_tail=50,
-                                  nslice=80,
-                                  integrate_surface=False)
+    magnetopause.get_magnetopause(field_data, datafile, nfill=10,
+                                  integrate_volume=False,
+                                  integrate_surface=True)
     #plasmasheet.get_plasmasheet(field_data, datafile, nstream=100, searchtol=pi/360)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
-    print('\nfinal frames:')
-    for frame in tp.frames():
-        print(frame.name)
-
     #from IPython import embed; embed()
     #adjust view settings
-    view_set.display_boundary([frame for frame in tp.frames('main')][0],
-                              field_data.variable('K_in *').index,
-                              datafile, plasmasheet=False, pngpath=PNGPATH,
-                              show_contour=True, outputname=nameout,
-                              save_img=True)
+    #view_set.display_boundary([frame for frame in tp.frames('main')][0],
+    #                          field_data.variable('K_in *').index,
+    #                          datafile, plasmasheet=False, pngpath=PNGPATH,
+    #                          show_contour=True, outputname=nameout,
+    #                          save_img=True)
 
     #display power in bar chart on frame
     #view_set.integral_display('mp', outputname=OUTPUTNAME,

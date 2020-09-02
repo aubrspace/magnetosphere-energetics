@@ -60,9 +60,11 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
-        tp.data.operate.execute_equation(
+        if field_data.variable_names.count('r [R]') ==0:
+            tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
+        '''
         #Create Dayside Magnetopause field lines
         calc_dayside_mp(field_data, phi, rday_max, rday_min, dayitr_max,
                         daytol)
@@ -90,19 +92,31 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
                       K=nalpha)
 
+        #delete stream zones
+        main_frame.activate()
+        for zone in reversed(range(field_data.num_zones)):
+            tp.active_frame().plot().fieldmap(zone).show=True
+            if (field_data.zone(zone).name.find('cps_zone') == -1 and
+                field_data.zone(zone).name.find('global_field') == -1 and
+                field_data.zone(zone).name.find('mp_zone') == -1):
+                field_data.delete_zones(field_data.zone(zone))
+
         #interpolate field data to zone
         print('interpolating field data to magnetopause')
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
+        '''
         magnetopause_power = pd.DataFrame([[0,0,0]],
                                       columns=['no_mp_surf1',
                                                'no_mp_surf2',
                                                'no_mp_surf3'])
         mp_magnetic_energy = pd.DataFrame([[0]],
                                       columns=['mp_vol_not_integrated'])
+
         if integrate_surface:
-            magnetopause_power = surface_analysis(field_data, 'mp_zone')
+            magnetopause_power = surface_analysis(field_data, 'mp_zone',
+                                                  nfill, nslice)
             print(magnetopause_power)
         if integrate_volume:
             mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
@@ -112,14 +126,6 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                                      np.maximum,
                                                      fill_value=-1e12))
 
-        #delete stream zones
-        main_frame.activate()
-        for zone in reversed(range(field_data.num_zones)):
-            tp.active_frame().plot().fieldmap(zone).show=True
-            if (field_data.zone(zone).name.find('cps_zone') == -1 and
-                field_data.zone(zone).name.find('global_field') == -1 and
-                field_data.zone(zone).name.find('mp_zone') == -1):
-                field_data.delete_zones(field_data.zone(zone))
 
 
 # Must list .plt that script is applied for proper execution

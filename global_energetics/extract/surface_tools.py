@@ -16,7 +16,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                       calculate_energetics,
                                                       dump_to_pandas)
 
-def surface_analysis(field_data, zone_name):
+def surface_analysis(field_data, zone_name, nfill, nslice):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
@@ -35,8 +35,10 @@ def surface_analysis(field_data, zone_name):
     kplus_index = int(field_data.variable('K_in+*').index)
     kminus_index = int(field_data.variable('K_in-*').index)
     #integrate k flux
+    from IPython import embed; embed()
     kout_frame = integrate_surface(kplus_index, zone_index,
-                                   surface_name+' K_out [kW]')
+                                   surface_name+' K_out [kW]',
+                                   idimension=nfill, kdimension=nslice)
 
     knet_frame = integrate_surface(knet_index, zone_index,
                                    surface_name+' K_net [kW]')

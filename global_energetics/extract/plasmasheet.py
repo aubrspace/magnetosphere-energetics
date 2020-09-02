@@ -52,8 +52,9 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
-        tp.data.operate.execute_equation(
-                  '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+        if field_data.variable_names.count('r [R]') ==0:
+            tp.data.operate.execute_equation(
+                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
         #Create plasmasheet field lines
         print('\nfinding north hemisphere boundary')

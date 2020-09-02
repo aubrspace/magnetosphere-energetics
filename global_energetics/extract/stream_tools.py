@@ -654,13 +654,16 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     oldframe.move_to_bottom()
     frame.activate()
 
-def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
-                      frame_id='main', nslice=40):
+def integrate_surface(var_index, zone_index, qtname, idimension,
+                      kdimension, *, is_cylinder=True, frame_id='main'):
     """Function to calculate integral of variable on a 3D exterior surface
     Inputs
         var_index- variable to be integrated
         zone_index- index of the zone to perform integration
         qtname- integrated quantity will be saved as this name
+        idimension- used to determine which planes are outer surface
+        kdimension- used to determine which planes are outer surface
+        is_cylinder- default true
         frame_id- frame name with the surface that integral is performed
     Output
         newframe- created frame with integrated quantity
@@ -670,14 +673,9 @@ def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
     frame.activate()
     if not is_cylinder:
         print("Warning: not cylindrical object, check surface integrals")
-    surface_planes_I = ["IRange={MIN =0 MAX = 0 SKIP =1} "+
-                           "JRange={MIN =1 MAX = 0 SKIP =1} "+
-                           "KRange={MIN =1 MAX = 0 SKIP ={:d}} ".format(
-                                                                 nslice-1)]
-    surface_planes_K = ["IRange={MIN =1 MAX = 0 SKIP =1} "+
-                           "JRange={MIN =1 MAX = 0 SKIP =1} "+
-                           "KRange={MIN =1 MAX = 0 SKIP ={:d}} ".format(
-                                                                 nslice-1)]
+    surface_planes=["IRange={MIN =1 MAX = 0 SKIP ="+str(idimension-1)+"} "+
+                    "JRange={MIN =1 MAX = 0 SKIP =1} "+
+                    "KRange={MIN =1 MAX = 0 SKIP ="+str(kdimension-1)+"}"]
 
     integrate_command_I=("Integrate [{:d}] ".format(zone_index+1)+
                          "VariableOption='Scalar' "
@@ -686,10 +684,10 @@ def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
                          "YVariable=2 "+
                          "ZVariable=3 "+
                          "ExcludeBlanked='T' "+
-                         "IntegrateOver='Cells' "+
+                         "IntegrateOver='IPlanes' "+
                          "IntegrateBy='Zones' "+
-                         surface_planes_only[0]+
-                         "PlotResults='T' "+
+                         surface_planes[0]+
+                         " PlotResults='T' "+
                          "PlotAs='"+qtname+"_I' "+
                          "TimeMin=0 TimeMax=0")
     integrate_command_K=("Integrate [{:d}] ".format(zone_index+1)+
@@ -699,17 +697,24 @@ def integrate_surface(var_index, zone_index, qtname, *, is_cylinder=True,
                          "YVariable=2 "+
                          "ZVariable=3 "+
                          "ExcludeBlanked='T' "+
-                         "IntegrateOver='Cells' "+
+                         "IntegrateOver='KPlanes' "+
                          "IntegrateBy='Zones' "+
-                         surface_planes_only[0]+
-                         "PlotResults='T' "+
+                         surface_planes[0]+
+                         " PlotResults='T' "+
                          "PlotAs='"+qtname+"_K' "+
                          "TimeMin=0 TimeMax=0")
+
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_I)
+    newframe = [fr for fr in tp.frames('Frame*')][0]
+    result = newframe.dataset
+    Ivalues = result.values(qtname+'*').values('*').as_numpy_array()
+    print(Ivalues)
+    from IPython import embed; embed()
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
 
+    from IPython import embed; embed()
     #Rename and hide newly created frame
     newframe = [fr for fr in tp.frames('Frame*')][0]
     newframe.name = qtname
