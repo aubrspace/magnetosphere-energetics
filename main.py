@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, nfill=10,
-                                  integrate_volume=False,
+                                  integrate_volume=True,
                                   integrate_surface=True)
     #plasmasheet.get_plasmasheet(field_data, datafile, nstream=100, searchtol=pi/360)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()

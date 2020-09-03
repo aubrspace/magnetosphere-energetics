@@ -35,34 +35,23 @@ def surface_analysis(field_data, zone_name, nfill, nslice):
     kplus_index = int(field_data.variable('K_in+*').index)
     kminus_index = int(field_data.variable('K_in-*').index)
     #integrate k flux
-    from IPython import embed; embed()
-    kout_frame = integrate_surface(kplus_index, zone_index,
+    kout = integrate_surface(kplus_index, zone_index,
                                    surface_name+' K_out [kW]',
                                    idimension=nfill, kdimension=nslice)
 
-    knet_frame = integrate_surface(knet_index, zone_index,
-                                   surface_name+' K_net [kW]')
+    knet = integrate_surface(knet_index, zone_index,
+                                   surface_name+' K_net [kW]',
+                                   idimension=nfill, kdimension=nslice)
 
-    kin_frame = integrate_surface(kminus_index, zone_index,
-                                  surface_name+' K_in [kW]')
+    kin = integrate_surface(kminus_index, zone_index,
+                                   surface_name+' K_in [kW]',
+                                   idimension=nfill, kdimension=nslice)
 
-    #Identify and delete dummy frame as workaround
-    dummy_frame = [fr for fr in tp.frames('Frame*')][0]
-    dummy_frame.move_to_bottom()
+    surface_power = pd.DataFrame([[kout,knet,kin]],columns=[
+                                                surface_name+' K_out [kW]',
+                                                surface_name+' K_net [kW]',
+                                                surface_name+' K_in [kW]'])
 
-    #port data to pandas dataframes
-    kout_df, _ = dump_to_pandas(kout_frame, [1], [4],
-                                surface_name+'_outflux.csv')
-    knet_df, _ = dump_to_pandas(knet_frame, [1], [4],
-                                surface_name+'_netflux.csv')
-    kin_df, _ = dump_to_pandas(kin_frame, [1], [4],
-                               surface_name+'_influx.csv')
-    #Combine into single dataframe
-    surface_power = kout_df.combine(knet_df, np.minimum,
-                                    fill_value=1e12).combine(
-                                    kin_df, np.minimum,
-                                    fill_value=1e12).drop(
-                                    columns=['Unnamed: 1'])
     surface_power = surface_power*6371**2
     return surface_power
 

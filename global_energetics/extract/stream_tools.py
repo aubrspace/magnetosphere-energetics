@@ -666,11 +666,14 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
         is_cylinder- default true
         frame_id- frame name with the surface that integral is performed
     Output
-        newframe- created frame with integrated quantity
+        integrated_total
     """
     #Integrate total surface Flux
     frame=[fr for fr in tp.frames(frame_id)][0]
     frame.activate()
+    page = tp.active_page()
+    #validate name (special characters give tp a lot of problems
+    qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
     if not is_cylinder:
         print("Warning: not cylindrical object, check surface integrals")
     surface_planes=["IRange={MIN =1 MAX = 0 SKIP ="+str(idimension-1)+"} "+
@@ -704,24 +707,26 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                          "PlotAs='"+qtname+"_K' "+
                          "TimeMin=0 TimeMax=0")
 
+    #integrate over I planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_I)
-    newframe = [fr for fr in tp.frames('Frame*')][0]
-    result = newframe.dataset
-    Ivalues = result.values(qtname+'*').values('*').as_numpy_array()
-    print(Ivalues)
-    from IPython import embed; embed()
+    tempframe = [fr for fr in tp.frames('Frame*')][0]
+    result = tempframe.dataset
+    Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
+    page.delete_frame(tempframe)
+
+    #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
+    tempframe = [fr for fr in tp.frames('Frame*')][0]
+    result = tempframe.dataset
+    Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
+    page.delete_frame(tempframe)
 
-    from IPython import embed; embed()
-    #Rename and hide newly created frame
-    newframe = [fr for fr in tp.frames('Frame*')][0]
-    newframe.name = qtname
-    #Create dummy frame as workaround, possibly version dependent issue??
-    tp.macro.execute_command('$!CreateNewFrame')
-    newframe.move_to_bottom()
-    return newframe
+    #sum all parts together
+    integrated_total = sum(Ivalues)+sum(Kvalues)
+
+    return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main'):
     """Function to calculate integral of variable within a 3D volume
