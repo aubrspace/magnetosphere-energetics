@@ -34,16 +34,10 @@ def volume_analysis(field_data, zone_name):
     zone_index = int(field_data.zone(zone_name).index)
     uB_index = int(field_data.variable('uB *').index)
     #integrate magnetic energy
-    uB_frame = integrate_volume(uB_index, zone_index,
-                                   volume_name+' uB [J]')
-    #Identify and delete dummy frame as workaround
-    dummy_frame = [fr for fr in tp.frames('Frame*')][0]
-    dummy_frame.move_to_bottom()
-    #port data to pandas dataframes
-    uB_df, _ = dump_to_pandas(uB_frame, [1], [4],
-                                volume_name+'.csv')
-    uB_df = uB_df*6371**3
-    magnetic_energy = uB_df.drop(columns=['Unnamed: 1'])
+    uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
+                          tail_only=True)
+    magnetic_energy = pd.DataFrame([uB], columns=[volume_name+' uB [J]'])
+    magnetic_energy = magnetic_energy * 6370**3
 
     return magnetic_energy
 

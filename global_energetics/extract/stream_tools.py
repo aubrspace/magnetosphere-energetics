@@ -728,19 +728,38 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
 
     return integrated_total
 
-def integrate_volume(var_index, zone_index, qtname, *, frame_id='main'):
+def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
+                     tail_only=False):
     """Function to calculate integral of variable within a 3D volume
     Inputs
         var_index- variable to be integrated
         zone_index- index of the zone to perform integration
         qtname- integrated quantity will be saved as this name
         frame_id- frame name with the surface that integral is performed
+        tail_only- default False, will integrate only tail if True
     Output
-        newframe- created frame with integrated quantity
+        integral
     """
-    #Integrate total surface Flux
-    frame=[fr for fr in tp.frames(frame_id)][0]
+    #Ensure that objects are initialized for tp operations
+    page = tp.active_page()
+    frame = [fr for fr in tp.frames(frame_id)][0]
     frame.activate()
+    data = frame.dataset
+    plt= frame.plot()
+
+    #validate name (special characters give tp a lot of problems)
+    qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
+
+    if tail_only:
+        #value blank domain around r=1
+        plt.value_blanking.active = True
+        blank = plt.value_blanking.constraint(0)
+        blank.active = True
+        blank.variable = data.variable('X *')
+        blank.comparison_operator = RelOp.GreaterThan
+        blank.comparison_value = -2
+
+    #Setup macrofunction command
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
                        "VariableOption='Scalar' "
                        "ScalarVar={:d} ".format(var_index+1)+
@@ -753,16 +772,21 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main'):
                        "PlotResults='T' "+
                        "PlotAs='"+qtname+"' "+
                        "TimeMin=0 TimeMax=0")
+
+    #Perform integration
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
+    tempframe = [fr for fr in tp.frames('Frame*')][0]
+    result = tempframe.dataset
+    integral = result.variable(qtname_abr).values('*').as_numpy_array()
 
-    #Rename and hide newly created frame
-    newframe = [fr for fr in tp.frames('Frame*')][0]
-    newframe.name = qtname
-    #Create dummy frame as workaround, possibly version dependent issue??
-    tp.macro.execute_command('$!CreateNewFrame')
-    newframe.move_to_bottom()
-    return newframe
+    #Delete created frame and turn off blanking
+    page.delete_frame(tempframe)
+    blank = plt.value_blanking.constraint(0)
+    blank.active = False
+    plt.value_blanking.active = False
+
+    return integral
 
 def abs_to_timestamp(abstime):
     """Function converts absolute time in sec to a timestamp list
