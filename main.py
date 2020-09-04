@@ -27,22 +27,20 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     tp.new_layout()
-    #datafile = '3d__mhd_2_e20140219-123000-000.plt'
     #pass in arguments
-    datafile = sys.argv[1].split('/')[1]
-    '''
+    datafile = sys.argv[1].split('/')[-1]
     nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
+    print('nameout:'+nameout)
     PNGPATH = sys.argv[2]
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
-    tp.data.operate.execute_equation(
-                '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
     '''
     tp.load_layout('surface_prep/surface_load.lay')
     field_data=tp.active_frame().dataset
+    '''
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, nfill=10,
@@ -52,13 +50,12 @@ if __name__ == "__main__":
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
-    #from IPython import embed; embed()
     #adjust view settings
-    #view_set.display_boundary([frame for frame in tp.frames('main')][0],
-    #                          field_data.variable('K_in *').index,
-    #                          datafile, plasmasheet=False, pngpath=PNGPATH,
-    #                          show_contour=True, outputname=nameout,
-    #                          save_img=True)
+    view_set.display_boundary([frame for frame in tp.frames('main')][0],
+                              field_data.variable('K_in *').index,
+                              datafile, plasmasheet=False, pngpath=PNGPATH,
+                              show_contour=True, outputname=nameout,
+                              save_img=True)
 
     #display power in bar chart on frame
     #view_set.integral_display('mp', outputname=OUTPUTNAME,

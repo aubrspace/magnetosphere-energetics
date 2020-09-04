@@ -39,7 +39,8 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
     #create list of zones to be displayed based on inputs
-    zone_list = ['global_field']
+    #zone_list = ['global_field']
+    zone_list = []
     if magnetopause:
         zone_list.append('mp_zone')
     if plasmasheet:
@@ -49,7 +50,6 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         for zone in plt.fieldmap(map_index).zones:
             if not any([zone.name.find(item)!=-1 for item in zone_list]):
                 plt.fieldmap(map_index).show = False
-                plt.fieldmap(map_index).show = True
             elif zone.name != 'global_field':
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
                                             SurfacesToPlot.IKPlanes)
@@ -73,6 +73,15 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                     frame.plot(PlotType.Cartesian3D).use_translucency=True
                     plt.fieldmap(map_index).effects.surface_translucency=10
                     plt.fieldmap(map_index).shade.color = Color.Custom15
+
+    else:
+        for map_index in plt.fieldmaps().fieldmap_indices:
+            for zone in plt.fieldmap(map_index).zones:
+                if zone.name.find('mp_zone') != -1:
+                    plt.fieldmap(map_index).effects.use_translucency=True
+                    frame.plot(PlotType.Cartesian3D).use_translucency=True
+                    plt.fieldmap(map_index).effects.surface_translucency=30
+                    plt.fieldmap(map_index).shade.color = Color.Custom34
     if fullview:
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         contour = plt.contour(0)
@@ -84,12 +93,6 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         contour.legend.box.box_type = TextBox.Filled
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
-
-    #value blank domain around r=1
-    plt.value_blanking.active = True
-    plt.value_blanking.constraint(0).active = True
-    plt.value_blanking.constraint(0).variable = field_data.variable('r *')
-    plt.value_blanking.constraint(0).comparison_value = 1
 
     #create iso-surface of r=1.2 for the earth
     plt.show_isosurfaces = True

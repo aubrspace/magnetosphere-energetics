@@ -64,7 +64,6 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
             tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
 
-        '''
         #Create Dayside Magnetopause field lines
         calc_dayside_mp(field_data, phi, rday_max, rday_min, dayitr_max,
                         daytol)
@@ -106,7 +105,8 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
-        '''
+
+        #perform integration for surface and volume quantities
         magnetopause_power = pd.DataFrame([[0,0,0]],
                                       columns=['no_mp_surf1',
                                                'no_mp_surf2',
