@@ -708,23 +708,30 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                          "TimeMin=0 TimeMax=0")
 
     #integrate over I planes
+    print('frames before integration:')
+    for fr in tp.frames():
+        print(fr.name)
+    print('active frame: '+tp.active_frame().name+'\n')
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_I)
     tempframe = [fr for fr in tp.frames('Frame*')][0]
     result = tempframe.dataset
     Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    page.delete_frame(tempframe)
 
     #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
-    tempframe = [fr for fr in tp.frames('Frame*')][0]
-    result = tempframe.dataset
+    tempframe2 = [fr for fr in tp.frames('Frame*')][0]
+    result = tempframe2.dataset
     Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    page.delete_frame(tempframe)
+    page.delete_frame(tempframe2)
 
     #sum all parts together
     integrated_total = sum(Ivalues)+sum(Kvalues)
+    print('frames after integration:')
+    for fr in tp.frames():
+        print(fr.name)
+    print('active frame: '+tp.active_frame().name+'\n')
 
     return integrated_total
 
