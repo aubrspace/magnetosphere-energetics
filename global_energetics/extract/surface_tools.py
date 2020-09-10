@@ -38,14 +38,10 @@ def surface_analysis(field_data, zone_name, nfill, nslice):
     kout = integrate_surface(kplus_index, zone_index,
                                    surface_name+' K_out [kW]',
                                    idimension=nfill, kdimension=nslice)
-    print('first surface integral done')
-    from IPython import embed; embed()
 
     knet = integrate_surface(knet_index, zone_index,
                                    surface_name+' K_net [kW]',
                                    idimension=nfill, kdimension=nslice)
-    print('2nd surface integral done')
-    embed()
 
     kin = integrate_surface(kminus_index, zone_index,
                                    surface_name+' K_in [kW]',
