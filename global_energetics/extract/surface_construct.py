@@ -72,7 +72,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         zone_temp = zone_temp.sort_values(by=['alpha'])
 
         #Bin temp zone into alpha bins and take maximum r value
-        n_angle = n_theta*2
+        n_angle = n_theta*10
         da = 2*pi/n_angle
         for a in np.linspace(-1*pi, pi, n_angle):
             #if the section has values
@@ -143,14 +143,14 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                        label='remaining')
             ax.plot(y_curve, z_curve, label='interpolated')
             ax.scatter(y_load, z_load, label ='mesh_final')
-            ax.scatter(20*np.cos(spoke), 20*np.sin(spoke), label='spokes')
-            for a in enumerate(spoke[::4]):
-                ax.annotate(spoketxt[4*a[0]], (20*np.cos(a[1]),
-                                    20*np.sin(a[1])))
+            #ax.scatter(20*np.cos(spoke), 20*np.sin(spoke), label='spokes')
+            #for a in enumerate(spoke[::4]):
+            #    ax.annotate(spoketxt[4*a[0]], (20*np.cos(a[1]),
+            #                        20*np.sin(a[1])))
             ax.set_xlabel('Y [Re]')
             ax.set_ylabel('Z [Re]')
-            ax.set_xlim([-30,30])
-            ax.set_ylim([-30,30])
+            ax.set_xlim([-20,20])
+            ax.set_ylim([-20,20])
             ax.set_title('X= {:.2f} +/- {:.2f}'.format(x,dx))
             ax.legend(loc='upper left')
             if k<0.9:

@@ -26,7 +26,7 @@ def volume_analysis(field_data, zone_name):
     Outputs
         magnetic_energy- volume integrated magnetic energy B2/2mu0
     """
-    if [var.name for var in field_data.variables()][::].count('K_in+')==0:
+    if [var.name for var in field_data.variables()][::].count('K_out+')==0:
         calculate_energetics(field_data, zone_name)
     #initialize objects for main frame
     main_frame = [fr for fr in tp.frames('main')][0]

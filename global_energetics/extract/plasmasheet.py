@@ -79,31 +79,34 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                                                                 min_x))
         cps_mesh = surface_construct.yz_slicer(stream_df, min_x+5,
                                                -2, nslice, nalpha,
-                                               False)
+                                               True)
+        from IPython import embed; embed()
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, min_x+5, -1,
+        create_cylinder(field_data, nslice, nalpha, 5, min_x+5, -1,
                         'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
-                      range(0,2), range(0,nslice), range(0,nalpha))
+                      5, nslice, nalpha)
 
         #interpolate field data to zone
         print('interpolating field data to plasmasheet')
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        plasmasheet_power = surface_analysis(field_data,'cps_zone')
+        plasmasheet_power = surface_analysis(field_data,'cps_zone', 5, nslice)
         print(plasmasheet_power)
         write_to_timelog('cps_integral_log.csv',outputname,
                          plasmasheet_power)
 
         #delete stream zones
         main_frame.activate()
+        '''
         for zone in reversed(range(field_data.num_zones)):
             tp.active_frame().plot().fieldmap(zone).show=True
             if (field_data.zone(zone).name.find('cps_zone') == -1 and
                 field_data.zone(zone).name.find('global_field') == -1 and
                 field_data.zone(zone).name.find('mp_zone') == -1):
                 field_data.delete_zones(field_data.zone(zone))
+        '''
 
 
 # Must list .plt that script is applied for proper execution

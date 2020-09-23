@@ -588,7 +588,7 @@ def calculate_energetics(field_data, zone_name):
         zones=[zone_index])
 
     #Magnitude Normal Flux
-    eq('{K_in [kW/km^2]} = ({Kn_x [kW/km^2]}*{surface_normal_x}'+
+    eq('{K_out [kW/km^2]} = ({Kn_x [kW/km^2]}*{surface_normal_x}'+
                             '+{Kn_y [kW/km^2]}*{surface_normal_y}'+
                             '+{Kn_z [kW/km^2]}*{surface_normal_z})'+
                           '/ sqrt({surface_normal_x}**2'+
@@ -598,8 +598,8 @@ def calculate_energetics(field_data, zone_name):
         zones=[zone_index])
 
     #Split into + and - flux
-    eq('{K_in+} = max({K_in [kW/km^2]},0)', zones=[zone_index])
-    eq('{K_in-} = min({K_in [kW/km^2]},0)', zones=[zone_index])
+    eq('{K_out+} = max({K_out [kW/km^2]},0)', zones=[zone_index])
+    eq('{K_out-} = min({K_out [kW/km^2]},0)', zones=[zone_index])
 
 
 def display_variable_bar(oldframe, var_index, color, barid, newaxis):
@@ -751,7 +751,7 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
 
     if tail_only:
-        #value blank domain around r=1
+        #value blank domain around X>-2
         plt.value_blanking.active = True
         blank = plt.value_blanking.constraint(0)
         blank.active = True
