@@ -473,19 +473,26 @@ def load_cylinder(field_data, data, zonename, I, J, K):
     """
     print('cylindrical zone loading')
     mag_bound = field_data.zone(zonename)
-    fill = I
-    #data = pd.read_csv(filename)
+    #copy data points
     xdata = data['X [R]'].values.copy()
     ydata = data['Y [R]'].values.copy()
     zdata = data['Z [R]'].values.copy()
-    #ndata = np.meshgrid(xdata,ydata,zdata)
-    mag_bound.values('X*')[0::fill] = xdata
-    mag_bound.values('Y*')[0::fill] = np.zeros(J*K)
-    mag_bound.values('Z*')[0::fill] = np.zeros(J*K)
-    for i in range(1,fill):
-        mag_bound.values('X*')[i::fill] = xdata
-        mag_bound.values('Y*')[i::fill] = ydata * i/fill
-        mag_bound.values('Z*')[i::fill] = zdata * i/fill
+    #initialize values
+    mag_bound.values('X*')[0::I] = xdata
+    mag_bound.values('Y*')[0::I] = np.zeros(J*K)
+    mag_bound.values('Z*')[0::I] = np.zeros(J*K)
+    ymean = np.zeros(len(ydata))
+    zmean = np.zeros(len(zdata))
+    #determine center point
+    for k in range(0,K):
+        ymean[k*J:(k+1)*J] = np.mean(ydata[k*J:(k+1)*J])
+        zmean[k*J:(k+1)*J] = np.mean(zdata[k*J:(k+1)*J])
+    for i in range(0,I):
+        mag_bound.values('X*')[i::I] = xdata
+        mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/I + ymean
+        mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/I + zmean
+    print('\nvalues loaded, check out how it looks\n')
+    from IPython import embed; embed()
 
 
 def calculate_energetics(field_data, zone_name):

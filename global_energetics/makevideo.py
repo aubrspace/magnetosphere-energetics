@@ -77,7 +77,6 @@ def vid_compile(folder, framerate, title):
     if glob.glob(folder+'/'+title+'.avi') != []:
         os.system('rm '+folder+'/'+title+'.avi')
     print(glob.glob(folder+'/img-???.png'))
-    from IPython import embed; embed()
     if glob.glob(folder+'/img-???.png') != []:
         make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%03d.png '+folder+'/'+title+'.avi'
     elif glob.glob(folder+'/img-??.png') != []:

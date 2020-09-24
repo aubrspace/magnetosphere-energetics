@@ -80,12 +80,11 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         cps_mesh = surface_construct.yz_slicer(stream_df, min_x+5,
                                                -2, nslice, nalpha,
                                                True)
-        from IPython import embed; embed()
         #create and load cylidrical zone
         create_cylinder(field_data, nslice, nalpha, 5, min_x+5, -1,
                         'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
-                      5, nslice, nalpha)
+                      5, nalpha, nslice)
 
         #interpolate field data to zone
         print('interpolating field data to plasmasheet')

@@ -143,10 +143,10 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                        label='remaining')
             ax.plot(y_curve, z_curve, label='interpolated')
             ax.scatter(y_load, z_load, label ='mesh_final')
-            #ax.scatter(20*np.cos(spoke), 20*np.sin(spoke), label='spokes')
-            #for a in enumerate(spoke[::4]):
-            #    ax.annotate(spoketxt[4*a[0]], (20*np.cos(a[1]),
-            #                        20*np.sin(a[1])))
+            ax.scatter(20*np.cos(spoke), 20*np.sin(spoke), label='spokes')
+            for a in enumerate(spoke[::4]):
+                ax.annotate(spoketxt[4*a[0]], (20*np.cos(a[1]),
+                                    20*np.sin(a[1])))
             ax.set_xlabel('Y [Re]')
             ax.set_ylabel('Z [Re]')
             ax.set_xlim([-20,20])
