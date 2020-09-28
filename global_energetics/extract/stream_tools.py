@@ -714,25 +714,29 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                          "PlotAs='"+qtname+"_K' "+
                          "TimeMin=0 TimeMax=0")
 
+
     #integrate over I planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_I)
-    tempframe = [fr for fr in tp.frames('Frame*')][0]
+    tempframe = [fr for fr in tp.frames('Frame*')][-1]
     result = tempframe.dataset
     Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
+
+    #delete frame and reinitialize frame structure
     page.delete_frame(tempframe)
+    page.add_frame()
+    frame.activate()
 
     #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
-    tempframe = [fr for fr in tp.frames('Frame*')][0]
+    tempframe = [fr for fr in tp.frames('Frame*')][-1]
     result = tempframe.dataset
     Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    page.delete_frame(tempframe)
+    #page.delete_frame(tempframe)
 
     #sum all parts together
     integrated_total = sum(Ivalues)+sum(Kvalues)
-
     return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',

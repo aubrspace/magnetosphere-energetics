@@ -47,6 +47,11 @@ if __name__ == "__main__":
     #                              integrate_volume=True,
     #                              integrate_surface=True)
     plasmasheet.get_plasmasheet(field_data, datafile)
+    #magnetopause.get_magnetopause(field_data, datafile, nfill=20,
+    #                              integrate_volume=True,
+    #                              integrate_surface=True,
+    #                              nslice=40, nstream_tail=20,
+    #                              nstream_day=15)
     #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
     #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 

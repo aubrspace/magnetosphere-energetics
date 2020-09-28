@@ -121,6 +121,10 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         if integrate_volume:
             mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
             print(mp_magnetic_energy)
+        #clean extra frames generated
+        page = tp.active_page()
+        for frame in tp.frames('Frame*'):
+            page.delete_frame(frame)
         write_to_timelog('mp_integral_log.csv',outputname,
                           magnetopause_power.combine(mp_magnetic_energy,
                                                      np.maximum,
