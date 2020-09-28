@@ -492,7 +492,7 @@ def load_cylinder(field_data, data, zonename, I, J, K):
         mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/I + ymean
         mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/I + zmean
     print('\nvalues loaded, check out how it looks\n')
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
 
 
 def calculate_energetics(field_data, zone_name):

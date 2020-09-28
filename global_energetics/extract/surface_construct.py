@@ -6,7 +6,7 @@
 #import cv2
 import sys
 import numpy as np
-from numpy import pi
+from numpy import pi, sqrt
 import time
 import matplotlib as mpl
 import matplotlib.pyplot as plot
@@ -45,6 +45,8 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     for x in np.linspace(x_min, x_max-dx, n_slice):
         #Gather data within one x-slice
         zone_temp = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
+        ymean = np.mean(zone['Y [R]'])
+        zmean = np.mean(zone['Z [R]'])
 
         if show:
             #create plot and dump raw data
@@ -54,7 +56,8 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
 
         #add radial column and determine r_min
         radius = pd.DataFrame(
-                    np.sqrt(zone_temp['Z [R]']**2+zone_temp['Y [R]']**2),
+                    np.sqrt((zone_temp['Z [R]']-zmean)**2+(
+                             zone_temp['Y [R]']-ymean)**2),
                               columns = ['r'])
         zone_temp = zone_temp.combine(radius, np.minimum, fill_value=1000)
         r_min = 0.2 * zone_temp['r'].max()
@@ -65,8 +68,12 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             #create plot with dropped data
             ax.scatter(zone_temp['Y [R]'], zone_temp['Z [R]'], c='y',
                        label='after 1st cut', marker='o')
-        angle = pd.DataFrame(np.arctan2(zone_temp['Z [R]'],
-                                        zone_temp['Y [R]']),
+        #re-establish center point
+        ymean = np.mean(zone['Y [R]'])
+        zmean = np.mean(zone['Z [R]'])
+        #define angle relative to center of field of points
+        angle = pd.DataFrame(np.arctan2(zone_temp['Z [R]']-zmean,
+                                        zone_temp['Y [R]']-ymean),
                              columns=['alpha'])
         zone_temp = zone_temp.combine(angle, np.minimum, fill_value=1000)
         zone_temp = zone_temp.sort_values(by=['alpha'])
@@ -96,15 +103,21 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                          zone_temp['Z [R]'].values[0]]
         tck, u = interp.splprep([y_points, z_points], s=20, per=True)
         y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
-        dat_angles = np.sort(np.arctan2(z_curve, y_curve))
-        #print(dat_angles)
+        translated_zcurve = [point-zmean for point in z_curve]
+        translated_ycurve = [point-ymean for point in y_curve]
+        dat_angles = np.sort(np.arctan2(translated_zcurve,
+                                        translated_ycurve))
+        print(dat_angles)
+        y_load = y_curve[0]
+        z_load = z_curve[0]
         #setup angle bins for mesh loading
         spoke, spoketxt = [], []
         n_angle = n_theta
         da = 2*pi/n_angle/5
         for a in np.linspace(-1*pi, pi, n_angle):
             #extract point from curve in angle range
-            condition = ((np.arctan2(z_curve, y_curve)>a-da) &
+            condition = ((np.arctan2(translated_zcurve,
+                                     translated_ycurve)>a-da) &
                          (np.arctan2(z_curve, y_curve)<a+da))
             if condition.any():
                 x_load = x
@@ -112,14 +125,12 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                 z_load = np.extract(condition, z_curve)[0]
             else:
                 print("WARNING: No extraction at X={:.2f}, alpha={:.2f}".format(x,a))
-                y_load = np.interp(np.sin(a), y_curve, z_curve,
-                                   period=2*pi)
+                r_previous = sqrt((y_load+ymean)**2+(z_load+zmean)**2)
+                y_load = np.interp(r_previous*np.sin(a)+ymean,
+                                   y_curve, z_curve, period=2*pi)
                 z_load = np.interp(y_load, y_curve, z_curve,
                                    period=2*pi)
-                r_load = np.sqrt(y_load**2+z_load**2)
                 x_load = x
-                #y_load = y_load + r_load*(np.cos(a+da)-np.cos(a))
-                #z_load = z_load + r_load*(np.sin(a+da)-np.sin(a))
                 print('y_load:',y_load)
                 print('putting in dummy point at',
                         'X= {:.2f}'.format(x),
