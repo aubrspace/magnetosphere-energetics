@@ -6,6 +6,9 @@ import os
 import time
 import numpy as np
 from numpy import pi
+import datetime as dt
+import spacepy
+import spacepy.time as spacetime
 import tecplot as tp
 import tecplot
 from tecplot.constant import *
@@ -35,48 +38,52 @@ if __name__ == "__main__":
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
+    #tp.load_layout('example2/nocontour.lay')
+    #field_data = tp.active_frame().dataset
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
+
     '''
-    tp.load_layout('surface_prep/surface_load.lay')
-    field_data=tp.active_frame().dataset
+    #calculate lat and lon
+    tp.data.operate.execute_equation(
+                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+    tp.data.operate.execute_equation(
+                    '{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
+    tp.data.operate.execute_equation(
+                    '{lon [deg]} = if({X [R]}>0,'+
+                                     '180/pi*atan({Y [R]} / {X [R]}),'+
+                                  'if({Y [R]}>0,'+
+                                     '180/pi*atan({Y [R]}/{X [R]})+180,'+
+                                     '180/pi*atan({Y [R]}/{X [R]})-180))')
+
+    #Create ring of field lines at raw north pole and MAG(assume GSE)
+    lon_set = np.linspace(-180, 180, 20)
+    lat = 89
+    simtime = spacetime.Ticktock(dt.datetime(2014,2,18,7,30),'UTC')
+    for lon in lon_set:
+        stream_tools.create_stream_zone(field_data, 1, lat,lon,'raw_pole_',
+                                        'inner_mag')
+        x,y,z = stream_tools.mag2gsm(1,lat,lon,simtime)
+        stream_tools.create_stream_zone(field_data, x,y,z,'mag_pole_',
+                                        'inner_mag', cart_given=True)
     '''
 
+
+
+
     #Caclulate surfaces
-    #magnetopause.get_magnetopause(field_data, datafile, nfill=10,
-    #                              integrate_volume=True,
-    #                              integrate_surface=True)
+    magnetopause.get_magnetopause(field_data, datafile, nfill=10,
+                                  integrate_volume=True,
+                                  integrate_surface=True)
     plasmasheet.get_plasmasheet(field_data, datafile)
-    #magnetopause.get_magnetopause(field_data, datafile, nfill=20,
-    #                              integrate_volume=True,
-    #                              integrate_surface=True,
-    #                              nslice=40, nstream_tail=20,
-    #                              nstream_day=15)
-    #[frame for frame in tp.frames('Frame 001')][0].move_to_bottom()
-    #tp.macro.execute_command('$!FRAMECONTROL DELETEACTIVE')
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_out *').index,
-                              datafile, magnetopause=False, pngpath=PNGPATH,
-                              show_contour=True, outputname=nameout,
-                              save_img=True)
-
-    #display power in bar chart on frame
-    #view_set.integral_display('mp', outputname=OUTPUTNAME,
-    #                           pngpath=PNGPATH, save_img=True)
-    #view_set.integral_display('cps', left_aligned=False)
+                              datafile, magnetopause=True, pngpath=PNGPATH,
+                              show_contour=False, outputname=nameout)
 
     '''
-    #load already calculated surface
-    tp.load_layout('freshview.lay')
-
-    #Create stream zones along meridional plane for visualization
-    phi = np.append(np.linspace(-pi,np.deg2rad(-160),int(50/2)),
-                    np.linspace(pi,np.deg2rad(160),int(50/2)))
-    stream_tools.calc_plasmasheet(field_data, np.deg2rad(55), phi, -20,
-                                  100, pi/90)
-
     #Display meridional streamlines for visualization with x scale slice
     plt = tp.active_frame().plot()
     plt.show_mesh = True
@@ -97,6 +104,7 @@ if __name__ == "__main__":
                          -15,
                          plt.slice(0).origin[1])
     '''
+
     #save image of streamlines
     #tp.export.save_png(PNGPATH+OUTPUTNAME+'.png')
     #timestamp

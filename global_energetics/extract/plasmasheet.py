@@ -8,11 +8,15 @@ import time
 from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
+import datetime as dt
+import pandas as pd
+import spacepy
+from spacepy import coordinates as coord
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
-import pandas as pd
 #custom packages
+from global_energetics.makevideo import get_time
 from global_energetics.extract import surface_construct
 from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import surface_analysis
@@ -26,10 +30,10 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     write_to_timelog)
 
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
-                     pngpath='./', nstream=50, theta_max=55,
-                     phi_limit=160, rday_max=30,rday_min=3.5,
+                     pngpath='./', nstream=50, lat_max=89,
+                     lon_limit=160, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
-                     nslice=40, nalpha=15):
+                     nslice=40, nalpha=15, nfill=5):
     """Function that finds, plots and calculates energetics on the
         plasmasheet surface.
     Inputs
@@ -37,32 +41,44 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         datafile- field data input, assumes .plt file
         pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
         nstream- number of streamlines generated for algorithm
-        theta_max- colatitude limit of algorithm for streams
+        lat_max- latitude limit of algorithm for field line seeding
         itr_max, searchtol- settings for bisection search algorithm
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
     """
+    #get date and time info from datafile name
+    time = get_time(datafile)
+
     #set unique outputname
     outputname = datafile.split('e')[1].split('-000.')[0]+'-cps'
     print(field_data)
 
+
     #set parameters
-    phi = np.append(np.linspace(-pi,np.deg2rad(-phi_limit),int(nstream/2)),
-                    np.linspace(pi,np.deg2rad(phi_limit),int(nstream/2)))
+    lon_set = np.append(np.linspace(-lon_limit, -180, int(nstream/2)),
+                          np.linspace(180, lon_limit, int(nstream/2)))
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
         if field_data.variable_names.count('r [R]') ==0:
             tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+            tp.data.operate.execute_equation(
+                    '{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
+            tp.data.operate.execute_equation(
+                    '{lon [deg]} = if({X [R]}>0,'+
+                                     '180/pi*atan({Y [R]} / {X [R]}),'+
+                                  'if({Y [R]}>0,'+
+                                     '180/pi*atan({Y [R]}/{X [R]})+180,'+
+                                     '180/pi*atan({Y [R]}/{X [R]})-180))')
 
         #Create plasmasheet field lines
         print('\nfinding north hemisphere boundary')
-        calc_plasmasheet(field_data, np.deg2rad(theta_max), phi,
-                         tail_cap, itr_max, searchtol)
+        calc_plasmasheet(field_data, lat_max, lon_set,
+                         3/2*tail_cap, itr_max, searchtol, time)
         print('\nfinding south hemisphere boundary')
-        calc_plasmasheet(field_data, pi+pi/18, phi,
-                         tail_cap, itr_max, searchtol)
+        calc_plasmasheet(field_data, lat_max, lon_set,
+                         3/2*tail_cap, itr_max, searchtol, time)
         #port stream data to pandas DataFrame object
         stream_zone_list = []
         for zone in range(field_data.num_zones):
@@ -78,22 +94,23 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         print('max x: {:.2f}, set to x=-1\nmin x: {:.2f}'.format(max_x,
                                                                 min_x))
         cps_mesh = surface_construct.yz_slicer(stream_df, min_x+5,
-                                               -2, nslice, nalpha,
+                                               -5, nslice, nalpha,
                                                True)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, 5, min_x+5, -1,
+        create_cylinder(field_data, nslice, nalpha, nfill, min_x+5, -1,
                         'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
-                      5, nalpha, nslice)
+                      nfill, nalpha, nslice)
 
         #interpolate field data to zone
         print('interpolating field data to plasmasheet')
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        plasmasheet_power = surface_analysis(field_data,'cps_zone', 5, nslice)
+        plasmasheet_power = surface_analysis(field_data,'cps_zone',
+                                             nfill, nslice)
         print(plasmasheet_power)
-        write_to_timelog('cps_integral_log.csv',outputname,
+        write_to_timelog('cps_integral_log.csv', time.UTC[0],
                          plasmasheet_power)
 
         #delete stream zones

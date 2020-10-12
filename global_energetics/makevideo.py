@@ -6,26 +6,38 @@ import glob
 import os
 import sys
 import numpy as np
+import datetime as dt
+import spacepy.time as spacetime
 
 def get_time(filename):
-    """Function gets time in seconds from file name assuming naming
-        convention: YEARMODAY-HRMINSECdone.png
+    """Function gets time from file name and returns spacepy Ticktock obj
     Input
         filename
     Output
-        abstime
+        time- spacepy Ticktock object
     """
-    date = filename.split('/')[-1].split('-')[0]
-    year = int(''.join(list(date)[-8:-4]))
-    month = int(''.join(list(date)[-4:-2]))
-    day = int(''.join(list(date)[-2:]))
-    time = int(filename.split('/')[-1].split('-')[1].split('-')[0])
-    hour = np.floor(time/10000)
-    minute = np.mod(time/100, 100)
-    second = np.mod(time, 100)
-    abstime = second + 60*(minute+ 60*(hour +
-                           24*(day + 30*(month+12*year))))
-    return abstime
+    date_string = filename.split('/')[-1].split('-')[0]
+    year = int(''.join(list(date_string)[-8:-4]))
+    month = int(''.join(list(date_string)[-4:-2]))
+    day = int(''.join(list(date_string)[-2:]))
+    time_string = int(filename.split('/')[-1].split('-')[1].split('-')[0])
+    hour = int(np.floor(time_string/10000))
+    minute = int(np.mod(time_string/100, 100))
+    second = int(np.mod(time_string, 100))
+    time_dt = dt.datetime(year, month, day, hour, minute, second)
+    time = spacetime.Ticktock(time_dt,'UTC')
+    return time
+
+def time_sort(filename):
+    """Function returns absolute time in seconds for use in sorting
+    Inputs
+        filename
+    Outputs
+        total_seconds
+    """
+    time = get_time(filename)
+    relative_time = time.UTC[0]-dt.datetime(1800, 1, 1)
+    return (relative_time.days*86400 + relative_time.seconds)
 
 def convert_pdf(folder, res):
     """Function converts .pdf files to .png files for compiling into video.
@@ -50,7 +62,7 @@ def set_frames(folder):
         framedir
     """
     #create sorted list of image files
-    framelist = sorted(glob.glob(folder+'/*.png'), key=get_time)
+    framelist = sorted(glob.glob(folder+'/*.png'), key=time_sort)
     os.system('mkdir '+folder+'/frames/')
     n=0.01
     for image in framelist:

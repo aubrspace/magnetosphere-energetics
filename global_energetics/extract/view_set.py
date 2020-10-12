@@ -128,26 +128,18 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     view.translate(x=10, y=10)
 
     #add timestamp
-    abstime = get_time(filename)
-    #timestamp -> [year, month, day, hour, minute, second, abstime]
-    timestamp = abs_to_timestamp(abstime)
-    [year, month, day, hour, minute, second, abstime] = timestamp
-    if second == 59:
-        second = 0
-        minute +=1
-    elif second == 29:
-        second +=1
-    if minute == 59 or minute == 60:
-        minute = 0
-        hour +=1
-    elif minute == 29:
-        minute +=1
-    if hour == 24:
-        hour = 0
+    ticks = get_time(filename)
+    time = ticks.UTC[0]
+    year = time.year
+    month = time.month
+    day = time.day
+    minute = time.minute
+    second = time.second
     time_text = ('{:.0f} '.format(year)+
-                 'Feb {}, '.format(twodigit(day))+
+                 '{}, '.format(twodigit(month))+
+                 '{}, '.format(twodigit(day))+
                  '{}:'.format(twodigit(hour))+
-                 '{}:{}UT'.format(twodigit(minute), twodigit(second)))
+                 '{}:{}UTC'.format(twodigit(minute), twodigit(second)))
     timebox = frame.add_text(time_text)
     timebox.position = (2,5)
     timebox.font.size = 28

@@ -8,11 +8,13 @@ import time
 from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
+import datetime as dt
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules
+from global_energetics.makevideo import get_time
 from global_energetics.extract import surface_construct
 #from global_energetics.extract.view_set import display_magnetopause
 from global_energetics.extract import surface_tools
@@ -29,7 +31,7 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     write_to_timelog)
 
 def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
-                     pngpath='./', nstream_day=15, phi_max=122,
+                     pngpath='./', nstream_day=15, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=15, rho_max=50,rho_step=0.5,tail_cap=-20,
                      nslice=40, nalpha=50, nfill=2,
@@ -41,7 +43,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         datafile- field data filename, assumes .plt file
         pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
         nstream_day- number of streamlines generated for dayside algorithm
-        phi_max- azimuthal (sun=0) limit of dayside algorithm for streams
+        lon_max- longitude limit of dayside algorithm for streams
         rday_max, rday_min- radial limits (in XY) for dayside algorithm
         dayitr_max, daytol- settings for bisection search algorithm
         nstream_tail- number of streamlines generated for tail algorithm
@@ -49,32 +51,35 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
     """
+    #get date and time info from datafile name
+    time = get_time(datafile)
+
     #make unique outputname based on datafile string
     outputname = datafile.split('e')[1].split('-000.')[0]+'-mp'
     print(field_data)
 
     #set parameters
-    phi = np.linspace(np.deg2rad(-1*phi_max),np.deg2rad(phi_max),
-                      nstream_day)
-    psi = np.linspace(-pi*(1-pi/nstream_tail), pi, nstream_tail)
+    lon_set = np.linspace(-1*lon_max, lon_max, nstream_day)
+    psi = np.linspace(-180*(1-180/nstream_tail), 180, nstream_tail)
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
         if field_data.variable_names.count('r [R]') ==0:
             tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-
+            tp.data.operate.execute_equation(
+                    '{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
+            tp.data.operate.execute_equation(
+                    '{lon [deg]} = if({X [R]}>0,'+
+                                     '180/pi*atan({Y [R]} / {X [R]}),'+
+                                  'if({Y [R]}>0,'+
+                                     '180/pi*atan({Y [R]}/{X [R]})+180,'+
+                                     '180/pi*atan({Y [R]}/{X [R]})-180))')
         #Create Dayside Magnetopause field lines
-        calc_dayside_mp(field_data, phi, rday_max, rday_min, dayitr_max,
+        calc_dayside_mp(field_data, lon_set, rday_max, rday_min, dayitr_max,
                         daytol)
         #Create Tail magnetopause field lines
         calc_tail_mp(field_data, psi, tail_cap, rho_max, rho_step)
-        #Create Theta and Phi coordinates for all points in domain
-        tp.data.operate.execute_equation(
-                                   '{phi} = atan({Y [R]}/({X [R]}+1e-24))')
-        tp.data.operate.execute_equation(
-                                   '{theta} = acos({Z [R]}/{r [R]}) * '+
-                                    '({X [R]}+1e-24) / abs({X [R]}+1e-24)')
         #port stream data to pandas DataFrame object
         stream_zone_list = np.linspace(2,field_data.num_zones,
                                        field_data.num_zones-2+1)
@@ -121,11 +126,13 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         if integrate_volume:
             mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
             print(mp_magnetic_energy)
+        '''
         #clean extra frames generated
         page = tp.active_page()
         for frame in tp.frames('Frame*'):
             page.delete_frame(frame)
-        write_to_timelog('mp_integral_log.csv',outputname,
+        '''
+        write_to_timelog('mp_integral_log.csv', time.UTC[0],
                           magnetopause_power.combine(mp_magnetic_energy,
                                                      np.maximum,
                                                      fill_value=-1e12))

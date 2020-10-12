@@ -7,27 +7,37 @@ import sys
 import time
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt, rad2deg
+from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
+import datetime as dt
+import spacepy
+from spacepy import coordinates as coord
+from spacepy import time as spacetime
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 
-def create_stream_zone(field_data, r_start, theta_start, phi_start,
-                       zone_name, stream_type):
+def create_stream_zone(field_data, r_start, lat_start, lon_start,
+                       zone_name, stream_type, *, cart_given=False):
     """Function to create a streamline, created in 2 directions from
        starting point
     Inputs
         field_data- Dataset class from tecplot with 3D field data
         r_start [R]- starting position for streamline
-        theta_start [rad]
-        phi_start [rad]
+        lat_start [deg]
+        lon_start [deg]
         zone_name
         stream_type- day, north or south for determining stream direction
+        cart_given- optional input for giving cartesian coordinates
     """
-    # Get starting position in cartesian coordinates
-    [x_start, y_start, z_start] = sph_to_cart(r_start,
-                                              theta_start, phi_start)
+    if cart_given==False:
+        # Get starting position in cartesian coordinates
+        [x_start, y_start, z_start] = sph_to_cart(r_start, lat_start,
+                                                  lon_start)
+    else:
+        x_start = r_start
+        y_start = lat_start
+        z_start = lon_start
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
@@ -45,8 +55,7 @@ def create_stream_zone(field_data, r_start, theta_start, phi_start,
                        direction=StreamDir.Both)
     # Create zone
     field_line.extract()
-    field_data.zone(-1).name = zone_name + '{}'.format(
-                                                    rad2deg(phi_start))
+    field_data.zone(-1).name = zone_name + '{}'.format(lon_start)
     # Delete streamlines
     field_line.delete_all()
 
@@ -95,19 +104,35 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         isclosed = True
     return isclosed
 
-def sph_to_cart(radius, theta, phi):
+def sph_to_cart(radius, lat, lon):
     """Function converts spherical coordinates to cartesian coordinates
     Inputs
         radius- radial position
-        theta
-        phi
+        lat- latitude [deg]
+        lon- longitude [deg]
     Outputs
         [x_pos, y_pos, z_pos]- list of x y z_pos coordinates
     """
-    x_pos = (radius * sin(theta) * cos(phi))
-    y_pos = (radius * sin(theta) * sin(phi))
-    z_pos = (radius * cos(theta))
+    x_pos = (radius * cos(deg2rad(lat)) * cos(deg2rad(lon)))
+    y_pos = (radius * cos(deg2rad(lat)) * sin(deg2rad(lon)))
+    z_pos = (radius * sin(deg2rad(lat)))
     return [x_pos, y_pos, z_pos]
+
+def mag2gsm(radius, latitude, longitude, time):
+    """Function converts magnetic spherical coordinates to cartesian
+        coordinates in GSM
+    Inputs
+        radius
+        latitude- relative to magnetic dipole axis
+        longitude- relative to magnetic dipole axis
+        time- spacepy Ticktock object with time information
+    Output
+        xgsm, ygsm, zgsm- in form of 3 element np array
+    """
+    coordinates = coord.Coords([radius, latitude, longitude], 'SM', 'sph')
+    coordinates.ticks = time
+    return coordinates.convert('GSM', 'car').data[0][0:3]
+
 
 def find_tail_disc_point(rho, psi_disc, x_pos):
     """Function find spherical coord of a point on a disc at a constant x
@@ -118,29 +143,26 @@ def find_tail_disc_point(rho, psi_disc, x_pos):
         of the disc
         x_pos- x position of the disc
     Outputs
-        [radius, theta, phi_disc]- spherical coord of the point relative
+        [x_pos, y_pos, z_pos]- cart coord of the point relative
         to the global origin
     """
-    y_pos = rho*sin(psi_disc)
-    z_pos = rho*cos(psi_disc)
-    radius = sqrt(x_pos**2+rho**2)
-    theta = pi/2 - np.arctan(z_pos/abs(x_pos))
-    phi_disc = pi + np.arctan(y_pos/abs(x_pos))
-    return [radius, theta, phi_disc]
+    y_pos = rho*sin(deg2rad(psi_disc))
+    z_pos = rho*cos(deg2rad(psi_disc))
+    return [x_pos, y_pos, z_pos]
 
 
-def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
+def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
     """"Function to create zones that will makeup dayside magnetopause
     Inputs
         field_data- Dataset class from tecplot with 3D field data
-        phi- set of phi angle points
+        lon- set of longitudinal points in degrees
         r_max- maxium radial distance for equitorial search
         r_min
         itr_max
         tolerance- for searching algorithm
     """
     #Initialize objects that will be modified in creation loop
-    r_eq_mid = np.zeros(int(len(phi)))
+    r_eq_mid = np.zeros(int(len(lon)))
     itr = 0
     r_eq_max, r_eq_min = r_max, r_min
 
@@ -153,30 +175,29 @@ def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
 
     #Create Dayside Magnetopause field lines
     stream_type = 'day'
-    for i in range(int(len(phi))):
+    for i in range(int(len(lon))):
         #Create initial max min and mid field lines
-        create_stream_zone(field_data, r_min, pi/2, phi[i],
-                           'min_field_line', stream_type)
-        create_stream_zone(field_data, r_max, pi/2, phi[i],
-                           'max_field_line', stream_type)
+        create_stream_zone(field_data, r_min, 0, lon[i],
+                           'min_day_line', stream_type)
+        create_stream_zone(field_data, r_max, 0, lon[i],
+                           'max_day_line', stream_type)
         #Check that last closed is bounded
-        min_closed = check_streamline_closed(field_data, 'min_field_line',
+        min_closed = check_streamline_closed(field_data, 'min_day_line',
                                                   r_min, stream_type)
-        max_closed = check_streamline_closed(field_data, 'max_field_line',
+        max_closed = check_streamline_closed(field_data, 'max_day_line',
                                                   r_max, stream_type)
-        field_data.delete_zones(field_data.zone('min_field*'),
-                               field_data.zone('max_field*'))
-        print('Day', i,'phi: {:.1f}, iters: {}, err: {}'.format(
-                                                  rad2deg(phi[i]),
+        field_data.delete_zones(field_data.zone('min_day*'),
+                               field_data.zone('max_day*'))
+        print('Day', i,'lon: {:.1f}, iters: {}, err: {}'.format(lon[i],
                                                   itr, r_eq_max-r_eq_min))
         if max_closed and min_closed:
             print('WARNING: field line closed at max {}R_e'.format(r_max))
-            create_stream_zone(field_data, r_max, pi/2, phi[i],
-                               'field_phi_', stream_type)
+            create_stream_zone(field_data, r_max, 0, lon[i],
+                               'day_lon_', stream_type)
         elif not max_closed and not min_closed:
             print('WARNING: first field line open at {}R_e'.format(r_min))
-            create_stream_zone(field_data, r_min, pi/2, phi[i],
-                               'field_phi_', stream_type)
+            create_stream_zone(field_data, r_min, 0, lon[i],
+                               'day_lon_', stream_type)
         else:
             r_eq_mid[i] = (r_max+r_min)/2
             itr = 0
@@ -184,10 +205,10 @@ def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
             r_eq_min, r_eq_max = r_min, r_max
             while(notfound and itr < itr_max):
                 #This is a bisection root finding algorithm
-                create_stream_zone(field_data, r_eq_mid[i], pi/2, phi[i],
-                                   'temp_field_phi_', stream_type)
+                create_stream_zone(field_data, r_eq_mid[i], 0, lon[i],
+                                   'temp_day_lon_', stream_type)
                 mid_closed = check_streamline_closed(field_data,
-                                                     'temp_field_phi_',
+                                                     'temp_day_lon_',
                                                      r_eq_mid[i],
                                                      stream_type)
                 if mid_closed:
@@ -196,11 +217,11 @@ def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
                     r_eq_max = r_eq_mid[i]
                 if abs(r_eq_min - r_eq_max) < tolerance and mid_closed:
                     notfound = False
-                    field_data.zone('temp*').name ='field_phi_{:.1f}'.format(
-                                                         rad2deg(phi[i]))
+                    field_data.zone('temp*').name='day_lon_{:.1f}'.format(
+                                                                   lon[i])
                 else:
                     r_eq_mid[i] = (r_eq_max+r_eq_min)/2
-                    field_data.delete_zones(field_data.zone('temp_field*'))
+                    field_data.delete_zones(field_data.zone('temp_day*'))
                 itr += 1
 
 
@@ -209,7 +230,7 @@ def calc_dayside_mp(field_data, phi, r_max, r_min, itr_max, tolerance):
 def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
     """Function to create the zones that will become the tail magnetopause
     Inputs
-        psi- set of disc azimuthal angles
+        psi- set of disc azimuthal angles[degrees]
         x_disc- x position of the tail disc
         rho_max- outer radial bounds of the tail disc
         rho_step- radial distance increment for marching algorithm
@@ -226,16 +247,15 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
         #Find global position based on seed point
-        r_tail, theta_tail, phi_tail = find_tail_disc_point(rho_max, psi[i],
-                                                            x_disc)
+        x_pos, y_pos, z_pos = find_tail_disc_point(rho_max,psi[i],x_disc)
+        r_tail = sqrt(x_pos**2+y_pos**2+z_pos**2)
         #check if north or south attached
-        x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail, phi_tail)
         if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
             stream_type = 'south'
         else:
             stream_type = 'north'
-        create_stream_zone(field_data, r_tail, theta_tail, phi_tail,
-                           'temp_tail_line_', stream_type)
+        create_stream_zone(field_data, x_pos, y_pos, z_pos,
+                          'temp_tail_line_', stream_type, cart_given=True)
         #check if closed
         tail_closed = check_streamline_closed(field_data,
                                               'temp_tail_line_', r_tail,
@@ -244,7 +264,7 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
             print('WARNING: field line closed at RHO_MAX={}R_e'.format(
                                                                  rho_max))
             field_data.zone('temp_tail*').name='tail_field_{:.1f}'.format(
-                                                        rad2deg(psi[i]))
+                                                                   psi[i])
         else:
             #This is a basic marching algorithm from outside in starting at
             #RHO_MAX
@@ -253,66 +273,68 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
             while notfound and rho_tail > rho_step:
                 field_data.delete_zones(field_data.zone('temp_tail_line*'))
                 rho_tail = rho_tail - rho_step
-                r_tail, theta_tail, phi_tail = find_tail_disc_point(
-                                                rho_tail, psi[i], x_disc)
+                x_pos, y_pos, z_pos = find_tail_disc_point(rho_tail,
+                                                           psi[i],x_disc)
+                r_tail = sqrt(x_pos**2+y_pos**2+z_pos**2)
                 #check if north or south attached
-                x_pos, y_pos, z_pos = sph_to_cart(r_tail, theta_tail,
-                                                  phi_tail)
                 if tp.data.query.probe_at_position(x_pos,
                                                    y_pos, z_pos)[0][7] < 0:
                     stream_type = 'south'
                 else:
                     stream_type = 'north'
-                create_stream_zone(field_data, r_tail, theta_tail,
-                                 phi_tail, 'temp_tail_line_', stream_type)
+                create_stream_zone(field_data, x_pos, y_pos, z_pos,
+                                   'temp_tail_line_', stream_type,
+                                   cart_given=True)
                 tail_closed =check_streamline_closed(field_data,
                                                      'temp_tail_line_',
                                                     rho_tail, stream_type)
                 if tail_closed:
                     field_data.zone('temp*').name='tail_field_{:.1f}'.format(
-                                                        rad2deg(psi[i]))
+                                                        psi[i])
                     notfound = False
                     print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
-                                                       rad2deg(psi[i])))
+                                                           psi[i]))
                 if rho_tail <= rho_step:
                     print('WARNING: not possible at psi={:.1f}'.format(
-                                                       rad2deg(psi[i])))
+                                                                psi[i]))
 
 
-def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
-                     max_iter, tolerance):
+def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
+                     max_iter, tolerance, time):
     """Function to create tecplot zones that define the plasmasheet boundary
     Inputs
         field_data- tecplot Dataset containing 3D field data
-        theta_max- max co-latitude value corresponding to near equator
-        phi_list- list containing longitudinal positions to be searched
+        lat_max- max latitude value corresponding to near pole
+        lon_list- list containing longitudinal positions to be searched
         tail_cap
         max_iter- max iterations for bisection algorithm
-        tolerance
+        tolerance- tolerance on the bisection method
+        time- spacepy Ticktock of current time
     """
     #set B as the vector field
     plot = tp.active_frame().plot()
     plot.vector.u_variable = field_data.variable('B_x*')
     plot.vector.v_variable = field_data.variable('B_y*')
     plot.vector.w_variable = field_data.variable('B_z*')
-    seed_radius = 1.5
+    seed_radius = 1
 
     #iterate through northside zones
-    for phi in phi_list:
-        print('phi {:.1f}'.format(rad2deg(phi)))
+    for lon in lon_list:
+        print('longitude {:.1f}'.format(lon))
+        sphcoor = coord.Coords([seed_radius, 85, lon], 'SM', 'sph')
+        sphcoor.ticks = time
+        print(sphcoor.convert('GSM', 'sph').data[0][0:3])
+        print()
         #initialize latitude search bounds
-        if theta_max > pi/2:
-            pole_theta = pi-theta_max
-        else:
-            pole_theta = pi/18
-        equat_theta = theta_max
-        mid_theta = (pole_theta+equat_theta)/2
+        equat_lat = 45
+        pole_lat = lat_max
+        mid_lat = (pole_lat+equat_lat)/2
 
         """
         #Testing for XZ visulalizations
         map_index = 0
-        for i in np.append(np.linspace(pi/18,theta_max, 20),
-                           np.linspace(pi+pi/18, pi-theta_max, 20)):
+        for i in np.append(np.linspace(pi/18,lat_max, 20),
+                           np.linspace(pi+pi/18, pi-lat_max, 20)):
             create_stream_zone(field_data, seed_radius, i,
                                phi, 'temp_'+str(rad2deg(i)), 'inner_mag')
             map_index +=1
@@ -325,33 +347,39 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
             if not poleward_closed:
                 plot.fieldmap(map_index).mesh.color=Color.Red
         """
-        create_stream_zone(field_data, seed_radius, pole_theta, phi,
-                           'temp_poleward_', 'inner_mag')
+        #Create bounding fieldlines
+        [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, pole_lat, lon, time)
+        create_stream_zone(field_data, xgsm, ygsm, zgsm,
+                           'temp_poleward_', 'inner_mag', cart_given=True)
         poleward_closed = check_streamline_closed(field_data,
                                                   'temp_poleward',
                                                   abs(tail_cap),
                                                   'inner_mag')
-        create_stream_zone(field_data, seed_radius, equat_theta, phi,
-                           'temp_equatorward_', 'inner_mag')
+        [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, equat_lat, lon, time)
+        create_stream_zone(field_data, xgsm, ygsm, zgsm,
+                        'temp_equatorward_', 'inner_mag', cart_given=True)
         equatorward_closed = check_streamline_closed(field_data,
                                                  'temp_equatorward',
                                                  abs(tail_cap),
                                                  'inner_mag')
-        #check if both are open are close to start
+        #check if both are open are closed to start
         if poleward_closed and equatorward_closed:
-            print('Warning: high and low lat {:.2f}, {:.2f} '.format(
-                                                  np.rad2deg(pole_theta),
-                                                  np.rad2deg(equat_theta))+
-                  'closed at lon {:.1f}'.format(np.rad2deg(phi)))
-            create_stream_zone(field_data, seed_radius-0.5, mid_theta,
-                               phi, 'plasma_sheet_', 'inner_mag')
+            print('\nWarning: high and low lat {:.2f}, {:.2f} '.format(
+                                                      pole_lat, equat_lat)+
+                  'closed at longitude {:.1f}\n'.format(lon))
+            [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
+            create_stream_zone(field_data, xgsm, ygsm, zgsm,
+                               'plasma_sheet_', 'inner_mag',
+                               cart_given=True)
             field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
         elif not poleward_closed and (not equatorward_closed):
             print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
-                        np.rad2deg(pole_theta), np.rad2deg(equat_theta)))
-            create_stream_zone(field_data, seed_radius-0.5, mid_theta,
-                               phi, 'plasma_sheet_', 'inner_mag')
+                                                    pole_lat, equat_lat))
+            [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
+            create_stream_zone(field_data, xgsm, ygsm, zgsm,
+                               'plasma_sheet_', 'inner_mag',
+                               cart_given=True)
             field_data.delete_zones(field_data.zone('temp*'))
             field_data.delete_zones(field_data.zone('temp*'))
         else:
@@ -360,23 +388,24 @@ def calc_plasmasheet(field_data, theta_max, phi_list, tail_cap,
             notfound = True
             itr = 0
             while (notfound and itr < max_iter):
-                mid_theta = (pole_theta+equat_theta)/2
-                create_stream_zone(field_data, seed_radius-0.5,
-                                   mid_theta, phi,
-                                   'temp_ps_line_', 'inner_mag')
+                mid_lat = (pole_lat+equat_lat)/2
+                [xgsm, ygsm, zgsm] = mag2gsm(seed_radius,mid_lat,lon,time)
+                create_stream_zone(field_data, xgsm, ygsm, zgsm,
+                                   'temp_ps_line_', 'inner_mag',
+                                   cart_given=True)
                 mid_lat_closed = check_streamline_closed(field_data,
                                                          'temp_ps_line_',
                                                          abs(tail_cap),
                                                          'inner_mag')
                 if mid_lat_closed:
-                    equat_theta = mid_theta
+                    equat_lat = mid_lat
                 else:
-                    pole_theta = mid_theta
-                if abs(pole_theta - equat_theta)<tolerance and (
+                    pole_lat = mid_lat
+                if abs(pole_lat - equat_lat)<tolerance and (
                                                         mid_lat_closed):
                     notfound = False
                     field_data.zone('temp*').name = 'plasma_sheet_'.format(
-                                                   np.rad2deg(equat_theta))
+                                                                 equat_lat)
                 else:
                     field_data.delete_zones(field_data.zone('temp*'))
                 itr += 1
@@ -681,6 +710,9 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     page = tp.active_page()
     #validate name (special characters give tp a lot of problems
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
+    print('\n stopped in integrate surface function, qt:')
+    print(qtname+'\n')
+    from IPython import embed; embed()
     if not is_cylinder:
         print("Warning: not cylindrical object, check surface integrals")
     surface_planes=["IRange={MIN =1 MAX = 0 SKIP ="+str(idimension-1)+"} "+
@@ -721,11 +753,17 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     tempframe = [fr for fr in tp.frames('Frame*')][-1]
     result = tempframe.dataset
     Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
+    print('after I integration')
+    for fr in tp.frames():
+        print(fr.name)
 
     #delete frame and reinitialize frame structure
     page.delete_frame(tempframe)
     page.add_frame()
     frame.activate()
+    print('after I cleanup')
+    for fr in tp.frames():
+        print(fr.name)
 
     #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
@@ -733,10 +771,18 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     tempframe = [fr for fr in tp.frames('Frame*')][-1]
     result = tempframe.dataset
     Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    #page.delete_frame(tempframe)
+    print('after K integration')
+    for fr in tp.frames():
+        print(fr.name)
+    page.delete_frame(tempframe)
+    print('after K cleanup')
+    for fr in tp.frames():
+        print(fr.name)
 
     #sum all parts together
     integrated_total = sum(Ivalues)+sum(Kvalues)
+    print('end of integrate surface function')
+    embed()
     return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
@@ -818,17 +864,15 @@ def abs_to_timestamp(abstime):
     timestamp = [year, month, day, hour, minute, second, abstime]
     return timestamp
 
-def write_to_timelog(timelogname, sourcename, data):
+def write_to_timelog(timelogname, time, data):
     """Function for writing the results from the current file to a file that contains time integrated data
     Inputs
         timelogname
-        sourcename
+        time- datetime object
         data- pandas DataFrame object that will be written into the file
     """
     #get the time entries for this file
-    from global_energetics.makevideo import get_time
-    abstime = get_time(sourcename)
-    timestamp = abs_to_timestamp(abstime)
+    timestamp = [time.year, time.month, time.day, time.hour, time.minute, time.second]
     #write data to file
     with open(timelogname, 'a') as log:
         log.seek(0,2)

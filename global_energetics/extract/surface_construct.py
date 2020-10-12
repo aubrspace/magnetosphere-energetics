@@ -45,8 +45,6 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     for x in np.linspace(x_min, x_max-dx, n_slice):
         #Gather data within one x-slice
         zone_temp = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
-        ymean = np.mean(zone['Y [R]'])
-        zmean = np.mean(zone['Z [R]'])
 
         if show:
             #create plot and dump raw data
@@ -54,23 +52,28 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             ax.scatter(zone_temp['Y [R]'], zone_temp['Z [R]'], c='r',
                        label='raw')
 
-        #add radial column and determine r_min
-        radius = pd.DataFrame(
-                    np.sqrt((zone_temp['Z [R]']-zmean)**2+(
-                             zone_temp['Y [R]']-ymean)**2),
-                              columns = ['r'])
-        zone_temp = zone_temp.combine(radius, np.minimum, fill_value=1000)
-        r_min = 0.2 * zone_temp['r'].max()
+        #Establish local radius, remove r<rmin and restablish
+        for remove in [True, False]:
+            #find central point
+            ymean = np.mean(zone['Y [R]'])
+            zmean = np.mean(zone['Z [R]'])
+            #add radial column and determine r_min
+            radius = pd.DataFrame(np.sqrt((zone_temp['Z [R]']-zmean)**2+(
+                                           zone_temp['Y [R]']-ymean)**2),
+                                           columns = ['r'])
+            print('\ncheck for r key\n')
+            print(zone_temp)
+            zone_temp = zone_temp.combine(radius, np.minimum,
+                                          fill_value=1000)
+            r_min = 0.2 * zone_temp['r'].max()
+            if remove:
+                zone_temp = zone_temp[zone_temp['r']>r_min]
+                zone_temp = zone_temp.drop(columns=['r'])
 
-        #Sort values by YZ angle and remove r<r_min points
-        zone_temp = zone_temp[zone_temp['r']>r_min]
         if show:
             #create plot with dropped data
             ax.scatter(zone_temp['Y [R]'], zone_temp['Z [R]'], c='y',
                        label='after 1st cut', marker='o')
-        #re-establish center point
-        ymean = np.mean(zone['Y [R]'])
-        zmean = np.mean(zone['Z [R]'])
         #define angle relative to center of field of points
         angle = pd.DataFrame(np.arctan2(zone_temp['Z [R]']-zmean,
                                         zone_temp['Y [R]']-ymean),
@@ -103,22 +106,23 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                          zone_temp['Z [R]'].values[0]]
         tck, u = interp.splprep([y_points, z_points], s=20, per=True)
         y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
-        translated_zcurve = [point-zmean for point in z_curve]
-        translated_ycurve = [point-ymean for point in y_curve]
+        translated_zcurve =[point-np.average(z_curve) for point in z_curve]
+        translated_ycurve =[point-np.average(y_curve) for point in y_curve]
         dat_angles = np.sort(np.arctan2(translated_zcurve,
                                         translated_ycurve))
-        print(dat_angles)
         y_load = y_curve[0]
         z_load = z_curve[0]
         #setup angle bins for mesh loading
         spoke, spoketxt = [], []
         n_angle = n_theta
         da = 2*pi/n_angle/5
+        stop_stopping=False
         for a in np.linspace(-1*pi, pi, n_angle):
             #extract point from curve in angle range
             condition = ((np.arctan2(translated_zcurve,
                                      translated_ycurve)>a-da) &
-                         (np.arctan2(z_curve, y_curve)<a+da))
+                         (np.arctan2(translated_zcurve,
+                                     translated_ycurve)<a+da))
             if condition.any():
                 x_load = x
                 y_load = np.extract(condition, y_curve)[0]
@@ -153,7 +157,8 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
             ax.scatter(zone_temp['Y [R]'], zone_temp['Z [R]'], c='green',
                        label='remaining')
             ax.plot(y_curve, z_curve, label='interpolated')
-            ax.scatter(y_load, z_load, label ='mesh_final')
+            ax.scatter(mesh['Y [R]'].values, mesh['Z [R]'].values,
+                       label ='mesh_final', marker='o')
             ax.scatter(20*np.cos(spoke), 20*np.sin(spoke), label='spokes')
             for a in enumerate(spoke[::4]):
                 ax.annotate(spoketxt[4*a[0]], (20*np.cos(a[1]),
