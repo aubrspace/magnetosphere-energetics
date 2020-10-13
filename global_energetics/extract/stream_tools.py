@@ -521,7 +521,6 @@ def load_cylinder(field_data, data, zonename, I, J, K):
         mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/I + ymean
         mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/I + zmean
     print('\nvalues loaded, check out how it looks\n')
-    #from IPython import embed; embed()
 
 
 def calculate_energetics(field_data, zone_name):
@@ -710,9 +709,6 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     page = tp.active_page()
     #validate name (special characters give tp a lot of problems
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
-    print('\n stopped in integrate surface function, qt:')
-    print(qtname+'\n')
-    from IPython import embed; embed()
     if not is_cylinder:
         print("Warning: not cylindrical object, check surface integrals")
     surface_planes=["IRange={MIN =1 MAX = 0 SKIP ="+str(idimension-1)+"} "+
@@ -781,8 +777,6 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
 
     #sum all parts together
     integrated_total = sum(Ivalues)+sum(Kvalues)
-    print('end of integrate surface function')
-    embed()
     return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',

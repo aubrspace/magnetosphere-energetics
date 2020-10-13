@@ -71,8 +71,9 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                 else:
                     plt.fieldmap(map_index).effects.use_translucency=True
                     frame.plot(PlotType.Cartesian3D).use_translucency=True
-                    plt.fieldmap(map_index).effects.surface_translucency=10
+                    plt.fieldmap(map_index).effects.surface_translucency=60
                     plt.fieldmap(map_index).shade.color = Color.Custom15
+                    plt.fieldmap(map_index).contour.show = False
 
     else:
         for map_index in plt.fieldmaps().fieldmap_indices:
@@ -89,18 +90,21 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
         contour.colormap_name = 'cmocean - balance'
         contour.legend.vertical = True
         contour.legend.position[1] = 98
-        contour.legend.position[0] = 92
+        contour.legend.position[0] = 98
         contour.legend.box.box_type = TextBox.Filled
         contour.levels.reset_levels(colorbar)
         contour.labels.step = 2
+        contour.colormap_filter.distribution=ColorMapDistribution.Continuous
+        contour.colormap_filter.continuous_max = colorbar[-1]
+        contour.colormap_filter.continuous_min = colorbar[0]
 
-    #create iso-surface of r=1.2 for the earth
+    #create iso-surface of r=1 for the earth
     plt.show_isosurfaces = True
     iso = plt.isosurface(0)
     iso.definition_contour_group_index = 5
     iso.contour.flood_contour_group_index = 5
     plt.contour(5).variable_index = 14
-    iso.isosurface_values[0] = 1.2
+    iso.isosurface_values[0] = 1
     plt.contour(5).colormap_name = 'Sequential - Green/Blue'
     plt.contour(5).colormap_filter.reversed = True
     plt.contour(5).legend.show = False
@@ -114,18 +118,79 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.axes.x_axis.max = 15
     plt.axes.x_axis.min = -40
     plt.axes.x_axis.scale_factor = 1
+    plt.axes.x_axis.title.position = 30
+    plt.axes.x_axis.title.color = Color.White
+    plt.axes.x_axis.tick_labels.color = Color.White
     plt.axes.y_axis.show = True
     plt.axes.y_axis.max = 40
     plt.axes.y_axis.min = -40
     plt.axes.y_axis.scale_factor = 1
+    plt.axes.y_axis.title.position = 30
+    plt.axes.y_axis.title.color = Color.White
+    plt.axes.y_axis.tick_labels.color = Color.White
     plt.axes.z_axis.show = True
     plt.axes.z_axis.max = 40
     plt.axes.z_axis.min = -40
     plt.axes.z_axis.scale_factor = 1
-    plt.axes.z_axis.title.offset = 15
+    plt.axes.z_axis.title.offset = -8
+    plt.axes.z_axis.title.color = Color.White
+    plt.axes.z_axis.tick_labels.color = Color.White
+    plt.axes.grid_area.fill_color = Color.Custom1
+    frame.background_color = Color.Black
     view.magnification = savedmag
     view.position = savedposition
     view.translate(x=10, y=10)
+
+    #rotate around to see the backside
+    view.position = (-490, 519, 328)
+    view.magnification = 1.311
+    savedangle = (0, 137, 64)
+    view.alpha, view.theta, view.psi = savedangle
+
+    plt.fieldmap(0).show = True
+
+    #add slice at Y=0
+    plt.show_slices = True
+    yslice = plt.slice(0)
+    yslice.orientation = SliceSurface.YPlanes
+    yslice.origin[1] = -.10
+    yslice.contour.flood_contour_group_index = 1
+    yslice.effects.use_translucency = True
+    jycontour = plt.contour(1)
+    jycontour.variable_index=12
+    jycontour.colormap_name = 'Diverging - Brown/Green'
+    jycontour.legend.vertical = True
+    jycontour.legend.position[1] = 72
+    jycontour.legend.position[0] = 98
+    jycontour.legend.box.box_type = TextBox.Filled
+    jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+    jycontour.labels.step = 2
+    jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
+    jycontour.colormap_filter.continuous_max = 0.003
+    jycontour.colormap_filter.continuous_min = -0.003
+    jycontour.colormap_filter.reversed = True
+
+    #add B field lines seeded in XZ plane
+    plt.show_streamtraces = True
+    plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.color = Color.Custom41
+    plt.streamtraces.line_thickness = 0.2
+
+    #blanking outside 3D axes
+    plt.value_blanking.active = True
+    xblank = plt.value_blanking.constraint(1)
+    xblank.active = True
+    xblank.variable = frame.dataset.variable('X *')
+    xblank.comparison_operator = RelOp.LessThan
+    xblank.comparison_value = -40
+    zblank = plt.value_blanking.constraint(2)
+    zblank.active = True
+    zblank.variable = frame.dataset.variable('Z *')
+    zblank.comparison_operator = RelOp.LessThan
+    zblank.comparison_value = -40
 
     #add timestamp
     ticks = get_time(filename)
@@ -133,6 +198,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     year = time.year
     month = time.month
     day = time.day
+    hour = time.hour
     minute = time.minute
     second = time.second
     time_text = ('{:.0f} '.format(year)+
@@ -141,14 +207,16 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                  '{}:'.format(twodigit(hour))+
                  '{}:{}UTC'.format(twodigit(minute), twodigit(second)))
     timebox = frame.add_text(time_text)
-    timebox.position = (2,5)
+    timebox.position = (20,16)
     timebox.font.size = 28
     timebox.font.bold = False
     timebox.font.typeface = 'Helvetica'
+    timebox.color = Color.White
 
     #move orientation axis out of the way
     plt.axes.orientation_axis.size = 8
     plt.axes.orientation_axis.position = [91, 7]
+    plt.axes.orientation_axis.color = Color.White
 
 
     if save_img:

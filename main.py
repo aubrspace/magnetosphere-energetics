@@ -38,7 +38,7 @@ if __name__ == "__main__":
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
-    #tp.load_layout('example2/nocontour.lay')
+    #tp.load_layout('example4/backside.lay')
     #field_data = tp.active_frame().dataset
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_out *').index,
                               datafile, magnetopause=True, pngpath=PNGPATH,
-                              show_contour=False, outputname=nameout)
+                              show_contour=True, outputname=nameout)
 
     '''
     #Display meridional streamlines for visualization with x scale slice

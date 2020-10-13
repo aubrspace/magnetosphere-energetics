@@ -83,7 +83,8 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         stream_zone_list = []
         for zone in range(field_data.num_zones):
             if field_data.zone(zone).name.find('plasmasheet') != -1:
-                stream_zone_list.append(zone)
+                stream_zone_list.append(zone.index)
+        print(stream_zone_list)
         stream_zone_list = np.linspace(3,field_data.num_zones,
                                        field_data.num_zones-3+1)
         stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
