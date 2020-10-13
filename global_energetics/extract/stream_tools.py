@@ -770,7 +770,7 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     print('after K integration')
     for fr in tp.frames():
         print(fr.name)
-    page.delete_frame(tempframe)
+    #page.delete_frame(tempframe)
     print('after K cleanup')
     for fr in tp.frames():
         print(fr.name)
