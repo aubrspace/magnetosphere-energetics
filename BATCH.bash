@@ -2,7 +2,7 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=pltdbug/
+PLTDIR=plt/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
@@ -19,8 +19,8 @@ eval `$TECPATH-env`
 echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #create log file for integral quantities
-touch mp_integral_log.csv
-echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW], uB[J]'>>mp_integral_log.csv
+touch output/mp_integral_log.csv
+echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW], uB[J]'>>output/mp_integral_log.csv
 #touch cps_integral_log.csv
 #echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW]'>>cps_integral_log.csv
 

@@ -132,7 +132,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         for frame in tp.frames('Frame*'):
             page.delete_frame(frame)
         '''
-        write_to_timelog('mp_integral_log.csv', time.UTC[0],
+        write_to_timelog('output/mp_integral_log.csv', time.UTC[0],
                           magnetopause_power.combine(mp_magnetic_energy,
                                                      np.maximum,
                                                      fill_value=-1e12))

@@ -197,9 +197,9 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     hour = time.hour
     minute = time.minute
     second = time.second
-    time_text = ('{:.0f} '.format(year)+
-                 '{}, '.format(twodigit(month))+
-                 '{}, '.format(twodigit(day))+
+    time_text = ('{:.0f}-'.format(year)+
+                 '{}-'.format(twodigit(month))+
+                 '{} '.format(twodigit(day))+
                  '{}:'.format(twodigit(hour))+
                  '{}:{}UTC'.format(twodigit(minute), twodigit(second)))
     timebox = frame.add_text(time_text)
