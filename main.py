@@ -38,6 +38,7 @@ if __name__ == "__main__":
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
+    #tp.load_layout('example5/zoomed.lay')
     #tp.load_layout('example4/backside.lay')
     #field_data = tp.active_frame().dataset
     field_data=tp.data.load_tecplot(sys.argv[1])
@@ -67,8 +68,6 @@ if __name__ == "__main__":
         stream_tools.create_stream_zone(field_data, x,y,z,'mag_pole_',
                                         'inner_mag', cart_given=True)
     '''
-
-
 
 
     #Caclulate surfaces

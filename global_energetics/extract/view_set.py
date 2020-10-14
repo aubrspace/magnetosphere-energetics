@@ -39,8 +39,8 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
     #create list of zones to be displayed based on inputs
-    #zone_list = ['global_field']
-    zone_list = []
+    zone_list = ['global_field']
+    #zone_list = []
     if magnetopause:
         zone_list.append('mp_zone')
     if plasmasheet:
@@ -55,13 +55,15 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                                             SurfacesToPlot.IKPlanes)
                 plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
                 plt.fieldmap(map_index).surfaces.k_range = (0,-1,nslice-1)
+
+    #mesh, contour and basic zoomed out position for consistency
     plt.show_mesh = False
     plt.show_contour = show_contour
     view = plt.view
-    plt.fieldmap(0).show = True
     view.center()
     plt.fieldmap(0).show = False
 
+    #mp and cps surface settings
     if magnetopause and plasmasheet:
         for map_index in plt.fieldmaps().fieldmap_indices:
             for zone in plt.fieldmap(map_index).zones:
@@ -111,17 +113,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.contour(5).colormap_filter.reversed = True
     plt.contour(5).legend.show = False
 
-    #rotate around to see the backside
-    plt.axes.axis_mode = AxisMode.Independent
-    view.position = (-490, 519, 328)
-    view.magnification = 1.311
-    savedangle = (0, 137, 64)
-    view.alpha, view.theta, view.psi = savedangle
-
-    #add scale
-    savedposition = (view.position[0], view.position[1], view.position[2])
-    savedmag = view.magnification
-    saveddistance = view.distance
+    #add scale then turn on fielddata map
     plt.axes.axis_mode = AxisMode.Independent
     plt.axes.x_axis.show = True
     plt.axes.x_axis.max = 15
@@ -146,13 +138,12 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.axes.z_axis.tick_labels.color = Color.White
     plt.axes.grid_area.fill_color = Color.Custom1
     frame.background_color = Color.Black
-    view.position = savedposition
-    view.magnification = savedmag
-    saveddistance = view.distance
-    #view.translate(x=10, y=10)
-
-
     plt.fieldmap(0).show = True
+
+    #Set camera angle
+    view.alpha, view.theta, view.psi = (0,137,64)
+    view.position = (-490,519,328)
+    view.magnification = 5.470
 
     #add slice at Y=0
     plt.show_slices = True
@@ -225,19 +216,8 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
 
 
     if save_img:
-        save_to_png(outputname=outputname, pngpath=pngpath)
+        tp.export.save_png(pngpath+outputname+'.png')
 
-
-def save_to_png(*,outputname='output.png',pngpath='./'):
-    """Function to save current display to a .png file
-    Input
-        outputname- filename
-        pngpath- path for .png file save
-    """
-    #write .plt and .lay files
-    #tp.data.save_tecplot_plt(pltpath+outputname+'.plt')
-    #tp.save_layout(laypath+outputname+'.lay')
-    tp.export.save_png(pngpath+outputname+'.png')
 
 def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
                    var_index=0, newaxis=True):
