@@ -58,7 +58,9 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.show_mesh = False
     plt.show_contour = show_contour
     view = plt.view
+    plt.fieldmap(0).show = True
     view.center()
+    plt.fieldmap(0).show = False
 
     if magnetopause and plasmasheet:
         for map_index in plt.fieldmaps().fieldmap_indices:
@@ -109,6 +111,13 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.contour(5).colormap_filter.reversed = True
     plt.contour(5).legend.show = False
 
+    #rotate around to see the backside
+    plt.axes.axis_mode = AxisMode.Independent
+    view.position = (-490, 519, 328)
+    view.magnification = 1.311
+    savedangle = (0, 137, 64)
+    view.alpha, view.theta, view.psi = savedangle
+
     #add scale
     savedposition = (view.position[0], view.position[1], view.position[2])
     savedmag = view.magnification
@@ -137,15 +146,11 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     plt.axes.z_axis.tick_labels.color = Color.White
     plt.axes.grid_area.fill_color = Color.Custom1
     frame.background_color = Color.Black
-    view.magnification = savedmag
     view.position = savedposition
-    view.translate(x=10, y=10)
+    view.magnification = savedmag
+    saveddistance = view.distance
+    #view.translate(x=10, y=10)
 
-    #rotate around to see the backside
-    view.position = (-490, 519, 328)
-    view.magnification = 1.311
-    savedangle = (0, 137, 64)
-    view.alpha, view.theta, view.psi = savedangle
 
     plt.fieldmap(0).show = True
 
