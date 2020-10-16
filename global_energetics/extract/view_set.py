@@ -216,7 +216,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
 
 
     if save_img:
-        tp.export.save_png(pngpath+outputname+'.png')
+        tp.export.save_png(pngpath+outputname+'.png', width=3200)
 
 
 def bargraph_setup(frame, color, barid, axis_title, axis_range, *,

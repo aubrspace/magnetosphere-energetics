@@ -74,12 +74,12 @@ if __name__ == "__main__":
     magnetopause.get_magnetopause(field_data, datafile, nfill=10,
                                   integrate_volume=True,
                                   integrate_surface=True)
-    #plasmasheet.get_plasmasheet(field_data, datafile)
+    plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_out *').index,
-                              datafile, plasmasheet=False, pngpath=PNGPATH,
+                              datafile, magnetopause=True, pngpath=PNGPATH,
                               show_contour=True, outputname=nameout)
 
     '''

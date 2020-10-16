@@ -76,29 +76,45 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
         r_end_n = r_values[-1]
         r_end_s = 0
         r_seed = 2
-        x_max = 0
     elif stream_type == 'south':
         r_end_n = 0
         r_end_s = r_values[0]
         r_seed = 2
-        x_max = 0
+    elif stream_type == 'inner_mag':
+        xmax, xmin = field_data.zone(zone_name+'*').values('X *').minmax()
+        ymax, ymin = field_data.zone(zone_name+'*').values('Y *').minmax()
+        zmax, zmin = field_data.zone(zone_name+'*').values('Z *').minmax()
+        extrema = [[xmax, ymax, zmax],
+                   [xmin, ymin, zmin]]
+        bounds = [[-220,-126,-126],
+                  [31.5, 126, 126]]
+        isclosed = True
+        #from IPython import embed; embed()
+        for minmax in enumerate(extrema):
+            for value in enumerate(minmax[1]):
+                if abs(value[1])>0.9*abs(bounds[minmax[0]][value[0]]):
+                    isclosed = False
+                    return isclosed
+        return isclosed
+        '''
     elif stream_type == 'inner_mag':
         x_values = field_data.zone(zone_name+'*').values(
                                                     'X *').as_numpy_array()
+        x_values = field_data.zone(zone_name+'*').values(
+                                                    'X *').as_numpy_array()
+        y_values = field_data.zone(zone_name+'*').values(
+                                                    'Y *').as_numpy_array()
+        z_values = field_data.zone(zone_name+'*').values(
+                                                    'Z *').as_numpy_array()
+        pos_bound = [40,128,128]
+        neg_bound = [-256,-128,-128]
         x_max = abs(x_values.min())
         r_end_n, r_end_s = r_values[0], r_values[-1]
+        '''
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
-        x_max = 0
-        '''
-        print('r values: {:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(
-                                         r_values[0],
-                                         r_values[4],
-                                         r_values[8],
-                                         r_values[-8]))
-        '''
     #check if closed
-    if (r_end_n > r_seed) or (r_end_s > r_seed) or (x_max > r_seed):
+    if (r_end_n > r_seed) or (r_end_s > r_seed):
         isclosed = False
     else:
         isclosed = True
@@ -323,8 +339,6 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
         print('longitude {:.1f}'.format(lon))
         sphcoor = coord.Coords([seed_radius, 85, lon], 'SM', 'sph')
         sphcoor.ticks = time
-        print(sphcoor.convert('GSM', 'sph').data[0][0:3])
-        print()
         #initialize latitude search bounds
         equat_lat = 45
         pole_lat = lat_max
@@ -777,6 +791,8 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
 
     #sum all parts together
     integrated_total = sum(Ivalues)+sum(Kvalues)
+    frame.activate()
+    frame.move_to_top()
     return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',

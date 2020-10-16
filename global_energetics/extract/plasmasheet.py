@@ -89,12 +89,15 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                                        field_data.num_zones-3+1)
         stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
                                           [1,2,3], 'stream_points.csv')
-        min_x = stream_df['X [R]'].min()
+        xstd = stream_df.std()['X [R]']
+        xmean = stream_df.mean()['X [R]']
+        min_x = xmean-3.5*xstd
         print(stream_df)
+        print(min_x)
         #slice and construct XYZ data
-        print('max x: {:.2f}, set to x=-1\nmin x: {:.2f}'.format(max_x,
+        print('max x: {:.2f}, set to x=-5\nmin x: {:.2f}'.format(max_x,
                                                                 min_x))
-        cps_mesh = surface_construct.yz_slicer(stream_df, min_x+5,
+        cps_mesh = surface_construct.yz_slicer(stream_df, min_x,
                                                -5, nslice, nalpha,
                                                True)
         #create and load cylidrical zone
