@@ -334,14 +334,14 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
     plot.vector.w_variable = field_data.variable('B_z*')
     seed_radius = 1
 
-    #iterate through northside zones
+    #iterate through longitudes zones
     for lon in lon_list:
         print('longitude {:.1f}'.format(lon))
         sphcoor = coord.Coords([seed_radius, 85, lon], 'SM', 'sph')
         sphcoor.ticks = time
         #initialize latitude search bounds
-        equat_lat = 45
         pole_lat = lat_max
+        equat_lat = 45 * lat_max/abs(lat_max)
         mid_lat = (pole_lat+equat_lat)/2
 
         """
@@ -403,6 +403,7 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
             itr = 0
             while (notfound and itr < max_iter):
                 mid_lat = (pole_lat+equat_lat)/2
+                print(mid_lat)
                 [xgsm, ygsm, zgsm] = mag2gsm(seed_radius,mid_lat,lon,time)
                 create_stream_zone(field_data, xgsm, ygsm, zgsm,
                                    'temp_ps_line_', 'inner_mag',
@@ -418,6 +419,9 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
                 if abs(pole_lat - equat_lat)<tolerance and (
                                                         mid_lat_closed):
                     notfound = False
+                    print('found at')
+                    print(lon)
+                    print('\n')
                     field_data.zone('temp*').name = 'plasma_sheet_'.format(
                                                                  equat_lat)
                 else:
@@ -455,6 +459,7 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     if any(col == 'X [R]' for col in loc_data.columns):
         loc_data = loc_data.drop(columns=['Unnamed: 3'])
         loc_data = loc_data.sort_values(by=['X [R]'])
+        loc_data = loc_data.reset_index(drop=True)
         x_max = loc_data['X [R]'].max()
     else: x_max = []
     return loc_data, x_max

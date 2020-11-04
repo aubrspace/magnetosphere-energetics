@@ -85,7 +85,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                        field_data.num_zones-2+1)
         stream_df, x_subsolar = dump_to_pandas(main_frame,
                                                stream_zone_list, [1,2,3],
-                                               'stream_points.csv')
+                                               'mp_stream_points.csv')
         #slice and construct XYZ data
         mp_mesh = surface_construct.yz_slicer(stream_df, tail_cap,
                                               x_subsolar, nslice, nalpha,

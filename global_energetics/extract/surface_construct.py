@@ -6,7 +6,7 @@
 #import cv2
 import sys
 import numpy as np
-from numpy import pi, sqrt
+from numpy import pi, sqrt, linspace, arctan2
 import time
 import matplotlib as mpl
 import matplotlib.pyplot as plot
@@ -42,7 +42,7 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     dx = (x_max-x_min)/(2*(n_slice-1))
     mesh = pd.DataFrame(columns = ['X [R]', 'Y [R]', 'Z [R]'])
     k = 0
-    for x in np.linspace(x_min, x_max-dx, n_slice):
+    for x in linspace(x_min, x_max-dx, n_slice):
         #Gather data within one x-slice
         zone_temp = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
 
@@ -193,6 +193,94 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     return mesh
 
 
+def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
+    """Function loops through YZ anglular bins to create 2D closed curve
+        in XZ
+    Inputs
+        zone- pandas DataFrame object with xyz datat points
+        x_min
+        x_max
+        nX- number of point in the x direction for final mesh
+        n_slice
+        show- boolean for plotting
+    """
+    #bin in x direction and initialize newzone
+    dx = (x_max-x_min)/(2*(nX-1))
+    newzone = pd.DataFrame(columns=['X [R]', 'Y [R]', 'Z [R]',
+                                    'y_rel', 'z_rel',
+                                    'alpha', 'h', 'h_rel',
+                                    'y0', 'z0'])
+    zone_xbin_cumulative = 0
+    for x in linspace(x_min, x_max-dx, nX):
+        #at each x bin calculate y0,z0 based on average
+        zone_xbin = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
+        zone_xbin = zone_xbin.reset_index(drop=True)
+        y0 = np.mean(zone_xbin['Y [R]'])
+        z0 = np.mean(zone_xbin['Z [R]'])
+        #append rel_yz, alpha and h for each point in xbin
+        y_rel = pd.DataFrame(zone_xbin['Y [R]']-y0).rename(
+                                                columns={'Y [R]':'y_rel'})
+        z_rel = pd.DataFrame(zone_xbin['Z [R]']-z0).rename(
+                                                columns={'Z [R]':'z_rel'})
+        alpha = pd.DataFrame(arctan2(z_rel.values,y_rel.values),
+                             columns=['alpha'])
+        h = pd.DataFrame(sqrt(zone_xbin['Z [R]'].values**2+
+                              zone_xbin['Y [R]'].values**2),
+                         columns=['h'])
+        h_rel = pd.DataFrame(sqrt(z_rel.values**2+y_rel.values**2),
+                         columns=['h_rel'])
+        #combine all newly calculated columns
+        zone_xbin = zone_xbin.reindex(columns=['X [R]', 'Y [R]', 'Z [R]',
+                                               'y_rel', 'z_rel', 'alpha',
+                                               'h','h_rel'],fill_value=999)
+        for df in [y_rel,z_rel,alpha,h]:
+            zone_xbin = zone_xbin.combine(df,np.minimum,fill_value=1000)
+        #append y0 and z0 for this xbin
+        zone_xbin = zone_xbin.reindex(columns=['X [R]', 'Y [R]', 'Z [R]',
+                                               'y_rel', 'z_rel',
+                                               'alpha', 'h', 'h_rel',
+                                               'y0'],fill_value=y0)
+        zone_xbin = zone_xbin.reindex(columns=['X [R]', 'Y [R]', 'Z [R]',
+                                               'y_rel', 'z_rel',
+                                               'alpha', 'h', 'h_rel',
+                                               'y0', 'z0'],fill_value=z0)
+        #append xbin set to total dataset
+        newzone = newzone.append(zone_xbin, ignore_index=True)
+
+    #for each alpha slice 
+    da = (pi)/(n_slice-1)
+    k = 0
+    for a in linspace(-pi, pi, n_slice):
+        zone_abin = newzone[(newzone['alpha'] < a+da) &
+                            (newzone['alpha'] > a-da)]
+        print(np.rad2deg(a))
+        if show:
+            #create plot and dump raw data
+            fig, ax = plot.subplots()
+            ax.scatter(zone_abin['X [R]'], zone_abin['h'], c='r',
+                       label='raw')
+            ax.scatter(zone_abin['X [R]'], (zone_abin['y0'].values**2+
+                                            zone_abin['z0'].values**2),
+                       label='centerline')
+
+        if show:
+            #plot interpolated data and save figure
+            ax.set_xlabel('X [Re]')
+            ax.set_ylabel('h [Re]')
+            ax.set_xlim([-30,0])
+            ax.set_ylim([0,20])
+            plot.gca().invert_xaxis()
+            ax.set_title('alpha= {:.2f} +/- {:.2f}'.format(a,da)+
+                          '\nn= {:.2f}'.format(len(zone_abin)))
+            ax.legend(loc='upper left')
+            if k<0.9:
+                filename = 'slice_log2/img-0{:.0f}.png'.format(10*k)
+            else:
+                filename = 'slice_log2/img-{:.0f}.png'.format(10*k)
+            plot.savefig(filename)
+            k = k+.1
+
+
 #main program
 '''Run program with -v to capture 2D images of sliced data and compile into video
 '''
@@ -202,20 +290,21 @@ if __name__ == "__main__":
     else:
         SHOW_VIDEO = False
     #Read in data values and sort by X position
-    ZONE = pd.read_csv('stream_points.csv')
+    ZONE = pd.read_csv('cps_stream_points.csv')
     ZONE = ZONE.drop(columns=['Unnamed: 3'])
     ZONE = ZONE.sort_values(by=['X [R]'])
+    ZONE = ZONE.reset_index(drop=True)
     X_MAX = ZONE['X [R]'].max()
     #X_MIN = ZONE['X [R]'].min()
-    X_MIN = -30
+    X_MIN = -20
 
     #Slice and construct XYZ data
-    MESH = yz_slicer(ZONE, X_MIN, X_MAX, 50, 50, SHOW_VIDEO)
+    MESH = ah_slicer(ZONE, X_MIN, X_MAX, 20, 18, SHOW_VIDEO)
     #MESH.to_hdf('slice_mesh.h5', format='table', key='MESH', mode='w')
     #MESH.to_csv('slice_mesh.csv', index=False)
 
     #Plot slices with finalized points
-    if SHOW_VIDEO:
-        show_video('slice_log')
+    #if SHOW_VIDEO:
+        #show_video('slice_log')
 
     print("___ %s seconds ___" % (time.time() - START))

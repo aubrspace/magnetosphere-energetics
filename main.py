@@ -72,15 +72,15 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, nfill=10,
-                                  integrate_volume=True,
-                                  integrate_surface=True)
+                                  integrate_volume=False,
+                                  integrate_surface=False)
     plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
                               field_data.variable('K_out *').index,
                               datafile, magnetopause=True, pngpath=PNGPATH,
-                              show_contour=True, outputname=nameout)
+                              show_contour=False, outputname=nameout)
 
     '''
     #Display meridional streamlines for visualization with x scale slice

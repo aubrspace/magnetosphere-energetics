@@ -31,7 +31,7 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
 
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=50, lat_max=89,
-                     lon_limit=160, rday_max=30,rday_min=3.5,
+                     lon_limit=90, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
                      nslice=40, nalpha=15, nfill=5):
     """Function that finds, plots and calculates energetics on the
@@ -55,8 +55,8 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
 
 
     #set parameters
-    lon_set = np.append(np.linspace(-lon_limit, -180, int(nstream/2)),
-                          np.linspace(180, lon_limit, int(nstream/2)))
+    lon_set = np.append(np.linspace(-lon_limit, -180, int(nstream/4)),
+                          np.linspace(180, lon_limit, int(nstream/4)))
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
@@ -77,7 +77,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         calc_plasmasheet(field_data, lat_max, lon_set,
                          3/2*tail_cap, itr_max, searchtol, time)
         print('\nfinding south hemisphere boundary')
-        calc_plasmasheet(field_data, lat_max, lon_set,
+        calc_plasmasheet(field_data, -lat_max, lon_set,
                          3/2*tail_cap, itr_max, searchtol, time)
         #port stream data to pandas DataFrame object
         stream_zone_list = []
@@ -88,7 +88,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         stream_zone_list = np.linspace(3,field_data.num_zones,
                                        field_data.num_zones-3+1)
         stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
-                                          [1,2,3], 'stream_points.csv')
+                                          [1,2,3], 'cps_stream_points.csv')
         xstd = stream_df.std()['X [R]']
         xmean = stream_df.mean()['X [R]']
         min_x = xmean-3.5*xstd
