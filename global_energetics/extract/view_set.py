@@ -36,7 +36,6 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
     """
     plt = frame.plot()
     field_data = frame.dataset
-    contourvar = field_data.variable(contour_key).index
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
     #create list of zones to be displayed based on inputs
@@ -92,6 +91,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
 
     if show_contour:
+        contourvar = field_data.variable(contour_key).index
         contour = plt.contour(0)
         contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'

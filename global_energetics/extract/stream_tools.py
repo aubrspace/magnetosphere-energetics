@@ -243,18 +243,19 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
 
 
 
-def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
+def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
+                 tolerance):
     """Function to create the zones that will become the tail magnetopause
     Inputs
         psi- set of disc azimuthal angles[degrees]
         x_disc- x position of the tail disc
         rho_max- outer radial bounds of the tail disc
         rho_step- radial distance increment for marching algorithm
+        rho_min- inner radial bounds of the tail disc
     Returns
         new_tail_cap- set to x_disc unless algoritm fails, then is x_min
     """
-    #Initialize objects that will be modified in creation loop
-    rho_tail = rho_max
+    #Set new_tail_cap as unchanged value
     new_tail_cap = x_disc
 
     #set B as the vector field
@@ -265,69 +266,73 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
 
     #Create Tail Magnetopause field lines
     for i in range(int(len(psi))):
-        #Find global position based on seed point
-        x_pos, y_pos, z_pos = find_tail_disc_point(rho_max,psi[i],x_disc)
-        r_tail = sqrt(x_pos**2+y_pos**2+z_pos**2)
-        '''
-        #check if north or south attached
-        if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
-            stream_type = 'south'
-        else:
-            stream_type = 'north'
-        '''
-        #initialize 2way streamline and check if leaves domain
+        rho_inner = rho_min
+        rho_outer = rho_max
+        rho_mid = (rho_max+rho_min)/2
+        #initialize bounding streamlines
+        #Find global positions based on seed points
+        x_out, y_out, z_out = find_tail_disc_point(rho_outer,psi[i],x_disc)
+        x_in, y_in, z_in = find_tail_disc_point(rho_inner,psi[i],x_disc)
+        r_out = sqrt(x_out**2+y_out**2+z_out**2)
+        r_in = sqrt(x_in**2+y_in**2+z_in**2)
+        #create stream lines
         stream_type = 'inner_mag'
-        create_stream_zone(field_data, x_pos, y_pos, z_pos,
-                          'temp_tail_line_', stream_type, cart_given=True)
-        #check if closed
-        tail_closed = check_streamline_closed(field_data,
-                                              'temp_tail_line_', r_tail,
+        create_stream_zone(field_data, x_out, y_out, z_out,
+                          'outer_tail_line_', stream_type, cart_given=True)
+        create_stream_zone(field_data, x_in, y_in, z_in,
+                          'inner_tail_line_', stream_type, cart_given=True)
+        #check status
+        outer_closed = check_streamline_closed(field_data,
+                                              'outer_tail_line_', r_out,
                                               stream_type)
-        if tail_closed:
+        inner_closed = check_streamline_closed(field_data,
+                                              'inner_tail_line_', r_in,
+                                              stream_type)
+        if outer_closed:
             print('WARNING: field line closed at RHO_MAX={}R_e'.format(
                                                                  rho_max))
-            field_data.zone('temp_tail*').name='tail_field_{:.1f}'.format(
+            field_data.zone('outer_tail*').name='tail_field_{:.1f}'.format(
                                                                    psi[i])
+        elif not inner_closed:
+            print('WARNING: not possible at psi={:.1f}'.format(psi[i]))
+            field_data.zone('inner_tail*').name='vestige{}'.format(x_disc)
+            field_data.delete_zones(field_data.zone('outer*'))
+            new_tail_cap = x_disc*(0.9)
+            return new_tail_cap
+
         else:
-            #This is a basic marching algorithm from outside in starting at
-            #RHO_MAX
-            rho_tail = rho_max
+            #Bisection algorithm
+            #delete bounding streamlines
+            field_data.delete_zones(field_data.zone('inner*'))
+            field_data.delete_zones(field_data.zone('outer*'))
             notfound = True
-            while notfound and rho_tail > rho_step:
-                field_data.delete_zones(field_data.zone('temp_tail_line*'))
-                rho_tail = rho_tail - rho_step
-                x_pos, y_pos, z_pos = find_tail_disc_point(rho_tail,
-                                                           psi[i],x_disc)
-                r_tail = sqrt(x_pos**2+y_pos**2+z_pos**2)
-                '''
-                #check if north or south attached
-                if tp.data.query.probe_at_position(x_pos,
-                                                   y_pos, z_pos)[0][7] < 0:
-                    stream_type = 'south'
+            itr = 0
+            while (notfound and itr < max_iter):
+                rho_mid = (rho_outer+rho_inner)/2
+                #Find global positions based on seed point
+                x_mid, y_mid, z_mid = find_tail_disc_point(rho_mid,psi[i],
+                                                           x_disc)
+                r_mid = sqrt(x_mid**2+y_mid**2+z_mid**2)
+                #create streamzone
+                create_stream_zone(field_data, x_mid, y_mid, z_mid,
+                          'mid_tail_line_', stream_type, cart_given=True)
+                #check status
+                mid_closed = check_streamline_closed(field_data,
+                                              'mid_tail_line_', r_mid,
+                                              stream_type)
+                if mid_closed:
+                    rho_inner = rho_mid
                 else:
-                    stream_type = 'north'
-                '''
-                #initialize 2way streamline and check if leaves domain
-                stream_type = 'inner_mag'
-                create_stream_zone(field_data, x_pos, y_pos, z_pos,
-                                   'temp_tail_line_', stream_type,
-                                   cart_given=True)
-                tail_closed =check_streamline_closed(field_data,
-                                                     'temp_tail_line_',
-                                                    rho_tail, stream_type)
-                if tail_closed:
-                    field_data.zone('temp*').name='tail_field_{:.1f}'.format(
-                                                        psi[i])
+                    rho_outer = rho_mid
+                if abs(rho_outer - rho_inner)<tolerance and mid_closed:
                     notfound = False
-                    print('Tail', i,' rho{:.1f} psi{:.1f}'.format(rho_tail,
-                                                           psi[i]))
-                if rho_tail <= rho_step:
-                    print('WARNING: not possible at psi={:.1f}'.format(
-                                                                psi[i]))
-                    field_data.zone('temp_tail*').name='vestige{}'.format(
-                                                                    x_disc)
-                    new_tail_cap = x_disc*(0.75)
-                    return new_tail_cap
+                    field_data.zone('mid*').name='tail_{:.1f}'.format(
+                                                                   psi[i])
+                else:
+                    field_data.delete_zones(field_data.zone('mid*'))
+                itr += 1
+        print('Tail', i,'psi: {:.0f}, iters: {}, err: {}'.format(psi[i],
+                                                itr, rho_outer-rho_inner))
     return new_tail_cap
 
 

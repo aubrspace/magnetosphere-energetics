@@ -33,7 +33,7 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
 def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream_day=18, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
-                     nstream_tail=36, rho_max=50,rho_step=0.5,tail_cap=-20,
+                     nstream_tail=36, rho_max=50,rho_min=0.5,tail_cap=-20,
                      nslice=40, nalpha=50, nfill=2,
                      integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
@@ -60,7 +60,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
 
     #set parameters
     lon_set = np.linspace(-1*lon_max, lon_max, nstream_day)
-    psi = np.linspace(-180*(1-180/nstream_tail), 180, nstream_tail)
+    psi = np.linspace(-180*(1-1/nstream_tail), 180, nstream_tail)
     with tp.session.suspend():
         main_frame = tp.active_frame()
         main_frame.name = 'main'
@@ -80,7 +80,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                         daytol)
         #Create Tail magnetopause field lines
         tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap, rho_max,
-                                    rho_step)
+                                    rho_min, dayitr_max, daytol)
         #go into loop modifiying tail cap placement if no mp points found
         if tail_cap_mod != tail_cap:
             temp_tail = 0
@@ -88,7 +88,8 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                 print('\nSetting tail cap to {}'.format(tail_cap_mod))
                 temp_tail = tail_cap_mod
                 tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap_mod,
-                                            rho_max, rho_step)
+                                            rho_max, rho_min, dayitr_max,
+                                            daytol)
         #port stream data to pandas DataFrame object
         stream_zone_list = np.linspace(2,field_data.num_zones,
                                        field_data.num_zones-2+1)
