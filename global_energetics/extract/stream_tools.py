@@ -250,9 +250,12 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
         x_disc- x position of the tail disc
         rho_max- outer radial bounds of the tail disc
         rho_step- radial distance increment for marching algorithm
+    Returns
+        new_tail_cap- set to x_disc unless algoritm fails, then is x_min
     """
     #Initialize objects that will be modified in creation loop
     rho_tail = rho_max
+    new_tail_cap = x_disc
 
     #set B as the vector field
     plot = tp.active_frame().plot()
@@ -265,11 +268,15 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
         #Find global position based on seed point
         x_pos, y_pos, z_pos = find_tail_disc_point(rho_max,psi[i],x_disc)
         r_tail = sqrt(x_pos**2+y_pos**2+z_pos**2)
+        '''
         #check if north or south attached
         if tp.data.query.probe_at_position(x_pos, y_pos, z_pos)[0][7] < 0:
             stream_type = 'south'
         else:
             stream_type = 'north'
+        '''
+        #initialize 2way streamline and check if leaves domain
+        stream_type = 'inner_mag'
         create_stream_zone(field_data, x_pos, y_pos, z_pos,
                           'temp_tail_line_', stream_type, cart_given=True)
         #check if closed
@@ -292,12 +299,16 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
                 x_pos, y_pos, z_pos = find_tail_disc_point(rho_tail,
                                                            psi[i],x_disc)
                 r_tail = sqrt(x_pos**2+y_pos**2+z_pos**2)
+                '''
                 #check if north or south attached
                 if tp.data.query.probe_at_position(x_pos,
                                                    y_pos, z_pos)[0][7] < 0:
                     stream_type = 'south'
                 else:
                     stream_type = 'north'
+                '''
+                #initialize 2way streamline and check if leaves domain
+                stream_type = 'inner_mag'
                 create_stream_zone(field_data, x_pos, y_pos, z_pos,
                                    'temp_tail_line_', stream_type,
                                    cart_given=True)
@@ -313,6 +324,11 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_step):
                 if rho_tail <= rho_step:
                     print('WARNING: not possible at psi={:.1f}'.format(
                                                                 psi[i]))
+                    field_data.zone('temp_tail*').name='vestige{}'.format(
+                                                                    x_disc)
+                    new_tail_cap = x_disc*(0.75)
+                    return new_tail_cap
+    return new_tail_cap
 
 
 def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
@@ -597,20 +613,17 @@ def calculate_energetics(field_data, zone_name):
                                '+1e-3*{Rho [amu/cm^3]}/2*'+
                                    '({U_x [km/s]}**2+{U_y [km/s]}**2'+
                                    '+{U_z [km/s]}**2))'+
-                          '*{U_x [km/s]}  +  {ExB_x [kW/km^2]}',
-        zones=[zone_index])
+                          '*{U_x [km/s]}  +  {ExB_x [kW/km^2]}')
     eq('{K_y [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
                                '+1e-3*{Rho [amu/cm^3]}/2*'+
                                    '({U_x [km/s]}**2+{U_y [km/s]}**2'+
                                    '+{U_z [km/s]}**2))'+
-                          '*{U_y [km/s]}  +  {ExB_y [kW/km^2]}',
-        zones=[zone_index])
+                          '*{U_y [km/s]}  +  {ExB_y [kW/km^2]}')
     eq('{K_z [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
                                '+1e-3*{Rho [amu/cm^3]}/2*'+
                                    '({U_x [km/s]}**2+{U_y [km/s]}**2'+
                                    '+{U_z [km/s]}**2))'+
-                          '*{U_z [km/s]}  +  {ExB_z [kW/km^2]}',
-        zones=[zone_index])
+                          '*{U_z [km/s]}  +  {ExB_z [kW/km^2]}')
 
     #Component Normal Flux
     eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+

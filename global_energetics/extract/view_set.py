@@ -18,7 +18,7 @@ def twodigit(num):
     """
     return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
 
-def display_boundary(frame, contourvar, filename, *, magnetopause=True,
+def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=2.5,
                      fullview=True, save_img=True, pngpath='./',
                      outputname='output', show_contour=True, nslice=40):
@@ -27,7 +27,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     Inputs
         frame- object for the tecplot frame
         filename
-        contourvar- variable to be used for the contour
+        contour_key- string key for which contour variable to plot
         colorbar- levels for colorbar
         fullview- True for global view of mangetopause, false for zoomed
         save_img- default True
@@ -36,6 +36,7 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
     """
     plt = frame.plot()
     field_data = frame.dataset
+    contourvar = field_data.variable(contour_key).index
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
                            int(4*colorbar_range+1))
     #create list of zones to be displayed based on inputs
@@ -89,6 +90,8 @@ def display_boundary(frame, contourvar, filename, *, magnetopause=True,
                     plt.fieldmap(map_index).shade.color = Color.Custom34
     if fullview:
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+
+    if show_contour:
         contour = plt.contour(0)
         contour.variable_index = contourvar
         contour.colormap_name = 'cmocean - balance'
