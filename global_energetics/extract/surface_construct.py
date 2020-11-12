@@ -27,6 +27,26 @@ def show_video(image_folder):
     title = 'video'
     vid_compile(image_folder, framerate, title)
 
+def interpolation(zone_x1val, zone_x2val, *, svar=20, closed=True,
+                  maxpt=1000):
+    """Function takes two coordinate data and interpolates using interp
+    module
+    Inputs
+        zone_x1val- first (horizontal) coordinate valuesfor interpolation
+        zone_x2val- second (vertical) values for interpolation
+        svar- s variable for interpolation accuracy
+        periodic- boolean for closed or open interpolation
+        maxpt- number of points in the interpolated curve
+    Returns
+        x1_curve- first coordinate interpolated curve
+        x2_curve- second coordinate interpolated curve
+    """
+    x1_points = np.r_[zone_x1val, zone_x1val[0]]
+    x2_points = np.r_[zone_x2val, zone_x2val[0]]
+    tck, u = interp.splprep([zone_x1val, zone_x2val], s=svar, per=closed)
+    x1_curve, x2_curve = interp.splev(np.linspace(0,1,maxpt), tck)
+    return x1_curve, x2_curve
+
 def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     """Function loops through x position to create 2D closed curves in YZ
     Inputs
@@ -98,12 +118,8 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
         print('X=: {:.2f}'.format(x))
 
         #Created closed interpolation of data
-        y_points = np.r_[zone_temp['Y [R]'].values,
-                         zone_temp['Y [R]'].values[0]]
-        z_points = np.r_[zone_temp['Z [R]'].values,
-                         zone_temp['Z [R]'].values[0]]
-        tck, u = interp.splprep([y_points, z_points], s=5, per=True)
-        y_curve, z_curve = interp.splev(np.linspace(0,1,1000), tck)
+        y_curve, z_curve = interpolation(zone_temp['Y [R]'].values,
+                                         zone_temp['Z [R]'].values)
         translated_zcurve =[point-np.average(z_curve) for point in z_curve]
         translated_ycurve =[point-np.average(y_curve) for point in y_curve]
         dat_angles = np.sort(np.arctan2(translated_zcurve,
@@ -204,21 +220,22 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
     """
     #bin in x direction and initialize newzone
     dx = (x_max-x_min)/(2*(nX-1))
+    mesh = pd.DataFrame(columns=['X [R]', 'Y [R]', 'Z [R]', 'alpha'])
     newzone = pd.DataFrame(columns=['X [R]', 'Y [R]', 'Z [R]',
                                     'y_rel', 'z_rel',
                                     'alpha', 'h', 'h_rel',
                                     'y0', 'z0'])
-    zone_xbin_cumulative = 0
+    y0, z0 = [], []
     for x in linspace(x_min, x_max-dx, nX):
         #at each x bin calculate y0,z0 based on average
         zone_xbin = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
         zone_xbin = zone_xbin.reset_index(drop=True)
-        y0 = np.mean(zone_xbin['Y [R]'])
-        z0 = np.mean(zone_xbin['Z [R]'])
+        y0.append(np.mean(zone_xbin['Y [R]']))
+        z0.append(np.mean(zone_xbin['Z [R]']))
         #append rel_yz, alpha and h for each point in xbin
-        y_rel = pd.DataFrame(zone_xbin['Y [R]']-y0).rename(
+        y_rel = pd.DataFrame(zone_xbin['Y [R]']-y0[-1]).rename(
                                                 columns={'Y [R]':'y_rel'})
-        z_rel = pd.DataFrame(zone_xbin['Z [R]']-z0).rename(
+        z_rel = pd.DataFrame(zone_xbin['Z [R]']-z0[-1]).rename(
                                                 columns={'Z [R]':'z_rel'})
         alpha = pd.DataFrame(arctan2(z_rel.values,y_rel.values),
                              columns=['alpha'])
@@ -237,11 +254,11 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
         zone_xbin = zone_xbin.reindex(columns=['X [R]', 'Y [R]', 'Z [R]',
                                                'y_rel', 'z_rel',
                                                'alpha', 'h', 'h_rel',
-                                               'y0'],fill_value=y0)
+                                               'y0'],fill_value=y0[-1])
         zone_xbin = zone_xbin.reindex(columns=['X [R]', 'Y [R]', 'Z [R]',
-                                               'y_rel', 'z_rel',
-                                               'alpha', 'h', 'h_rel',
-                                               'y0', 'z0'],fill_value=z0)
+                                               'y_rel', 'z_rel', 'alpha',
+                                               'h', 'h_rel', 'y0',
+                                               'z0'],fill_value=z0[-1])
         #append xbin set to total dataset
         newzone = newzone.append(zone_xbin, ignore_index=True)
 
@@ -251,7 +268,6 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
     for a in linspace(-pi, pi, n_slice):
         zone_abin = newzone[(newzone['alpha'] < a+da) &
                             (newzone['alpha'] > a-da)]
-        print(np.rad2deg(a))
         if show:
             #create plot and dump raw data
             fig, ax = plot.subplots()
@@ -263,24 +279,46 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
 
         #for each xbin, remove all but the max h_relative value
         n_xbin = nX*2
-        dx = (x_max-x_min)/(2*(n_xbin-1))
+        dx_finer = (x_max-x_min)/(2*(n_xbin-1))
         for x in linspace(x_min, x_max-dx, n_xbin):
             #if the section has values
-            if not zone_abin[(zone_abin['X [R]'] < x+dx) &
-                             (zone_abin['X [R]'] > x-dx)].empty:
+            if not zone_abin[(zone_abin['X [R]'] < x+dx_finer) &
+                             (zone_abin['X [R]'] > x-dx_finer)].empty:
                 #identify the index of row with maximum r within section
                 max_h_rel_index = zone_abin[
-                            (zone_abin['X [R]'] < x+dx) &
-                            (zone_abin['X [R]'] > x-dx)].idxmax(0)['h_rel']
+                            (zone_abin['X [R]'] < x+dx_finer) &
+                            (zone_abin['X [R]'] > x-dx_finer)].idxmax(0)[
+                                                                   'h_rel']
                 #cut out alpha slice except for max_r_index row
                 zone_abin = zone_abin[
-                                      (zone_abin['X [R]'] > x+dx) |
-                                      (zone_abin['X [R]'] < x-dx) |
+                                      (zone_abin['X [R]'] > x+dx_finer) |
+                                      (zone_abin['X [R]'] < x-dx_finer) |
                                       (zone_abin.index == max_h_rel_index)]
             else:
                 print("No points at a:{}, x:{}".format(rad2deg(a),x))
 
-        #show portion to plot what remains
+        #Created open interpolation of data using scipy spline interp
+        x_curve, h_curve = interpolation(zone_abin['X [R]'].values,
+                                         zone_abin['h_rel'].values,
+                                         closed=False)
+        #Select points from interpolated curve using basic linear np.interp
+        j=0
+        for x in linspace(x_min, x_max-dx, nX):
+            h_load = np.interp(x, x_curve, h_curve)
+            x_load = x
+            y_load = y0[j] + h_load*np.cos(a)
+            z_load = z0[j] + h_load*np.sin(a)
+            mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load, a]],
+                          columns = ['X [R]', 'Y [R]', 'Z [R]', 'alpha']),
+                          ignore_index=True)
+            j+=1
+
+        #show interpolated curve
+        if show:
+            ax.scatter(x_curve, h_curve, c='orange',
+                       label='interpolated')
+
+        #show portion to plot points used for interpolation
         if show:
             ax.scatter(zone_abin['X [R]'], zone_abin['h'], c='r',
                        label='remaining')
@@ -302,7 +340,9 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                 filename = 'slice_log2/img-{:.0f}.png'.format(10*k)
             plot.savefig(filename)
             k = k+.1
-    from IPython import embed; embed()
+    #Sort mesh by X then alpha, then drop alpha column
+    mesh = mesh.sort_values(by=['X [R]', 'alpha']).drop(columns='alpha')
+    return mesh
 
 
 #main program
@@ -323,7 +363,7 @@ if __name__ == "__main__":
     X_MIN = -11
 
     #Slice and construct XYZ data
-    MESH = ah_slicer(ZONE, X_MIN, X_MAX, 20, 18, SHOW_VIDEO)
+    MESH = ah_slicer(ZONE, X_MIN, X_MAX, 40, 50, SHOW_VIDEO)
     #MESH.to_hdf('slice_mesh.h5', format='table', key='MESH', mode='w')
     #MESH.to_csv('slice_mesh.csv', index=False)
 

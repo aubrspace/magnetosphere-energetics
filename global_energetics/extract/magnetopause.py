@@ -31,10 +31,10 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     write_to_timelog)
 
 def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
-                     pngpath='./', nstream_day=18, lon_max=122,
+                     pngpath='./', nstream_day=36, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=36, rho_max=50,rho_min=0.5,tail_cap=-20,
-                     nslice=40, nalpha=50, nfill=2,
+                     nslice=40, nalpha=36, nfill=2,
                      integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
@@ -97,7 +97,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                                stream_zone_list, [1,2,3],
                                                'mp_stream_points.csv')
         #slice and construct XYZ data
-        mp_mesh = surface_construct.yz_slicer(stream_df, tail_cap_mod,
+        mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap_mod,
                                               x_subsolar, nslice, nalpha,
                                               False)
         #create and load cylidrical zone
