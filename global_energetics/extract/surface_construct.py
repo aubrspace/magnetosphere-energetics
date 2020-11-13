@@ -47,6 +47,21 @@ def interpolation(zone_x1val, zone_x2val, *, svar=20, closed=True,
     x1_curve, x2_curve = interp.splev(np.linspace(0,1,maxpt), tck)
     return x1_curve, x2_curve
 
+def interp_linear(zone_x1val, zone_x2val, x1_solveon):
+    """Function makes simple linear interpolation of values
+    Inputs
+        zone_x1val- first (horizontal) coordinate valuesfor interpolation
+        zone_x2val- second (vertical) values for interpolation
+        x1_solveon- set of x1 points to return with values
+    Returns
+        x1_curve- first coordinate interpolated curve
+        x2_curve- second coordinate interpolated curve
+    """
+    x2_curve = []
+    for x in x1_solveon:
+        x2_curve.append(np.interp(x, zone_x1val, zone_x2val))
+    return x1_solveon, x2_curve
+
 def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
     """Function loops through x position to create 2D closed curves in YZ
     Inputs
@@ -297,6 +312,23 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
             else:
                 print("No points at a:{}, x:{}".format(rad2deg(a),x))
 
+        #Create simple linear interpolation using numpy interp
+        x_curve, h_curve = interp_linear(zone_abin['X [R]'].values,
+                                         zone_abin['h_rel'].values,
+                                         linspace(x_min, x_max-dx, nX))
+
+        #Load points into mesh
+        j=0
+        for x in x_curve:
+            h_load = h_curve[j]
+            x_load = x
+            y_load = y0[j] + h_load*np.cos(a)
+            z_load = z0[j] + h_load*np.sin(a)
+            mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load, a]],
+                          columns = ['X [R]', 'Y [R]', 'Z [R]', 'alpha']),
+                          ignore_index=True)
+            j+=1
+        '''
         #Created open interpolation of data using scipy spline interp
         x_curve, h_curve = interpolation(zone_abin['X [R]'].values,
                                          zone_abin['h_rel'].values,
@@ -312,6 +344,7 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                           columns = ['X [R]', 'Y [R]', 'Z [R]', 'alpha']),
                           ignore_index=True)
             j+=1
+        '''
 
         #show interpolated curve
         if show:
@@ -354,16 +387,16 @@ if __name__ == "__main__":
     else:
         SHOW_VIDEO = False
     #Read in data values and sort by X position
-    ZONE = pd.read_csv('mp_stream_points.csv')
+    ZONE = pd.read_csv('cps_stream_points.csv')
     ZONE = ZONE.drop(columns=['Unnamed: 3'])
     ZONE = ZONE.sort_values(by=['X [R]'])
     ZONE = ZONE.reset_index(drop=True )
     X_MAX = ZONE['X [R]'].max()
     #X_MIN = ZONE['X [R]'].min()
-    X_MIN = -11
+    X_MIN = ZONE['X [R]'].min()
 
     #Slice and construct XYZ data
-    MESH = ah_slicer(ZONE, X_MIN, X_MAX, 40, 50, SHOW_VIDEO)
+    MESH = ah_slicer(ZONE, X_MIN, -3, 20, 36, SHOW_VIDEO)
     #MESH.to_hdf('slice_mesh.h5', format='table', key='MESH', mode='w')
     #MESH.to_csv('slice_mesh.csv', index=False)
 

@@ -73,8 +73,8 @@ if __name__ == "__main__":
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, nfill=10,
                                   integrate_volume=False,
-                                  integrate_surface=False)
-    #plasmasheet.get_plasmasheet(field_data, datafile)
+                                  integrate_surface=True)
+    plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],

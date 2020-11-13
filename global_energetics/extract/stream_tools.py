@@ -275,19 +275,28 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
         x_in, y_in, z_in = find_tail_disc_point(rho_inner,psi[i],x_disc)
         r_out = sqrt(x_out**2+y_out**2+z_out**2)
         r_in = sqrt(x_in**2+y_in**2+z_in**2)
-        #create stream lines
-        stream_type = 'inner_mag'
+        #create and check outer field line
+        if tp.data.query.probe_at_position(x_out, y_out, z_out)[0][7] < 0:
+            stream_type = 'south'
+        else:
+            stream_type = 'north'
+        #stream_type = 'inner_mag'
         create_stream_zone(field_data, x_out, y_out, z_out,
                           'outer_tail_line_', stream_type, cart_given=True)
-        create_stream_zone(field_data, x_in, y_in, z_in,
-                          'inner_tail_line_', stream_type, cart_given=True)
-        #check status
         outer_closed = check_streamline_closed(field_data,
                                               'outer_tail_line_', r_out,
                                               stream_type)
+        #create and check inner field line
+        if tp.data.query.probe_at_position(x_in, y_in, z_in)[0][7] < 0:
+            stream_type = 'south'
+        else:
+            stream_type = 'north'
+        create_stream_zone(field_data, x_in, y_in, z_in,
+                          'inner_tail_line_', stream_type, cart_given=True)
         inner_closed = check_streamline_closed(field_data,
                                               'inner_tail_line_', r_in,
                                               stream_type)
+        #Handle what happens if initial points are open/closed
         if outer_closed:
             print('WARNING: field line closed at RHO_MAX={}R_e'.format(
                                                                  rho_max))
@@ -313,6 +322,12 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
                 x_mid, y_mid, z_mid = find_tail_disc_point(rho_mid,psi[i],
                                                            x_disc)
                 r_mid = sqrt(x_mid**2+y_mid**2+z_mid**2)
+                #check if north or south attached
+                if tp.data.query.probe_at_position(x_mid, y_mid,
+                                                   z_mid)[0][7] < 0:
+                    stream_type = 'south'
+                else:
+                    stream_type = 'north'
                 #create streamzone
                 create_stream_zone(field_data, x_mid, y_mid, z_mid,
                           'mid_tail_line_', stream_type, cart_given=True)
@@ -424,7 +439,6 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
             itr = 0
             while (notfound and itr < max_iter):
                 mid_lat = (pole_lat+equat_lat)/2
-                print(mid_lat)
                 [xgsm, ygsm, zgsm] = mag2gsm(seed_radius,mid_lat,lon,time)
                 create_stream_zone(field_data, xgsm, ygsm, zgsm,
                                    'temp_ps_line_', 'inner_mag',
@@ -440,9 +454,6 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
                 if abs(pole_lat - equat_lat)<tolerance and (
                                                         mid_lat_closed):
                     notfound = False
-                    print('found at')
-                    print(lon)
-                    print('\n')
                     field_data.zone('temp*').name = 'plasma_sheet_'.format(
                                                                  equat_lat)
                 else:

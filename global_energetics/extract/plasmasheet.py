@@ -30,10 +30,10 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     write_to_timelog)
 
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
-                     pngpath='./', nstream=50, lat_max=89,
-                     lon_limit=90, rday_max=30,rday_min=3.5,
+                     pngpath='./', nstream=64, lat_max=89,
+                     lon_limit=30, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
-                     nslice=40, nalpha=15, nfill=5):
+                     nslice=20, nalpha=36, nfill=5):
     """Function that finds, plots and calculates energetics on the
         plasmasheet surface.
     Inputs
@@ -82,26 +82,22 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         #port stream data to pandas DataFrame object
         stream_zone_list = []
         for zone in range(field_data.num_zones):
-            if field_data.zone(zone).name.find('plasmasheet') != -1:
-                stream_zone_list.append(zone.index)
+            if field_data.zone(zone).name.find('plasma_sheet_') != -1:
+                stream_zone_list.append(field_data.zone(zone).index+1)
         print(stream_zone_list)
-        stream_zone_list = np.linspace(3,field_data.num_zones,
-                                       field_data.num_zones-3+1)
         stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
                                           [1,2,3], 'cps_stream_points.csv')
-        xstd = stream_df.std()['X [R]']
-        xmean = stream_df.mean()['X [R]']
-        min_x = xmean-3.5*xstd
-        print(stream_df)
+        min_x = stream_df['X [R]'].min()
+        max_x = stream_df['X [R]'].max()
         print(min_x)
         #slice and construct XYZ data
-        print('max x: {:.2f}, set to x=-5\nmin x: {:.2f}'.format(max_x,
+        print('max x: {:.2f}, set to x=-3\nmin x: {:.2f}'.format(max_x,
                                                                 min_x))
-        cps_mesh = surface_construct.yz_slicer(stream_df, min_x,
-                                               -5, nslice, nalpha,
-                                               True)
+        cps_mesh = surface_construct.ah_slicer(stream_df, min_x,
+                                              -3, nslice, nalpha,
+                                              False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, nfill, min_x+5, -1,
+        create_cylinder(field_data, nslice, nalpha, nfill, min_x, -3,
                         'cps_zone')
         load_cylinder(field_data, cps_mesh, 'cps_zone',
                       nfill, nalpha, nslice)

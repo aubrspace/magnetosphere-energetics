@@ -33,7 +33,7 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
 def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream_day=36, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
-                     nstream_tail=36, rho_max=50,rho_min=0.5,tail_cap=-20,
+                     nstream_tail=36, rho_max=125,rho_min=0.5,tail_cap=-20,
                      nslice=40, nalpha=36, nfill=2,
                      integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
