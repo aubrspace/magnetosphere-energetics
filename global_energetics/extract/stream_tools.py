@@ -10,7 +10,7 @@ import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import spacepy
-from spacepy import coordinates as coord
+#from spacepy import coordinates as coord
 from spacepy import time as spacetime
 import tecplot as tp
 from tecplot.constant import *
@@ -133,7 +133,7 @@ def sph_to_cart(radius, lat, lon):
     y_pos = (radius * cos(deg2rad(lat)) * sin(deg2rad(lon)))
     z_pos = (radius * sin(deg2rad(lat)))
     return [x_pos, y_pos, z_pos]
-
+'''
 def mag2gsm(radius, latitude, longitude, time):
     """Function converts magnetic spherical coordinates to cartesian
         coordinates in GSM
@@ -148,7 +148,86 @@ def mag2gsm(radius, latitude, longitude, time):
     coordinates = coord.Coords([radius, latitude, longitude], 'SM', 'sph')
     coordinates.ticks = time
     return coordinates.convert('GSM', 'car').data[0][0:3]
+'''
 
+def sm2gsm_temp(radius, latitude, longitude, time):
+    """Function converts solar magnetic spherical coordinates to cartesian
+        coordinates in GSM
+    Inputs
+        radius
+        latitude- relative to magnetic dipole axis
+        longitude- relative to magnetic dipole axis
+        time- spacepy Ticktock object with time information
+    Output
+        xgsm, ygsm, zgsm- in form of 3 element np array
+    """
+    xsm = radius * cos(deg2rad(latitude))*cos(deg2rad(longitude))
+    ysm = radius * cos(deg2rad(latitude))*sin(deg2rad(longitude))
+    zsm = radius * sin(deg2rad(latitude))
+    #Read from file generated using spacepy, temp fix only
+    dpdf = pd.read_csv('dipole_loc.csv')
+    xdp = dpdf[dpdf['time'] == str(time.data[0])][' xgsm'].values[0]
+    ydp = dpdf[dpdf['time'] == str(time.data[0])][' ygsm'].values[0]
+    zdp = dpdf[dpdf['time'] == str(time.data[0])][' zgsm'].values[0]
+    mu = np.arctan2(-xdp, np.sqrt(zdp**2+ydp**2))
+    Tmat = rotation(-mu, 'y')
+    #getTmat function give similar results but not identical
+    #Tmat = getTmat(time)
+    xgsm, ygsm, zgsm = np.matmul(Tmat, [[xsm], [ysm], [zsm]])
+    return xgsm[0], ygsm[0], zgsm[0]
+
+def getTmat(time):
+    """Function takes spacepy ticktock object and returns trans matrix
+    Inputs
+        time
+    Output
+        T4_t - transformation matrix for sm2gsm
+    """
+    '''
+    y2k = dt.datetime(2000,1,1,12)
+    y2ktick = spacetime.Ticktock(y2k, 'UTC')
+    T0 = time.getUNX()[0] - y2ktick.getUNX()[0]
+    '''
+    MJD = time.getMJD()[0]
+    T0 = (MJD-51544.5)/36525
+    theta = deg2rad(100.461+36000.770*T0+15.04107)
+    eps = deg2rad(23.439-0.013*T0)
+    M = 357.528+35999.05*T0+0.04107
+    lam = 280.460+36000.772*T0+0.04107
+    lam_sun = deg2rad(lam+(1.915-0.0048*T0)*sin(M)+0.02*sin(2*M))
+    T1 = rotation(theta, 'z')
+    T2 = np.matmul(rotation(lam_sun, 'z'), rotation(eps, 'x'))
+    xg = cos(deg2rad(287.45))*cos(deg2rad(80.25))
+    yg = cos(deg2rad(287.45))*sin(deg2rad(80.25))
+    zg = sin(deg2rad(287.45))
+    T = np.matmul(T2, np.transpose(T1))
+    xe, ye, ze = np.matmul(T, [[xg], [yg], [zg]])
+    #from IPython import embed; embed()
+    mu = np.arctan2(-xe,np.sqrt(ye**2+ze**2))
+    T4_t = np.transpose(rotation(-mu[0], 'y'))
+    return T4_t
+
+def rotation(angle, axis):
+    """Function returns rotation matrix given axis and angle
+    Inputs
+        angle
+        axis
+    Outputs
+        matrix
+    """
+    if axis == 'x' or axis == 'X':
+        matrix = [[1,           0,          0],
+                  [0,  cos(angle), sin(angle)],
+                  [0, -sin(angle), cos(angle)]]
+    elif axis == 'y' or axis == 'Y':
+        matrix = [[ cos(angle), 0, sin(angle)],
+                  [0,           1,          0],
+                  [-sin(angle), 0, cos(angle)]]
+    elif axis == 'z' or axis == 'Z':
+        matrix = [[ cos(angle), sin(angle), 0],
+                  [-sin(angle), cos(angle), 0],
+                  [0,           0,          1]]
+    return matrix
 
 def find_tail_disc_point(rho, psi_disc, x_pos):
     """Function find spherical coord of a point on a disc at a constant x
@@ -373,8 +452,10 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
     #iterate through longitudes zones
     for lon in lon_list:
         print('longitude {:.1f}'.format(lon))
+        '''
         sphcoor = coord.Coords([seed_radius, 85, lon], 'SM', 'sph')
         sphcoor.ticks = time
+        '''
         #initialize latitude search bounds
         pole_lat = lat_max
         equat_lat = 45 * lat_max/abs(lat_max)
@@ -398,14 +479,16 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
                 plot.fieldmap(map_index).mesh.color=Color.Red
         """
         #Create bounding fieldlines
-        [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, pole_lat, lon, time)
+        #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, pole_lat, lon, time)
+        [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, pole_lat, lon, time)
         create_stream_zone(field_data, xgsm, ygsm, zgsm,
                            'temp_poleward_', 'inner_mag', cart_given=True)
         poleward_closed = check_streamline_closed(field_data,
                                                   'temp_poleward',
                                                   abs(tail_cap),
                                                   'inner_mag')
-        [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, equat_lat, lon, time)
+        #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, equat_lat, lon, time)
+        [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, equat_lat, lon, time)
         create_stream_zone(field_data, xgsm, ygsm, zgsm,
                         'temp_equatorward_', 'inner_mag', cart_given=True)
         equatorward_closed = check_streamline_closed(field_data,
@@ -417,7 +500,8 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
             print('\nWarning: high and low lat {:.2f}, {:.2f} '.format(
                                                       pole_lat, equat_lat)+
                   'closed at longitude {:.1f}\n'.format(lon))
-            [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
+            #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
+            [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, mid_lat, lon, time)
             create_stream_zone(field_data, xgsm, ygsm, zgsm,
                                'plasma_sheet_', 'inner_mag',
                                cart_given=True)
@@ -426,7 +510,8 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
         elif not poleward_closed and (not equatorward_closed):
             print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
                                                     pole_lat, equat_lat))
-            [xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
+            #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
+            [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, mid_lat, lon, time)
             create_stream_zone(field_data, xgsm, ygsm, zgsm,
                                'plasma_sheet_', 'inner_mag',
                                cart_given=True)
@@ -439,7 +524,8 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
             itr = 0
             while (notfound and itr < max_iter):
                 mid_lat = (pole_lat+equat_lat)/2
-                [xgsm, ygsm, zgsm] = mag2gsm(seed_radius,mid_lat,lon,time)
+                #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius,mid_lat,lon,time)
+                [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius,mid_lat,lon,time)
                 create_stream_zone(field_data, xgsm, ygsm, zgsm,
                                    'temp_ps_line_', 'inner_mag',
                                    cart_given=True)
