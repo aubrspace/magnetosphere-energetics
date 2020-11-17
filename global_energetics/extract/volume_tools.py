@@ -17,7 +17,8 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                       calculate_energetics,
                                                       dump_to_pandas)
 
-def volume_analysis(field_data, zone_name):
+def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
+                    volKEperp=True, volEth=True):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
@@ -32,14 +33,43 @@ def volume_analysis(field_data, zone_name):
     main_frame = [fr for fr in tp.frames('main')][0]
     volume_name = zone_name.split('_')[0]
     zone_index = int(field_data.zone(zone_name).index)
-    uB_index = int(field_data.variable('uB *').index)
-    #integrate magnetic energy
-    uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
-                          tail_only=True)
-    magnetic_energy = pd.DataFrame([uB], columns=[volume_name+' uB [J]'])
-    magnetic_energy = magnetic_energy * 6370**3
+    keys = []
+    data = []
+    if voluB:
+        #integrate magnetic energy
+        keys.append(volume_name+' uB [J]')
+        uB_index = int(field_data.variable('uB *').index)
+        uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
+                              tail_only=True)
+        data.append(uB)
+    if volKEpar:
+        #integrate parallel KE
+        keys.append(volume_name+' KEpar [J]')
+        KEpar_index = int(field_data.variable('KEpar *').index)
+        KEpar = integrate_volume(KEpar_index, zone_index,
+                                 volume_name+' KEpar [J]',
+                                 tail_only=True)
+        data.append(KEpar)
+    if volKEperp:
+        #integrate perp KE
+        keys.append(volume_name+' KEperp [J]')
+        KEperp_index = int(field_data.variable('KEperp *').index)
+        KEperp = integrate_volume(KEperp_index, zone_index,
+                                 volume_name+' KEperp [J]',
+                                 tail_only=True)
+        data.append(KEperp)
+    if volEth:
+        #integrate thermal energy
+        keys.append(volume_name+' Etherm [J]')
+        Eth_index = int(field_data.variable('P *').index)
+        Eth = integrate_volume(KEperp_index, zone_index,
+                                 volume_name+' Etherm [J]',
+                                 tail_only=True)
+        data.append(Eth)
+    volume_energies = pd.DataFrame([data], columns=keys)
+    volume_energies = volume_energies * 6370**3
 
-    return magnetic_energy
+    return volume_energies
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

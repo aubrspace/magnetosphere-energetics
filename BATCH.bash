@@ -20,9 +20,9 @@ echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #create log file for integral quantities
 touch output/mp_integral_log.csv
-echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW], uB[J]'>>output/mp_integral_log.csv
-#touch cps_integral_log.csv
-#echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW]'>>cps_integral_log.csv
+echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW], uB[J], KEpar[J], KEperp[J], Etherm[J]'>>output/mp_integral_log.csv
+touch output/cps_integral_log.csv
+echo $'year, month, day, hour, minute, second, abstime, k_out[kW], k_net[kW], k_in[kW], uB[J], KEpar[J], KEperp[J], Etherm[J]'>>output/cps_integral_log.csv
 
 #execute script on .plt files
 for file in $PLTDIR*.plt

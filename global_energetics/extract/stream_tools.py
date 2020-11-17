@@ -500,22 +500,14 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
             print('\nWarning: high and low lat {:.2f}, {:.2f} '.format(
                                                       pole_lat, equat_lat)+
                   'closed at longitude {:.1f}\n'.format(lon))
-            #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
-            [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, mid_lat, lon, time)
-            create_stream_zone(field_data, xgsm, ygsm, zgsm,
-                               'plasma_sheet_', 'inner_mag',
-                               cart_given=True)
-            field_data.delete_zones(field_data.zone('temp*'))
+            field_data.zone('temp_pole*').name = 'plasma_sheet_'.format(
+                                                                 pole_lat)
             field_data.delete_zones(field_data.zone('temp*'))
         elif not poleward_closed and (not equatorward_closed):
             print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
                                                     pole_lat, equat_lat))
-            #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, mid_lat, lon, time)
-            [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, mid_lat, lon, time)
-            create_stream_zone(field_data, xgsm, ygsm, zgsm,
-                               'plasma_sheet_', 'inner_mag',
-                               cart_given=True)
-            field_data.delete_zones(field_data.zone('temp*'))
+            field_data.zone('temp_equat*').name = 'plasma_sheet_'.format(
+                                                                 equat_lat)
             field_data.delete_zones(field_data.zone('temp*'))
         else:
             field_data.delete_zones(field_data.zone('temp*'))
@@ -688,9 +680,25 @@ def calculate_energetics(field_data, zone_name):
                             '-1*{Z Grid K Unit Normal},'+
                             '{Z Grid I Unit Normal})')
 
+    #Magnetic field unit vectors
+    eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{by} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{bz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+
     #Magnetic Energy per volume
     eq('{uB [J/km^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                         '/(2*4*3.14159*1e-7) * 1e-9')
+
+    #Ram pressure energy per volume
+    eq('{KEpar [J/km^3]} = {Rho [amu/cm^3]}/2 *'+
+                                      '(({U_x [km/s]}*{bx})**2+'+
+                                       '({U_y [km/s]}*{by})**2+'+
+                                       '({U_z [km/s]}*{bz})**2) *1.67e-6')
+    eq('{KEperp [J/km^3]} = {Rho [amu/cm^3]}/2 *'+
+                          '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
+                           '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
+                           '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
+                                                               '*1.67e-6')
 
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
@@ -878,18 +886,16 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
 
 
     #integrate over I planes
+    frame.activate()
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_I)
-    tempframe = [fr for fr in tp.frames('Frame*')][-1]
-    result = tempframe.dataset
+    result = [fr for fr in tp.frames('Frame*')][-1].dataset
     Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
     print('after I integration')
     for fr in tp.frames():
         print(fr.name)
 
     #delete frame and reinitialize frame structure
-    page.delete_frame(tempframe)
-    page.add_frame()
     frame.activate()
     print('after I cleanup')
     for fr in tp.frames():
@@ -898,8 +904,7 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
-    tempframe = [fr for fr in tp.frames('Frame*')][-1]
-    result = tempframe.dataset
+    result = [fr for fr in tp.frames('Frame*')][-1].dataset
     Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
     print('after K integration')
     for fr in tp.frames():
@@ -944,7 +949,7 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
         blank.active = True
         blank.variable = data.variable('X *')
         blank.comparison_operator = RelOp.GreaterThan
-        blank.comparison_value = -2
+        blank.comparison_value = -3
 
     #Setup macrofunction command
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
@@ -963,16 +968,15 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
     #Perform integration
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
-    tempframe = [fr for fr in tp.frames('Frame*')][0]
-    result = tempframe.dataset
-    integral = result.variable(qtname_abr).values('*').as_numpy_array()
+    result = [fr for fr in tp.frames('Frame*')][0].dataset
+    integral = result.variable(qtname_abr).values('*').as_numpy_array()[0]
 
     #Delete created frame and turn off blanking
-    page.delete_frame(tempframe)
     blank = plt.value_blanking.constraint(0)
     blank.active = False
     plt.value_blanking.active = False
-
+    frame.activate()
+    frame.move_to_top()
     return integral
 
 def abs_to_timestamp(abstime):

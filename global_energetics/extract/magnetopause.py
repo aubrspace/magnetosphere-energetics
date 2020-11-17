@@ -62,9 +62,9 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
     lon_set = np.linspace(-1*lon_max, lon_max, nstream_day)
     psi = np.linspace(-180*(1-1/nstream_tail), 180, nstream_tail)
     with tp.session.suspend():
-        main_frame = tp.active_frame()
-        main_frame.name = 'main'
         if field_data.variable_names.count('r [R]') ==0:
+            main_frame = tp.active_frame()
+            main_frame.name = 'main'
             tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
             tp.data.operate.execute_equation(
@@ -75,6 +75,8 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                   'if({Y [R]}>0,'+
                                      '180/pi*atan({Y [R]}/{X [R]})+180,'+
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
+        else:
+            main_frame = [fr for fr in tp.frames('main')][0]
         #Create Dayside Magnetopause field lines
         calc_dayside_mp(field_data, lon_set, rday_max, rday_min, dayitr_max,
                         daytol)
@@ -132,12 +134,12 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                                       columns=['mp_vol_not_integrated'])
 
         if integrate_surface:
-            magnetopause_power = surface_analysis(field_data, 'mp_zone',
+            magnetopause_powers = surface_analysis(field_data, 'mp_zone',
                                                   nfill, nslice)
-            print(magnetopause_power)
+            print(magnetopause_powers)
         if integrate_volume:
-            mp_magnetic_energy = volume_analysis(field_data, 'mp_zone')
-            print(mp_magnetic_energy)
+            mp_energies = volume_analysis(field_data, 'mp_zone')
+            print(mp_energies)
         '''
         #clean extra frames generated
         page = tp.active_page()
@@ -145,7 +147,7 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
             page.delete_frame(frame)
         '''
         write_to_timelog('output/mp_integral_log.csv', time.UTC[0],
-                          magnetopause_power.combine(mp_magnetic_energy,
+                          magnetopause_powers.combine(mp_energies,
                                                      np.maximum,
                                                      fill_value=-1e12))
 

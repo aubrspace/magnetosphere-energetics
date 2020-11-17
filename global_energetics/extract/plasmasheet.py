@@ -20,6 +20,8 @@ from global_energetics.makevideo import get_time
 from global_energetics.extract import surface_construct
 from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import surface_analysis
+from global_energetics.extract import volume_tools
+from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract import stream_tools
 #from global_energetics.extract.view_set import display_magnetopause
 from global_energetics.extract.stream_tools import (calc_plasmasheet,
@@ -33,7 +35,8 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=64, lat_max=89,
                      lon_limit=30, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=pi/90, tail_cap=-20,
-                     nslice=20, nalpha=36, nfill=5):
+                     nslice=20, nalpha=36, nfill=5,
+                     integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
         plasmasheet surface.
     Inputs
@@ -52,15 +55,13 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
     #set unique outputname
     outputname = datafile.split('e')[1].split('-000.')[0]+'-cps'
     print(field_data)
-
-
     #set parameters
     lon_set = np.append(np.linspace(-lon_limit, -180, int(nstream/4)),
                           np.linspace(180, lon_limit, int(nstream/4)))
     with tp.session.suspend():
-        main_frame = tp.active_frame()
-        main_frame.name = 'main'
         if field_data.variable_names.count('r [R]') ==0:
+            main_frame = tp.active_frame()
+            main_frame.name = 'main'
             tp.data.operate.execute_equation(
                     '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
             tp.data.operate.execute_equation(
@@ -71,7 +72,8 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                                   'if({Y [R]}>0,'+
                                      '180/pi*atan({Y [R]}/{X [R]})+180,'+
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
-
+        else:
+            main_frame = [fr for fr in tp.frames('main')][0]
         #Create plasmasheet field lines
         print('\nfinding north hemisphere boundary')
         calc_plasmasheet(field_data, lat_max, lon_set,
@@ -107,11 +109,17 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('cps_zone'),
                 source_zones=field_data.zone('global_field'))
-        plasmasheet_power = surface_analysis(field_data,'cps_zone',
+        if integrate_surface:
+            plasmasheet_powers = surface_analysis(field_data,'cps_zone',
                                              nfill, nslice)
-        print(plasmasheet_power)
-        write_to_timelog('cps_integral_log.csv', time.UTC[0],
-                         plasmasheet_power)
+            print(plasmasheet_powers)
+        if integrate_volume:
+            plasmasheet_energies = volume_analysis(field_data, 'cps_zone')
+            print(plasmasheet_energies)
+        write_to_timelog('output/cps_integral_log.csv', time.UTC[0],
+                         plasmasheet_powers.combine(plasmasheet_energies,
+                                                    np.maximum,
+                                                    fill_value=-1e12))
 
         #delete stream zones
         main_frame.activate()
