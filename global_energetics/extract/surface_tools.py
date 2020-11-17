@@ -44,6 +44,8 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
                                    surface_name+' K_out [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(kout)
+        print(data)
+        print(keys)
 
     print('***************************'+
           '\n{} knet integration\n'.format(zone_name))
@@ -54,6 +56,8 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
                                    surface_name+' K_net [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(knet)
+        print(data)
+        print(keys)
 
     print('***************************'+
           '\n{} kin integration\n'.format(zone_name))
@@ -64,6 +68,8 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
                                    surface_name+' K_in [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(kin)
+        print(data)
+        print(keys)
 
     #integrate area
     print('***************************'+
@@ -75,8 +81,12 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
                                    surface_name+' Area [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(kout)
+        print(data)
+        print(keys)
 
     surface_power = pd.DataFrame([data],columns=keys)
+    print(surface_power)
+    from IPython import embed; embed()
 
     surface_power = surface_power*6371**2
     return surface_power

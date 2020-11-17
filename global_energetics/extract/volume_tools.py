@@ -36,13 +36,19 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
     keys = []
     data = []
     if voluB:
+        print('***************************'+
+          '\n{} knet integration\n'.format(zone_name))
         #integrate magnetic energy
         keys.append(volume_name+' uB [J]')
         uB_index = int(field_data.variable('uB *').index)
         uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
                               tail_only=True)
         data.append(uB)
+        print(data)
+        print(keys)
     if volKEpar:
+        print('***************************'+
+          '\n{} knet integration\n'.format(zone_name))
         #integrate parallel KE
         keys.append(volume_name+' KEpar [J]')
         KEpar_index = int(field_data.variable('KEpar *').index)
@@ -50,7 +56,11 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
                                  volume_name+' KEpar [J]',
                                  tail_only=True)
         data.append(KEpar)
+        print(data)
+        print(keys)
     if volKEperp:
+        print('***************************'+
+          '\n{} knet integration\n'.format(zone_name))
         #integrate perp KE
         keys.append(volume_name+' KEperp [J]')
         KEperp_index = int(field_data.variable('KEperp *').index)
@@ -58,15 +68,22 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
                                  volume_name+' KEperp [J]',
                                  tail_only=True)
         data.append(KEperp)
+        print(data)
+        print(keys)
     if volEth:
+        print('***************************'+
+          '\n{} knet integration\n'.format(zone_name))
         #integrate thermal energy
         keys.append(volume_name+' Etherm [J]')
         Eth_index = int(field_data.variable('P *').index)
-        Eth = integrate_volume(KEperp_index, zone_index,
+        Eth = integrate_volume(Eth_index, zone_index,
                                  volume_name+' Etherm [J]',
                                  tail_only=True)
         data.append(Eth)
+        print(data)
+        print(keys)
     volume_energies = pd.DataFrame([data], columns=keys)
+    print(volume_energies)
     volume_energies = volume_energies * 6370**3
 
     return volume_energies
