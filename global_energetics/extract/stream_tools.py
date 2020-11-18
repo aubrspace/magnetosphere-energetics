@@ -876,29 +876,13 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                                       command=integrate_command_I)
     result = [fr for fr in tp.frames('Frame*')][-1].dataset
     Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    print('after I integration')
-    for fr in tp.frames():
-        print(fr.name)
-
     #delete frame and reinitialize frame structure
     frame.activate()
-    print('after I cleanup')
-    for fr in tp.frames():
-        print(fr.name)
-
     #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
     result = [fr for fr in tp.frames('Frame*')][-1].dataset
     Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    print('after K integration')
-    for fr in tp.frames():
-        print(fr.name)
-    #page.delete_frame(tempframe)
-    print('after K cleanup')
-    for fr in tp.frames():
-        print(fr.name)
-
     #sum all parts together
     integrated_total = sum(Ivalues)+sum(Kvalues)
     frame.activate()
@@ -923,10 +907,8 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
     frame.activate()
     data = frame.dataset
     plt= frame.plot()
-
     #validate name (special characters give tp a lot of problems)
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
-
     if tail_only:
         #value blank domain around X>-2
         plt.value_blanking.active = True
@@ -935,7 +917,6 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
         blank.variable = data.variable('X *')
         blank.comparison_operator = RelOp.GreaterThan
         blank.comparison_value = -3
-
     #Setup macrofunction command
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
                        "VariableOption='Scalar' "
@@ -949,7 +930,6 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
                        "PlotResults='T' "+
                        "PlotAs='"+qtname+"' "+
                        "TimeMin=0 TimeMax=0")
-
     #Perform integration
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)

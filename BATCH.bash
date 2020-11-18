@@ -8,6 +8,7 @@ mkdir output
 mkdir output/plt
 mkdir output/lay
 mkdir output/png
+OUT=output/
 PLTOUT=output/plt/
 LAYOUT=output/lay/
 PNGOUT=output/png/
@@ -27,7 +28,7 @@ echo $'year, month, day, hour, minute, second, Etherm[J], KEpar[J], KEperp[J], k
 #execute script on .plt files
 for file in $PLTDIR*.plt
 do
-    python main.py $file $PNGOUT
+    python main.py $file $OUT $PNGOUT $PLTOUT
 done
 
 #create video from png file

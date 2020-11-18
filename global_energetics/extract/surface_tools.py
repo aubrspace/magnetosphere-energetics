@@ -35,59 +35,44 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
     keys = []
     data = []
     #integrate k flux
-    print('***************************'+
-          '\n{} kout integration\n'.format(zone_name))
     if koutnorm:
+        print('***************************'+
+              '\n{} kout integration\n'.format(zone_name))
         keys.append(surface_name+' K_out [kW]')
         kplus_index = int(field_data.variable('K_out+*').index)
         kout = integrate_surface(kplus_index, zone_index,
                                    surface_name+' K_out [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(kout)
-        print(data)
-        print(keys)
-
-    print('***************************'+
-          '\n{} knet integration\n'.format(zone_name))
     if knetnorm:
+        print('***************************'+
+              '\n{} knet integration\n'.format(zone_name))
         keys.append(surface_name+' K_net [kW]')
         knet_index = int(field_data.variable('K_out *').index)
         knet = integrate_surface(knet_index, zone_index,
                                    surface_name+' K_net [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(knet)
-        print(data)
-        print(keys)
-
-    print('***************************'+
-          '\n{} kin integration\n'.format(zone_name))
     if koutnorm:
+        print('***************************'+
+              '\n{} kin integration\n'.format(zone_name))
         keys.append(surface_name+' K_in [kW]')
         kminus_index = int(field_data.variable('K_out-*').index)
         kin = integrate_surface(kminus_index, zone_index,
                                    surface_name+' K_in [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(kin)
-        print(data)
-        print(keys)
-
     #integrate area
-    print('***************************'+
-          '\n{} area integration\n'.format(zone_name))
     if surface_area:
+        print('***************************'+
+              '\n{} area integration\n'.format(zone_name))
         keys.append(surface_name+' Area [m^2]')
         area_index = int(field_data.variable('K_out+*').index)
         SA = integrate_surface(area_index, zone_index,
                                    surface_name+' Area [kW]',
                                    idimension=nfill, kdimension=nslice)
         data.append(kout)
-        print(data)
-        print(keys)
-
     surface_power = pd.DataFrame([data],columns=keys)
-    print(surface_power)
-    from IPython import embed; embed()
-
     surface_power = surface_power*6371**2
     return surface_power
 

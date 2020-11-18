@@ -21,7 +21,9 @@ def twodigit(num):
 def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=0.25,
                      fullview=True, save_img=True, pngpath='./',
-                     outputname='output', show_contour=True, nslice=40):
+                     save_plt=True, pltpath='./',
+                     outputname='output', show_contour=True,
+                     mpslice=40, cpsslice=20):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
@@ -32,7 +34,12 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
         fullview- True for global view of mangetopause, false for zoomed
         save_img- default True
         pngpath- path for saving .png file
+        save_plt- default True
+        pltpath- path for saving .png file
         outputname- default is 'output.png'
+        show_contour
+        mpslice- number of x slices in mp surface
+        cpsslice- number of x slices in cps surface
     """
     plt = frame.plot()
     field_data = frame.dataset
@@ -54,7 +61,12 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
                                             SurfacesToPlot.IKPlanes)
                 plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
-                plt.fieldmap(map_index).surfaces.k_range = (0,-1,nslice-1)
+                if zone.name == 'mp_zone':
+                    plt.fieldmap(map_index).surfaces.k_range = (0,-1,
+                                                                mpslice-1)
+                if zone.name == 'cps_zone':
+                    plt.fieldmap(map_index).surfaces.k_range = (0,-1,
+                                                                cpsslice-1)
 
     #mesh, contour and basic zoomed out position for consistency
     plt.show_mesh = False
@@ -220,6 +232,10 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
 
     if save_img:
         tp.export.save_png(pngpath+outputname+'.png', width=3200)
+    if save_plt:
+        tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
+                                 include_data_share_linkage=True,
+                                 include_autogen_face_neighbors=True)
 
 
 def bargraph_setup(frame, color, barid, axis_title, axis_range, *,

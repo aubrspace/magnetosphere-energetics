@@ -30,18 +30,18 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
 
-def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
-                     pngpath='./', nstream_day=36, lon_max=122,
+def get_magnetopause(field_data, datafile, *, outputpath='output/',
+                     nstream_day=36, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=36, rho_max=125,rho_min=0.5,tail_cap=-20,
-                     nslice=40, nalpha=36, nfill=2,
+                     nslice=40, nalpha=36, nfill=10,
                      integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
         field_data- tecplot DataSet object with 3D field data
         datafile- field data filename, assumes .plt file
-        pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
+        outputpath- path for output of .csv of points
         nstream_day- number of streamlines generated for dayside algorithm
         lon_max- longitude limit of dayside algorithm for streams
         rday_max, rday_min- radial limits (in XY) for dayside algorithm
@@ -96,8 +96,8 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         stream_zone_list = np.linspace(2,field_data.num_zones,
                                        field_data.num_zones-2+1)
         stream_df, x_subsolar = dump_to_pandas(main_frame,
-                                               stream_zone_list, [1,2,3],
-                                               'mp_stream_points.csv')
+                                        stream_zone_list, [1,2,3],
+                                        outputpath+'mp_stream_points.csv')
         #slice and construct XYZ data
         mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap_mod,
                                               x_subsolar, nslice, nalpha,
@@ -108,7 +108,6 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
                       K=nalpha)
 
-        '''
         #delete stream zones
         main_frame.activate()
         for zone in reversed(range(field_data.num_zones)):
@@ -117,7 +116,6 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
                 field_data.zone(zone).name.find('global_field') == -1 and
                 field_data.zone(zone).name.find('mp_zone') == -1):
                 field_data.delete_zones(field_data.zone(zone))
-        '''
 
         #interpolate field data to zone
         print('interpolating field data to magnetopause')
@@ -136,17 +134,13 @@ def get_magnetopause(field_data, datafile, *, pltpath='./', laypath='./',
         if integrate_surface:
             magnetopause_powers = surface_analysis(field_data, 'mp_zone',
                                                   nfill, nslice)
+            print('Magnetopause Power Terms')
             print(magnetopause_powers)
         if integrate_volume:
             mp_energies = volume_analysis(field_data, 'mp_zone')
+            print('Magnetopause Energy Terms')
             print(mp_energies)
-        '''
-        #clean extra frames generated
-        page = tp.active_page()
-        for frame in tp.frames('Frame*'):
-            page.delete_frame(frame)
-        '''
-        write_to_timelog('output/mp_integral_log.csv', time.UTC[0],
+        write_to_timelog(outputpath+'mp_integral_log.csv', time.UTC[0],
                           magnetopause_powers.combine(mp_energies,
                                                      np.maximum,
                                                      fill_value=-1e12))

@@ -31,8 +31,8 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
 
-def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
-                     pngpath='./', nstream=64, lat_max=89,
+def get_plasmasheet(field_data, datafile, *, outputpath='output/',
+                     nstream=64, lat_max=89,
                      lon_limit=30, rday_max=30,rday_min=3.5,
                      itr_max=100, searchtol=0.01, tail_cap=-20,
                      nslice=20, nalpha=36, nfill=5,
@@ -42,7 +42,7 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
     Inputs
         field_data- tecplot DataSet object with 3D field data
         datafile- field data input, assumes .plt file
-        pltpath, laypath, pngpath- path for output of .plt,.lay,.png files
+        outputpath- path for output files
         nstream- number of streamlines generated for algorithm
         lat_max- latitude limit of algorithm for field line seeding
         itr_max, searchtol- settings for bisection search algorithm
@@ -51,7 +51,6 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
     """
     #get date and time info from datafile name
     time = get_time(datafile)
-
     #set unique outputname
     outputname = datafile.split('e')[1].split('-000.')[0]+'-cps'
     print(field_data)
@@ -86,12 +85,11 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         for zone in range(field_data.num_zones):
             if field_data.zone(zone).name.find('plasma_sheet_') != -1:
                 stream_zone_list.append(field_data.zone(zone).index+1)
-        print(stream_zone_list)
         stream_df, max_x = dump_to_pandas(main_frame, stream_zone_list,
-                                          [1,2,3], 'cps_stream_points.csv')
+                                          [1,2,3],
+                                        outputpath+'cps_stream_points.csv')
         min_x = stream_df['X [R]'].min()
         max_x = stream_df['X [R]'].max()
-        print(min_x)
         #slice and construct XYZ data
         print('max x: {:.2f}, set to x=-3\nmin x: {:.2f}'.format(max_x,
                                                                 min_x))
@@ -112,25 +110,25 @@ def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
         if integrate_surface:
             plasmasheet_powers = surface_analysis(field_data,'cps_zone',
                                              nfill, nslice)
+            print('Plasmasheet Power Quantities')
             print(plasmasheet_powers)
         if integrate_volume:
             plasmasheet_energies = volume_analysis(field_data, 'cps_zone')
+            print('Plasmasheet Energy Quantities')
             print(plasmasheet_energies)
-        write_to_timelog('output/cps_integral_log.csv', time.UTC[0],
+        write_to_timelog(outputpath+'cps_integral_log.csv', time.UTC[0],
                          plasmasheet_powers.combine(plasmasheet_energies,
                                                     np.maximum,
                                                     fill_value=-1e12))
 
         #delete stream zones
         main_frame.activate()
-        '''
         for zone in reversed(range(field_data.num_zones)):
             tp.active_frame().plot().fieldmap(zone).show=True
             if (field_data.zone(zone).name.find('cps_zone') == -1 and
                 field_data.zone(zone).name.find('global_field') == -1 and
                 field_data.zone(zone).name.find('mp_zone') == -1):
                 field_data.delete_zones(field_data.zone(zone))
-        '''
 
 
 # Must list .plt that script is applied for proper execution

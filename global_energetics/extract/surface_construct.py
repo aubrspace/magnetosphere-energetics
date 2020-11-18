@@ -157,18 +157,20 @@ def yz_slicer(zone,x_min, x_max, n_slice, n_theta, show):
                 y_load = np.extract(condition, y_curve)[0]
                 z_load = np.extract(condition, z_curve)[0]
             else:
-                print("WARNING: No extraction at X={:.2f}, alpha={:.2f}".format(x,a))
                 r_previous = sqrt((y_load+ymean)**2+(z_load+zmean)**2)
                 y_load = np.interp(r_previous*np.sin(a)+ymean,
                                    y_curve, z_curve, period=2*pi)
                 z_load = np.interp(y_load, y_curve, z_curve,
                                    period=2*pi)
                 x_load = x
-                print('y_load:',y_load)
-                print('putting in dummy point at',
-                        'X= {:.2f}'.format(x),
-                        'Y= {:.2f}'.format(y_load),
-                        'Z= {:.2f}'.format(z_load))
+                if show:
+                    print("WARNING: No extraction at X={:.2f}, "+
+                          "alpha={:.2f}".format(x,a))
+                    print('y_load:',y_load)
+                    print('putting in dummy point at',
+                          'X= {:.2f}'.format(x),
+                          'Y= {:.2f}'.format(y_load),
+                          'Z= {:.2f}'.format(z_load))
             mesh = mesh.append(pd.DataFrame([[x_load, y_load, z_load]],
                                columns = ['X [R]','Y [R]','Z [R]']),
                                ignore_index=True)
@@ -309,7 +311,7 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                                       (zone_abin['X [R]'] > x+dx_finer) |
                                       (zone_abin['X [R]'] < x-dx_finer) |
                                       (zone_abin.index == max_h_rel_index)]
-            else:
+            elif show:
                 print("No points at a:{}, x:{}".format(rad2deg(a),x))
 
         #Create simple linear interpolation using numpy interp
