@@ -19,7 +19,7 @@ def twodigit(num):
     return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
 
 def display_boundary(frame, contour_key, filename, *, magnetopause=True,
-                     plasmasheet=True, colorbar_range=2.5,
+                     plasmasheet=True, colorbar_range=0.25,
                      fullview=True, save_img=True, pngpath='./',
                      outputname='output', show_contour=True, nslice=40):
     """Function to center a boundary object and adjust colorbar
@@ -37,7 +37,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
     plt = frame.plot()
     field_data = frame.dataset
     colorbar = np.linspace(-1*colorbar_range, colorbar_range,
-                           int(4*colorbar_range+1))
+                           int(4*(colorbar_range*10)+1))
     #create list of zones to be displayed based on inputs
     zone_list = ['global_field']
     #zone_list = []

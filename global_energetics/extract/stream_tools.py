@@ -96,21 +96,6 @@ def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
                     isclosed = False
                     return isclosed
         return isclosed
-        '''
-    elif stream_type == 'inner_mag':
-        x_values = field_data.zone(zone_name+'*').values(
-                                                    'X *').as_numpy_array()
-        x_values = field_data.zone(zone_name+'*').values(
-                                                    'X *').as_numpy_array()
-        y_values = field_data.zone(zone_name+'*').values(
-                                                    'Y *').as_numpy_array()
-        z_values = field_data.zone(zone_name+'*').values(
-                                                    'Z *').as_numpy_array()
-        pos_bound = [40,128,128]
-        neg_bound = [-256,-128,-128]
-        x_max = abs(x_values.min())
-        r_end_n, r_end_s = r_values[0], r_values[-1]
-        '''
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
     #check if closed

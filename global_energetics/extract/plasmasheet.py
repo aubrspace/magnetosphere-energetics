@@ -34,7 +34,7 @@ from global_energetics.extract.stream_tools import (calc_plasmasheet,
 def get_plasmasheet(field_data, datafile, *, pltpath='./', laypath='./',
                      pngpath='./', nstream=64, lat_max=89,
                      lon_limit=30, rday_max=30,rday_min=3.5,
-                     itr_max=100, searchtol=pi/90, tail_cap=-20,
+                     itr_max=100, searchtol=0.01, tail_cap=-20,
                      nslice=20, nalpha=36, nfill=5,
                      integrate_surface=True, integrate_volume=True):
     """Function that finds, plots and calculates energetics on the
