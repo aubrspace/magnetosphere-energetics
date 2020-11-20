@@ -2,7 +2,7 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #set path to .idl files and script
-IDLDIR=./ionosphere_data/
+IDLDIR=./ionosphere_data/15minute/
 SCRIPTDIR=./
 
 #execute script on .idl files
