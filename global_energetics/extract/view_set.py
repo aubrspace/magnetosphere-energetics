@@ -23,6 +23,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                      fullview=True, save_img=True, pngpath='./',
                      save_plt=True, pltpath='./',
                      outputname='output', show_contour=True,
+                     show_slice=True, show_fieldline=True, do_blanking=True,
                      mpslice=40, cpsslice=20):
     """Function to center a boundary object and adjust colorbar
         settings
@@ -37,7 +38,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
         save_plt- default True
         pltpath- path for saving .png file
         outputname- default is 'output.png'
-        show_contour
+        show_contour, show_fieldline, do_blanking
         mpslice- number of x slices in mp surface
         cpsslice- number of x slices in cps surface
     """
@@ -160,48 +161,51 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
     view.position = (-490,519,328)
     view.magnification = 5.470
 
-    #add slice at Y=0
-    plt.show_slices = True
-    yslice = plt.slice(0)
-    yslice.orientation = SliceSurface.YPlanes
-    yslice.origin[1] = -.10
-    yslice.contour.flood_contour_group_index = 1
-    yslice.effects.use_translucency = True
-    jycontour = plt.contour(1)
-    jycontour.variable_index=12
-    jycontour.colormap_name = 'Diverging - Brown/Green'
-    jycontour.legend.vertical = True
-    jycontour.legend.position[1] = 72
-    jycontour.legend.position[0] = 98
-    jycontour.legend.box.box_type = TextBox.Filled
-    jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
-    jycontour.labels.step = 2
-    jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
-    jycontour.colormap_filter.continuous_max = 0.003
-    jycontour.colormap_filter.continuous_min = -0.003
-    jycontour.colormap_filter.reversed = True
+    if show_slice:
+        #add slice at Y=0
+        plt.show_slices = True
+        yslice = plt.slice(0)
+        yslice.orientation = SliceSurface.YPlanes
+        yslice.origin[1] = -.10
+        yslice.contour.flood_contour_group_index = 1
+        yslice.effects.use_translucency = True
+        jycontour = plt.contour(1)
+        jycontour.variable_index=12
+        jycontour.colormap_name = 'Diverging - Brown/Green'
+        jycontour.legend.vertical = True
+        jycontour.legend.position[1] = 72
+        jycontour.legend.position[0] = 98
+        jycontour.legend.box.box_type = TextBox.Filled
+        jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+        jycontour.labels.step = 2
+        jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
+        jycontour.colormap_filter.continuous_max = 0.003
+        jycontour.colormap_filter.continuous_min = -0.003
+        jycontour.colormap_filter.reversed = True
 
-    #add B field lines seeded in XZ plane
-    plt.show_streamtraces = True
-    plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.color = Color.Custom41
+    if show_fieldline:
+        #add B field lines seeded in XZ plane
+        plt.show_streamtraces = True
+        plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
+        plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
+        plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
+        plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+        plt.streamtraces.color = Color.Custom41
     plt.streamtraces.line_thickness = 0.2
 
-    #blanking outside 3D axes
-    plt.value_blanking.active = True
-    xblank = plt.value_blanking.constraint(1)
-    xblank.active = True
-    xblank.variable = frame.dataset.variable('X *')
-    xblank.comparison_operator = RelOp.LessThan
-    xblank.comparison_value = -40
-    zblank = plt.value_blanking.constraint(2)
-    zblank.active = True
-    zblank.variable = frame.dataset.variable('Z *')
-    zblank.comparison_operator = RelOp.LessThan
-    zblank.comparison_value = -40
+    if do_blanking:
+        #blanking outside 3D axes
+        plt.value_blanking.active = True
+        xblank = plt.value_blanking.constraint(1)
+        xblank.active = True
+        xblank.variable = frame.dataset.variable('X *')
+        xblank.comparison_operator = RelOp.LessThan
+        xblank.comparison_value = -40
+        zblank = plt.value_blanking.constraint(2)
+        zblank.active = True
+        zblank.variable = frame.dataset.variable('Z *')
+        zblank.comparison_operator = RelOp.LessThan
+        zblank.comparison_value = -40
 
     #add timestamp
     ticks = get_time(filename)

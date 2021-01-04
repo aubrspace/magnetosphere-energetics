@@ -1,23 +1,15 @@
 #/usr/bin/env python
-"""script for calculating integrated quantities from mp and cps
+"""prototype for visualizing upstream flowlines for dev mp surface alt
 """
 import sys
 import os
 import time
 import numpy as np
-from numpy import pi
-import datetime as dt
 import spacepy
 import tecplot as tp
-import tecplot
 from tecplot.constant import *
 from tecplot.exception import *
 import global_energetics
-from global_energetics.extract import magnetopause
-from global_energetics.extract import plasmasheet
-from global_energetics.extract import stream_tools
-from global_energetics.extract import surface_tools
-from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
 
 if __name__ == "__main__":
@@ -33,24 +25,32 @@ if __name__ == "__main__":
     datafile = sys.argv[1].split('/')[-1]
     nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
     print('nameout:'+nameout)
-    OUTPATH = sys.argv[2]
-    PNGPATH = sys.argv[3]
-    PLTPATH = sys.argv[4]
     OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
 
     #python objects
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
 
-    #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile)
-    #plasmasheet.get_plasmasheet(field_data, datafile)
+    #set frame object and radial coordinates
+    main_frame = tp.active_frame()
+    main_frame.name = 'main'
+    tp.data.operate.execute_equation(
+            '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+    tp.data.operate.execute_equation(
+            '{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
+    tp.data.operate.execute_equation(
+            '{lon [deg]} = if({X [R]}>0,'+
+                                '180/pi*atan({Y [R]} / {X [R]}),'+
+                            'if({Y [R]}>0,'+
+                                '180/pi*atan({Y [R]}/{X [R]})+180,'+
+                                '180/pi*atan({Y [R]}/{X [R]})-180))')
 
     #adjust view settings
     view_set.display_boundary([frame for frame in tp.frames('main')][0],
-                              'K_out *', datafile, plasmasheet=False,
-                              pngpath=PNGPATH, pltpath=PLTPATH,
-                              show_contour=True, outputname=nameout)
+                              'Rho *', datafile, plasmasheet=False,
+                              magnetopause=False, save_img=False,
+                              show_contour=False, show_slice=False,
+                              show_fieldline=False, do_blanking=False)
 
     #timestamp
     ltime = time.time()-start_time
