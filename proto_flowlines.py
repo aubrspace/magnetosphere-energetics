@@ -11,6 +11,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 import global_energetics
 from global_energetics.extract import view_set
+from global_energetics.extract import stream_tools
 
 if __name__ == "__main__":
     print('\nProcessing {pltfile}\n'.format(pltfile=sys.argv[1]))
@@ -51,6 +52,19 @@ if __name__ == "__main__":
                               magnetopause=False, save_img=False,
                               show_contour=False, show_slice=False,
                               show_fieldline=False, do_blanking=False)
+
+    #get xmax
+    xmax = field_data.zone('global_field').values('X *').max()
+
+    #set U as the vector field
+    plot = tp.active_frame().plot()
+    plot.vector.u_variable = field_data.variable('U_x*')
+    plot.vector.v_variable = field_data.variable('U_y*')
+    plot.vector.w_variable = field_data.variable('U_z*')
+
+    #create flowlines
+    stream_tools.create_stream_zone(field_data, xmax, 0, 0, 'bullseye',
+                                    'none', cart_given=True)
 
     #timestamp
     ltime = time.time()-start_time

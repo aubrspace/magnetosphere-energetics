@@ -17,27 +17,27 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 
-def create_stream_zone(field_data, r_start, lat_start, lon_start,
+def create_stream_zone(field_data, x1start, x2start, x3start,
                        zone_name, stream_type, *, cart_given=False):
     """Function to create a streamline, created in 2 directions from
        starting point
     Inputs
         field_data- Dataset class from tecplot with 3D field data
-        r_start [R]- starting position for streamline
-        lat_start [deg]
-        lon_start [deg]
+        x1start- starting position for streamline, default radius [R]
+        x2start- starting position for streamline, default latitude [deg]
+        x3start- starting position for streamline, default longitude [deg]
         zone_name
         stream_type- day, north or south for determining stream direction
-        cart_given- optional input for giving cartesian coordinates
+        cart_given- optional input for giving cartesian coord [x,y,z]
     """
     if cart_given==False:
         # Get starting position in cartesian coordinates
-        [x_start, y_start, z_start] = sph_to_cart(r_start, lat_start,
-                                                  lon_start)
+        [x_start, y_start, z_start] = sph_to_cart(x1start, x2start,
+                                                  x3start)
     else:
-        x_start = r_start
-        y_start = lat_start
-        z_start = lon_start
+        x_start = x1start
+        y_start = x2start
+        z_start = x3start
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
@@ -55,7 +55,7 @@ def create_stream_zone(field_data, r_start, lat_start, lon_start,
                        direction=StreamDir.Both)
     # Create zone
     field_line.extract()
-    field_data.zone(-1).name = zone_name + '{}'.format(lon_start)
+    field_data.zone(-1).name = zone_name + '{}'.format(x3start)
     # Delete streamlines
     field_line.delete_all()
 
