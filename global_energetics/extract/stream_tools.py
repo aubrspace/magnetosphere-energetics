@@ -18,7 +18,7 @@ from tecplot.exception import *
 import pandas as pd
 
 def create_stream_zone(field_data, x1start, x2start, x3start,
-                       zone_name, stream_type, *, cart_given=False):
+                       zone_name, *, lin_type=None, cart_given=False):
     """Function to create a streamline, created in 2 directions from
        starting point
     Inputs
@@ -27,7 +27,7 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
         x2start- starting position for streamline, default latitude [deg]
         x3start- starting position for streamline, default longitude [deg]
         zone_name
-        stream_type- day, north or south for determining stream direction
+        line_type- day, north or south for determining stream direction
         cart_given- optional input for giving cartesian coord [x,y,z]
     """
     if cart_given==False:
@@ -41,11 +41,11 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
-    if stream_type == 'south':
+    if lin_type == 'south':
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Reverse)
-    elif stream_type == 'north':
+    elif lin_type == 'north':
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Forward)
@@ -60,27 +60,27 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     field_line.delete_all()
 
 
-def check_streamline_closed(field_data, zone_name, r_seed, stream_type):
+def check_streamline_closed(field_data, zone_name, r_seed, lin_type):
     """Function to check if a streamline is open or closed
     Inputs
         field_data- tecplot Dataset class with 3D field data
         zone_name
         r_seed [R]- position used to seed field line
-        stream_type- dayside, north or south from tail
+        lin_type- dayside, north or south from tail
     Outputs
         isclosed- boolean, True for closed
     """
     # Get starting and endpoints of streamzone
     r_values = field_data.zone(zone_name+'*').values('r *').as_numpy_array()
-    if stream_type == 'north':
+    if lin_type == 'north':
         r_end_n = r_values[-1]
         r_end_s = 0
         r_seed = 2
-    elif stream_type == 'south':
+    elif lin_type == 'south':
         r_end_n = 0
         r_end_s = r_values[0]
         r_seed = 2
-    elif stream_type == 'inner_mag':
+    elif lin_type == 'inner_mag':
         xmax, xmin = field_data.zone(zone_name+'*').values('X *').minmax()
         ymax, ymin = field_data.zone(zone_name+'*').values('Y *').minmax()
         zmax, zmin = field_data.zone(zone_name+'*').values('Z *').minmax()
@@ -254,18 +254,18 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
 
 
     #Create Dayside Magnetopause field lines
-    stream_type = 'day'
+    lin_type = 'day'
     for i in range(int(len(lon))):
         #Create initial max min and mid field lines
         create_stream_zone(field_data, r_min, 0, lon[i],
-                           'min_day_line', stream_type)
+                           'min_day_line', line_type=lin_type)
         create_stream_zone(field_data, r_max, 0, lon[i],
-                           'max_day_line', stream_type)
+                           'max_day_line', line_type=lin_type)
         #Check that last closed is bounded
         min_closed = check_streamline_closed(field_data, 'min_day_line',
-                                                  r_min, stream_type)
+                                                  r_min, line_type=lin_type)
         max_closed = check_streamline_closed(field_data, 'max_day_line',
-                                                  r_max, stream_type)
+                                                  r_max, line_type=lin_type)
         field_data.delete_zones(field_data.zone('min_day*'),
                                field_data.zone('max_day*'))
         print('Day', i,'lon: {:.1f}, iters: {}, err: {}'.format(lon[i],
@@ -273,11 +273,11 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
         if max_closed and min_closed:
             print('WARNING: field line closed at max {}R_e'.format(r_max))
             create_stream_zone(field_data, r_max, 0, lon[i],
-                               'day_lon_', stream_type)
+                               'day_lon_', line_type=lin_type)
         elif not max_closed and not min_closed:
             print('WARNING: first field line open at {}R_e'.format(r_min))
             create_stream_zone(field_data, r_min, 0, lon[i],
-                               'day_lon_', stream_type)
+                               'day_lon_', line_type=lin_type)
         else:
             r_eq_mid[i] = (r_max+r_min)/2
             itr = 0
@@ -286,11 +286,11 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
             while(notfound and itr < itr_max):
                 #This is a bisection root finding algorithm
                 create_stream_zone(field_data, r_eq_mid[i], 0, lon[i],
-                                   'temp_day_lon_', stream_type)
+                                   'temp_day_lon_', line_type=lin_type)
                 mid_closed = check_streamline_closed(field_data,
                                                      'temp_day_lon_',
                                                      r_eq_mid[i],
-                                                     stream_type)
+                                                     line_type=lin_type)
                 if mid_closed:
                     r_eq_min = r_eq_mid[i]
                 else:
@@ -341,25 +341,27 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
         r_in = sqrt(x_in**2+y_in**2+z_in**2)
         #create and check outer field line
         if tp.data.query.probe_at_position(x_out, y_out, z_out)[0][7] < 0:
-            stream_type = 'south'
+            lin_type = 'south'
         else:
-            stream_type = 'north'
-        #stream_type = 'inner_mag'
+            lin_type = 'north'
+        #line_type = 'inner_mag'
         create_stream_zone(field_data, x_out, y_out, z_out,
-                          'outer_tail_line_', stream_type, cart_given=True)
+                          'outer_tail_line_', line_type=lin_type,
+                           cart_given=True)
         outer_closed = check_streamline_closed(field_data,
                                               'outer_tail_line_', r_out,
-                                              stream_type)
+                                              line_type=lin_type)
         #create and check inner field line
         if tp.data.query.probe_at_position(x_in, y_in, z_in)[0][7] < 0:
-            stream_type = 'south'
+            lin_type = 'south'
         else:
-            stream_type = 'north'
+            lin_type = 'north'
         create_stream_zone(field_data, x_in, y_in, z_in,
-                          'inner_tail_line_', stream_type, cart_given=True)
+                          'inner_tail_line_', line_type=lin_type,
+                           cart_given=True)
         inner_closed = check_streamline_closed(field_data,
                                               'inner_tail_line_', r_in,
-                                              stream_type)
+                                              line_type=lin_type)
         #Handle what happens if initial points are open/closed
         if outer_closed:
             print('WARNING: field line closed at RHO_MAX={}R_e'.format(
@@ -389,16 +391,16 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
                 #check if north or south attached
                 if tp.data.query.probe_at_position(x_mid, y_mid,
                                                    z_mid)[0][7] < 0:
-                    stream_type = 'south'
+                    lin_type = 'south'
                 else:
-                    stream_type = 'north'
+                    lin_type = 'north'
                 #create streamzone
                 create_stream_zone(field_data, x_mid, y_mid, z_mid,
-                          'mid_tail_line_', stream_type, cart_given=True)
+                          'mid_tail_line_', line_type=lin_type, cart_given=True)
                 #check status
                 mid_closed = check_streamline_closed(field_data,
                                               'mid_tail_line_', r_mid,
-                                              stream_type)
+                                              line_type=lin_type)
                 if mid_closed:
                     rho_inner = rho_mid
                 else:
