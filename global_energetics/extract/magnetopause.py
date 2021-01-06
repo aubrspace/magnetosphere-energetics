@@ -24,6 +24,7 @@ from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     calc_tail_mp,
+                                                    calc_flow_mp,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
@@ -35,7 +36,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=36, rho_max=125,rho_min=0.5,tail_cap=-20,
                      nslice=40, nalpha=36, nfill=10,
-                     integrate_surface=True, integrate_volume=True):
+                     integrate_surface=True, integrate_volume=True,
+                     use_fieldlines=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -51,12 +53,24 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         tail_cap- X position of tail cap
         nslice, nalpha- cylindrical points used for surface reconstruction
     """
+    print('Analyzing Magnetopause with the following settings:\n'+
+            '\tdatafile: {}\n'.format(datafile)+
+            '\toutputpath: {}\n'.format(outputpath)+
+            '\tnstream_day: {}\n'.format(nstream_day)+
+            '\tlon_max: {}\n'.format(lon_max)+
+            '\trday_max: {}\n'.format(rday_max)+
+            '\tdayitr_max: {}\n'.format(dayitr_max)+
+            '\tnstream_tail: {}\n'.format(nstream_tail)+
+            '\trho_max: {}\n'.format(rho_max)+
+            '\ttail_cap: {}\n'.format(tail_cap)+
+            '\tnslice: {}\n'.format(nslice)+
+            '\tnalpha: {}\n'.format(nalpha))
+    print(field_data)
     #get date and time info from datafile name
     time = get_time(datafile)
 
     #make unique outputname based on datafile string
     outputname = datafile.split('e')[1].split('-000.')[0]+'-mp'
-    print(field_data)
 
     #set parameters
     lon_set = np.linspace(-1*lon_max, lon_max, nstream_day)
@@ -77,24 +91,39 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
-        #Create Dayside Magnetopause field lines
-        calc_dayside_mp(field_data, lon_set, rday_max, rday_min, dayitr_max,
-                        daytol)
-        #Create Tail magnetopause field lines
-        tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap, rho_max,
-                                    rho_min, dayitr_max, daytol)
-        #go into loop modifiying tail cap placement if no mp points found
-        if tail_cap_mod != tail_cap:
-            temp_tail = 0
-            while temp_tail != tail_cap_mod:
-                print('\nSetting tail cap to {}'.format(tail_cap_mod))
-                temp_tail = tail_cap_mod
-                tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap_mod,
-                                            rho_max, rho_min, dayitr_max,
-                                            daytol)
+        if use_fieldlines:
+            #Create Dayside Magnetopause field lines
+            calc_dayside_mp(field_data, lon_set, rday_max, rday_min, dayitr_max,
+                            daytol)
+            tail_cap_mod = tail_cap
+            '''
+            #Create Tail magnetopause field lines
+            tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap, rho_max,
+                                        rho_min, dayitr_max, daytol)
+            #go into loop modifiying tail cap placement if no mp points found
+            if tail_cap_mod != tail_cap:
+                temp_tail = 0
+                while temp_tail != tail_cap_mod:
+                    print('\nSetting tail cap to {}'.format(tail_cap_mod))
+                    temp_tail = tail_cap_mod
+                    tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap_mod,
+                                                rho_max, rho_min, dayitr_max,
+                                                daytol)
+            '''
+        else:
+            #Create Magnetopause flow lines
+            calc_flow_mp(field_data, 72, 20)
+            tail_cap_mod = -40
+
         #port stream data to pandas DataFrame object
-        stream_zone_list = np.linspace(2,field_data.num_zones,
-                                       field_data.num_zones-2+1)
+        stream_zone_list = []
+        for zone in range(field_data.num_zones):
+            tp.active_frame().plot().fieldmap(zone).show=True
+            if (field_data.zone(zone).name.find('cps_zone') == -1 and
+                field_data.zone(zone).name.find('global_field') == -1 and
+                field_data.zone(zone).name.find('mp_zone') == -1 and
+                field_data.zone(zone).name.find('mag_mp') == -1):
+                stream_zone_list.append(field_data.zone(zone).index+1)
         stream_df, x_subsolar = dump_to_pandas(main_frame,
                                         stream_zone_list, [1,2,3],
                                         outputpath+'mp_stream_points.csv')
@@ -110,12 +139,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
 
         #delete stream zones
         main_frame.activate()
-        for zone in reversed(range(field_data.num_zones)):
-            tp.active_frame().plot().fieldmap(zone).show=True
-            if (field_data.zone(zone).name.find('cps_zone') == -1 and
-                field_data.zone(zone).name.find('global_field') == -1 and
-                field_data.zone(zone).name.find('mp_zone') == -1):
-                field_data.delete_zones(field_data.zone(zone))
+        for zone_index in reversed(stream_zone_list):
+            field_data.delete_zones(field_data.zone(zone_index-1))
 
         #interpolate field data to zone
         print('interpolating field data to magnetopause')

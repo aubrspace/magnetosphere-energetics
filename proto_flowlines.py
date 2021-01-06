@@ -19,7 +19,7 @@ from global_energetics.extract.stream_tools import check_streamline_closed
 def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
                                              flowkey_x='U_x*', rmin=2,
                                              itr_max=20, tolerance=0.1,
-                                             rcheck=10):
+                                             rcheck=5):
     """Function to create zones tha makeup mp as defined by upstream flow
     Inputs
         field_data- Tecplot Dataset with flowfield information
@@ -34,7 +34,7 @@ def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
     """
     #get xmax
     xmax = field_data.zone('global_field').values('X *').max()
-    xmax = -10
+    xmax = -5
 
     #set U as the vector field
     plot = tp.active_frame().plot()
@@ -55,9 +55,9 @@ def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
                            cart_given=True)
         #Check that last closed is bounded, delete min/max
         max_closed = check_streamline_closed(field_data, 'maxflow*',
-                                             rcheck, None)
+                                             rcheck, 'flowline')
         min_closed = check_streamline_closed(field_data, 'minflow*',
-                                             rcheck, None)
+                                             rcheck, 'flowline')
         field_data.delete_zones(field_data.zone('minflow*'),
                                field_data.zone('maxflow*'))
         if max_closed and min_closed:
@@ -83,7 +83,7 @@ def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
                            cart_given=True)
                 #check midclosed
                 mid_closed = check_streamline_closed(field_data,'midflow*',
-                                                     rcheck, None)
+                                                     rcheck, 'flowline')
                 if mid_closed:
                     rin = rmid
                 else:
@@ -170,7 +170,7 @@ if __name__ == "__main__":
 
 
     #call function
-    calc_flow_mp(field_data, 36, 20)
+    calc_flow_mp(field_data, 360, 20)
 
     #timestamp
     ltime = time.time()-start_time

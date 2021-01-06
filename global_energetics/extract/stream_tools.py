@@ -9,6 +9,7 @@ from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
+from progress.bar import Bar
 import spacepy
 #from spacepy import coordinates as coord
 from spacepy import time as spacetime
@@ -18,7 +19,7 @@ from tecplot.exception import *
 import pandas as pd
 
 def create_stream_zone(field_data, x1start, x2start, x3start,
-                       zone_name, *, lin_type=None, cart_given=False):
+                       zone_name, *, line_type=None, cart_given=False):
     """Function to create a streamline, created in 2 directions from
        starting point
     Inputs
@@ -41,11 +42,11 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     # Create streamline
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
-    if lin_type == 'south':
+    if line_type == 'south':
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Reverse)
-    elif lin_type == 'north':
+    elif line_type == 'north':
         field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Forward)
@@ -60,27 +61,27 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     field_line.delete_all()
 
 
-def check_streamline_closed(field_data, zone_name, r_seed, lin_type):
+def check_streamline_closed(field_data, zone_name, r_seed, line_type):
     """Function to check if a streamline is open or closed
     Inputs
         field_data- tecplot Dataset class with 3D field data
         zone_name
         r_seed [R]- position used to seed field line
-        lin_type- dayside, north or south from tail
+        line_type- dayside, north or south from tail
     Outputs
         isclosed- boolean, True for closed
     """
     # Get starting and endpoints of streamzone
     r_values = field_data.zone(zone_name+'*').values('r *').as_numpy_array()
-    if lin_type == 'north':
+    if line_type == 'north':
         r_end_n = r_values[-1]
         r_end_s = 0
         r_seed = 2
-    elif lin_type == 'south':
+    elif line_type == 'south':
         r_end_n = 0
         r_end_s = r_values[0]
         r_seed = 2
-    elif lin_type == 'inner_mag':
+    elif line_type == 'inner_mag':
         xmax, xmin = field_data.zone(zone_name+'*').values('X *').minmax()
         ymax, ymin = field_data.zone(zone_name+'*').values('Y *').minmax()
         zmax, zmin = field_data.zone(zone_name+'*').values('Z *').minmax()
@@ -96,6 +97,14 @@ def check_streamline_closed(field_data, zone_name, r_seed, lin_type):
                     isclosed = False
                     return isclosed
         return isclosed
+    elif line_type == 'flowline':
+        rmin = field_data.zone(zone_name+'*').values('r *').min()
+        if rmin < r_seed:
+            isclosed = True
+            return isclosed
+        else:
+            isclosed = False
+            return isclosed
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
     #check if closed
@@ -255,6 +264,7 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
 
     #Create Dayside Magnetopause field lines
     lin_type = 'day'
+    bar = Bar('Finding Dayside Field Lines', max=int(len(lon)))
     for i in range(int(len(lon))):
         #Create initial max min and mid field lines
         create_stream_zone(field_data, r_min, 0, lon[i],
@@ -268,8 +278,8 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
                                                   r_max, line_type=lin_type)
         field_data.delete_zones(field_data.zone('min_day*'),
                                field_data.zone('max_day*'))
-        print('Day', i,'lon: {:.1f}, iters: {}, err: {}'.format(lon[i],
-                                                  itr, r_eq_max-r_eq_min))
+        #print('Day', i,'lon: {:.1f}, iters: {}, err: {}'.format(lon[i],
+        #                                          itr, r_eq_max-r_eq_min))
         if max_closed and min_closed:
             print('WARNING: field line closed at max {}R_e'.format(r_max))
             create_stream_zone(field_data, r_max, 0, lon[i],
@@ -303,6 +313,8 @@ def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
                     r_eq_mid[i] = (r_eq_max+r_eq_min)/2
                     field_data.delete_zones(field_data.zone('temp_day*'))
                 itr += 1
+        bar.next()
+    bar.finish()
 
 
 
@@ -329,6 +341,7 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
     plot.vector.w_variable = field_data.variable('B_z*')
 
     #Create Tail Magnetopause field lines
+    bar = Bar('Finding Tail Field Lines', max=int(len(psi)))
     for i in range(int(len(psi))):
         rho_inner = rho_min
         rho_outer = rho_max
@@ -412,10 +425,92 @@ def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
                 else:
                     field_data.delete_zones(field_data.zone('mid*'))
                 itr += 1
-        print('Tail', i,'psi: {:.0f}, iters: {}, err: {}'.format(psi[i],
-                                                itr, rho_outer-rho_inner))
+        bar.next()
+    bar.finish()
     return new_tail_cap
 
+def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
+                                             flowkey_x='U_x*', rmin=2,
+                                             itr_max=20, tolerance=0.1,
+                                             rcheck=5):
+    """Function to create zones tha makeup mp as defined by upstream flow
+    Inputs
+        field_data- Tecplot Dataset with flowfield information
+        ntheta- number of azimuthal angles for determining radial distance
+        rmax- upsteam maximum radial distance on plane x=xmax
+        fieldkey- string ID for field data zone from dataset
+        flowkey_x- string ID for x velocity variable, will assume for y,z
+        rmin- default set to 0
+        itr_max, tolderance- parameters for bisection algorithm
+    Outputs
+       None, creates zones in tecplot
+    """
+    #get xmax
+    xmax = field_data.zone('global_field').values('X *').max()
+    xmax = -5
+
+    #set U as the vector field
+    plot = tp.active_frame().plot()
+    plot.vector.u_variable = field_data.variable('U_x*')
+    plot.vector.v_variable = field_data.variable('U_y*')
+    plot.vector.w_variable = field_data.variable('U_z*')
+
+    #get theta points
+    theta = np.linspace(0,360*(1-1/ntheta), ntheta)
+
+    bar = Bar('Finding Magnetopause Flow Lines', max=len(theta))
+    for a in theta:
+        #Create initial max/min
+        create_stream_zone(field_data, xmax, rmax*cos(deg2rad(a)),
+                           rmax*sin(deg2rad(a)), 'maxflow-{}'.format(a),
+                           cart_given=True)
+        create_stream_zone(field_data, xmax, rmin*cos(deg2rad(a)),
+                           rmin*sin(deg2rad(a)), 'minflow-{}'.format(a),
+                           cart_given=True)
+        #Check that last closed is bounded, delete min/max
+        max_closed = check_streamline_closed(field_data, 'maxflow*',
+                                             rcheck, 'flowline')
+        min_closed = check_streamline_closed(field_data, 'minflow*',
+                                             rcheck, 'flowline')
+        field_data.delete_zones(field_data.zone('minflow*'),
+                               field_data.zone('maxflow*'))
+        if max_closed and min_closed:
+            print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
+            create_stream_zone(field_data, xmax, rmax*cos(deg2rad(a)),
+                           rmax*sin(deg2rad(a)), 'maxflow-{}'.format(a),
+                           cart_given=True)
+        elif not max_closed and not min_closed:
+            print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
+            create_stream_zone(field_data, xmax, rmin*cos(deg2rad(a)),
+                           rmin*sin(deg2rad(a)), 'minflow-{}'.format(a),
+                           cart_given=True)
+        else:
+            rmid = (rmax+rmin)/2
+            itr = 0
+            notfound = True
+            rout = rmax
+            rin = rmin
+            while(notfound and itr < itr_max):
+                #create mid
+                create_stream_zone(field_data, xmax, rmid*cos(deg2rad(a)),
+                           rmid*sin(deg2rad(a)), 'midflow-{}'.format(a),
+                           cart_given=True)
+                #check midclosed
+                mid_closed = check_streamline_closed(field_data,'midflow*',
+                                                     rcheck, 'flowline')
+                if mid_closed:
+                    rin = rmid
+                else:
+                    rout = rmid
+                if abs(rout-rin) < tolerance and not mid_closed:
+                    notfound = False
+                    field_data.zone('midflow*').name='flow-{:.1f}'.format(a)
+                else:
+                    rmid = (rin+rout)/2
+                    field_data.delete_zones(field_data.zone('midflow*'))
+                itr += 1
+        bar.next()
+    bar.finish()
 
 def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
                      max_iter, tolerance, time):
@@ -437,8 +532,8 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
     seed_radius = 1
 
     #iterate through longitudes zones
+    bar = Bar('Finding Plasmasheet Field Lines', max=len(theta))
     for lon in lon_list:
-        print('longitude {:.1f}'.format(lon))
         '''
         sphcoor = coord.Coords([seed_radius, 85, lon], 'SM', 'sph')
         sphcoor.ticks = time
@@ -524,6 +619,8 @@ def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
                 else:
                     field_data.delete_zones(field_data.zone('temp*'))
                 itr += 1
+        bar.next()
+    bar.finish()
 
 
 def dump_to_pandas(frame, zonelist, varlist, filename):
@@ -636,7 +733,6 @@ def load_cylinder(field_data, data, zonename, I, J, K):
         mag_bound.values('X*')[i::I] = xdata
         mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/I + ymean
         mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/I + zmean
-    print('\nvalues loaded, check out how it looks\n')
 
 
 def calculate_energetics(field_data, zone_name):
