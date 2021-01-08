@@ -22,9 +22,7 @@ from global_energetics.extract.surface_tools import surface_analysis
 from global_energetics.extract import volume_tools
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract import stream_tools
-from global_energetics.extract.stream_tools import (calc_dayside_mp,
-                                                    calc_tail_mp,
-                                                    calc_flow_mp,
+from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
@@ -37,7 +35,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      nstream_tail=36, rho_max=125,rho_min=0.5,tail_cap=-20,
                      nslice=40, nalpha=36, nfill=10,
                      integrate_surface=True, integrate_volume=True,
-                     use_fieldlines=True):
+                     varlist=[1,2,3]):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -72,10 +70,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     #make unique outputname based on datafile string
     outputname = datafile.split('e')[1].split('-000.')[0]+'-mp'
 
-    #set parameters
-    lon_set = np.linspace(-1*lon_max, lon_max, nstream_day)
-    psi = np.linspace(-180*(1-1/nstream_tail), 180, nstream_tail)
     with tp.session.suspend():
+        #get r, lon, lat if not already set
         if field_data.variable_names.count('r [R]') ==0:
             main_frame = tp.active_frame()
             main_frame.name = 'main'
@@ -91,56 +87,36 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
-        if use_fieldlines:
-            #Create Dayside Magnetopause field lines
-            calc_dayside_mp(field_data, lon_set, rday_max, rday_min, dayitr_max,
-                            daytol)
-            tail_cap_mod = tail_cap
-            '''
-            #Create Tail magnetopause field lines
-            tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap, rho_max,
-                                        rho_min, dayitr_max, daytol)
-            #go into loop modifiying tail cap placement if no mp points found
-            if tail_cap_mod != tail_cap:
-                temp_tail = 0
-                while temp_tail != tail_cap_mod:
-                    print('\nSetting tail cap to {}'.format(tail_cap_mod))
-                    temp_tail = tail_cap_mod
-                    tail_cap_mod = calc_tail_mp(field_data, psi, tail_cap_mod,
-                                                rho_max, rho_min, dayitr_max,
-                                                daytol)
-            '''
-        else:
-            #Create Magnetopause flow lines
-            calc_flow_mp(field_data, 72, 20)
-            tail_cap_mod = -40
-
-        #port stream data to pandas DataFrame object
-        stream_zone_list = []
-        for zone in range(field_data.num_zones):
-            tp.active_frame().plot().fieldmap(zone).show=True
-            if (field_data.zone(zone).name.find('cps_zone') == -1 and
-                field_data.zone(zone).name.find('global_field') == -1 and
-                field_data.zone(zone).name.find('mp_zone') == -1 and
-                field_data.zone(zone).name.find('mag_mp') == -1):
-                stream_zone_list.append(field_data.zone(zone).index+1)
-        stream_df, x_subsolar = dump_to_pandas(main_frame,
-                                        stream_zone_list, [1,2,3],
-                                        outputpath+'mp_stream_points.csv')
+        #flowline points
+        flowlist = streamfind_bisection(field_data, 'flow', -5, 72, 20, 0,
+                                        dayitr_max, daytol,
+                                        field_key_x='U_x*')
+        flow_df, _ = dump_to_pandas(main_frame, flowlist, varlist,
+                                    outputpath+'mp_flow_points.csv')
+        for zone_index in reversed(flowlist):
+            field_data.delete_zones(field_data.zone(zone_index-1))
+        #dayside points
+        daysidelist = streamfind_bisection(field_data, 'dayside', 180,
+                                        nstream_day,
+                                        rday_max, rday_min,
+                                        dayitr_max, daytol)
+        dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
+                            varlist, outputpath+'mp_dayside_points.csv')
+        for zone_index in reversed(flowlist):
+            field_data.delete_zones(field_data.zone(zone_index-1))
+        #combine portions into a single dataframe
+        stream_df = flow_df[(flow_df['X [R]'] < -8)].append(
+                    dayside_df[(dayside_df['X [R]'] > -10)])
         #slice and construct XYZ data
-        mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap_mod,
+        mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap,
                                               x_subsolar, nslice, nalpha,
                                               False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, nfill, tail_cap_mod,
+        create_cylinder(field_data, nslice, nalpha, nfill, tail_cap,
                         x_subsolar, 'mp_zone')
         load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
                       K=nalpha)
-
-        #delete stream zones
         main_frame.activate()
-        for zone_index in reversed(stream_zone_list):
-            field_data.delete_zones(field_data.zone(zone_index-1))
 
         #interpolate field data to zone
         print('interpolating field data to magnetopause')

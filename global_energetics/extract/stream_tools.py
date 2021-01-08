@@ -223,267 +223,112 @@ def rotation(angle, axis):
                   [0,           0,          1]]
     return matrix
 
-def find_tail_disc_point(rho, psi_disc, x_pos):
-    """Function find spherical coord of a point on a disc at a constant x
-       position in the tail
+def streamfind_bisection(field_data, method,
+                         dimmax, nstream, rmax, rmin, itr_max, tolerance,
+                         rcheck=5, time=None,
+                         field_key_x='B_x*', global_key='global_field'):
+    """Generalized function for generating streamlines for a 'last closed'          condition based on a bisection algorithm
     Inputs
-        rho- radial position relative to the center of the disc
-        psi_disc- angle relative to the axis pointing out from the center
-        of the disc
-        x_pos- x position of the disc
+        General
+            field_data- Tecplot Dataset with flowfield information
+            method- 'dayside', 'tail', 'flow', or 'plasmasheet'
+        Parameters
+            dimmmax- X location for tail/flow, maxextent for
+                     dayside/plasmasheet
+            nstream- number of streamlines to generate
+            rmax, rmin- outer/inner bounds of search in whichever direction
+            itr_max, tolerance- bisection alg settings
+        Special
+            rcheck- consideration for "closed" for 'flow' method only
+            time- spacepy Ticktock of current time for 'plasmasheet' only
+        Other
+            field_key_x- string ID for x var to be traced, y&z assumed
+            global_key- string ID for zone containing field data
     Outputs
-        [x_pos, y_pos, z_pos]- cart coord of the point relative
-        to the global origin
+       zonelist- list of indices of created zones
     """
-    y_pos = rho*sin(deg2rad(psi_disc))
-    z_pos = rho*cos(deg2rad(psi_disc))
-    return [x_pos, y_pos, z_pos]
+    #validate method form
+    approved_methods = ['dayside', 'tail', 'flow', 'plasmasheet']
+    reverse_if_flow = 0
+    if all([test.find(method)==-1 for test in approved_methods]):
+        print('WARNING: method for streamfind_bisection not recognized!!'+
+              '\nno streamzones created')
+        zonelist = None
+        return zonelist
 
+    #set streamline seed positions in the fixed dimension
+    if method == 'dayside':
+        #set of points in z=0 plane from + to - dimmax angle from +x ax
+        positions = np.linspace(-1*dimmax, dimmax, nstream)
+        disp_message = 'Finding Magnetopause Dayside Field Lines'
+        lin_type = 'dayside'
+        lineID = 'day_{:.1f}'
+    elif (method == 'tail') or (method == 'flow'):
+        #set of points 360deg around disc in the tail at x=dimmax
+        positions = np.linspace(-180*(1-1/nstream), 180, nstream)
+        if method == 'tail':
+            disp_message = 'Finding Magnetopause Tail Field Lines'
+            lineID = 'tail_{:.1f}'
+        elif method == 'flow':
+            disp_message = 'Finding Magnetopause Flow Lines'
+            lin_type = 'flowline'
+            lineID = 'flow_{:.1f}'
+            reverse_if_flow = 1
+    elif method == 'plasmasheet':
+        #set of points on r=1Re at different longitudes N and S poles
+        positions = np.append(np.linspace(-dimmax, -180,int(nstream/4)),
+                              np.linspace(180, dimmax, int(nstream/4)))
+        disp_message = 'Finding Plasmasheet Field Lines'
+        lin_type = 'inner_mag'
+        lineID = 'plasmasheet_{:.1f}'
 
-def calc_dayside_mp(field_data, lon, r_max, r_min, itr_max, tolerance):
-    """"Function to create zones that will makeup dayside magnetopause
-    Inputs
-        field_data- Dataset class from tecplot with 3D field data
-        lon- set of longitudinal points in degrees
-        r_max- maxium radial distance for equitorial search
-        r_min
-        itr_max
-        tolerance- for searching algorithm
-    """
-    #Initialize objects that will be modified in creation loop
-    r_eq_mid = np.zeros(int(len(lon)))
-    itr = 0
-    r_eq_max, r_eq_min = r_max, r_min
-
-    #set B as the vector field
+    #set vector field
+    field_key_y = field_key_x.split('x')[0]+'y'+field_key_x.split('x')[-1]
+    field_key_z = field_key_x.split('x')[0]+'z'+field_key_x.split('x')[-1]
     plot = tp.active_frame().plot()
-    plot.vector.u_variable = field_data.variable('B_x*')
-    plot.vector.v_variable = field_data.variable('B_y*')
-    plot.vector.w_variable = field_data.variable('B_z*')
+    plot.vector.u_variable = field_data.variable(field_key_x)
+    plot.vector.v_variable = field_data.variable(field_key_y)
+    plot.vector.w_variable = field_data.variable(field_key_z)
 
-
-    #Create Dayside Magnetopause field lines
-    lin_type = 'day'
-    bar = Bar('Finding Dayside Field Lines', max=int(len(lon)))
-    for i in range(int(len(lon))):
-        #Create initial max min and mid field lines
-        create_stream_zone(field_data, r_min, 0, lon[i],
-                           'min_day_line', line_type=lin_type)
-        create_stream_zone(field_data, r_max, 0, lon[i],
-                           'max_day_line', line_type=lin_type)
-        #Check that last closed is bounded
-        min_closed = check_streamline_closed(field_data, 'min_day_line',
-                                                  r_min, line_type=lin_type)
-        max_closed = check_streamline_closed(field_data, 'max_day_line',
-                                                  r_max, line_type=lin_type)
-        field_data.delete_zones(field_data.zone('min_day*'),
-                               field_data.zone('max_day*'))
-        #print('Day', i,'lon: {:.1f}, iters: {}, err: {}'.format(lon[i],
-        #                                          itr, r_eq_max-r_eq_min))
-        if max_closed and min_closed:
-            print('WARNING: field line closed at max {}R_e'.format(r_max))
-            create_stream_zone(field_data, r_max, 0, lon[i],
-                               'day_lon_', line_type=lin_type)
-        elif not max_closed and not min_closed:
-            print('WARNING: first field line open at {}R_e'.format(r_min))
-            create_stream_zone(field_data, r_min, 0, lon[i],
-                               'day_lon_', line_type=lin_type)
-        else:
-            r_eq_mid[i] = (r_max+r_min)/2
-            itr = 0
-            notfound = True
-            r_eq_min, r_eq_max = r_min, r_max
-            while(notfound and itr < itr_max):
-                #This is a bisection root finding algorithm
-                create_stream_zone(field_data, r_eq_mid[i], 0, lon[i],
-                                   'temp_day_lon_', line_type=lin_type)
-                mid_closed = check_streamline_closed(field_data,
-                                                     'temp_day_lon_',
-                                                     r_eq_mid[i],
-                                                     line_type=lin_type)
-                if mid_closed:
-                    r_eq_min = r_eq_mid[i]
-                else:
-                    r_eq_max = r_eq_mid[i]
-                if abs(r_eq_min - r_eq_max) < tolerance and mid_closed:
-                    notfound = False
-                    field_data.zone('temp*').name='day_lon_{:.1f}'.format(
-                                                                   lon[i])
-                else:
-                    r_eq_mid[i] = (r_eq_max+r_eq_min)/2
-                    field_data.delete_zones(field_data.zone('temp_day*'))
-                itr += 1
-        bar.next()
-    bar.finish()
-
-
-
-
-def calc_tail_mp(field_data, psi, x_disc, rho_max, rho_min, max_iter,
-                 tolerance):
-    """Function to create the zones that will become the tail magnetopause
-    Inputs
-        psi- set of disc azimuthal angles[degrees]
-        x_disc- x position of the tail disc
-        rho_max- outer radial bounds of the tail disc
-        rho_step- radial distance increment for marching algorithm
-        rho_min- inner radial bounds of the tail disc
-    Returns
-        new_tail_cap- set to x_disc unless algoritm fails, then is x_min
-    """
-    #Set new_tail_cap as unchanged value
-    new_tail_cap = x_disc
-
-    #set B as the vector field
-    plot = tp.active_frame().plot()
-    plot.vector.u_variable = field_data.variable('B_x*')
-    plot.vector.v_variable = field_data.variable('B_y*')
-    plot.vector.w_variable = field_data.variable('B_z*')
-
-    #Create Tail Magnetopause field lines
-    bar = Bar('Finding Tail Field Lines', max=int(len(psi)))
-    for i in range(int(len(psi))):
-        rho_inner = rho_min
-        rho_outer = rho_max
-        rho_mid = (rho_max+rho_min)/2
-        #initialize bounding streamlines
-        #Find global positions based on seed points
-        x_out, y_out, z_out = find_tail_disc_point(rho_outer,psi[i],x_disc)
-        x_in, y_in, z_in = find_tail_disc_point(rho_inner,psi[i],x_disc)
-        r_out = sqrt(x_out**2+y_out**2+z_out**2)
-        r_in = sqrt(x_in**2+y_in**2+z_in**2)
-        #create and check outer field line
-        if tp.data.query.probe_at_position(x_out, y_out, z_out)[0][7] < 0:
-            lin_type = 'south'
-        else:
-            lin_type = 'north'
-        #line_type = 'inner_mag'
-        create_stream_zone(field_data, x_out, y_out, z_out,
-                          'outer_tail_line_', line_type=lin_type,
-                           cart_given=True)
-        outer_closed = check_streamline_closed(field_data,
-                                              'outer_tail_line_', r_out,
-                                              line_type=lin_type)
-        #create and check inner field line
-        if tp.data.query.probe_at_position(x_in, y_in, z_in)[0][7] < 0:
-            lin_type = 'south'
-        else:
-            lin_type = 'north'
-        create_stream_zone(field_data, x_in, y_in, z_in,
-                          'inner_tail_line_', line_type=lin_type,
-                           cart_given=True)
-        inner_closed = check_streamline_closed(field_data,
-                                              'inner_tail_line_', r_in,
-                                              line_type=lin_type)
-        #Handle what happens if initial points are open/closed
-        if outer_closed:
-            print('WARNING: field line closed at RHO_MAX={}R_e'.format(
-                                                                 rho_max))
-            field_data.zone('outer_tail*').name='tail_field_{:.1f}'.format(
-                                                                   psi[i])
-        elif not inner_closed:
-            print('WARNING: not possible at psi={:.1f}'.format(psi[i]))
-            field_data.zone('inner_tail*').name='vestige{}'.format(x_disc)
-            field_data.delete_zones(field_data.zone('outer*'))
-            new_tail_cap = x_disc*(0.9)
-            return new_tail_cap
-
-        else:
-            #Bisection algorithm
-            #delete bounding streamlines
-            field_data.delete_zones(field_data.zone('inner*'))
-            field_data.delete_zones(field_data.zone('outer*'))
-            notfound = True
-            itr = 0
-            while (notfound and itr < max_iter):
-                rho_mid = (rho_outer+rho_inner)/2
-                #Find global positions based on seed point
-                x_mid, y_mid, z_mid = find_tail_disc_point(rho_mid,psi[i],
-                                                           x_disc)
-                r_mid = sqrt(x_mid**2+y_mid**2+z_mid**2)
-                #check if north or south attached
-                if tp.data.query.probe_at_position(x_mid, y_mid,
-                                                   z_mid)[0][7] < 0:
-                    lin_type = 'south'
-                else:
-                    lin_type = 'north'
-                #create streamzone
-                create_stream_zone(field_data, x_mid, y_mid, z_mid,
-                          'mid_tail_line_', line_type=lin_type, cart_given=True)
-                #check status
-                mid_closed = check_streamline_closed(field_data,
-                                              'mid_tail_line_', r_mid,
-                                              line_type=lin_type)
-                if mid_closed:
-                    rho_inner = rho_mid
-                else:
-                    rho_outer = rho_mid
-                if abs(rho_outer - rho_inner)<tolerance and mid_closed:
-                    notfound = False
-                    field_data.zone('mid*').name='tail_{:.1f}'.format(
-                                                                   psi[i])
-                else:
-                    field_data.delete_zones(field_data.zone('mid*'))
-                itr += 1
-        bar.next()
-    bar.finish()
-    return new_tail_cap
-
-def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
-                                             flowkey_x='U_x*', rmin=2,
-                                             itr_max=20, tolerance=0.1,
-                                             rcheck=5):
-    """Function to create zones tha makeup mp as defined by upstream flow
-    Inputs
-        field_data- Tecplot Dataset with flowfield information
-        ntheta- number of azimuthal angles for determining radial distance
-        rmax- upsteam maximum radial distance on plane x=xmax
-        fieldkey- string ID for field data zone from dataset
-        flowkey_x- string ID for x velocity variable, will assume for y,z
-        rmin- default set to 0
-        itr_max, tolderance- parameters for bisection algorithm
-    Outputs
-       None, creates zones in tecplot
-    """
-    #get xmax
-    xmax = field_data.zone('global_field').values('X *').max()
-    xmax = -5
-
-    #set U as the vector field
-    plot = tp.active_frame().plot()
-    plot.vector.u_variable = field_data.variable('U_x*')
-    plot.vector.v_variable = field_data.variable('U_y*')
-    plot.vector.w_variable = field_data.variable('U_z*')
-
-    #get theta points
-    theta = np.linspace(0,360*(1-1/ntheta), ntheta)
-
-    bar = Bar('Finding Magnetopause Flow Lines', max=len(theta))
-    for a in theta:
-        #Create initial max/min
-        create_stream_zone(field_data, xmax, rmax*cos(deg2rad(a)),
-                           rmax*sin(deg2rad(a)), 'maxflow-{}'.format(a),
-                           cart_given=True)
-        create_stream_zone(field_data, xmax, rmin*cos(deg2rad(a)),
-                           rmin*sin(deg2rad(a)), 'minflow-{}'.format(a),
-                           cart_given=True)
+    bar = Bar(disp_message, max=len(positions))
+    zonelist = []
+    for a in positions:
+        #Set getseed function based only on search variable r
+        if method == 'dayside':
+            #all getseed function return val: dim1, dim2, dim3, rcheck 
+            def getseed(r):return r, 0, a, r
+            cartesian = False
+        elif method == 'tail' or (method == 'flow'):
+            def getseed(r):
+                return dimmax, r*cos(rad2deg(a)), r*sin(rad2deg(a)), rcheck
+            cartesian = True
+        elif method == 'plasmasheet':
+            def getseed(r):return sm2gsm_temp(1, r, a, time), None
+            cartesian = True
+        #Create initial max/min to lines
+        x1, x2, x3, rchk = getseed(rmax)
+        create_stream_zone(field_data, x1, x2, x3, 'max'+lineID.format(a),
+                           cart_given=cartesian)
+        x1, x2, x3, rchk= getseed(rmin)
+        create_stream_zone(field_data, x1, x2, x3, 'min'+lineID.format(a),
+                           cart_given=cartesian)
         #Check that last closed is bounded, delete min/max
-        max_closed = check_streamline_closed(field_data, 'maxflow*',
-                                             rcheck, 'flowline')
-        min_closed = check_streamline_closed(field_data, 'minflow*',
-                                             rcheck, 'flowline')
-        field_data.delete_zones(field_data.zone('minflow*'),
-                               field_data.zone('maxflow*'))
+        max_closed = check_streamline_closed(field_data, 'max*', rchk,
+                                             line_type=lin_type)
+        min_closed = check_streamline_closed(field_data, 'min*', rchk,
+                                             line_type=lin_type)
+        field_data.delete_zones(field_data.zone('min*'),
+                                field_data.zone('max*'))
         if max_closed and min_closed:
             print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
-            create_stream_zone(field_data, xmax, rmax*cos(deg2rad(a)),
-                           rmax*sin(deg2rad(a)), 'maxflow-{}'.format(a),
-                           cart_given=True)
+            x1, x2, x3, rchk = getseed(rmax)
+            create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
+                               cart_given=cartesian)
         elif not max_closed and not min_closed:
             print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
-            create_stream_zone(field_data, xmax, rmin*cos(deg2rad(a)),
-                           rmin*sin(deg2rad(a)), 'minflow-{}'.format(a),
-                           cart_given=True)
+            x1, x2, x3, rchk = getseed(rmin)
+            create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
+                               cart_given=cartesian)
         else:
             rmid = (rmax+rmin)/2
             itr = 0
@@ -492,136 +337,30 @@ def calc_flow_mp(field_data, ntheta, rmax, *, fieldkey='global_field',
             rin = rmin
             while(notfound and itr < itr_max):
                 #create mid
-                create_stream_zone(field_data, xmax, rmid*cos(deg2rad(a)),
-                           rmid*sin(deg2rad(a)), 'midflow-{}'.format(a),
-                           cart_given=True)
+                x1, x2, x3, rchk = getseed(rmid)
+                create_stream_zone(field_data, x1, x2, x3,
+                                   'mid'+lineID.format(a),
+                                   cart_given=cartesian)
                 #check midclosed
-                mid_closed = check_streamline_closed(field_data,'midflow*',
-                                                     rcheck, 'flowline')
+                mid_closed = check_streamline_closed(field_data, 'mid*',
+                                                rchk, line_type=lin_type)
                 if mid_closed:
                     rin = rmid
                 else:
                     rout = rmid
-                if abs(rout-rin) < tolerance and not mid_closed:
+                if abs(rout-rin) < tolerance and (bool(
+                                        int(mid_closed)-reverse_if_flow)):
+                    #keep closed on boundary unless in 'flowline' method
                     notfound = False
-                    field_data.zone('midflow*').name='flow-{:.1f}'.format(a)
+                    field_data.zone('mid*').name=lineID.format(a)
                 else:
                     rmid = (rin+rout)/2
-                    field_data.delete_zones(field_data.zone('midflow*'))
+                    field_data.delete_zones(field_data.zone('mid*'))
                 itr += 1
+        zonelist.append(field_data.zone(lineID.format(a)).index+1)
         bar.next()
     bar.finish()
-
-def calc_plasmasheet(field_data, lat_max, lon_list, tail_cap,
-                     max_iter, tolerance, time):
-    """Function to create tecplot zones that define the plasmasheet boundary
-    Inputs
-        field_data- tecplot Dataset containing 3D field data
-        lat_max- max latitude value corresponding to near pole
-        lon_list- list containing longitudinal positions to be searched
-        tail_cap
-        max_iter- max iterations for bisection algorithm
-        tolerance- tolerance on the bisection method
-        time- spacepy Ticktock of current time
-    """
-    #set B as the vector field
-    plot = tp.active_frame().plot()
-    plot.vector.u_variable = field_data.variable('B_x*')
-    plot.vector.v_variable = field_data.variable('B_y*')
-    plot.vector.w_variable = field_data.variable('B_z*')
-    seed_radius = 1
-
-    #iterate through longitudes zones
-    bar = Bar('Finding Plasmasheet Field Lines', max=len(theta))
-    for lon in lon_list:
-        '''
-        sphcoor = coord.Coords([seed_radius, 85, lon], 'SM', 'sph')
-        sphcoor.ticks = time
-        '''
-        #initialize latitude search bounds
-        pole_lat = lat_max
-        equat_lat = 45 * lat_max/abs(lat_max)
-        mid_lat = (pole_lat+equat_lat)/2
-
-        """
-        #Testing for XZ visulalizations
-        map_index = 0
-        for i in np.append(np.linspace(pi/18,lat_max, 20),
-                           np.linspace(pi+pi/18, pi-lat_max, 20)):
-            create_stream_zone(field_data, seed_radius, i,
-                               phi, 'temp_'+str(rad2deg(i)), 'inner_mag')
-            map_index +=1
-            poleward_closed = check_streamline_closed(field_data,
-                                                'temp_'+str(rad2deg(i)),
-                                                abs(tail_cap),
-                                                'inner_mag')
-            if map_index > 18:
-                plot.fieldmap(map_index).mesh.color=Color.Blue
-            if not poleward_closed:
-                plot.fieldmap(map_index).mesh.color=Color.Red
-        """
-        #Create bounding fieldlines
-        #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, pole_lat, lon, time)
-        [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, pole_lat, lon, time)
-        create_stream_zone(field_data, xgsm, ygsm, zgsm,
-                           'temp_poleward_', 'inner_mag', cart_given=True)
-        poleward_closed = check_streamline_closed(field_data,
-                                                  'temp_poleward',
-                                                  abs(tail_cap),
-                                                  'inner_mag')
-        #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius, equat_lat, lon, time)
-        [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius, equat_lat, lon, time)
-        create_stream_zone(field_data, xgsm, ygsm, zgsm,
-                        'temp_equatorward_', 'inner_mag', cart_given=True)
-        equatorward_closed = check_streamline_closed(field_data,
-                                                 'temp_equatorward',
-                                                 abs(tail_cap),
-                                                 'inner_mag')
-        #check if both are open are closed to start
-        if poleward_closed and equatorward_closed:
-            print('\nWarning: high and low lat {:.2f}, {:.2f} '.format(
-                                                      pole_lat, equat_lat)+
-                  'closed at longitude {:.1f}\n'.format(lon))
-            field_data.zone('temp_pole*').name = 'plasma_sheet_'.format(
-                                                                 pole_lat)
-            field_data.delete_zones(field_data.zone('temp*'))
-        elif not poleward_closed and (not equatorward_closed):
-            print('Warning: high and low lat {:.2f}, {:.2f} open'.format(
-                                                    pole_lat, equat_lat))
-            field_data.zone('temp_equat*').name = 'plasma_sheet_'.format(
-                                                                 equat_lat)
-            field_data.delete_zones(field_data.zone('temp*'))
-        else:
-            field_data.delete_zones(field_data.zone('temp*'))
-            field_data.delete_zones(field_data.zone('temp*'))
-            notfound = True
-            itr = 0
-            while (notfound and itr < max_iter):
-                mid_lat = (pole_lat+equat_lat)/2
-                #[xgsm, ygsm, zgsm] = mag2gsm(seed_radius,mid_lat,lon,time)
-                [xgsm, ygsm, zgsm] = sm2gsm_temp(seed_radius,mid_lat,lon,time)
-                create_stream_zone(field_data, xgsm, ygsm, zgsm,
-                                   'temp_ps_line_', 'inner_mag',
-                                   cart_given=True)
-                mid_lat_closed = check_streamline_closed(field_data,
-                                                         'temp_ps_line_',
-                                                         abs(tail_cap),
-                                                         'inner_mag')
-                if mid_lat_closed:
-                    equat_lat = mid_lat
-                else:
-                    pole_lat = mid_lat
-                if abs(pole_lat - equat_lat)<tolerance and (
-                                                        mid_lat_closed):
-                    notfound = False
-                    field_data.zone('temp*').name = 'plasma_sheet_'.format(
-                                                                 equat_lat)
-                else:
-                    field_data.delete_zones(field_data.zone('temp*'))
-                itr += 1
-        bar.next()
-    bar.finish()
-
+    return zonelist
 
 def dump_to_pandas(frame, zonelist, varlist, filename):
     """Function to hand zone data to pandas to do processing

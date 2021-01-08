@@ -24,7 +24,7 @@ from global_energetics.extract import volume_tools
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract import stream_tools
 #from global_energetics.extract.view_set import display_magnetopause
-from global_energetics.extract.stream_tools import (calc_plasmasheet,
+from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     dump_to_pandas,
                                                     create_cylinder,
                                                     load_cylinder,
