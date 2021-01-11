@@ -56,7 +56,7 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
                        direction=StreamDir.Both)
     # Create zone
     field_line.extract()
-    field_data.zone(-1).name = zone_name + '{}'.format(x3start)
+    field_data.zone(-1).name = zone_name
     # Delete streamlines
     field_line.delete_all()
 
@@ -293,23 +293,36 @@ def streamfind_bisection(field_data, method,
     bar = Bar(disp_message, max=len(positions))
     zonelist = []
     for a in positions:
+        notfound = True
         #Set getseed function based only on search variable r
         if method == 'dayside':
-            #all getseed function return val: dim1, dim2, dim3, rcheck 
-            def getseed(r):return r, 0, a, r
+            #all getseed function return val: dim1, dim2, dim3,
+            #                                 rcheck, lin_type
+            def getseed(r):return r, 0, a, r, lin_type
             cartesian = False
-        elif method == 'tail' or (method == 'flow'):
+        elif method == 'tail':
             def getseed(r):
-                return dimmax, r*cos(rad2deg(a)), r*sin(rad2deg(a)), rcheck
+                x, y, z = dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a))
+                if tp.data.query.probe_at_position(x, y, z)[0][7] < 0:
+                    lin_type = 'south'
+                else:
+                    lin_type = 'north'
+                return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
+                        rcheck, lin_type]
+            cartesian = True
+        elif method == 'flow':
+            def getseed(r):
+                return [dimmax, r*cos(rad2deg(a)), r*sin(rad2deg(a)),
+                        rcheck, lin_type]
             cartesian = True
         elif method == 'plasmasheet':
-            def getseed(r):return sm2gsm_temp(1, r, a, time), None
+            def getseed(r):return sm2gsm_temp(1, r, a, time), None, lin_type
             cartesian = True
         #Create initial max/min to lines
-        x1, x2, x3, rchk = getseed(rmax)
+        x1, x2, x3, rchk, lin_type = getseed(rmax)
         create_stream_zone(field_data, x1, x2, x3, 'max'+lineID.format(a),
                            cart_given=cartesian)
-        x1, x2, x3, rchk= getseed(rmin)
+        x1, x2, x3, rchk, lin_type = getseed(rmin)
         create_stream_zone(field_data, x1, x2, x3, 'min'+lineID.format(a),
                            cart_given=cartesian)
         #Check that last closed is bounded, delete min/max
@@ -321,23 +334,24 @@ def streamfind_bisection(field_data, method,
                                 field_data.zone('max*'))
         if max_closed and min_closed:
             print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
-            x1, x2, x3, rchk = getseed(rmax)
+            x1, x2, x3, rchk, lin_type = getseed(rmax)
             create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
                                cart_given=cartesian)
+            notfound = False
         elif not max_closed and not min_closed:
             print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
-            x1, x2, x3, rchk = getseed(rmin)
+            x1, x2, x3, rchk, lin_type = getseed(rmin)
             create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
                                cart_given=cartesian)
+            notfound = False
         else:
             rmid = (rmax+rmin)/2
             itr = 0
-            notfound = True
             rout = rmax
             rin = rmin
             while(notfound and itr < itr_max):
                 #create mid
-                x1, x2, x3, rchk = getseed(rmid)
+                x1, x2, x3, rchk, lin_type = getseed(rmid)
                 create_stream_zone(field_data, x1, x2, x3,
                                    'mid'+lineID.format(a),
                                    cart_given=cartesian)
@@ -357,7 +371,7 @@ def streamfind_bisection(field_data, method,
                     rmid = (rin+rout)/2
                     field_data.delete_zones(field_data.zone('mid*'))
                 itr += 1
-        zonelist.append(field_data.zone(lineID.format(a)).index+1)
+        zonelist.append(field_data.zone(lineID.format(a)).index)
         bar.next()
     bar.finish()
     return zonelist

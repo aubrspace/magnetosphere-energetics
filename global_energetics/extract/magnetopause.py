@@ -13,6 +13,7 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
+from progress.bar import Bar
 #interpackage modules
 from global_energetics.makevideo import get_time
 from global_energetics.extract import surface_construct
@@ -28,6 +29,71 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     load_cylinder,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
+
+def inner_volume_df(df1, df2, dim1, dim2, *,form='xcylinder',xkey='X [R]'):
+    """Function combines two dataframe sets of points representing volumes
+        and keeping the interior points only based on form given
+    Inputs
+        df1, df2- pandas dataframe objects
+        dim1, dim2- dimensionality of search criteria of discrete vol elems
+        form- default cylinder with axis on centerline
+        xkey- string ID for x coordinate, y and z are assumed
+    Returns
+        df_combined
+    """
+    #get x, y, z variables
+    ykey = xkey.split('X')[0]+'Y'+xkey.split('X')[-1]
+    zkey = xkey.split('X')[0]+'Z'+xkey.split('X')[-1]
+    #establish volume elements for search according to form
+    if form == 'xcylinder':
+        #cylinder with axis on X axis, dim1=x slices, dim2=azimuth
+        xmax = max(df1[xkey].max(), df2[xkey].max())
+        xmin = min(df1[xkey].min(), df2[xkey].min())
+        dim1list = np.linspace(xmax, xmin, dim1, endpoint=False)
+        dim2list = np.linspace(-pi, pi, dim2, endpoint=False)
+        #get height parameter
+        h1 = pd.DataFrame(np.sqrt(df1[zkey]**2+df1[ykey]**2), columns=['h'])
+        h2 = pd.DataFrame(np.sqrt(df2[zkey]**2+df2[ykey]**2), columns=['h'])
+        df1 = df1.combine(h1, np.minimum, fill_value=1000)
+        df2 = df2.combine(h2, np.minimum, fill_value=1000)
+        hkey = 'h'
+        #set dim1key to x
+        dim1key = xkey
+        #get azimuth angle parameter
+        a1 = pd.DataFrame(np.arctan2(df1[zkey], df1[ykey]),
+                          columns=['yz[rad]'])
+        a2 = pd.DataFrame(np.arctan2(df2[zkey], df2[ykey]),
+                          columns=['yz[rad]'])
+        df1 = df1.combine(a1, np.minimum, fill_value=1000)
+        df2 = df2.combine(a2, np.minimum, fill_value=1000)
+        dim2key = 'yz[rad]'
+    else:
+        print('WARNING: form for combination of dataframes not recognized'+
+              ' combining full set of points from each dataframe')
+        df_combined = df1.append(df2)
+        return df_combined.sort_values(by=[xkey])
+    #loop through discretized volumes
+    dx1 = abs(dim1list[1]-dim1list[0])
+    dx2 = abs(dim2list[1]-dim2list[0])
+    bar = Bar('combining dataframes:', max=len(dim1list)*len(dim2list))
+    for x1 in dim1list:
+        for x2 in dim2list:
+            #get points within volume element
+            tempdf1 = df1[(df1[dim1key]>x1) & (df1[dim1key]<x1+dx1) &
+                          (df1[dim2key]>x2) & (df1[dim2key]<x2+dx2)]
+            tempdf2 = df2[(df2[dim1key]>x1) & (df2[dim1key]<x1+dx1) &
+                          (df2[dim2key]>x2) & (df2[dim2key]<x2+dx2)]
+            #get average of included points for each df
+            if tempdf1[hkey].mean() > tempdf2[hkey].mean():
+                #drop df1 points based on indicies
+                df1 = df1.drop(tempdf1.index)
+            else:
+                #drop df2 points based on indicies
+                df2 = df2.drop(tempdf2.index)
+            bar.next()
+    df_combined = df1.append(df2)
+    bar.finish()
+    return df_combined.sort_values(by=[xkey])
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      nstream_day=36, lon_max=122,
@@ -87,26 +153,39 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
-        #flowline points
+        ###tail points
+        taillist = streamfind_bisection(field_data, 'tail', -20,
+                                        nstream_tail,
+                                        rho_max, rho_min,
+                                        dayitr_max, daytol)
+        tail_df, _ = dump_to_pandas(main_frame, taillist,
+                            varlist, outputpath+'mp_dayside_points.csv')
+        #for zone_index in reversed(taillist):
+        #    field_data.delete_zones(field_data.zone(zone_index))
+        ###dayside points
+        daysidelist = streamfind_bisection(field_data, 'dayside', 90,
+                                        36,
+                                        rday_max, rday_min,
+                                        dayitr_max, daytol)
+        dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
+                            varlist, outputpath+'mp_dayside_points.csv')
+        #for zone_index in reversed(daysidelist):
+        #    field_data.delete_zones(field_data.zone(zone_index))
+        ###flowline points
         flowlist = streamfind_bisection(field_data, 'flow', -5, 72, 20, 0,
                                         dayitr_max, daytol,
                                         field_key_x='U_x*')
         flow_df, _ = dump_to_pandas(main_frame, flowlist, varlist,
                                     outputpath+'mp_flow_points.csv')
-        for zone_index in reversed(flowlist):
-            field_data.delete_zones(field_data.zone(zone_index-1))
-        #dayside points
-        daysidelist = streamfind_bisection(field_data, 'dayside', 180,
-                                        nstream_day,
-                                        rday_max, rday_min,
-                                        dayitr_max, daytol)
-        dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
-                            varlist, outputpath+'mp_dayside_points.csv')
-        for zone_index in reversed(flowlist):
-            field_data.delete_zones(field_data.zone(zone_index-1))
-        #combine portions into a single dataframe
+        #for zone_index in reversed(flowlist):
+        #    field_data.delete_zones(field_data.zone(zone_index))
+        ###combine portions into a single dataframe
+        stream_df = inner_volume_df(flow_df, dayside_df.append(tail_df),
+                                    25, 18)
+        '''
         stream_df = flow_df[(flow_df['X [R]'] < -8)].append(
                     dayside_df[(dayside_df['X [R]'] > -10)])
+        '''
         #slice and construct XYZ data
         mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap,
                                               x_subsolar, nslice, nalpha,
