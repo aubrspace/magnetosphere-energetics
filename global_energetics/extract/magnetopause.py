@@ -7,7 +7,8 @@ import sys
 import time
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt
+from numpy import abs, pi, cos, sin, sqrt, rad2deg
+import matplotlib.pyplot as plt
 import datetime as dt
 import tecplot as tp
 from tecplot.constant import *
@@ -30,27 +31,37 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
 
-def inner_volume_df(df1, df2, dim1, dim2, *,form='xcylinder',xkey='X [R]'):
+def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
+                    dim1, dim2, *, form='xcylinder',xkey='X [R]',
+                                   quiet=True):
     """Function combines two dataframe sets of points representing volumes
         and keeping the interior points only based on form given
     Inputs
         df1, df2- pandas dataframe objects
+        upperbound, lowerbound, innerbound- limits of search criteria
         dim1, dim2- dimensionality of search criteria of discrete vol elems
         form- default cylinder with axis on centerline
         xkey- string ID for x coordinate, y and z are assumed
+        quiet- boolean for displaying points missing in 1 or more sets
     Returns
         df_combined
     """
     #get x, y, z variables
     ykey = xkey.split('X')[0]+'Y'+xkey.split('X')[-1]
     zkey = xkey.split('X')[0]+'Z'+xkey.split('X')[-1]
+    xyz = [xkey, ykey, zkey]
     #establish volume elements for search according to form
     if form == 'xcylinder':
+        #process dataframes according to upper,lower inner bounds
+        df1 = df1[(df1[xkey]< upperbound) & (df1[xkey]>lowerbound) &
+                  (df1[xkey]**2+df1[ykey]**2+df1[zkey]**2>innerbound**2)]
+        df2 = df2[(df2[xkey]< upperbound) & (df2[xkey]>lowerbound) &
+                  (df2[xkey]**2+df2[ykey]**2+df2[zkey]**2>innerbound**2)]
         #cylinder with axis on X axis, dim1=x slices, dim2=azimuth
         xmax = max(df1[xkey].max(), df2[xkey].max())
         xmin = min(df1[xkey].min(), df2[xkey].min())
-        dim1list = np.linspace(xmax, xmin, dim1, endpoint=False)
-        dim2list = np.linspace(-pi, pi, dim2, endpoint=False)
+        dim1list, dx1 = np.linspace(xmin, xmax, dim1, retstep=True)
+        dim2list, dx2 = np.linspace(-pi, pi, dim2, retstep=True)
         #get height parameter
         h1 = pd.DataFrame(np.sqrt(df1[zkey]**2+df1[ykey]**2), columns=['h'])
         h2 = pd.DataFrame(np.sqrt(df2[zkey]**2+df2[ykey]**2), columns=['h'])
@@ -67,38 +78,125 @@ def inner_volume_df(df1, df2, dim1, dim2, *,form='xcylinder',xkey='X [R]'):
         df1 = df1.combine(a1, np.minimum, fill_value=1000)
         df2 = df2.combine(a2, np.minimum, fill_value=1000)
         dim2key = 'yz[rad]'
+        #create placepoint function based on x1,x2,h general coordinates
+        def placepoint(x1,x2,h):
+            x = x1
+            y = h*cos(x2)
+            z = h*sin(x2)
+            return x, y, z
     else:
         print('WARNING: form for combination of dataframes not recognized'+
               ' combining full set of points from each dataframe')
         df_combined = df1.append(df2)
         return df_combined.sort_values(by=[xkey])
+    #initialize a pyplot 3d figure
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    omit1 = pd.DataFrame(columns=xyz)
+    omit2 = pd.DataFrame(columns=xyz)
+    keep1 = pd.DataFrame(columns=xyz)
+    keep2 = pd.DataFrame(columns=xyz)
+    highlight = pd.DataFrame(columns=xyz)
     #loop through discretized volumes
-    dx1 = abs(dim1list[1]-dim1list[0])
-    dx2 = abs(dim2list[1]-dim2list[0])
     bar = Bar('combining dataframes:', max=len(dim1list)*len(dim2list))
+    mesh = pd.DataFrame(columns=xyz)
+    missing_points_list = []
     for x1 in dim1list:
         for x2 in dim2list:
             #get points within volume element
-            tempdf1 = df1[(df1[dim1key]>x1) & (df1[dim1key]<x1+dx1) &
-                          (df1[dim2key]>x2) & (df1[dim2key]<x2+dx2)]
-            tempdf2 = df2[(df2[dim1key]>x1) & (df2[dim1key]<x1+dx1) &
-                          (df2[dim2key]>x2) & (df2[dim2key]<x2+dx2)]
-            #get average of included points for each df
-            if tempdf1[hkey].mean() > tempdf2[hkey].mean():
-                #drop df1 points based on indicies
-                df1 = df1.drop(tempdf1.index)
+            tempdf1 = df1[(df1[dim1key]>x1-dx1/2)&(df1[dim1key]<x1+dx1/2) &
+                          (df1[dim2key]>x2-dx2/2)&(df1[dim2key]<x2+dx2/2)]
+            tempdf2 = df2[(df2[dim1key]>x1-dx1/2)&(df2[dim1key]<x1+dx1/2) &
+                          (df2[dim2key]>x2-dx2/2)&(df2[dim2key]<x2+dx2/2)]
+            #if no points, expand from +- dx/2 to +- dx*3/2
+            if tempdf1.empty:
+                tempdf1 = df1[(df1[dim1key]>x1-3*dx1/2)  &
+                              (df1[dim1key]<x1+3*dx1/2) &
+                              (df1[dim2key]>x2-3*dx2/2)  &
+                              (df1[dim2key]<x2+3*dx2/2)]
+                point = placepoint(x1, x2, tempdf1[hkey].mean())
+                highlight = highlight.append(pd.DataFrame([point],
+                                             columns=xyz),
+                                             ignore_index=True)
+            if tempdf2.empty:
+                tempdf2 = df2[(df2[dim1key]>x1-3*dx1/2)  &
+                              (df2[dim1key]<x1+3*dx1/2) &
+                              (df2[dim2key]>x2-3*dx2/2)  &
+                              (df2[dim2key]<x2+3*dx2/2)]
+                point = placepoint(x1, x2, tempdf2[hkey].mean())
+                highlight = highlight.append(pd.DataFrame([point],
+                                             columns=xyz),
+                                             ignore_index=True)
+            #append a point at x1,x2 and h based on averages of df's
+            if ((tempdf1[hkey].mean() > tempdf2[hkey].mean()) |
+                (tempdf1.empty and not tempdf2.empty)):
+                #keep df2 point
+                point = placepoint(x1, x2, tempdf2[hkey].mean())
+                mesh = mesh.append(pd.DataFrame([point], columns=xyz),
+                                   ignore_index=True)
+                keep2 = keep2.append(pd.DataFrame([point], columns=xyz),
+                                   ignore_index=True)
+                greypoint = placepoint(x1, x2, tempdf1[hkey].mean())
+                omit2 = omit2.append(pd.DataFrame([greypoint], columns=xyz),
+                                   ignore_index=True)
+            elif ((tempdf1[hkey].mean() < tempdf2[hkey].mean()) |
+                  (not tempdf1.empty and tempdf2.empty)):
+                #keep df1 point
+                point = placepoint(x1, x2, tempdf1[hkey].mean())
+                mesh = mesh.append(pd.DataFrame([point], columns=xyz),
+                                   ignore_index=True)
+                keep1 = keep1.append(pd.DataFrame([point], columns=xyz),
+                                   ignore_index=True)
+                greypoint = placepoint(x1, x2, tempdf2[hkey].mean())
+                omit1 = omit1.append(pd.DataFrame([greypoint], columns=xyz),
+                                   ignore_index=True)
             else:
-                #drop df2 points based on indicies
-                df2 = df2.drop(tempdf2.index)
+                #assume location of point and record in missing list
+                point = placepoint(x1, x2, point[2])
+                mesh = mesh.append(pd.DataFrame([point], columns=xyz),
+                                   ignore_index=True)
+                missing_points_list.append([x1,rad2deg(x2),point[2],
+                                            tempdf1[hkey].mean(),
+                                            tempdf2[hkey].mean()])
+                highlight = highlight.append(pd.DataFrame([point],
+                                             columns=xyz),
+                                             ignore_index=True)
             bar.next()
-    df_combined = df1.append(df2)
+    #df_combined = df1.append(df2)
     bar.finish()
-    return df_combined.sort_values(by=[xkey])
+    if not quiet and (len(missing_points_list)!=0):
+        print('WARNING: Following points missing in both data sets')
+        print('X    Theta(deg)      h_set       flow_h      field_h'+
+            '\n--   ----------      -----       ------      -------')
+        for point in missing_points_list:
+            print('{:.2f}  {:.0f}  {:.2f}  {:.1f}  {:.1f}'.format(point[0],
+                                                                  point[1],
+                                                                  point[2],
+                                                                  point[3],
+                                                                  point[4]))
+    #plot resulting mesh points
+    ax.scatter(keep1[xkey].values, keep1[ykey].values, keep1[zkey].values,
+               c='orange', label='flowpoint', marker='o')
+    ax.scatter(keep2[xkey].values, keep2[ykey].values, keep2[zkey].values,
+               c='b', label='fieldpoints', marker='o')
+    ax.scatter(omit1[xkey].values, omit1[ykey].values, omit1[zkey].values,
+               c='grey', label='omittedflow', marker='o')
+    ax.scatter(omit2[xkey].values, omit2[ykey].values, omit2[zkey].values,
+               c='grey', label='omittedfield', marker='x')
+    ax.scatter(highlight[xkey].values, highlight[ykey].values,
+               highlight[zkey].values,
+               c='red', label='expanded', marker='o')
+    ax.set_xlabel(xkey)
+    ax.set_ylabel(ykey)
+    ax.set_zlabel(zkey)
+    ax.legend()
+    plt.show()
+    return mesh
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      nstream_day=36, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
-                     nstream_tail=36, rho_max=125,rho_min=0.5,tail_cap=-20,
+                     nstream_tail=72, rho_max=125,rho_min=0.5,tail_cap=-20,
                      nslice=40, nalpha=36, nfill=10,
                      integrate_surface=True, integrate_volume=True,
                      varlist=[1,2,3]):
@@ -180,18 +278,17 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #for zone_index in reversed(flowlist):
         #    field_data.delete_zones(field_data.zone(zone_index))
         ###combine portions into a single dataframe
-        stream_df = inner_volume_df(flow_df, dayside_df.append(tail_df),
-                                    25, 18)
-        '''
-        stream_df = flow_df[(flow_df['X [R]'] < -8)].append(
-                    dayside_df[(dayside_df['X [R]'] > -10)])
+        field_df = dayside_df.append(tail_df)
+        mp_mesh = inner_volume_df(flow_df, field_df, x_subsolar, -40, 2,
+                                    40, 36, quiet=False)
         '''
         #slice and construct XYZ data
         mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap,
                                               x_subsolar, nslice, nalpha,
                                               False)
+        '''
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, nfill, tail_cap,
+        create_cylinder(field_data, 40, 36, nfill, -40,
                         x_subsolar, 'mp_zone')
         load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
                       K=nalpha)
