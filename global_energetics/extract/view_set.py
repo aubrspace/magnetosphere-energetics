@@ -24,7 +24,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                      save_plt=True, pltpath='./',
                      outputname='output', show_contour=True,
                      show_slice=True, show_fieldline=True, do_blanking=True,
-                     mpslice=40, cpsslice=20):
+                     mpslice=60, cpsslice=20):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
