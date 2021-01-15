@@ -212,7 +212,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         nslice, nalpha, nfill- cylindrical point for surface reconstruction
         integrate_surface/volume- booleans for settings
         varlist- for X, Y, Z variables in field data variable list
-        use_tes- boolean overrides and uses a test case of stream data
+        use_test- boolean overrides and uses a test case of stream data
     """
     print('Analyzing Magnetopause with the following settings:\n'+
             '\tdatafile: {}\n'.format(datafile)+
