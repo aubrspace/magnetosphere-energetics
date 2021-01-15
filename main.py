@@ -44,17 +44,14 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, lon_max=180,
-                                  nstream_day=18, tail_cap=-40,
-                                  integrate_surface=False,
-                                  integrate_volume=False,
-                                  use_test=False)
+                                  nstream_day=18, tail_cap=-40)
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
-    #view_set.display_boundary([frame for frame in tp.frames('main')][0],
-    #                          'K_out *', datafile, plasmasheet=False,
-    #                          pngpath=PNGPATH, pltpath=PLTPATH,
-    #                          show_contour=True, outputname=nameout)
+    view_set.display_boundary([frame for frame in tp.frames('main')][0],
+                              'K_out *', datafile, plasmasheet=False,
+                              pngpath=PNGPATH, pltpath=PLTPATH,
+                              show_contour=True, outputname=nameout)
 
     #timestamp
     ltime = time.time()-start_time

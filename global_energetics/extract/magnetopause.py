@@ -166,19 +166,6 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
                           (df1[dim2key]>x2-dx2/2)&(df1[dim2key]<x2+dx2/2)]
             tempdf2 = df2[(df2[dim1key]>x1-dx1/2)&(df2[dim1key]<x1+dx1/2) &
                           (df2[dim2key]>x2-dx2/2)&(df2[dim2key]<x2+dx2/2)]
-            '''
-            #if no points, expand from +- dx/2 to +- dx*3/2
-            if tempdf1.empty:
-                tempdf1 = df1[(df1[dim1key]>x1-3*dx1/2)  &
-                              (df1[dim1key]<x1+3*dx1/2) &
-                              (df1[dim2key]>x2-3*dx2/2)  &
-                              (df1[dim2key]<x2+3*dx2/2)]
-            if tempdf2.empty:
-                tempdf2 = df2[(df2[dim1key]>x1-3*dx1/2)  &
-                              (df2[dim1key]<x1+3*dx1/2) &
-                              (df2[dim2key]>x2-3*dx2/2)  &
-                              (df2[dim2key]<x2+3*dx2/2)]
-            '''
             #append a point at x1,x2 and h based on averages of df's
             if (not tempdf1.empty) | (not tempdf2.empty):
                 hmax = min(tempdf1[hkey].max(), tempdf2[hkey].max())
@@ -189,18 +176,6 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
                 missing_points_list.append([x1,rad2deg(x2),
                                             tempdf1[hkey].mean(),
                                             tempdf2[hkey].mean()])
-            '''
-            if ((tempdf1[hkey].mean() > tempdf2[hkey].mean()) |
-                (tempdf1.empty and (not tempdf2.empty))):
-                #keep df2 point
-                df_combined = df_combined.append(tempdf2,ignore_index=True)
-                df_field = df_field.append(tempdf2,ignore_index=True)
-            elif ((tempdf1[hkey].mean() < tempdf2[hkey].mean()) |
-                  ((not tempdf1.empty) and tempdf2.empty)):
-                #keep df1 point
-                df_combined = df_combined.append(tempdf1,ignore_index=True)
-                df_flow = df_flow.append(tempdf1,ignore_index=True)
-            '''
             bar.next()
     bar.finish()
     if not quiet and (len(missing_points_list)!=0):
@@ -212,24 +187,6 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
                                                                   point[1],
                                                                   point[2],
                                                                   point[3]))
-    '''
-    #plot points using python
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(df_field[xkey], df_field[ykey], df_field[zkey],
-               c='blue', label='combined dataframe field')
-    ax.scatter(df2[xkey], df2[ykey], df2[zkey],
-               c='grey', label='raw dataframe field')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_xlim([-40, 12])
-    ax.set_ylim([-30, 30])
-    ax.set_zlim([-30, 30])
-    ax.legend()
-    fig.savefig('combined.png')
-    plt.show()
-    '''
     return df_combined
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
@@ -330,26 +287,6 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             #    field_data.delete_zones(field_data.zone(zone_index))
             ###combine portions into a single dataframe
             field_df = dayside_df.append(tail_df)
-        '''
-        #plot points using python
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.scatter(dayside_df['X [R]'], dayside_df['Y [R]'],
-                   dayside_df['Z [R]'],
-                   c='blue', label='day_pre_innervol')
-        ax.scatter(tail_df['X [R]'], tail_df['Y [R]'],
-                   tail_df['Z [R]'],
-                   c='purple', label='tail_pre_innervol')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-        ax.set_xlim([-40, 12])
-        ax.set_ylim([-30, 30])
-        ax.set_zlim([-30, 30])
-        ax.legend()
-        plt.show()
-        '''
-
         stream_df = inner_volume_df(flow_df, field_df, x_subsolar,
                                         -40, 2, 40, 36, quiet=False)
         #slice and construct XYZ data
@@ -363,13 +300,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                       K=nalpha)
         main_frame.activate()
 
-        '''
         #interpolate field data to zone
         print('interpolating field data to magnetopause')
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
-        '''
 
         #perform integration for surface and volume quantities
         magnetopause_power = pd.DataFrame([[0,0,0]],
@@ -388,12 +323,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             mp_energies = volume_analysis(field_data, 'mp_zone')
             print('Magnetopause Energy Terms')
             print(mp_energies)
-        '''
         write_to_timelog(outputpath+'mp_integral_log.csv', time.UTC[0],
                           magnetopause_powers.combine(mp_energies,
                                                      np.maximum,
                                                      fill_value=-1e12))
-        '''
 
 
 

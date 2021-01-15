@@ -263,9 +263,11 @@ def streamfind_bisection(field_data, method,
         disp_message = 'Finding Magnetopause Dayside Field Lines'
         lin_type = 'dayside'
         lineID = 'day_{:.1f}'
+        l_max = 2*pi*15/nstream
     elif (method == 'tail') or (method == 'flow'):
         #set of points 360deg around disc in the tail at x=dimmax
         positions = np.linspace(-180*(1-1/nstream), 180, nstream)
+        l_max = 2*pi*25/nstream
         if method == 'tail':
             disp_message = 'Finding Magnetopause Tail Field Lines'
             lineID = 'tail_{:.1f}'
@@ -292,86 +294,103 @@ def streamfind_bisection(field_data, method,
 
     bar = Bar(disp_message, max=len(positions))
     zonelist = []
-    for a in positions:
-        notfound = True
-        #Set getseed function based only on search variable r
-        if method == 'dayside':
-            #all getseed function return val: dim1, dim2, dim3,
-            #                                 rcheck, lin_type
-            def getseed(r):return r, 0, a, r, lin_type
-            cartesian = False
-        elif method == 'tail':
-            def getseed(r):
-                x, y, z = dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a))
-                if tp.data.query.probe_at_position(x, y, z)[0][7] < 0:
-                    lin_type = 'south'
-                else:
-                    lin_type = 'north'
-                return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
-                        rcheck, lin_type]
-            cartesian = True
-        elif method == 'flow':
-            def getseed(r):
-                return [dimmax, r*cos(rad2deg(a)), r*sin(rad2deg(a)),
-                        rcheck, lin_type]
-            cartesian = True
-        elif method == 'plasmasheet':
-            def getseed(r):return sm2gsm_temp(1, r, a, time), None, lin_type
-            cartesian = True
-        #Create initial max/min to lines
-        x1, x2, x3, rchk, lin_type = getseed(rmax)
-        create_stream_zone(field_data, x1, x2, x3, 'max'+lineID.format(a),
-                           cart_given=cartesian)
-        x1, x2, x3, rchk, lin_type = getseed(rmin)
-        create_stream_zone(field_data, x1, x2, x3, 'min'+lineID.format(a),
-                           cart_given=cartesian)
-        #Check that last closed is bounded, delete min/max
-        max_closed = check_streamline_closed(field_data, 'max*', rchk,
-                                             line_type=lin_type)
-        min_closed = check_streamline_closed(field_data, 'min*', rchk,
-                                             line_type=lin_type)
-        field_data.delete_zones(field_data.zone('min*'),
-                                field_data.zone('max*'))
-        if max_closed and min_closed:
-            #print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
+    rold = 0
+    aold = positions[0]
+    for a_int in positions:
+        #start at intial position
+        a = a_int
+        while True:
+            notfound = True
+            #Set getseed function based only on search variable r
+            if method == 'dayside':
+                #all getseed function return val: dim1, dim2, dim3,
+                #                                 rcheck, lin_type
+                def getseed(r):return r, 0, a, r, lin_type
+                cartesian = False
+            elif method == 'tail':
+                def getseed(r):
+                    x, y, z = dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a))
+                    if tp.data.query.probe_at_position(x, y, z)[0][7] < 0:
+                        lin_type = 'south'
+                    else:
+                        lin_type = 'north'
+                    return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
+                            rcheck, lin_type]
+                cartesian = True
+            elif method == 'flow':
+                def getseed(r):
+                    return [dimmax, r*cos(rad2deg(a)), r*sin(rad2deg(a)),
+                            rcheck, lin_type]
+                cartesian = True
+            elif method == 'plasmasheet':
+                def getseed(r):return sm2gsm_temp(1, r, a, time), None, lin_type
+                cartesian = True
+            #Create initial max/min to lines
             x1, x2, x3, rchk, lin_type = getseed(rmax)
-            create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
-                               cart_given=cartesian)
-            notfound = False
-        elif not max_closed and not min_closed:
-            #print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
+            create_stream_zone(field_data, x1, x2, x3, 'max'+lineID.format(a),
+                            cart_given=cartesian)
             x1, x2, x3, rchk, lin_type = getseed(rmin)
-            create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
-                               cart_given=cartesian)
-            notfound = False
-        else:
-            rmid = (rmax+rmin)/2
-            itr = 0
-            rout = rmax
-            rin = rmin
-            while(notfound and itr < itr_max):
-                #create mid
-                x1, x2, x3, rchk, lin_type = getseed(rmid)
-                create_stream_zone(field_data, x1, x2, x3,
-                                   'mid'+lineID.format(a),
-                                   cart_given=cartesian)
-                #check midclosed
-                mid_closed = check_streamline_closed(field_data, 'mid*',
-                                                rchk, line_type=lin_type)
-                if mid_closed:
-                    rin = rmid
-                else:
-                    rout = rmid
-                if abs(rout-rin) < tolerance and (bool(
-                                        int(mid_closed)-reverse_if_flow)):
-                    #keep closed on boundary unless in 'flowline' method
-                    notfound = False
-                    field_data.zone('mid*').name=lineID.format(a)
-                else:
-                    rmid = (rin+rout)/2
-                    field_data.delete_zones(field_data.zone('mid*'))
-                itr += 1
-        zonelist.append(field_data.zone(lineID.format(a)).index)
+            create_stream_zone(field_data, x1, x2, x3, 'min'+lineID.format(a),
+                            cart_given=cartesian)
+            #Check that last closed is bounded, delete min/max
+            max_closed = check_streamline_closed(field_data, 'max*', rchk,
+                                                line_type=lin_type)
+            min_closed = check_streamline_closed(field_data, 'min*', rchk,
+                                                line_type=lin_type)
+            field_data.delete_zones(field_data.zone('min*'),
+                                    field_data.zone('max*'))
+            if max_closed and min_closed:
+                #print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
+                x1, x2, x3, rchk, lin_type = getseed(rmax)
+                create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
+                                cart_given=cartesian)
+                notfound = False
+                rmid = rmax
+            elif not max_closed and not min_closed:
+                #print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
+                x1, x2, x3, rchk, lin_type = getseed(rmin)
+                create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
+                                cart_given=cartesian)
+                notfound = False
+                rmid = rmin
+            else:
+                rmid = (rmax+rmin)/2
+                itr = 0
+                rout = rmax
+                rin = rmin
+                while(notfound and itr < itr_max):
+                    #create mid
+                    x1, x2, x3, rchk, lin_type = getseed(rmid)
+                    create_stream_zone(field_data, x1, x2, x3,
+                                    'mid'+lineID.format(a),
+                                    cart_given=cartesian)
+                    #check midclosed
+                    mid_closed = check_streamline_closed(field_data, 'mid*',
+                                                    rchk, line_type=lin_type)
+                    if mid_closed:
+                        rin = rmid
+                    else:
+                        rout = rmid
+                    if abs(rout-rin) < tolerance and (bool(
+                                            int(mid_closed)-reverse_if_flow)):
+                        #keep closed on boundary unless in 'flowline' method
+                        notfound = False
+                        field_data.zone('mid*').name=lineID.format(a)
+                    else:
+                        rmid = (rin+rout)/2
+                        field_data.delete_zones(field_data.zone('mid*'))
+                    itr += 1
+            zonelist.append(field_data.zone(lineID.format(a)).index)
+            #after adding to the list, check l_arc
+            l_arc = abs(a-aold) * abs(rmid - rold)/2
+            if l_arc < l_max:
+                rold = rmid
+                aold = a_int
+                break
+            #half the distance and loop again
+            a = a - (a-aold)/2
+            rold = rmid
+            aold = a
         bar.next()
     bar.finish()
     return zonelist
@@ -479,13 +498,19 @@ def load_cylinder(field_data, data, zonename, I, J, K):
     ymean = np.zeros(len(ydata))
     zmean = np.zeros(len(zdata))
     #determine center point
+    bar = Bar('Loading cylinder centers', max=K)
     for k in range(0,K):
         ymean[k*J:(k+1)*J] = np.mean(ydata[k*J:(k+1)*J])
         zmean[k*J:(k+1)*J] = np.mean(zdata[k*J:(k+1)*J])
+        bar.next()
+    bar.finish()
+    bar = Bar('Loading I meshpoints', max=I)
     for i in range(0,I):
         mag_bound.values('X*')[i::I] = xdata
         mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/I + ymean
         mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/I + zmean
+        bar.next()
+    bar.finish()
 
 
 def calculate_energetics(field_data, zone_name):
