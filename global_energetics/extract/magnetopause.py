@@ -268,8 +268,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             #for zone_index in reversed(taillist):
             #    field_data.delete_zones(field_data.zone(zone_index))
             ###dayside points
-            daysidelist = streamfind_bisection(field_data, 'dayside', 90,
-                                            36,
+            daysidelist = streamfind_bisection(field_data, 'dayside', lon_max,
+                                            nstream_day,
                                             rday_max, rday_min,
                                             dayitr_max, daytol)
             dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
