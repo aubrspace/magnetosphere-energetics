@@ -18,7 +18,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                       dump_to_pandas)
 
 def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
-                    volKEperp=True, volEth=True):
+                    volKEperp=True, volEth=True, volume=True):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
@@ -42,7 +42,7 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         keys.append(volume_name+' uB [J]')
         uB_index = int(field_data.variable('uB *').index)
         uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
-                              tail_only=True)
+                              subspace='tail')
         data.append(uB)
     if volKEpar:
         print('***************************'+
@@ -52,7 +52,7 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         KEpar_index = int(field_data.variable('KEpar *').index)
         KEpar = integrate_volume(KEpar_index, zone_index,
                                  volume_name+' KEpar [J]',
-                                 tail_only=True)
+                                 subspace='tail')
         data.append(KEpar)
     if volKEperp:
         print('***************************'+
@@ -62,7 +62,7 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         KEperp_index = int(field_data.variable('KEperp *').index)
         KEperp = integrate_volume(KEperp_index, zone_index,
                                  volume_name+' KEperp [J]',
-                                 tail_only=True)
+                                 subspace='tail')
         data.append(KEperp)
     if volEth:
         print('***************************'+
@@ -72,8 +72,17 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         Eth_index = int(field_data.variable('P *').index)
         Eth = integrate_volume(Eth_index, zone_index,
                                  volume_name+' Etherm [J]',
-                                 tail_only=True)
+                                 subspace='tail')
         data.append(Eth)
+    if volume:
+        print('***************************'+
+              '\n{} Volume integration\n'.format(zone_name))
+        #integrate thermal energy
+        keys.append(volume_name+' Volume [R^3]')
+        Vol = integrate_volume(None, zone_index,
+                               volume_name+' Volume [R^3]',
+                               VariableOption='LengthAreaVolume')
+        data.append(Vol)
     volume_energies = pd.DataFrame([data], columns=keys)
     volume_energies = volume_energies * 6370**3
 

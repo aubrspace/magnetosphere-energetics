@@ -258,24 +258,6 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         if use_test:
             field_df, flow_df, x_subsolar = make_test_case()
         else:
-            ###tail points
-            taillist = streamfind_bisection(field_data, 'tail', -20,
-                                            nstream_tail,
-                                            rho_max, rho_min,
-                                            dayitr_max, daytol)
-            tail_df, _ = dump_to_pandas(main_frame, taillist,
-                                varlist, outputpath+'mp_tail_points.csv')
-            #for zone_index in reversed(taillist):
-            #    field_data.delete_zones(field_data.zone(zone_index))
-            ###dayside points
-            daysidelist = streamfind_bisection(field_data, 'dayside', lon_max,
-                                            nstream_day,
-                                            rday_max, rday_min,
-                                            dayitr_max, daytol)
-            dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
-                            varlist, outputpath+'mp_dayside_points.csv')
-            #for zone_index in reversed(daysidelist):
-            #    field_data.delete_zones(field_data.zone(zone_index))
             ###flowline points
             flowlist = streamfind_bisection(field_data, 'flow', -5, 72,
                                             20, 0,
@@ -283,10 +265,46 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                             field_key_x='U_x*')
             flow_df, _ = dump_to_pandas(main_frame, flowlist, varlist,
                                         outputpath+'mp_flow_points.csv')
-            #for zone_index in reversed(flowlist):
-            #    field_data.delete_zones(field_data.zone(zone_index))
-            ###combine portions into a single dataframe
+            for zone_index in reversed(flowlist):
+                field_data.delete_zones(field_data.zone(zone_index))
+            ###tail points
+            taillist = streamfind_bisection(field_data, 'tail', -20,
+                                            nstream_tail,
+                                            rho_max, rho_min,
+                                            dayitr_max, daytol)
+            tail_df, _ = dump_to_pandas(main_frame, taillist,
+                                varlist, outputpath+'mp_tail_points.csv')
+            for zone_index in reversed(taillist):
+                field_data.delete_zones(field_data.zone(zone_index))
+            ###dayside points
+            daysidelist = streamfind_bisection(field_data, 'dayside', lon_max,
+                                            nstream_day,
+                                            rday_max, rday_min,
+                                            dayitr_max, daytol)
+            dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
+                            varlist, outputpath+'mp_dayside_points.csv')
+            for zone_index in reversed(daysidelist):
+                field_data.delete_zones(field_data.zone(zone_index))
+            ###combine dayside and tail into one set
             field_df = dayside_df.append(tail_df)
+        '''
+        #Quickrun
+        flow_df = pd.read_csv('output/mp_flow_points.csv')
+        flow_df = flow_df.drop(columns=['Unnamed: 3'])
+        flow_df = flow_df.sort_values(by=['X [R]'])
+        flow_df = flow_df.reset_index(drop=True)
+        dayside_df = pd.read_csv('output/mp_dayside_points.csv')
+        dayside_df = dayside_df.drop(columns=['Unnamed: 3'])
+        dayside_df = dayside_df.sort_values(by=['X [R]'])
+        dayside_df = dayside_df.reset_index(drop=True)
+        x_subsolar = dayside_df['X [R]'].max()
+        tail_df = pd.read_csv('output/mp_tail_points.csv')
+        tail_df = tail_df.drop(columns=['Unnamed: 3'])
+        tail_df = tail_df.sort_values(by=['X [R]'])
+        tail_df = tail_df.reset_index(drop=True)
+        field_df = dayside_df.append(tail_df)
+        '''
+
         stream_df = inner_volume_df(flow_df, field_df, x_subsolar,
                                         -40, 2, 40, 36, quiet=False)
         #slice and construct XYZ data
@@ -307,7 +325,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 source_zones=field_data.zone('global_field'))
 
         #perform integration for surface and volume quantities
-        magnetopause_power = pd.DataFrame([[0,0,0]],
+        magnetopause_powers = pd.DataFrame([[0,0,0]],
                                       columns=['no_mp_surf1',
                                                'no_mp_surf2',
                                                'no_mp_surf3'])

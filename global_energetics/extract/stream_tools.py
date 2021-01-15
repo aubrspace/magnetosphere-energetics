@@ -10,6 +10,7 @@ import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 from progress.bar import Bar
+from progress.spinner import Spinner
 import spacepy
 #from spacepy import coordinates as coord
 from spacepy import time as spacetime
@@ -766,7 +767,7 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
-                     tail_only=False):
+                     subspace=None, VariableOption='Scalar'):
     """Function to calculate integral of variable within a 3D volume
     Inputs
         var_index- variable to be integrated
@@ -774,6 +775,7 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
         qtname- integrated quantity will be saved as this name
         frame_id- frame name with the surface that integral is performed
         tail_only- default False, will integrate only tail if True
+        VariableOption- default scalar, can choose others
     Output
         integral
     """
@@ -785,7 +787,7 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
     plt= frame.plot()
     #validate name (special characters give tp a lot of problems)
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
-    if tail_only:
+    if subspace == 'tail':
         #value blank domain around X>-2
         plt.value_blanking.active = True
         blank = plt.value_blanking.constraint(0)
@@ -795,29 +797,34 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
         blank.comparison_value = -3
     #Setup macrofunction command
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
-                       "VariableOption='Scalar' "
-                       "ScalarVar={:d} ".format(var_index+1)+
+                       "VariableOption={} ".format(VariableOption))
+    if VariableOption == 'Scalar':
+        integrate_command = (integrate_command+
+                       "ScalarVar={:d} ".format(var_index+1))
+    integrate_command = (integrate_command+
                        "XVariable=1 "+
                        "YVariable=2 "+
                        "ZVariable=3 "+
                        "ExcludeBlanked='T' "+
                        "IntegrateOver='Cells' "+
                        "IntegrateBy='Zones' "+
-                       "PlotResults='T' "+
+                       "PlotResults='F' "+
                        "PlotAs='"+qtname+"' "+
                        "TimeMin=0 TimeMax=0")
-    #Perform integration
+    #Perform integration and extract resultant value
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
-    result = [fr for fr in tp.frames('Frame*')][0].dataset
-    integral = result.variable(qtname_abr).values('*').as_numpy_array()[0]
+    filename = os.getcwd()+'/Out.txt'
+    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
+        command='SaveIntegrationResults FileName="'+filename+'"')
+    result = pd.read_table('./Out.txt', sep=':',index_col=0)
+    integral = result.iloc[-1].values[0]
 
-    #Delete created frame and turn off blanking
+    #Delete created file and turn off blanking
+    os.system('rm Out.txt')
     blank = plt.value_blanking.constraint(0)
     blank.active = False
     plt.value_blanking.active = False
-    frame.activate()
-    frame.move_to_top()
     return integral
 
 def abs_to_timestamp(abstime):
