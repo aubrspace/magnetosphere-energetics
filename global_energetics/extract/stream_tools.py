@@ -225,7 +225,7 @@ def rotation(angle, axis):
 
 def streamfind_bisection(field_data, method,
                          dimmax, nstream, rmax, rmin, itr_max, tolerance,
-                         rcheck=5, time=None,
+                         *, rcheck=5, time=None,
                          field_key_x='B_x*', global_key='global_field'):
     """Generalized function for generating streamlines for a 'last closed'          condition based on a bisection algorithm
     Inputs
@@ -333,13 +333,13 @@ def streamfind_bisection(field_data, method,
         field_data.delete_zones(field_data.zone('min*'),
                                 field_data.zone('max*'))
         if max_closed and min_closed:
-            print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
+            #print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
             x1, x2, x3, rchk, lin_type = getseed(rmax)
             create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
                                cart_given=cartesian)
             notfound = False
         elif not max_closed and not min_closed:
-            print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
+            #print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
             x1, x2, x3, rchk, lin_type = getseed(rmin)
             create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
                                cart_given=cartesian)
@@ -388,15 +388,15 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
         x_max
     """
     frame.activate()
-    print('converting '+filename.split('.')[0]+' to DataFrame\n')
+    print('converting '+filename.split('.')[0]+' to DataFrame')
     os.system('touch '+filename)
     #Export 3D point data to csv file
     tp.macro.execute_extended_command(command_processor_id='excsv',
             command='VarNames:'+
                     'FrOp=1:'+
                     'ZnCount={:d}:'.format(len(zonelist))+
-                    'ZnList=[{:d}-{:d}]:'.format(int(zonelist[0]),
-                                                 int(zonelist[-1]))+
+                    'ZnList=[{:d}-{:d}]:'.format(int(zonelist[0]+1),
+                                                 int(zonelist[-1])+1)+
                     'VarCount={:d}:'.format(len(varlist))+
                     'VarList=[{:d}-{:d}]:'.format(int(varlist[0]),
                                                   int(varlist[-1]))+
@@ -688,7 +688,7 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
     #validate name (special characters give tp a lot of problems
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
     if not is_cylinder:
-        print("Warning: not cylindrical object, check surface integrals")
+        print("WARNING: not cylindrical object, check surface integrals")
     surface_planes=["IRange={MIN =1 MAX = 0 SKIP ="+str(idimension-1)+"} "+
                     "JRange={MIN =1 MAX = 0 SKIP =1} "+
                     "KRange={MIN =1 MAX = 0 SKIP ="+str(kdimension-1)+"}"]

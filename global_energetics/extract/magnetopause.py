@@ -7,7 +7,7 @@ import sys
 import time
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt, rad2deg
+from numpy import abs, pi, cos, sin, sqrt, rad2deg, linspace
 import matplotlib.pyplot as plt
 import datetime as dt
 import tecplot as tp
@@ -30,6 +30,66 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     load_cylinder,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
+def make_test_case():
+    """Test case creates artifical set of flow and field streamlines for
+    reliable testing
+    Inputs
+        None
+    Outputs
+        field_df, flow_df- data frames with 3D field data points
+        x_subsolar- max xlocation from field_df
+    """
+    #define height at a given x location for flow and field
+    def h_field(x):
+        if x>=0:
+            return 3*(10-x)**0.5
+        else:
+            return min((-0.01*(x+5)**3+3*sqrt(10))+1*sin(5*x/(2*pi)), 100)
+    def h_flow(x):
+        if x>=0:
+            return 3*(12-x)**0.5
+        else:
+            return 3*sqrt(12)+1*sin(5*x/(2*pi))
+    #define point depending on x and angle
+    def p_field(x,a):return [x,h_field(x)*cos(a),h_field(x)*sin(a)]
+    def p_flow(x,a): return [x, h_flow(x)*cos(a), h_flow(x)*sin(a)]
+    xlist, dx = linspace(10, -60, 200, retstep=True)
+    alist, da = linspace(-pi, pi, 142, retstep=True)
+    xyz = ['X [R]', 'Y [R]', 'Z [R]']
+    field_df = pd.DataFrame(columns=xyz)
+    flow_df = pd.DataFrame(columns=xyz)
+    #fill in a dataframe with many points
+    bar = Bar('creating artificial field and flow points', max=len(xlist))
+    for x in xlist:
+        for a in alist:
+            field_df = field_df.append(pd.DataFrame([p_field(x,a)],
+                                                    columns=xyz),
+                                       ignore_index=True)
+            flow_df = flow_df.append(pd.DataFrame([p_flow(x,a)],
+                                                  columns=xyz),
+                                     ignore_index=True)
+        bar.next()
+    bar.finish()
+    x_subsolar = field_df['X [R]'].max()
+    '''
+    #plot points using python
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(field_df['X [R]'], field_df['Y [R]'], field_df['Z [R]'],
+               c='blue', label='synthetic fieldpoints')
+    ax.scatter(flow_df['X [R]'], flow_df['Y [R]'], flow_df['Z [R]'],
+               c='orange', label='synthetic flowpoints')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_xlim([-40, 12])
+    ax.set_ylim([-30, 30])
+    ax.set_zlim([-30, 30])
+    ax.legend()
+    fig.savefig('synthetic.png')
+    plt.show()
+    '''
+    return field_df, flow_df, x_subsolar
 
 def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
                     dim1, dim2, *, form='xcylinder',xkey='X [R]',
@@ -63,18 +123,22 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
         dim1list, dx1 = np.linspace(xmin, xmax, dim1, retstep=True)
         dim2list, dx2 = np.linspace(-pi, pi, dim2, retstep=True)
         #get height parameter
-        h1 = pd.DataFrame(np.sqrt(df1[zkey]**2+df1[ykey]**2), columns=['h'])
-        h2 = pd.DataFrame(np.sqrt(df2[zkey]**2+df2[ykey]**2), columns=['h'])
+        def height(y,z): return np.sqrt(y**2+z**2)
+        h1 = pd.DataFrame(height(df1[ykey],df1[zkey]), columns=['h'])
+        h2 = pd.DataFrame(height(df2[ykey],df2[zkey]), columns=['h'])
         df1 = df1.combine(h1, np.minimum, fill_value=1000)
         df2 = df2.combine(h2, np.minimum, fill_value=1000)
         hkey = 'h'
+        #remove points outside of hmax of the lower hmax
+        hmax = min(h1['h'].max(), h2['h'].max())
+        df1 = df1[(df1[hkey]< hmax)]
+        df2 = df2[(df2[hkey]< hmax)]
         #set dim1key to x
         dim1key = xkey
         #get azimuth angle parameter
-        a1 = pd.DataFrame(np.arctan2(df1[zkey], df1[ykey]),
-                          columns=['yz[rad]'])
-        a2 = pd.DataFrame(np.arctan2(df2[zkey], df2[ykey]),
-                          columns=['yz[rad]'])
+        def angle(y,z): return np.arctan2(z,y)
+        a1 = pd.DataFrame(angle(df1[ykey],df1[zkey]), columns=['yz[rad]'])
+        a2 = pd.DataFrame(angle(df2[ykey],df2[zkey]), columns=['yz[rad]'])
         df1 = df1.combine(a1, np.minimum, fill_value=1000)
         df2 = df2.combine(a2, np.minimum, fill_value=1000)
         dim2key = 'yz[rad]'
@@ -89,18 +153,12 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
               ' combining full set of points from each dataframe')
         df_combined = df1.append(df2)
         return df_combined.sort_values(by=[xkey])
-    #initialize a pyplot 3d figure
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    omit1 = pd.DataFrame(columns=xyz)
-    omit2 = pd.DataFrame(columns=xyz)
-    keep1 = pd.DataFrame(columns=xyz)
-    keep2 = pd.DataFrame(columns=xyz)
-    highlight = pd.DataFrame(columns=xyz)
     #loop through discretized volumes
     bar = Bar('combining dataframes:', max=len(dim1list)*len(dim2list))
-    mesh = pd.DataFrame(columns=xyz)
     missing_points_list = []
+    df_combined = pd.DataFrame(columns=xyz)
+    df_flow = pd.DataFrame(columns=xyz)
+    df_field = pd.DataFrame(columns=xyz)
     for x1 in dim1list:
         for x2 in dim2list:
             #get points within volume element
@@ -108,98 +166,79 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
                           (df1[dim2key]>x2-dx2/2)&(df1[dim2key]<x2+dx2/2)]
             tempdf2 = df2[(df2[dim1key]>x1-dx1/2)&(df2[dim1key]<x1+dx1/2) &
                           (df2[dim2key]>x2-dx2/2)&(df2[dim2key]<x2+dx2/2)]
+            '''
             #if no points, expand from +- dx/2 to +- dx*3/2
             if tempdf1.empty:
                 tempdf1 = df1[(df1[dim1key]>x1-3*dx1/2)  &
                               (df1[dim1key]<x1+3*dx1/2) &
                               (df1[dim2key]>x2-3*dx2/2)  &
                               (df1[dim2key]<x2+3*dx2/2)]
-                point = placepoint(x1, x2, tempdf1[hkey].mean())
-                highlight = highlight.append(pd.DataFrame([point],
-                                             columns=xyz),
-                                             ignore_index=True)
             if tempdf2.empty:
                 tempdf2 = df2[(df2[dim1key]>x1-3*dx1/2)  &
                               (df2[dim1key]<x1+3*dx1/2) &
                               (df2[dim2key]>x2-3*dx2/2)  &
                               (df2[dim2key]<x2+3*dx2/2)]
-                point = placepoint(x1, x2, tempdf2[hkey].mean())
-                highlight = highlight.append(pd.DataFrame([point],
-                                             columns=xyz),
-                                             ignore_index=True)
+            '''
             #append a point at x1,x2 and h based on averages of df's
-            if ((tempdf1[hkey].mean() > tempdf2[hkey].mean()) |
-                (tempdf1.empty and not tempdf2.empty)):
-                #keep df2 point
-                point = placepoint(x1, x2, tempdf2[hkey].mean())
-                mesh = mesh.append(pd.DataFrame([point], columns=xyz),
-                                   ignore_index=True)
-                keep2 = keep2.append(pd.DataFrame([point], columns=xyz),
-                                   ignore_index=True)
-                greypoint = placepoint(x1, x2, tempdf1[hkey].mean())
-                omit2 = omit2.append(pd.DataFrame([greypoint], columns=xyz),
-                                   ignore_index=True)
-            elif ((tempdf1[hkey].mean() < tempdf2[hkey].mean()) |
-                  (not tempdf1.empty and tempdf2.empty)):
-                #keep df1 point
-                point = placepoint(x1, x2, tempdf1[hkey].mean())
-                mesh = mesh.append(pd.DataFrame([point], columns=xyz),
-                                   ignore_index=True)
-                keep1 = keep1.append(pd.DataFrame([point], columns=xyz),
-                                   ignore_index=True)
-                greypoint = placepoint(x1, x2, tempdf2[hkey].mean())
-                omit1 = omit1.append(pd.DataFrame([greypoint], columns=xyz),
-                                   ignore_index=True)
+            if (not tempdf1.empty) | (not tempdf2.empty):
+                hmax = min(tempdf1[hkey].max(), tempdf2[hkey].max())
+                df_combined=df_combined.append(tempdf1[tempdf1[hkey]<hmax])
+                df_combined=df_combined.append(tempdf2[tempdf2[hkey]<hmax])
             else:
                 #assume location of point and record in missing list
-                point = placepoint(x1, x2, point[2])
-                mesh = mesh.append(pd.DataFrame([point], columns=xyz),
-                                   ignore_index=True)
-                missing_points_list.append([x1,rad2deg(x2),point[2],
+                missing_points_list.append([x1,rad2deg(x2),
                                             tempdf1[hkey].mean(),
                                             tempdf2[hkey].mean()])
-                highlight = highlight.append(pd.DataFrame([point],
-                                             columns=xyz),
-                                             ignore_index=True)
+            '''
+            if ((tempdf1[hkey].mean() > tempdf2[hkey].mean()) |
+                (tempdf1.empty and (not tempdf2.empty))):
+                #keep df2 point
+                df_combined = df_combined.append(tempdf2,ignore_index=True)
+                df_field = df_field.append(tempdf2,ignore_index=True)
+            elif ((tempdf1[hkey].mean() < tempdf2[hkey].mean()) |
+                  ((not tempdf1.empty) and tempdf2.empty)):
+                #keep df1 point
+                df_combined = df_combined.append(tempdf1,ignore_index=True)
+                df_flow = df_flow.append(tempdf1,ignore_index=True)
+            '''
             bar.next()
-    #df_combined = df1.append(df2)
     bar.finish()
     if not quiet and (len(missing_points_list)!=0):
         print('WARNING: Following points missing in both data sets')
-        print('X    Theta(deg)      h_set       flow_h      field_h'+
-            '\n--   ----------      -----       ------      -------')
+        print('X    Theta(deg)      flow_h      field_h'+
+            '\n--   ----------      ------      -------')
         for point in missing_points_list:
-            print('{:.2f}  {:.0f}  {:.2f}  {:.1f}  {:.1f}'.format(point[0],
+            print('{:.2f}  {:.0f}  {:.1f}  {:.1f}'.format(point[0],
                                                                   point[1],
                                                                   point[2],
-                                                                  point[3],
-                                                                  point[4]))
-    #plot resulting mesh points
-    ax.scatter(keep1[xkey].values, keep1[ykey].values, keep1[zkey].values,
-               c='orange', label='flowpoint', marker='o')
-    ax.scatter(keep2[xkey].values, keep2[ykey].values, keep2[zkey].values,
-               c='b', label='fieldpoints', marker='o')
-    ax.scatter(omit1[xkey].values, omit1[ykey].values, omit1[zkey].values,
-               c='grey', label='omittedflow', marker='o')
-    ax.scatter(omit2[xkey].values, omit2[ykey].values, omit2[zkey].values,
-               c='grey', label='omittedfield', marker='x')
-    ax.scatter(highlight[xkey].values, highlight[ykey].values,
-               highlight[zkey].values,
-               c='red', label='expanded', marker='o')
-    ax.set_xlabel(xkey)
-    ax.set_ylabel(ykey)
-    ax.set_zlabel(zkey)
+                                                                  point[3]))
+    '''
+    #plot points using python
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(df_field[xkey], df_field[ykey], df_field[zkey],
+               c='blue', label='combined dataframe field')
+    ax.scatter(df2[xkey], df2[ykey], df2[zkey],
+               c='grey', label='raw dataframe field')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_xlim([-40, 12])
+    ax.set_ylim([-30, 30])
+    ax.set_zlim([-30, 30])
     ax.legend()
+    fig.savefig('combined.png')
     plt.show()
-    return mesh
+    '''
+    return df_combined
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      nstream_day=36, lon_max=122,
                      rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
                      nstream_tail=72, rho_max=125,rho_min=0.5,tail_cap=-20,
-                     nslice=40, nalpha=36, nfill=10,
+                     nslice=60, nalpha=36, nfill=10,
                      integrate_surface=True, integrate_volume=True,
-                     varlist=[1,2,3]):
+                     varlist=[1,2,3], use_test=False):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -213,7 +252,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         nstream_tail- number of streamlines generated for tail algorithm
         rho_max, rho_step- tail disc maximium radius and step (in YZ)
         tail_cap- X position of tail cap
-        nslice, nalpha- cylindrical points used for surface reconstruction
+        nslice, nalpha, nfill- cylindrical point for surface reconstruction
+        integrate_surface/volume- booleans for settings
+        varlist- for X, Y, Z variables in field data variable list
+        use_tes- boolean overrides and uses a test case of stream data
     """
     print('Analyzing Magnetopause with the following settings:\n'+
             '\tdatafile: {}\n'.format(datafile)+
@@ -226,7 +268,12 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             '\trho_max: {}\n'.format(rho_max)+
             '\ttail_cap: {}\n'.format(tail_cap)+
             '\tnslice: {}\n'.format(nslice)+
-            '\tnalpha: {}\n'.format(nalpha))
+            '\tnalpha: {}\n'.format(nalpha)+
+            '\tnfill: {}\n'.format(nfill)+
+            '\tintegrate_surface: {}\n'.format(integrate_surface)+
+            '\tintegrate_volume: {}\n'.format(integrate_volume)+
+            '\tvarlist: {}\n'.format(varlist)+
+            '\tuse_test: {}\n'.format(use_test))
     print(field_data)
     #get date and time info from datafile name
     time = get_time(datafile)
@@ -251,54 +298,78 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
-        ###tail points
-        taillist = streamfind_bisection(field_data, 'tail', -20,
-                                        nstream_tail,
-                                        rho_max, rho_min,
-                                        dayitr_max, daytol)
-        tail_df, _ = dump_to_pandas(main_frame, taillist,
+        if use_test:
+            field_df, flow_df, x_subsolar = make_test_case()
+        else:
+            ###tail points
+            taillist = streamfind_bisection(field_data, 'tail', -20,
+                                            nstream_tail,
+                                            rho_max, rho_min,
+                                            dayitr_max, daytol)
+            tail_df, _ = dump_to_pandas(main_frame, taillist,
+                                varlist, outputpath+'mp_tail_points.csv')
+            #for zone_index in reversed(taillist):
+            #    field_data.delete_zones(field_data.zone(zone_index))
+            ###dayside points
+            daysidelist = streamfind_bisection(field_data, 'dayside', 90,
+                                            36,
+                                            rday_max, rday_min,
+                                            dayitr_max, daytol)
+            dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
                             varlist, outputpath+'mp_dayside_points.csv')
-        #for zone_index in reversed(taillist):
-        #    field_data.delete_zones(field_data.zone(zone_index))
-        ###dayside points
-        daysidelist = streamfind_bisection(field_data, 'dayside', 90,
-                                        36,
-                                        rday_max, rday_min,
-                                        dayitr_max, daytol)
-        dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
-                            varlist, outputpath+'mp_dayside_points.csv')
-        #for zone_index in reversed(daysidelist):
-        #    field_data.delete_zones(field_data.zone(zone_index))
-        ###flowline points
-        flowlist = streamfind_bisection(field_data, 'flow', -5, 72, 20, 0,
-                                        dayitr_max, daytol,
-                                        field_key_x='U_x*')
-        flow_df, _ = dump_to_pandas(main_frame, flowlist, varlist,
-                                    outputpath+'mp_flow_points.csv')
-        #for zone_index in reversed(flowlist):
-        #    field_data.delete_zones(field_data.zone(zone_index))
-        ###combine portions into a single dataframe
-        field_df = dayside_df.append(tail_df)
-        mp_mesh = inner_volume_df(flow_df, field_df, x_subsolar, -40, 2,
-                                    40, 36, quiet=False)
+            #for zone_index in reversed(daysidelist):
+            #    field_data.delete_zones(field_data.zone(zone_index))
+            ###flowline points
+            flowlist = streamfind_bisection(field_data, 'flow', -5, 72,
+                                            20, 0,
+                                            dayitr_max, daytol,
+                                            field_key_x='U_x*')
+            flow_df, _ = dump_to_pandas(main_frame, flowlist, varlist,
+                                        outputpath+'mp_flow_points.csv')
+            #for zone_index in reversed(flowlist):
+            #    field_data.delete_zones(field_data.zone(zone_index))
+            ###combine portions into a single dataframe
+            field_df = dayside_df.append(tail_df)
         '''
+        #plot points using python
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.scatter(dayside_df['X [R]'], dayside_df['Y [R]'],
+                   dayside_df['Z [R]'],
+                   c='blue', label='day_pre_innervol')
+        ax.scatter(tail_df['X [R]'], tail_df['Y [R]'],
+                   tail_df['Z [R]'],
+                   c='purple', label='tail_pre_innervol')
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        ax.set_xlim([-40, 12])
+        ax.set_ylim([-30, 30])
+        ax.set_zlim([-30, 30])
+        ax.legend()
+        plt.show()
+        '''
+
+        stream_df = inner_volume_df(flow_df, field_df, x_subsolar,
+                                        -40, 2, 40, 36, quiet=False)
         #slice and construct XYZ data
-        mp_mesh = surface_construct.ah_slicer(stream_df, tail_cap,
+        mp_mesh = surface_construct.ah_slicer(stream_df, -40,
                                               x_subsolar, nslice, nalpha,
                                               False)
-        '''
         #create and load cylidrical zone
-        create_cylinder(field_data, 40, 36, nfill, -40,
+        create_cylinder(field_data, nslice, nalpha, nfill, -40,
                         x_subsolar, 'mp_zone')
         load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
                       K=nalpha)
         main_frame.activate()
 
+        '''
         #interpolate field data to zone
         print('interpolating field data to magnetopause')
         tp.data.operate.interpolate_inverse_distance(
                 destination_zone=field_data.zone('mp_zone'),
                 source_zones=field_data.zone('global_field'))
+        '''
 
         #perform integration for surface and volume quantities
         magnetopause_power = pd.DataFrame([[0,0,0]],
@@ -317,10 +388,12 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             mp_energies = volume_analysis(field_data, 'mp_zone')
             print('Magnetopause Energy Terms')
             print(mp_energies)
+        '''
         write_to_timelog(outputpath+'mp_integral_log.csv', time.UTC[0],
                           magnetopause_powers.combine(mp_energies,
                                                      np.maximum,
                                                      fill_value=-1e12))
+        '''
 
 
 

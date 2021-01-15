@@ -13,6 +13,7 @@ import matplotlib.pyplot as plot
 import scipy
 from scipy import interpolate as interp
 import pandas as pd
+from progress.bar import Bar
 import tecplot as tp
 
 START = time.time()
@@ -243,9 +244,11 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                                     'alpha', 'h', 'h_rel',
                                     'y0', 'z0'])
     y0, z0 = [], []
-    for x in linspace(x_min, x_max-dx, nX):
+    xlist, dx = linspace(x_min, x_max, nX, retstep=True)
+    bar = Bar('getting x-wise data statistics', max=len(xlist))
+    for x in xlist:
         #at each x bin calculate y0,z0 based on average
-        zone_xbin = zone[(zone['X [R]'] < x+dx) & (zone['X [R]'] > x-dx)]
+        zone_xbin = zone[(zone['X [R]']<x+dx/2) & (zone['X [R]']>x-dx/2)]
         zone_xbin = zone_xbin.reset_index(drop=True)
         y0.append(np.mean(zone_xbin['Y [R]']))
         z0.append(np.mean(zone_xbin['Z [R]']))
@@ -278,13 +281,16 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                                                'z0'],fill_value=z0[-1])
         #append xbin set to total dataset
         newzone = newzone.append(zone_xbin, ignore_index=True)
+        bar.next()
+    bar.finish()
 
     #for each alpha slice 
-    da = (pi)/(n_slice-1)
     k = 0
-    for a in linspace(-pi, pi, n_slice):
-        zone_abin = newzone[(newzone['alpha'] < a+da) &
-                            (newzone['alpha'] > a-da)]
+    alist, da = linspace(-pi, pi, n_slice, retstep=True)
+    bar = Bar('identifying cylindrical mesh points', max=len(alist))
+    for a in alist:
+        zone_abin = newzone[(newzone['alpha'] < a+da/2) &
+                            (newzone['alpha'] > a-da/2)]
         if show:
             #create plot and dump raw data
             fig, ax = plot.subplots()
@@ -295,21 +301,20 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                        label='h_rel')
 
         #for each xbin, remove all but the max h_relative value
-        n_xbin = nX*2
-        dx_finer = (x_max-x_min)/(2*(n_xbin-1))
-        for x in linspace(x_min, x_max-dx, n_xbin):
+        xfinelist, dxfine = linspace(x_min, x_max, 2*nX, retstep=True)
+        for x in xfinelist:
             #if the section has values
-            if not zone_abin[(zone_abin['X [R]'] < x+dx_finer) &
-                             (zone_abin['X [R]'] > x-dx_finer)].empty:
+            if not zone_abin[(zone_abin['X [R]'] < x+dxfine/2) &
+                             (zone_abin['X [R]'] > x-dxfine/2)].empty:
                 #identify the index of row with maximum r within section
                 max_h_rel_index = zone_abin[
-                            (zone_abin['X [R]'] < x+dx_finer) &
-                            (zone_abin['X [R]'] > x-dx_finer)].idxmax(0)[
+                            (zone_abin['X [R]'] < x+dxfine/2) &
+                            (zone_abin['X [R]'] > x-dxfine/2)].idxmax(0)[
                                                                    'h_rel']
                 #cut out alpha slice except for max_r_index row
                 zone_abin = zone_abin[
-                                      (zone_abin['X [R]'] > x+dx_finer) |
-                                      (zone_abin['X [R]'] < x-dx_finer) |
+                                      (zone_abin['X [R]'] > x+dxfine/2) |
+                                      (zone_abin['X [R]'] < x-dxfine/2) |
                                       (zone_abin.index == max_h_rel_index)]
             elif show:
                 print("No points at a:{}, x:{}".format(rad2deg(a),x))
@@ -317,7 +322,7 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
         #Create simple linear interpolation using numpy interp
         x_curve, h_curve = interp_linear(zone_abin['X [R]'].values,
                                          zone_abin['h_rel'].values,
-                                         linspace(x_min, x_max-dx, nX))
+                                         linspace(x_min, x_max, nX))
 
         #Load points into mesh
         j=0
@@ -375,6 +380,8 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                 filename = 'slice_log2/img-{:.0f}.png'.format(10*k)
             plot.savefig(filename)
             k = k+.1
+        bar.next()
+    bar.finish()
     #Sort mesh by X then alpha, then drop alpha column
     mesh = mesh.sort_values(by=['X [R]', 'alpha']).drop(columns='alpha')
     return mesh
