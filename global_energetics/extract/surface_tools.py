@@ -18,7 +18,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
 
 def surface_analysis(field_data, zone_name, nfill, nslice, *,
                      koutnorm=True, kinnorm=True, knetnorm=True,
-                     surface_area=False):
+                     surface_area=True):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
@@ -36,42 +36,39 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
     data = []
     #integrate k flux
     if koutnorm:
-        print('***************************'+
-              '\n{} kout integration\n'.format(zone_name))
         keys.append(surface_name+' K_out [kW]')
         kplus_index = int(field_data.variable('K_out+*').index)
         kout = integrate_surface(kplus_index, zone_index,
                                    surface_name+' K_out [kW]',
                                    idimension=nfill, kdimension=nslice)
+        print('{} kout integration done'.format(zone_name))
         data.append(kout)
     if knetnorm:
-        print('***************************'+
-              '\n{} knet integration\n'.format(zone_name))
         keys.append(surface_name+' K_net [kW]')
         knet_index = int(field_data.variable('K_out *').index)
         knet = integrate_surface(knet_index, zone_index,
                                    surface_name+' K_net [kW]',
                                    idimension=nfill, kdimension=nslice)
+        print('{} knet integration done'.format(zone_name))
         data.append(knet)
     if koutnorm:
-        print('***************************'+
-              '\n{} kin integration\n'.format(zone_name))
         keys.append(surface_name+' K_in [kW]')
         kminus_index = int(field_data.variable('K_out-*').index)
         kin = integrate_surface(kminus_index, zone_index,
                                    surface_name+' K_in [kW]',
                                    idimension=nfill, kdimension=nslice)
+        print('{} kin integration done'.format(zone_name))
         data.append(kin)
     #integrate area
     if surface_area:
-        print('***************************'+
-              '\n{} area integration\n'.format(zone_name))
         keys.append(surface_name+' Area [m^2]')
         area_index = int(field_data.variable('K_out+*').index)
         SA = integrate_surface(area_index, zone_index,
                                    surface_name+' Area [kW]',
-                                   idimension=nfill, kdimension=nslice)
-        data.append(kout)
+                                   idimension=nfill, kdimension=nslice,
+                                   VariableOption='LengthAreaVolume')
+        print('{} area integration done'.format(zone_name))
+        data.append(SA)
     surface_power = pd.DataFrame([data],columns=keys)
     surface_power = surface_power*6371**2
     return surface_power

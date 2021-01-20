@@ -36,52 +36,47 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
     keys = []
     data = []
     if voluB:
-        print('***************************'+
-              '\n{} uB integration\n'.format(zone_name))
         #integrate magnetic energy
         keys.append(volume_name+' uB [J]')
         uB_index = int(field_data.variable('uB *').index)
         uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
                               subspace='tail')
+        print('{} uB integration done'.format(zone_name))
         data.append(uB)
     if volKEpar:
-        print('***************************'+
-              '\n{} KEparallel integration\n'.format(zone_name))
         #integrate parallel KE
         keys.append(volume_name+' KEpar [J]')
         KEpar_index = int(field_data.variable('KEpar *').index)
         KEpar = integrate_volume(KEpar_index, zone_index,
                                  volume_name+' KEpar [J]',
                                  subspace='tail')
+        print('{} KEparallel integration done'.format(zone_name))
         data.append(KEpar)
     if volKEperp:
-        print('***************************'+
-              '\n{} KEperp integration\n'.format(zone_name))
         #integrate perp KE
         keys.append(volume_name+' KEperp [J]')
         KEperp_index = int(field_data.variable('KEperp *').index)
         KEperp = integrate_volume(KEperp_index, zone_index,
                                  volume_name+' KEperp [J]',
                                  subspace='tail')
+        print('{} KEperp integration done'.format(zone_name))
         data.append(KEperp)
     if volEth:
-        print('***************************'+
-              '\n{} Ethermal integration\n'.format(zone_name))
         #integrate thermal energy
         keys.append(volume_name+' Etherm [J]')
         Eth_index = int(field_data.variable('P *').index)
         Eth = integrate_volume(Eth_index, zone_index,
                                  volume_name+' Etherm [J]',
                                  subspace='tail')
+        print('{} Ethermal integration done'.format(zone_name))
         data.append(Eth)
     if volume:
-        print('***************************'+
-              '\n{} Volume integration\n'.format(zone_name))
         #integrate thermal energy
         keys.append(volume_name+' Volume [R^3]')
         Vol = integrate_volume(None, zone_index,
                                volume_name+' Volume [R^3]',
                                VariableOption='LengthAreaVolume')
+        print('{} Volume integration done'.format(zone_name))
         data.append(Vol)
     volume_energies = pd.DataFrame([data], columns=keys)
     volume_energies = volume_energies * 6370**3

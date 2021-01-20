@@ -696,7 +696,8 @@ def display_variable_bar(oldframe, var_index, color, barid, newaxis):
     frame.activate()
 
 def integrate_surface(var_index, zone_index, qtname, idimension,
-                      kdimension, *, is_cylinder=True, frame_id='main'):
+                      kdimension, *, is_cylinder=True, frame_id='main',
+                      VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
     Inputs
         var_index- variable to be integrated
@@ -705,13 +706,13 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
         idimension- used to determine which planes are outer surface
         kdimension- used to determine which planes are outer surface
         is_cylinder- default true
+        VariableOption- default scalar, can choose others
         frame_id- frame name with the surface that integral is performed
     Output
         integrated_total
     """
     #Integrate total surface Flux
     frame=[fr for fr in tp.frames(frame_id)][0]
-    frame.activate()
     page = tp.active_page()
     #validate name (special characters give tp a lot of problems
     qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
@@ -722,8 +723,11 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                     "KRange={MIN =1 MAX = 0 SKIP ="+str(kdimension-1)+"}"]
 
     integrate_command_I=("Integrate [{:d}] ".format(zone_index+1)+
-                         "VariableOption='Scalar' "
-                         "ScalarVar={:d} ".format(var_index+1)+
+                         "VariableOption="+VariableOption+" ")
+    if VariableOption == 'Scalar':
+        integrate_command_I = (integrate_command_I+
+                         "ScalarVar={:d} ".format(var_index+1))
+    integrate_command_I = (integrate_command_I+
                          "XVariable=1 "+
                          "YVariable=2 "+
                          "ZVariable=3 "+
@@ -731,12 +735,16 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                          "IntegrateOver='IPlanes' "+
                          "IntegrateBy='Zones' "+
                          surface_planes[0]+
-                         " PlotResults='T' "+
+                         " PlotResults='F' "+
                          "PlotAs='"+qtname+"_I' "+
                          "TimeMin=0 TimeMax=0")
+
     integrate_command_K=("Integrate [{:d}] ".format(zone_index+1)+
-                         "VariableOption='Scalar' "
-                         "ScalarVar={:d} ".format(var_index+1)+
+                         "VariableOption="+VariableOption+" ")
+    if VariableOption == 'Scalar':
+        integrate_command_K = (integrate_command_K+
+                         "ScalarVar={:d} ".format(var_index+1))
+    integrate_command_K = (integrate_command_K+
                          "XVariable=1 "+
                          "YVariable=2 "+
                          "ZVariable=3 "+
@@ -744,28 +752,29 @@ def integrate_surface(var_index, zone_index, qtname, idimension,
                          "IntegrateOver='KPlanes' "+
                          "IntegrateBy='Zones' "+
                          surface_planes[0]+
-                         " PlotResults='T' "+
+                         " PlotResults='F' "+
                          "PlotAs='"+qtname+"_K' "+
                          "TimeMin=0 TimeMax=0")
 
 
     #integrate over I planes
-    frame.activate()
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_I)
-    result = [fr for fr in tp.frames('Frame*')][-1].dataset
-    Ivalues = result.variable(qtname_abr).values('*').as_numpy_array()
-    #delete frame and reinitialize frame structure
-    frame.activate()
+    filename = os.getcwd()+'/Out.txt'
+    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
+        command='SaveIntegrationResults FileName="'+filename+'"')
+    result = pd.read_table('./Out.txt', sep=':',index_col=0)
+    Ivalue = result.iloc[-1].values[0]
     #integrate over K planes
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command_K)
-    result = [fr for fr in tp.frames('Frame*')][-1].dataset
-    Kvalues = result.variable(qtname_abr).values('*').as_numpy_array()
+    filename = os.getcwd()+'/Out.txt'
+    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
+        command='SaveIntegrationResults FileName="'+filename+'"')
+    result = pd.read_table('./Out.txt', sep=':',index_col=0)
+    Kvalue = result.iloc[-1].values[0]
     #sum all parts together
-    integrated_total = sum(Ivalues)+sum(Kvalues)
-    frame.activate()
-    frame.move_to_top()
+    integrated_total = Ivalue+Kvalue
     return integrated_total
 
 def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
@@ -776,7 +785,7 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
         zone_index- index of the zone to perform integration
         qtname- integrated quantity will be saved as this name
         frame_id- frame name with the surface that integral is performed
-        tail_only- default False, will integrate only tail if True
+        subspace- used to integrate only partial volumes, default None
         VariableOption- default scalar, can choose others
     Output
         integral

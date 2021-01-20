@@ -2,7 +2,7 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=pltdbug/15minute/
+PLTDIR=plt/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
@@ -20,10 +20,14 @@ eval `$TECPATH-env`
 echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #create log file for integral quantities
-touch output/mp_integral_log.csv
-echo $'year, month, day, hour, minute, second, Etherm[J], KEpar[J], KEperp[J], k_in[kW], k_net[kW], k_out[kW], uB[J]'>>output/mp_integral_log.csv
-touch output/cps_integral_log.csv
-echo $'year, month, day, hour, minute, second, Etherm[J], KEpar[J], KEperp[J], k_in[kW], k_net[kW], k_out[kW], uB[J]'>>output/cps_integral_log.csv
+touch output/mp_integral_log_hybrid.csv
+echo $'year, month, day, hour, minute, second, Area[m^2], Etherm[J], KEpar[J], KEperp[J], k_in[kW], k_net[kW], k_out[kW], uB[J], Volume[m^3]'>>output/mp_integral_log_hybrid.csv
+touch output/mp_integral_log_flowline.csv
+echo $'year, month, day, hour, minute, second, Area[m^2], Etherm[J], KEpar[J], KEperp[J], k_in[kW], k_net[kW], k_out[kW], uB[J], Volume[m^3]'>>output/mp_integral_log_flowline.csv
+touch output/mp_integral_log_shue.csv
+echo $'year, month, day, hour, minute, second, Area[m^2], Etherm[J], KEpar[J], KEperp[J], k_in[kW], k_net[kW], k_out[kW], uB[J], Volume[m^3]'>>output/mp_integral_log_shue.csv
+#touch output/cps_integral_log.csv
+#echo $'year, month, day, hour, minute, second, Etherm[J], KEpar[J], KEperp[J], k_in[kW], k_net[kW], k_out[kW], uB[J]'>>output/cps_integral_log.csv
 
 #execute script on .plt files
 for file in $PLTDIR*.plt
