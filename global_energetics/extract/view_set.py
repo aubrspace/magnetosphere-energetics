@@ -9,6 +9,143 @@ from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
 
+def manage_camera(frame, *, setting='iso_day'):
+    """Function sets camera angle based on setting
+    Inputs
+        frame- frame on which to change camera
+        setting- iso_day, iso_tail, xy, xz, yz
+    """
+    view = frame.plot().view
+    if setting == 'iso_day':
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (0,-120,64)
+        view.position = (-490,519,328)
+        view.magnification = 5.470
+    elif setting == 'iso_tail':
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (0,137,64)
+        view.position = (-490,519,328)
+        view.magnification = 5.470
+    else:
+        print('Camera setting {} not developed!'.format(setting))
+
+def manage_3Daxes(frame, *,
+                  xmax=15, xmin=-40, ymax=40, ymin=-40, zmax=40, zmin=-40,
+                  do_blanking=True):
+    """Function sets axes in 3D and blanks data outside of axes range
+    Inputs
+        frame- frame object to manage axes on
+        xyz max/min- axis ranges available overwrite
+        do_blanking- blanking to include blanking
+    """
+    axes = frame.plot().axes
+    axes.axis_mode = AxisMode.Independent
+    axes.x_axis.show = True
+    axes.x_axis.max = xmax
+    axes.x_axis.min = xmin
+    axes.x_axis.scale_factor = 1
+    axes.x_axis.title.position = 30
+    axes.x_axis.title.color = Color.White
+    axes.x_axis.tick_labels.color = Color.White
+    axes.y_axis.show = True
+    axes.y_axis.max = ymax
+    axes.y_axis.min = ymin
+    axes.y_axis.scale_factor = 1
+    axes.y_axis.title.position = 30
+    axes.y_axis.title.color = Color.White
+    axes.y_axis.tick_labels.color = Color.White
+    axes.z_axis.show = True
+    axes.z_axis.max = zmax
+    axes.z_axis.min = zmin
+    axes.z_axis.scale_factor = 1
+    axes.z_axis.title.offset = -8
+    axes.z_axis.title.color = Color.White
+    axes.z_axis.tick_labels.color = Color.White
+    axes.grid_area.fill_color = Color.Custom1
+    frame.background_color = Color.Black
+    if do_blanking:
+        #blanking outside 3D axes
+        frame.plot().value_blanking.active = True
+        #x
+        xblank = frame.plot().value_blanking.constraint(1)
+        xblank.active = True
+        xblank.variable = frame.dataset.variable('X *')
+        xblank.comparison_operator = RelOp.LessThan
+        xblank.comparison_value = xmin
+        xblank = frame.plot().value_blanking.constraint(2)
+        xblank.active = True
+        xblank.variable = frame.dataset.variable('X *')
+        xblank.comparison_operator = RelOp.GreaterThan
+        xblank.comparison_value = xmax
+        #y
+        yblank = frame.plot().value_blanking.constraint(3)
+        yblank.active = True
+        yblank.variable = frame.dataset.variable('Y *')
+        yblank.comparison_operator = RelOp.LessThan
+        yblank.comparison_value = ymin
+        yblank = frame.plot().value_blanking.constraint(4)
+        yblank.active = True
+        yblank.variable = frame.dataset.variable('Y *')
+        yblank.comparison_operator = RelOp.GreaterThan
+        yblank.comparison_value = ymax
+        #x
+        zblank = frame.plot().value_blanking.constraint(5)
+        zblank.active = True
+        zblank.variable = frame.dataset.variable('Z *')
+        zblank.comparison_operator = RelOp.LessThan
+        zblank.comparison_value = zmin
+        zblank = frame.plot().value_blanking.constraint(6)
+        zblank.active = True
+        zblank.variable = frame.dataset.variable('Z *')
+        zblank.comparison_operator = RelOp.GreaterThan
+        zblank.comparison_value = zmax
+
+def manage_zones(frame, nslice, *, approved_zones=None):
+    """Function shows/hides zones, sets shading and translucency
+    Inputs
+        frame- frame object to manage zones on
+        nslice- used to show only outer surface, assumes cylindrical
+        approved_zones- default shows all in predetermined list
+    """
+    plt = frame.plot()
+    #Generate predetermined approved zone names
+    zone_list = ['global_field', 'mp_shue', 'mp_test', 'mp_flowline',
+                 'mp_fieldline', 'mp_hybrid', 'cps_zone']
+    if approved_zones != None:
+        for zone in approved_zones:
+            zone_list.append(zone)
+    #hide all other zones
+    for map_index in plt.fieldmaps().fieldmap_indices:
+        for zone in plt.fieldmap(map_index).zones:
+            if not any([zone.name.find(item)!=-1 for item in zone_list]):
+                plt.fieldmap(map_index).show = False
+            elif zone.name == 'global_field':
+                plt.fieldmap(map_index).surfaces.surfaces_to_plot = None
+            else:
+                #some assertion that checks that zone is cylindrical
+                plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
+                                                   SurfacesToPlot.IKPlanes)
+                plt.fieldmap(map_index).show = True
+                plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
+                plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
+    #Transluceny and shade settings
+    for map_index in plt.fieldmaps().fieldmap_indices:
+        for zone in plt.fieldmap(map_index).zones:
+            frame.plot(PlotType.Cartesian3D).use_translucency=True
+            plt.fieldmap(map_index).effects.use_translucency=True
+            plt.fieldmap(map_index).effects.surface_translucency=40
+            if zone.name.find('mp_hybrid') != -1:
+                plt.fieldmap(map_index).shade.color = Color.Custom20
+            if zone.name.find('mp_fieldline') != -1:
+                plt.fieldmap(map_index).shade.color = Color.Custom34
+            if zone.name.find('mp_flowline') != -1:
+                plt.fieldmap(map_index).shade.color = Color.Custom11
+            if zone.name.find('mp_shue') != -1:
+                plt.fieldmap(map_index).shade.color = Color.Custom2
+            if zone.name.find('mp_test') != -1:
+                plt.fieldmap(map_index).shade.color = Color.Custom7
+            if zone.name.find('cps_zone') != -1:
+                plt.fieldmap(map_index).shade.color = Color.Custom8
 
 def twodigit(num):
     """Function makes two digit str from a number
@@ -18,6 +155,32 @@ def twodigit(num):
         num_str
     """
     return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
+
+def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
+                       save_img=True, pngpath='./', save_plt=True,
+                       pltpath='./', outputname='output',
+                       show_contour=True, show_slice=True,
+                       show_fieldline=True, do_blanking=True, mpslice=60,
+                       cpsslice=20, zone_rename=None):
+    """Function adjusts viewsettings for a single panel isometric 3D image
+    Inputs
+        frame- object for the tecplot frame
+        contour_key- string key for which contour variable to plot
+        filename
+        energyrange- limits for contour saturation on energy contour
+        save_img- default True
+        pngpath- path for saving .png file
+        save_plt- default True
+        pltpath- path for saving .png file
+        outputname- default is 'output.png'
+        show_contour, show_fieldline, show_slice, do_blanking
+        mpslice- number of x slices in mp surface
+        cpsslice- number of x slices in cps surface
+        zone_rename- optional rename of zone
+    """
+    manage_zones(frame, mpslice)
+    manage_3Daxes(frame)
+    manage_camera(frame)
 
 def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                      plasmasheet=True, colorbar_range=0.25,
@@ -257,112 +420,6 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
         tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
                                  include_data_share_linkage=True,
                                  include_autogen_face_neighbors=True)
-
-
-def bargraph_setup(frame, color, barid, axis_title, axis_range, *,
-                   var_index=0, newaxis=True):
-    """Function to display bargraph of variable quantity in upper left
-    Inputs
-        frame- tecplot frame object
-        var_index- index for displayed variable (2 for integrated qty)
-        color
-        barid- for multiple bars, setup to the right of the previous
-        axis_title
-        axis_range- expects two element numpy array object
-        newaxis- True if plotting on new axis
-    """
-    #Position frame
-    frame.position = [1.75+0.25*barid, 0.5]
-    frame.width = 1.5
-    frame.height = 4
-    frame.show_border = False
-    frame.transparent = True
-    frame.plot_type = PlotType.XYLine
-    #Adjust what is shown in frame
-    plt = frame.plot(PlotType.XYLine)
-    plt.linemap(0).show = False
-    plt.linemap(var_index).show = True
-    plt.show_symbols = False
-    plt.show_bars = True
-    plt.linemap(var_index).bars.show = True
-    plt.linemap(var_index).bars.size = 8
-    plt.linemap(var_index).bars.line_color = color
-    plt.linemap(var_index).bars.fill_color = color
-    plt.view.translate(x=-10,y=0)
-    plt.axes.x_axis(0).show = False
-    plt.axes.y_axis(0).title.title_mode = AxisTitleMode.UseText
-    plt.axes.y_axis(0).title.text= axis_title
-    plt.axes.y_axis(0).min = axis_range.min()
-    plt.axes.y_axis(0).max = axis_range.max()
-    #Adjust axis settings if shown
-    if newaxis:
-        plt.axes.y_axis(0).show = True
-        plt.axes.y_axis(0).line.offset = -20
-        plt.axes.y_axis(0).title.offset = 20
-        frame.transparent = False
-        if barid > 2:
-            plt.axes.y_axis(0).line.alignment = AxisAlignment.WithGridMax
-            plt.axes.y_axis(0).line.offset = -30
-            plt.axes.y_axis(0).title.offset = 20
-            plt.axes.y_axis(0).tick_labels.offset = 5
-    else:
-        plt.axes.y_axis(0).show = False
-
-def integral_display(searchkey, *, left_aligned=True, show_influx=True,
-                     show_netflux=True, show_outflux=True,
-                     save_img=True, pngpath='./', outputname='output.png',
-                     show_contour=True):
-    '''Function to adjust settings for colorbars to be displayed
-    Inputs
-        searchkey- string used to identify appropriate integral frames
-        left_aligned- default position is upper left corner, boosts barid
-                      if false for multiple quanties on one plot
-        show_influx
-        show_netflux
-        show_outflux
-        pngpath- path for saving .png file
-        outputname- default is 'output.png'
-        save_img- default True
-    '''
-    #Set frame objects for selected zone
-    framelist = []
-    for frame in tp.frames(searchkey+'*'):
-        if frame.name.find('K_in') != -1:
-            framelist.append(frame)
-        if frame.name.find('K_net') != -1:
-            framelist.append(frame)
-        if frame.name.find('K_out') != -1:
-            framelist.append(frame)
-
-    #set bar id
-    if left_aligned:
-        bar_id = 0
-    else:
-        bar_id = 3
-
-    #Create color pallete
-    pallete = [Color.Red, Color.Black, Color.Blue, Color.Orange,
-               Color.Green, Color.Purple]
-
-    #Set axis range for variables
-    if (framelist[0].name.find('mp') != -1 or
-        framelist[0].name.find('magnetopause') !=-1):
-        axis_range = np.array([-14000, 14000])
-    if (framelist[0].name.find('cps') != -1 or
-        framelist[0].name.find('plasmasheet') !=-1):
-        axis_range = np.array([-100, 100])
-
-    #Setup each frame in framelist
-    for frame in reversed(framelist):
-        frame.activate()
-        show_axis = (bar_id==0 or bar_id==5)
-        bargraph_setup(frame, pallete[bar_id], bar_id,
-                       frame.name, axis_range, newaxis=show_axis)
-        bar_id +=1
-        frame.move_to_top()
-
-    if save_img:
-        save_to_png(outputname=outputname, pngpath=pngpath)
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
