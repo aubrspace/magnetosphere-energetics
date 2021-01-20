@@ -29,7 +29,7 @@ def show_video(image_folder):
     vid_compile(image_folder, framerate, title)
 
 def interpolation(zone_x1val, zone_x2val, *, svar=20, closed=True,
-                  maxpt=1000):
+                  maxpt=10000):
     """Function takes two coordinate data and interpolates using interp
     module
     Inputs
@@ -319,15 +319,14 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
             elif show:
                 print("No points at a:{}, x:{}".format(rad2deg(a),x))
 
-        #Create simple linear interpolation using numpy interp
-        x_curve, h_curve = interp_linear(zone_abin['X [R]'].values,
-                                         zone_abin['h_rel'].values,
-                                         linspace(x_min, x_max, nX))
-
         #Load points into mesh
         j=0
+        x_curve = linspace(x_min, x_max, nX)
+        h_curve = []
         for x in x_curve:
-            h_load = h_curve[j]
+            h_load = np.interp(x, zone_abin['X [R]'].values,
+                                  zone_abin['h_rel'].values)
+            h_curve.append(h_load)
             x_load = x
             y_load = y0[j] + h_load*np.cos(a)
             z_load = z0[j] + h_load*np.sin(a)

@@ -43,9 +43,7 @@ if __name__ == "__main__":
     field_data.zone(0).name = 'global_field'
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, lon_max=90,
-                                  nstream_day=72, tail_cap=-40,
-                                  integrate_surface=False)
+    magnetopause.get_magnetopause(field_data, datafile)
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings

@@ -25,7 +25,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
                      save_plt=True, pltpath='./',
                      outputname='output', show_contour=True,
                      show_slice=True, show_fieldline=True, do_blanking=True,
-                     mpslice=60, cpsslice=20):
+                     mpslice=60, cpsslice=20, zone_rename=None):
     """Function to center a boundary object and adjust colorbar
         settings
     Inputs
@@ -42,6 +42,7 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
         show_contour, show_fieldline, do_blanking
         mpslice- number of x slices in mp surface
         cpsslice- number of x slices in cps surface
+        zone_rename- optional rename of zone
     """
     plt = frame.plot()
     field_data = frame.dataset
@@ -50,11 +51,16 @@ def display_boundary(frame, contour_key, filename, *, magnetopause=True,
     with tp.session.suspend():
     #create list of zones to    be displayed based on inputs
         zone_list = ['global_field']
-        #zone_list = []
         if magnetopause:
-            zone_list.append('mp_zone')
+            zone_list.append('mp_shue')
+            zone_list.append('mp_test')
+            zone_list.append('mp_flowline')
+            zone_list.append('mp_fieldline')
+            zone_list.append('mp_hybrid')
         if plasmasheet:
             zone_list.append('cps_zone')
+        if zone_rename != None:
+            zone_list.append(zone_rename)
         #hide all other zones
         for map_index in plt.fieldmaps().fieldmap_indices:
             for zone in plt.fieldmap(map_index).zones:

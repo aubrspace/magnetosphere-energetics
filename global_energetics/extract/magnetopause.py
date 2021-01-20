@@ -7,7 +7,7 @@ import sys
 import time
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt, rad2deg, linspace
+from numpy import abs, pi, cos, sin, sqrt, rad2deg, deg2rad, linspace
 import matplotlib.pyplot as plt
 import datetime as dt
 import tecplot as tp
@@ -30,6 +30,75 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     load_cylinder,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
+from global_energetics.extract import shue
+from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
+                                                    r0_alpha_1998)
+
+
+def get_shue_mesh(field_data, year, nx, nphi, xtail,
+                  *, x_subsolar=None, dx=5):
+    """Function mesh of 3D volume points based on Shue 1997/8 model for
+        magnetopause
+    Inputs
+        field_data
+        year- 1997 or 1998 for which emperical model
+        nx, nphi- 3D volume grid dimensions
+        xtail- limit for how far to extend in negative x direction
+        x_subsolar- default None, will calculate with dayside fieldlines
+    Outputs
+        mesh- pandas DataFrame with X,Y,Z locations of outer surface
+        x_subsolar
+    """
+    if x_subsolar == None:
+        x_subsolar = 0
+        #Call get streamfind with limited settings to get x_subsolar
+        frontzoneindicies = streamfind_bisection(field_data, 'dayside', 10,
+                                                 5, 30, 3.5, 100, 0.1)
+        #Find the max value from set of zones
+        for index in frontzoneindicies:
+            x_subsolar = max(x_subsolar,
+                                field_data.zone(index).values('X *').max())
+        print('x_subsolar found at {}'.format(x_subsolar))
+    #Probe field data at x_subsolar + dx to find Bz and Pdyn
+    Bz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][9]
+    rho = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][3]
+    ux = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][4]
+    uy = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][5]
+    uz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][6]
+    Pdyn = 1/2*rho*(ux**2+uy**2+uz**2)*1.67e-5
+    #Get r0 and alpha based on IMF conditions
+    if year == 1997:
+        r0, alpha = r0_alpha_1997(Bz, Pdyn)
+    else:
+        r0, alpha = r0_alpha_1998(Bz, Pdyn)
+    #Calculate the 2D r, theta curve
+    thetalist = linspace(150, 0, 10000)
+    h_curve = []
+    x_curve = []
+    for theta in thetalist:
+        r = r_shue(r0, alpha, theta)
+        h_curve.append(r*sin(deg2rad(theta)))
+        x_curve.append(r*cos(deg2rad(theta)))
+    plt.plot(x_curve,h_curve)
+    plt.show()
+    #Set volume grid points
+    xlist = linspace(xtail, x_curve[-1], nx)
+    hlist = []
+    for x in xlist:
+        hlist.append(np.interp(x, x_curve, h_curve))
+    philist = linspace(-180, 180, nphi)
+    #Fill in volume based on revolved 2D curve of points
+    xyz = ['X [R]', 'Y [R]', 'Z [R]']
+    mesh = pd.DataFrame(columns=xyz)
+    for point in enumerate(xlist):
+        x = point[1]
+        h = hlist[point[0]]
+        for phi in philist:
+            y = h*cos(deg2rad(phi))
+            z = h*sin(deg2rad(phi))
+            mesh = mesh.append(pd.DataFrame([[x,y,z]],columns=xyz))
+    return mesh, x_subsolar
+
 def make_test_case():
     """Test case creates artifical set of flow and field streamlines for
     reliable testing
@@ -190,47 +259,83 @@ def inner_volume_df(df1, df2, upperbound, lowerbound, innerbound,
     return df_combined
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
-                     nstream_day=36, lon_max=122,
-                     rday_max=30,rday_min=3.5, dayitr_max=100, daytol=0.1,
-                     nstream_tail=72, rho_max=125,rho_min=0.5,tail_cap=-20,
+                     mode='hybrid',
+                     n_day=72, lon_max=90, rday_max=30, rday_min=3.5,
+                     n_tail=72, rtail_max=125, rtail_min=0.5,
+                     n_flow=72, flow_seed_x=-5, rflow_max=20, rflow_min=0,
+                     shue=None,
+                     itr_max=100, tol=0.1,
+                     tail_cap=-40, innerbound=2,
                      nslice=60, nalpha=36, nfill=10,
                      integrate_surface=True, integrate_volume=True,
-                     varlist=[1,2,3], use_test=False):
+                     xyzvar=[1,2,3], zone_rename=None):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
-        field_data- tecplot DataSet object with 3D field data
-        datafile- field data filename, assumes .plt file
-        outputpath- path for output of .csv of points
-        nstream_day- number of streamlines generated for dayside algorithm
-        lon_max- longitude limit of dayside algorithm for streams
-        rday_max, rday_min- radial limits (in XY) for dayside algorithm
-        dayitr_max, daytol- settings for bisection search algorithm
-        nstream_tail- number of streamlines generated for tail algorithm
-        rho_max, rho_step- tail disc maximium radius and step (in YZ)
-        tail_cap- X position of tail cap
-        nslice, nalpha, nfill- cylindrical point for surface reconstruction
-        integrate_surface/volume- booleans for settings
-        varlist- for X, Y, Z variables in field data variable list
-        use_test- boolean overrides and uses a test case of stream data
+        General
+            field_data- tecplot DataSet object with 3D field data
+            datafile- field data filename, assumes .plt file
+            outputpath- path for output of .csv of points
+            mode- hybrid, fieldline, flowline, test or shue
+        Dayside field lines
+            n_day- number of streamlines generated for dayside algorithm
+            lon_max- longitude limit of dayside algorithm for streams
+            rday_max, rday_min- radial limits (in XY) for dayside algorithm
+        Tail field lines
+            n_tail- number of streamlines generated for tail algorithm
+            rtail_max, rtail_min- tail disc min and max search radius
+        Flow lines
+            n_flow- number of flowlines generated
+            flow_seed_x- x location to seed flowlines from
+            rflow_min, rflow_max- boundaries for search criteria
+        Shue
+            shue- None, 1997, 1998 uses Shue empirical, read iff mode=shue
+        Surface
+            itr_max, tol- settings for bisection search algorithm
+            tail_cap, innerbound- X position of tail cap and inner cuttoff
+            nslice, nalpha, nfill- cyl points for surface reconstruction
+            integrate_surface/volume- booleans for settings
+            xyzvar- for X, Y, Z variables in field data variable list
+            zone_rename- optional rename if calling multiple times
     """
-    print('Analyzing Magnetopause with the following settings:\n'+
-            '\tdatafile: {}\n'.format(datafile)+
-            '\toutputpath: {}\n'.format(outputpath)+
-            '\tnstream_day: {}\n'.format(nstream_day)+
-            '\tlon_max: {}\n'.format(lon_max)+
-            '\trday_max: {}\n'.format(rday_max)+
-            '\tdayitr_max: {}\n'.format(dayitr_max)+
-            '\tnstream_tail: {}\n'.format(nstream_tail)+
-            '\trho_max: {}\n'.format(rho_max)+
-            '\ttail_cap: {}\n'.format(tail_cap)+
-            '\tnslice: {}\n'.format(nslice)+
-            '\tnalpha: {}\n'.format(nalpha)+
-            '\tnfill: {}\n'.format(nfill)+
-            '\tintegrate_surface: {}\n'.format(integrate_surface)+
-            '\tintegrate_volume: {}\n'.format(integrate_volume)+
-            '\tvarlist: {}\n'.format(varlist)+
-            '\tuse_test: {}\n'.format(use_test))
+    display = ('Analyzing Magnetopause with the following settings:\n'+
+               '\tdatafile: {}\n'.format(datafile)+
+               '\toutputpath: {}\n'.format(outputpath)+
+               '\tmode: {}\n'.format(mode))
+    if (mode == 'hybrid') or (mode == 'fieldline'):
+        #field line settings
+        display = (display+
+               '\tn_day: {}\n'.format(n_day)+
+               '\tlon_max: {}\n'.format(lon_max)+
+               '\trday_max: {}\n'.format(rday_max)+
+               '\tn_tail: {}\n'.format(n_tail)+
+               '\trtail_max: {}\n'.format(rtail_max)+
+               '\trtail_min: {}\n'.format(rtail_min))
+    if (mode == 'hybrid') or (mode == 'flowline'):
+        #flow line settings
+        display = (display+
+               '\tn_flow: {}\n'.format(n_flow)+
+               '\tflow_seed_x: {}\n'.format(flow_seed_x)+
+               '\trflow_max: {}\n'.format(rflow_max)+
+               '\trflow_min: {}\n'.format(rflow_min))
+    if mode == 'shue':
+        #shue empirical settings
+        display = (display+
+               '\tshue: {}\n'.format(shue))
+    #general surface settings
+    display = (display+
+               '\titr_max: {}\n'.format(itr_max)+
+               '\ttol: {}\n'.format(tol)+
+               '\ttail_cap: {}\n'.format(tail_cap)+
+               '\tinnerbound: {}\n'.format(innerbound)+
+               '\tnslice: {}\n'.format(nslice)+
+               '\tnalpha: {}\n'.format(nalpha)+
+               '\tnfill: {}\n'.format(nfill)+
+               '\tintegrate_surface: {}\n'.format(integrate_surface)+
+               '\tintegrate_volume: {}\n'.format(integrate_volume)+
+               '\txyzvar: {}\n'.format(xyzvar)+
+               '\tzone_rename: {}\n'.format(zone_rename))
+    print(display)
     print(field_data)
     #get date and time info from datafile name
     time = get_time(datafile)
@@ -255,38 +360,65 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                      '180/pi*atan({Y [R]}/{X [R]})-180))')
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
-        if use_test:
+        #Get mesh points depending on mode setting
+        ################################################################
+        if mode == 'shue':
+            mp_mesh, x_subsolar = get_shue_mesh(field_data, shue, nslice,
+                                                nalpha, -40)
+            zonename = 'mp_shue'+str(shue)
+        ################################################################
+        elif mode == 'test':
             field_df, flow_df, x_subsolar = make_test_case()
-        else:
+            zonename = 'mp_test'
+        ################################################################
+        elif (mode == 'hybrid') or (mode == 'flowline'):
             ###flowline points
-            flowlist = streamfind_bisection(field_data, 'flow', -5, 72,
-                                            20, 0,
-                                            dayitr_max, daytol,
+            flowlist = streamfind_bisection(field_data, 'flow',flow_seed_x,
+                                            n_flow, rflow_max, rflow_min,
+                                            itr_max, tol,
                                             field_key_x='U_x*')
-            flow_df, _ = dump_to_pandas(main_frame, flowlist, varlist,
+            flow_df, _ = dump_to_pandas(main_frame, flowlist, xyzvar,
                                         outputpath+'mp_flow_points.csv')
             for zone_index in reversed(flowlist):
                 field_data.delete_zones(field_data.zone(zone_index))
+            zonename = 'mp_flowline'
+        ################################################################
+        if (mode == 'hybrid') or (mode == 'fieldline'):
             ###tail points
             taillist = streamfind_bisection(field_data, 'tail', -20,
-                                            nstream_tail,
-                                            rho_max, rho_min,
-                                            dayitr_max, daytol)
+                                            n_tail,
+                                            rtail_max, rtail_min,
+                                            itr_max, tol)
             tail_df, _ = dump_to_pandas(main_frame, taillist,
-                                varlist, outputpath+'mp_tail_points.csv')
+                                xyzvar, outputpath+'mp_tail_points.csv')
             for zone_index in reversed(taillist):
                 field_data.delete_zones(field_data.zone(zone_index))
             ###dayside points
-            daysidelist = streamfind_bisection(field_data, 'dayside', lon_max,
-                                            nstream_day,
-                                            rday_max, rday_min,
-                                            dayitr_max, daytol)
+            daysidelist = streamfind_bisection(field_data, 'dayside',
+                                               lon_max, n_day,
+                                               rday_max, rday_min,
+                                               itr_max, tol)
             dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
-                            varlist, outputpath+'mp_dayside_points.csv')
+                            xyzvar, outputpath+'mp_dayside_points.csv')
             for zone_index in reversed(daysidelist):
                 field_data.delete_zones(field_data.zone(zone_index))
             ###combine dayside and tail into one set
             field_df = dayside_df.append(tail_df)
+            zonename = 'mp_fieldline'
+        ################################################################
+        #Combine data sets if using hybrid mode
+        if mode == 'hybrid':
+            stream_df = inner_volume_df(flow_df, field_df, x_subsolar,
+                                        tail_cap, innerbound,nslice,nalpha,
+                                        quiet=False)
+            #slice and construct XYZ data
+            mp_mesh = surface_construct.ah_slicer(stream_df, -40,
+                                              x_subsolar, nslice, nalpha,
+                                              False)
+            zonename = 'mp_hybrid'
+        ################################################################
+        if zone_rename != None:
+            zonename = zone_rename
         '''
         #Quickrun
         flow_df = pd.read_csv('output/mp_flow_points.csv')
@@ -304,24 +436,16 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         tail_df = tail_df.reset_index(drop=True)
         field_df = dayside_df.append(tail_df)
         '''
-
-        stream_df = inner_volume_df(flow_df, field_df, x_subsolar,
-                                        -40, 2, 40, 36, quiet=False)
-        #slice and construct XYZ data
-        mp_mesh = surface_construct.ah_slicer(stream_df, -40,
-                                              x_subsolar, nslice, nalpha,
-                                              False)
         #create and load cylidrical zone
-        create_cylinder(field_data, nslice, nalpha, nfill, -40,
-                        x_subsolar, 'mp_zone')
-        load_cylinder(field_data, mp_mesh, 'mp_zone', I=nfill, J=nslice,
-                      K=nalpha)
-        main_frame.activate()
+        create_cylinder(field_data, nslice, nalpha, nfill, tail_cap,
+                        x_subsolar, zonename)
+        load_cylinder(field_data, mp_mesh, zonename, I=nfill, K=nslice,
+                      J=nalpha)
 
         #interpolate field data to zone
         print('interpolating field data to magnetopause')
         tp.data.operate.interpolate_inverse_distance(
-                destination_zone=field_data.zone('mp_zone'),
+                destination_zone=field_data.zone(zonename),
                 source_zones=field_data.zone('global_field'))
 
         #perform integration for surface and volume quantities
@@ -333,18 +457,19 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                       columns=['mp_vol_not_integrated'])
 
         if integrate_surface:
-            magnetopause_powers = surface_analysis(field_data, 'mp_zone',
+            magnetopause_powers = surface_analysis(field_data, zonename,
                                                   nfill, nslice)
             print('Magnetopause Power Terms')
             print(magnetopause_powers)
         if integrate_volume:
-            mp_energies = volume_analysis(field_data, 'mp_zone')
+            mp_energies = volume_analysis(field_data, zonename)
             print('Magnetopause Energy Terms')
             print(mp_energies)
-        write_to_timelog(outputpath+'mp_integral_log.csv', time.UTC[0],
-                          magnetopause_powers.combine(mp_energies,
-                                                     np.maximum,
-                                                     fill_value=-1e12))
+        if integrate_surface or integrate_power:
+            write_to_timelog(outputpath+'mp_integral_log.csv', time.UTC[0],
+                             magnetopause_powers.combine(mp_energies,
+                                                         np.maximum,
+                                                         fill_value=-1e12))
 
 
 
