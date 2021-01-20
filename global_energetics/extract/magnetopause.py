@@ -378,7 +378,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                             itr_max, tol,
                                             field_key_x='U_x*')
             flow_df, _ = dump_to_pandas(main_frame, flowlist, xyzvar,
-                                        outputpath+'mp_flow_points.csv')
+                                        path_to_mesh+meshfile)
             for zone_index in reversed(flowlist):
                 field_data.delete_zones(field_data.zone(zone_index))
             zonename = 'mp_flowline'
@@ -390,7 +390,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                             rtail_max, rtail_min,
                                             itr_max, tol)
             tail_df, _ = dump_to_pandas(main_frame, taillist,
-                                xyzvar, outputpath+'mp_tail_points.csv')
+                                xyzvar, path_to_mesh+meshfile)
             for zone_index in reversed(taillist):
                 field_data.delete_zones(field_data.zone(zone_index))
             ###dayside points
@@ -399,7 +399,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                rday_max, rday_min,
                                                itr_max, tol)
             dayside_df, x_subsolar = dump_to_pandas(main_frame, daysidelist,
-                            xyzvar, outputpath+'mp_dayside_points.csv')
+                            xyzvar, path_to_mesh+meshfile)
             for zone_index in reversed(daysidelist):
                 field_data.delete_zones(field_data.zone(zone_index))
             ###combine dayside and tail into one set
@@ -436,6 +436,12 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         tail_df = tail_df.reset_index(drop=True)
         field_df = dayside_df.append(tail_df)
         '''
+        #save mesh to file
+        path_to_mesh = outputpath+'/'+mode+'/'
+        os.system('mkdir '+path_to_mesh)
+        meshfile = datafile.split('.')[0]+'_'+mode+'.csv'
+        mesh.to_csv(path_to_mesh+meshfile)
+
         #create and load cylidrical zone
         create_cylinder(field_data, nslice, nalpha, nfill, tail_cap,
                         x_subsolar, zonename)

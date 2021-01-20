@@ -429,6 +429,8 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
         loc_data = loc_data.reset_index(drop=True)
         x_max = loc_data['X [R]'].max()
     else: x_max = []
+    #Delete csv file
+    os.system('rm '+os.getcwd()+'/'+filename)
     return loc_data, x_max
 
 def create_cylinder(field_data, nx, nalpha, nfill, x_min, x_max,
