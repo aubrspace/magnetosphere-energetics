@@ -65,7 +65,7 @@ def get_shue_mesh(field_data, year, nx, nphi, xtail,
     ux = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][4]
     uy = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][5]
     uz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][6]
-    Pdyn = 1/2*rho*(ux**2+uy**2+uz**2)*1.67e-5
+    Pdyn = 1/2*rho*(ux**2+uy**2+uz**2)*1.66058e-5
     #Get r0 and alpha based on IMF conditions
     if year == 1997:
         r0, alpha = r0_alpha_1997(Bz, Pdyn)
@@ -450,7 +450,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         field_df = dayside_df.append(tail_df)
         '''
         #save mesh to file
-        path_to_mesh = outputpath+'/'+mode+'/'
+        path_to_mesh = outputpath+mode+'/'
         os.system('mkdir '+path_to_mesh)
         meshfile = datafile.split('.')[0]+'_'+mode+'.csv'
         mp_mesh.to_csv(path_to_mesh+meshfile)

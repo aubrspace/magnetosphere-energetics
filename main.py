@@ -54,6 +54,8 @@ if __name__ == "__main__":
     #adjust view settings
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],
                                 'K_out *', datafile, show_contour=False,
+                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                outputname=OUTPUTNAME,
                                 tile=True, show_slice=False)
 
     #timestamp

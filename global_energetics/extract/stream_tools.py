@@ -555,14 +555,14 @@ def calculate_energetics(field_data, zone_name):
 
     #Ram pressure energy per volume
     eq('{KEpar [J/km^3]} = {Rho [amu/cm^3]}/2 *'+
-                                      '(({U_x [km/s]}*{bx})**2+'+
-                                       '({U_y [km/s]}*{by})**2+'+
-                                       '({U_z [km/s]}*{bz})**2) *1.67e-6')
+                                    '(({U_x [km/s]}*{bx})**2+'+
+                                    '({U_y [km/s]}*{by})**2+'+
+                                    '({U_z [km/s]}*{bz})**2) * 1.66058e-5')
     eq('{KEperp [J/km^3]} = {Rho [amu/cm^3]}/2 *'+
                           '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
                            '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
                            '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
-                                                               '*1.67e-6')
+                                                            '*1.66058e-5')
 
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
@@ -583,21 +583,27 @@ def calculate_energetics(field_data, zone_name):
                                             '-{E_x [mV/km]}*{B_y [nT]})'+
                                             '*1e-6')
     #Total Energy Flux
-    eq('{K_x [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
-                               '+1e-3*{Rho [amu/cm^3]}/2*'+
-                                   '({U_x [km/s]}**2+{U_y [km/s]}**2'+
-                                   '+{U_z [km/s]}**2))'+
-                          '*{U_x [km/s]}  +  {ExB_x [kW/km^2]}')
-    eq('{K_y [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
-                               '+1e-3*{Rho [amu/cm^3]}/2*'+
-                                   '({U_x [km/s]}**2+{U_y [km/s]}**2'+
-                                   '+{U_z [km/s]}**2))'+
-                          '*{U_y [km/s]}  +  {ExB_y [kW/km^2]}')
-    eq('{K_z [kW/km^2]} = 1e-6*(1000*{P [nPa]}*(1.666667/0.666667)'+
-                               '+1e-3*{Rho [amu/cm^3]}/2*'+
-                                   '({U_x [km/s]}**2+{U_y [km/s]}**2'+
-                                   '+{U_z [km/s]}**2))'+
-                          '*{U_z [km/s]}  +  {ExB_z [kW/km^2]}')
+    eq('{K_x [kW/km^2]} = ({P [nPa]}*(1.666667/0.666667)'+
+                                        '+0.166058e-5*{Rho [amu/cm^3]}/2*'+
+                                                    '({U_x [km/s]}**2'+
+                                                    '+{U_y [km/s]}**2'+
+                                                    '+{U_z [km/s]}**2))'+
+                          '*1e3*{U_x [km/s]}'+
+                          '+  {ExB_x [kW/km^2]}')
+    eq('{K_y [kW/km^2]} = ({P [nPa]}*(1.666667/0.666667)'+
+                                        '+0.166058e-5*{Rho [amu/cm^3]}/2*'+
+                                                    '({U_x [km/s]}**2'+
+                                                    '+{U_y [km/s]}**2'+
+                                                    '+{U_z [km/s]}**2))'+
+                          '*1e3*{U_y [km/s]}'+
+                          '+  {ExB_y [kW/km^2]}')
+    eq('{K_z [kW/km^2]} = ({P [nPa]}*(1.666667/0.666667)'+
+                                        '+0.166058e-5*{Rho [amu/cm^3]}/2*'+
+                                                    '({U_x [km/s]}**2'+
+                                                    '+{U_y [km/s]}**2'+
+                                                    '+{U_z [km/s]}**2))'+
+                          '*1e3*{U_z [km/s]}'+
+                          '+  {ExB_z [kW/km^2]}')
 
     #Component Normal Flux
     eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+

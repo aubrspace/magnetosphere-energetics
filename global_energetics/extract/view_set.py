@@ -399,6 +399,13 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
                          shade_markersize)
     add_timestamp(frame, filename, timestamp_pos)
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
+    if save_img:
+        tp.export.save_png(pngpath+outputname+'.png', width=3200)
+    if save_plt:
+        tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
+                                 include_data_share_linkage=True,
+                                 include_autogen_face_neighbors=True)
+
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
