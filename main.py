@@ -31,14 +31,12 @@ if __name__ == "__main__":
     tp.new_layout()
     #pass in arguments
     datafile = sys.argv[1].split('/')[-1]
-    #nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
-    nameout = datafile.split('.')[0]
+    nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
     print('nameout:'+nameout)
     OUTPATH = sys.argv[2]
     PNGPATH = sys.argv[3]
     PLTPATH = sys.argv[4]
-    #OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
-    OUTPUTNAME = datafile.split('.')[0]
+    OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
     main = tp.active_frame()
     main.name = 'main'
 
@@ -46,28 +44,17 @@ if __name__ == "__main__":
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
 
-    '''
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, mode='hybrid')
     magnetopause.get_magnetopause(field_data, datafile, mode='flowline')
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
                                   shue=1998)
     #plasmasheet.get_plasmasheet(field_data, datafile)
-    '''
 
     #adjust view settings
-    '''
-    view_set.display_boundary([frame for frame in tp.frames('main')][0],
-                              'K_out *', datafile, plasmasheet=False,
-                              pngpath=PNGPATH, pltpath=PLTPATH,
-                              show_contour=False, outputname=nameout)
-    '''
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],
-                                'K_out *', datafile)
-    main.plot().fieldmap(0).show = False
-    tp.macro.execute_extended_command(command_processor_id='Multi Frame Manager',
-    command='MAKEFRAMES3D ARRANGE=TOP SIZE=50')
-    main.plot().fieldmap(0).show = True
+                                'K_out *', datafile, show_contour=False,
+                                tile=True, show_slice=False)
 
     #timestamp
     ltime = time.time()-start_time

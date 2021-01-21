@@ -9,7 +9,181 @@ from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
 
-def manage_camera(frame, *, setting='iso_day'):
+def add_shade_legend(frame, entries, location, markersize):
+    """Adds box with colored squares and text for legend of shaded surfaces
+    Inputs
+        frame
+        entries- list of strings for which surfaces are present
+        location- legend box location
+        markersize
+    """
+    boxsize = (30, 8*len(entries))
+    legendbox = frame.add_rectangle(location, boxsize, CoordSys.Frame)
+    legendbox.color = Color.Grey
+    legendbox.fill_color = Color.Grey
+    for entry in enumerate(entries):
+        #fill in text
+        entrytext = frame.add_text(entry[1])
+        entrytext.position = [location[0]+0.3*boxsize[0],
+                    location[1]+boxsize[1]*(1-(entry[0]+0.6)/len(entries))]
+        entrytext.font.size = 20
+        entrytext.font.bold = False
+        entrytext.font.typeface = 'Helvetica'
+        entrytext.color = Color.White
+        #add color square
+        marker_loc = [entrytext.position[0]-0.2*boxsize[0],
+                      entrytext.position[1]]
+        marker = frame.add_square(marker_loc, markersize, CoordSys.Frame)
+        #Select color
+        if entry[1] == 'mp_hybrid':
+            marker.color = Color.Custom20
+            marker.fill_color = Color.Custom20
+        if entry[1] == 'mp_fieldline':
+            marker.color = Color.Custom34
+            marker.fill_color = Color.Custom34
+        if entry[1] == 'mp_flowline':
+            marker.color = Color.Custom11
+            marker.fill_color = Color.Custom11
+        if entry[1].find('mp_shue') != -1:
+            marker.color = Color.Custom2
+            marker.fill_color = Color.Custom2
+        if entry[1] == 'mp_test':
+            marker.color = Color.Custom7
+            marker.fill_color = Color.Custom7
+        if entry[1] == 'cps_zone':
+            marker.color = Color.Custom8
+            marker.fill_color = Color.Custom8
+
+def set_orientation_axis(frame, *, position=[91,7]):
+    """Sets position and size of orientation axis
+    Inputs
+        frame
+        position- [x, y] list object
+    """
+    plt = frame.plot()
+    plt.axes.orientation_axis.size = 8
+    plt.axes.orientation_axis.position = position
+    plt.axes.orientation_axis.color = Color.White
+
+def add_fieldlines(frame):
+    """adds streamlines
+    Inputs
+        frame- frame to add to
+        TBD more options for where to seed rakes
+    """
+    plt = frame.plot()
+    plt.show_streamtraces = True
+    plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.color = Color.Custom41
+    plt.streamtraces.line_thickness = 0.2
+
+def add_jy_slice(frame, jyindex):
+    """adds iso contour for earth at r=1Re
+    Inputs
+        frame
+        jyindex
+    """
+    frame.plot().show_slices = True
+    yslice = frame.plot().slice(0)
+    yslice.orientation = SliceSurface.YPlanes
+    yslice.origin[1] = -.10
+    yslice.contour.flood_contour_group_index = 1
+    yslice.effects.use_translucency = True
+    jycontour = frame.plot().contour(1)
+    jycontour.variable_index=jyindex
+    jycontour.colormap_name = 'Diverging - Brown/Green'
+    jycontour.legend.vertical = True
+    jycontour.legend.position[1] = 72
+    jycontour.legend.position[0] = 98
+    jycontour.legend.box.box_type = TextBox.Filled
+    jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+    jycontour.labels.step = 2
+    jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
+    jycontour.colormap_filter.continuous_max = 0.003
+    jycontour.colormap_filter.continuous_min = -0.003
+    jycontour.colormap_filter.reversed = True
+
+def add_earth_iso(frame, rindex):
+    """adds iso contour for earth at r=1Re
+    Inputs
+        frame
+        rindex
+    """
+    frame.plot().show_isosurfaces = True
+    iso = frame.plot().isosurface(0)
+    iso.definition_contour_group_index = 5
+    iso.contour.flood_contour_group_index = 5
+    frame.plot().contour(5).variable_index = 14
+    iso.isosurface_values[0] = 1
+    frame.plot().contour(5).colormap_name = 'Sequential - Green/Blue'
+    frame.plot().contour(5).colormap_filter.reversed = True
+    frame.plot().contour(5).legend.show = False
+
+def twodigit(num):
+    """Function makes two digit str from a number
+    Inputs
+        num
+    Ouputs
+        num_str
+    """
+    return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
+
+def add_timestamp(frame, filename, position):
+    """Adds timestampt to the frame
+    Inputs
+        frame- frame object
+        filename- used to determine timestamp
+        position- x, y tuple
+    """
+    #get text
+    ticks = get_time(filename)
+    time = ticks.UTC[0]
+    year = time.year
+    month = time.month
+    day = time.day
+    hour = time.hour
+    minute = time.minute
+    second = time.second
+    time_text = ('{:.0f}-'.format(year)+
+                '{}-'.format(twodigit(month))+
+                '{} '.format(twodigit(day))+
+                '{}:'.format(twodigit(hour))+
+                '{}:{}UTC'.format(twodigit(minute), twodigit(second)))
+    #add timestamp
+    timebox= frame.add_text(time_text)
+    timebox.position = position
+    timebox.font.size = 28
+    timebox.font.bold = False
+    timebox.font.typeface = 'Helvetica'
+    timebox.color = Color.White
+
+def add_energy_contour(frame, powermax, contour_key, *,
+                          colormap='cmocean - balance'):
+    """Function sets contour settings for energy input
+    Inputs
+        frame- object to set contour on
+        powermax- saturation/limit for contour colorbar
+        colormap- which colormap to use
+    """
+    colorbar = np.linspace(-1*powermax, powermax, int(10*(powermax*10)+1))
+    contourvar = frame.dataset.variable(contour_key).index
+    contour = frame.plot().contour(0)
+    contour.variable_index = contourvar
+    contour.colormap_name = colormap
+    contour.legend.vertical = True
+    contour.legend.position[1] = 98
+    contour.legend.position[0] = 98
+    contour.legend.box.box_type = TextBox.Filled
+    contour.levels.reset_levels(colorbar)
+    contour.labels.step = 2
+    contour.colormap_filter.distribution=ColorMapDistribution.Continuous
+    contour.colormap_filter.continuous_max = colorbar[-1]
+    contour.colormap_filter.continuous_min = colorbar[0]
+
+def set_camera(frame, *, setting='iso_day'):
     """Function sets camera angle based on setting
     Inputs
         frame- frame on which to change camera
@@ -18,9 +192,9 @@ def manage_camera(frame, *, setting='iso_day'):
     view = frame.plot().view
     if setting == 'iso_day':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
-        view.alpha, view.theta, view.psi = (0,-120,64)
-        view.position = (-490,519,328)
-        view.magnification = 5.470
+        view.psi = 64
+        view.position = (1960, 1140, 1100)
+        view.magnification = 4.7
     elif setting == 'iso_tail':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,137,64)
@@ -29,7 +203,7 @@ def manage_camera(frame, *, setting='iso_day'):
     else:
         print('Camera setting {} not developed!'.format(setting))
 
-def manage_3Daxes(frame, *,
+def set_3Daxes(frame, *,
                   xmax=15, xmin=-40, ymax=40, ymin=-40, zmax=40, zmin=-40,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
@@ -106,11 +280,14 @@ def manage_zones(frame, nslice, *, approved_zones=None):
         frame- frame object to manage zones on
         nslice- used to show only outer surface, assumes cylindrical
         approved_zones- default shows all in predetermined list
+    Outputs
+        show_list- list of zones shown after operations
     """
     plt = frame.plot()
     #Generate predetermined approved zone names
     zone_list = ['global_field', 'mp_shue', 'mp_test', 'mp_flowline',
                  'mp_fieldline', 'mp_hybrid', 'cps_zone']
+    show_list = []
     if approved_zones != None:
         for zone in approved_zones:
             zone_list.append(zone)
@@ -128,6 +305,7 @@ def manage_zones(frame, nslice, *, approved_zones=None):
                 plt.fieldmap(map_index).show = True
                 plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
                 plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
+                show_list.append(zone.name)
     #Transluceny and shade settings
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
@@ -146,22 +324,15 @@ def manage_zones(frame, nslice, *, approved_zones=None):
                 plt.fieldmap(map_index).shade.color = Color.Custom7
             if zone.name.find('cps_zone') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom8
+    return show_list
 
-def twodigit(num):
-    """Function makes two digit str from a number
-    Inputs
-        num
-    Ouputs
-        num_str
-    """
-    return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
 
 def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
                        save_img=True, pngpath='./', save_plt=True,
                        pltpath='./', outputname='output',
                        show_contour=True, show_slice=True,
-                       show_fieldline=True, do_blanking=True, mpslice=60,
-                       cpsslice=20, zone_rename=None):
+                       show_fieldline=True, do_blanking=True, tile=False,
+                       mpslice=60, cpsslice=20, zone_rename=None):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
         frame- object for the tecplot frame
@@ -174,252 +345,60 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
         pltpath- path for saving .png file
         outputname- default is 'output.png'
         show_contour, show_fieldline, show_slice, do_blanking
+        tile- boolean for tile mode
         mpslice- number of x slices in mp surface
         cpsslice- number of x slices in cps surface
         zone_rename- optional rename of zone
     """
-    manage_zones(frame, mpslice)
-    manage_3Daxes(frame)
-    manage_camera(frame)
+    #Always included
+    zones_shown = manage_zones(frame, mpslice)
+    set_3Daxes(frame)
+    set_camera(frame)
+    add_energy_contour(frame, energyrange, contour_key)
+    add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
+    set_orientation_axis(frame)
+    #Optional items
+    if show_slice:
+        add_jy_slice(frame, jyindex=frame.dataset.variable('J_y *').index)
+    if show_fieldline:
+        add_fieldlines(frame)
+    if tile:
+        #hide global zone
+        frame.plot().fieldmap(0).show=False
+        #Increase axis labels
+        frame.plot().axes.x_axis.tick_labels.font.size = 5
+        frame.plot().axes.y_axis.tick_labels.font.size = 5
+        frame.plot().axes.z_axis.tick_labels.font.size = 5
+        frame.plot().axes.orientation_axis.size = 15
+        frame.plot().axes.orientation_axis.position = [50,75]
+        #tile
+        proc = 'Multi Frame Manager'
+        cmd = 'MAKEFRAMES3D ARRANGE=TOP SIZE=50'
+        tp.macro.execute_extended_command(command_processor_id=proc,
+                                          command=cmd)
+        #hide orientation axis for small frames
+        for fr in tp.frames('Frame *'):
+            fr.plot().axes.orientation_axis.show=False
+        #Change where text will be generated
+        timestamp_pos = (4,15)
+        shade_legend_pos = [5,50]
+        shade_markersize = 1.5
+        frame.plot().fieldmap(0).show=True
+        #shift main image
+        frame.plot().view.translate(x=20, y=5)
+        frame.plot().view.magnification = 4.7
 
-def display_boundary(frame, contour_key, filename, *, magnetopause=True,
-                     plasmasheet=True, colorbar_range=0.25,
-                     fullview=True, save_img=True, pngpath='./',
-                     save_plt=True, pltpath='./',
-                     outputname='output', show_contour=True,
-                     show_slice=True, show_fieldline=True, do_blanking=True,
-                     mpslice=60, cpsslice=20, zone_rename=None):
-    """Function to center a boundary object and adjust colorbar
-        settings
-    Inputs
-        frame- object for the tecplot frame
-        filename
-        contour_key- string key for which contour variable to plot
-        colorbar- levels for colorbar
-        fullview- True for global view of mangetopause, false for zoomed
-        save_img- default True
-        pngpath- path for saving .png file
-        save_plt- default True
-        pltpath- path for saving .png file
-        outputname- default is 'output.png'
-        show_contour, show_fieldline, do_blanking
-        mpslice- number of x slices in mp surface
-        cpsslice- number of x slices in cps surface
-        zone_rename- optional rename of zone
-    """
-    plt = frame.plot()
-    field_data = frame.dataset
-    colorbar = np.linspace(-1*colorbar_range, colorbar_range,
-                           int(4*(colorbar_range*10)+1))
-    with tp.session.suspend():
-    #create list of zones to    be displayed based on inputs
-        zone_list = ['global_field']
-        if magnetopause:
-            zone_list.append('mp_shue')
-            zone_list.append('mp_test')
-            zone_list.append('mp_flowline')
-            zone_list.append('mp_fieldline')
-            zone_list.append('mp_hybrid')
-        if plasmasheet:
-            zone_list.append('cps_zone')
-        if zone_rename != None:
-            zone_list.append(zone_rename)
-        #hide all other zones
-        for map_index in plt.fieldmaps().fieldmap_indices:
-            for zone in plt.fieldmap(map_index).zones:
-                if not any([zone.name.find(item)!=-1 for item in
-                                                                zone_list]):
-                    plt.fieldmap(map_index).show = False
-                elif zone.name != 'global_field':
-                    plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
-                                                SurfacesToPlot.IKPlanes)
-                    plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
-                    if zone.name == 'mp_zone':
-                        plt.fieldmap(map_index).surfaces.k_range = (0,-1,
-                                                                mpslice-1)
-                    if zone.name == 'cps_zone':
-                        plt.fieldmap(map_index).surfaces.k_range = (0,-1,
-                                                                cpsslice-1)
-
-        #mesh, contour and basic zoomed out position for consistency
-        plt.show_mesh = False
-        plt.show_contour = show_contour
-        view = plt.view
-        view.center()
-        plt.fieldmap(0).show = False
-
-        #mp and cps surface settings
-        if magnetopause and plasmasheet:
-            for map_index in plt.fieldmaps().fieldmap_indices:
-                for zone in plt.fieldmap(map_index).zones:
-                    if zone.name.find('mp_zone') != -1:
-                        plt.fieldmap(map_index).effects.use_translucency=True
-                        frame.plot(PlotType.Cartesian3D).use_translucency=True
-                        plt.fieldmap(map_index).effects.surface_translucency=60
-                        plt.fieldmap(map_index).shade.color = Color.Custom34
-                    else:
-                        plt.fieldmap(map_index).effects.use_translucency=True
-                        frame.plot(PlotType.Cartesian3D).use_translucency=True
-                        plt.fieldmap(map_index).effects.surface_translucency=60
-                        plt.fieldmap(map_index).shade.color = Color.Custom15
-                        plt.fieldmap(map_index).contour.show = False
-
-        else:
-            for map_index in plt.fieldmaps().fieldmap_indices:
-                for zone in plt.fieldmap(map_index).zones:
-                    if zone.name.find('mp_zone') != -1:
-                        plt.fieldmap(map_index).effects.use_translucency=True
-                        frame.plot(PlotType.Cartesian3D).use_translucency=True
-                        plt.fieldmap(map_index).effects.surface_translucency=30
-                        plt.fieldmap(map_index).shade.color = Color.Custom34
-        if fullview:
-            view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
-
-        if show_contour:
-            contourvar = field_data.variable(contour_key).index
-            contour = plt.contour(0)
-            contour.variable_index = contourvar
-            contour.colormap_name = 'cmocean - balance'
-            contour.legend.vertical = True
-            contour.legend.position[1] = 98
-            contour.legend.position[0] = 98
-            contour.legend.box.box_type = TextBox.Filled
-            contour.levels.reset_levels(colorbar)
-            contour.labels.step = 2
-            contour.colormap_filter.distribution=ColorMapDistribution.Continuous
-            contour.colormap_filter.continuous_max = colorbar[-1]
-            contour.colormap_filter.continuous_min = colorbar[0]
-
-        print('Creating earth isosurface')
-        #create iso-surface of r=1 for the earth
-        plt.show_isosurfaces = True
-        iso = plt.isosurface(0)
-        iso.definition_contour_group_index = 5
-        iso.contour.flood_contour_group_index = 5
-        plt.contour(5).variable_index = 14
-        iso.isosurface_values[0] = 1
-        plt.contour(5).colormap_name = 'Sequential - Green/Blue'
-        plt.contour(5).colormap_filter.reversed = True
-        plt.contour(5).legend.show = False
-
-        print('Adjusting 3D axes')
-        #add scale then turn on fielddata map
-        plt.axes.axis_mode = AxisMode.Independent
-        plt.axes.x_axis.show = True
-        plt.axes.x_axis.max = 15
-        plt.axes.x_axis.min = -40
-        plt.axes.x_axis.scale_factor = 1
-        plt.axes.x_axis.title.position = 30
-        plt.axes.x_axis.title.color = Color.White
-        plt.axes.x_axis.tick_labels.color = Color.White
-        plt.axes.y_axis.show = True
-        plt.axes.y_axis.max = 40
-        plt.axes.y_axis.min = -40
-        plt.axes.y_axis.scale_factor = 1
-        plt.axes.y_axis.title.position = 30
-        plt.axes.y_axis.title.color = Color.White
-        plt.axes.y_axis.tick_labels.color = Color.White
-        plt.axes.z_axis.show = True
-        plt.axes.z_axis.max = 40
-        plt.axes.z_axis.min = -40
-        plt.axes.z_axis.scale_factor = 1
-        plt.axes.z_axis.title.offset = -8
-        plt.axes.z_axis.title.color = Color.White
-        plt.axes.z_axis.tick_labels.color = Color.White
-        plt.axes.grid_area.fill_color = Color.Custom1
-        frame.background_color = Color.Black
-        plt.fieldmap(0).show = True
-
-        print('Setting Camera')
-        #Set camera angle
-        view.alpha, view.theta, view.psi = (0,137,64)
-        view.position = (-490,519,328)
-        view.magnification = 5.470
-
-        print('2D Slice Settings')
-        if show_slice:
-            #add slice at Y=0
-            plt.show_slices = True
-            yslice = plt.slice(0)
-            yslice.orientation = SliceSurface.YPlanes
-            yslice.origin[1] = -.10
-            yslice.contour.flood_contour_group_index = 1
-            yslice.effects.use_translucency = True
-            jycontour = plt.contour(1)
-            jycontour.variable_index=12
-            jycontour.colormap_name = 'Diverging - Brown/Green'
-            jycontour.legend.vertical = True
-            jycontour.legend.position[1] = 72
-            jycontour.legend.position[0] = 98
-            jycontour.legend.box.box_type = TextBox.Filled
-            jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
-            jycontour.labels.step = 2
-            jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
-            jycontour.colormap_filter.continuous_max = 0.003
-            jycontour.colormap_filter.continuous_min = -0.003
-            jycontour.colormap_filter.reversed = True
-
-        print('Fieldline Settings')
-        if show_fieldline:
-            #add B field lines seeded in XZ plane
-            plt.show_streamtraces = True
-            plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
-            plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
-            plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
-            plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
-            plt.streamtraces.color = Color.Custom41
-        plt.streamtraces.line_thickness = 0.2
-
-        print('Blanking')
-        if do_blanking:
-            #blanking outside 3D axes
-            plt.value_blanking.active = True
-            xblank = plt.value_blanking.constraint(1)
-            xblank.active = True
-            xblank.variable = frame.dataset.variable('X *')
-            xblank.comparison_operator = RelOp.LessThan
-            xblank.comparison_value = -40
-            zblank = plt.value_blanking.constraint(2)
-            zblank.active = True
-            zblank.variable = frame.dataset.variable('Z *')
-            zblank.comparison_operator = RelOp.LessThan
-            zblank.comparison_value = -40
-
-        print('Timestamp')
-        #add timestamp
-        ticks = get_time(filename)
-        time = ticks.UTC[0]
-        year = time.year
-        month = time.month
-        day = time.day
-        hour = time.hour
-        minute = time.minute
-        second = time.second
-        time_text = ('{:.0f}-'.format(year)+
-                    '{}-'.format(twodigit(month))+
-                    '{} '.format(twodigit(day))+
-                    '{}:'.format(twodigit(hour))+
-                    '{}:{}UTC'.format(twodigit(minute), twodigit(second)))
-        timebox = frame.add_text(time_text)
-        timebox.position = (20,16)
-        timebox.font.size = 28
-        timebox.font.bold = False
-        timebox.font.typeface = 'Helvetica'
-        timebox.color = Color.White
-
-        print('Orientation box')
-        #move orientation axis out of the way
-        plt.axes.orientation_axis.size = 8
-        plt.axes.orientation_axis.position = [91, 7]
-        plt.axes.orientation_axis.color = Color.White
-
-    print('Saving output files')
-    if save_img:
-        tp.export.save_png(pngpath+outputname+'.png', width=3200)
-    if save_plt:
-        tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
-                                 include_data_share_linkage=True,
-                                 include_autogen_face_neighbors=True)
+    else:
+        timestamp_pos = (4,15)
+        shade_legend_pos = [5,70]
+        shade_markersize = 3
+    if show_contour:
+        frame.plot().show_contour = show_contour
+    else:
+        add_shade_legend(frame, zones_shown, shade_legend_pos,
+                         shade_markersize)
+    add_timestamp(frame, filename, timestamp_pos)
+    tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
