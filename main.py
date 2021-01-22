@@ -32,7 +32,7 @@ if __name__ == "__main__":
     #pass in arguments
     datafile = sys.argv[1].split('/')[-1]
     nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
-    print('nameout:'+nameout)
+    print('nameout:{}'.format(nameout))
     OUTPATH = sys.argv[2]
     PNGPATH = sys.argv[3]
     PLTPATH = sys.argv[4]
@@ -55,8 +55,7 @@ if __name__ == "__main__":
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],
                                 'K_out *', datafile, show_contour=False,
                                 pngpath=PNGPATH, pltpath=PLTPATH,
-                                outputname=OUTPUTNAME,
-                                tile=True, show_slice=False)
+                                outputname=OUTPUTNAME)
 
     #timestamp
     ltime = time.time()-start_time

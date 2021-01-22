@@ -468,7 +468,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 source_zones=field_data.zone('global_field'))
 
         #perform integration for surface and volume quantities
-        magnetopause_powers = pd.DataFrame([[0,0,0]],
+        mp_powers = pd.DataFrame([[0,0,0]],
                                       columns=['no_mp_surf1',
                                                'no_mp_surf2',
                                                'no_mp_surf3'])
@@ -476,20 +476,20 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                       columns=['mp_vol_not_integrated'])
 
         if integrate_surface:
-            magnetopause_powers = surface_analysis(field_data, zonename,
+            mp_powers = surface_analysis(field_data, zonename,
                                                   nfill, nslice)
             print('\nMagnetopause Power Terms')
-            print(magnetopause_powers)
+            print(mp_powers)
         if integrate_volume:
             mp_energies = volume_analysis(field_data, zonename)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
         if integrate_surface or integrate_power:
             integralfile = outputpath+'mp_integral_log_'+mode+'.csv'
-            write_to_timelog(integralfile, time.UTC[0],
-                             magnetopause_powers.combine(mp_energies,
-                                                         np.maximum,
-                                                         fill_value=-1e12))
+            cols = mp_powers.keys().append(mp_energies.keys())
+            mp_energetics = pd.DataFrame(columns=cols, data=[np.append(
+                                     mp_powers.values,mp_energies.values)])
+            write_to_timelog(integralfile, time.UTC[0], mp_energetics)
 
 
 
