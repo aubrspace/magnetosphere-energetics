@@ -449,11 +449,12 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         tail_df = tail_df.reset_index(drop=True)
         field_df = dayside_df.append(tail_df)
         '''
-        #save mesh to file
-        path_to_mesh = outputpath+mode+'/'
-        os.system('mkdir '+path_to_mesh)
-        meshfile = datafile.split('.')[0]+'_'+mode+'.csv'
-        mp_mesh.to_csv(path_to_mesh+meshfile)
+        #save mesh to hdf file as key=mode, along with time in key='time'
+        path_to_mesh = outputpath+'/meshdata'
+        os.system('mkdir '+outputpath+'/meshdata')
+        meshfile = datafile.split('.')[0]+'.h5'
+        mp_mesh.to_hdf(path_to_mesh+'/'+meshfile, key=mode)
+        pd.Series(time.UTC[0]).to_hdf(path_to_mesh+'/'+meshfile, 'time')
 
         #create and load cylidrical zone
         create_cylinder(field_data, nslice, nalpha, nfill, tail_cap,
