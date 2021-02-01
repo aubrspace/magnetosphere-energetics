@@ -18,11 +18,13 @@ from global_energetics.extract.stream_tools import (integrate_surface,
 
 def surface_analysis(field_data, zone_name, nfill, nslice, *,
                      koutnorm=True, kinnorm=True, knetnorm=True,
-                     surface_area=True):
+                     surface_area=True, cuttoff=-20):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
         zone_name
+        nfill, nslice- shape for knowing which IJK elements to include
+        cuttoff- used to blank tail end of surface
     Outputs
         surface_power- power, or energy flux at the magnetopause surface
     """
@@ -32,6 +34,13 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
     main_frame = [fr for fr in tp.frames('main')][0]
     surface_name = zone_name.split('_')[0]
     zone_index = int(field_data.zone(zone_name).index)
+    #Blank X < X_cuttoff
+    main_frame.plot().value_blanking.active = True
+    xblank = main_frame.plot().value_blanking.constraint(1)
+    xblank.active = True
+    xblank.variable = field_data.variable('X *')
+    xblank.comparison_operator = RelOp.LessThan
+    xblank.comparison_value = cuttoff
     keys = []
     data = []
     #integrate k flux
@@ -71,6 +80,9 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
         data.append(SA)
     surface_power = pd.DataFrame([data],columns=keys)
     surface_power = surface_power*6371**2
+    #Turn blanking back off
+    xblank.active = False
+    main_frame.plot().value_blanking.active = False
     return surface_power
 
 

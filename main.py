@@ -45,10 +45,22 @@ if __name__ == "__main__":
     field_data.zone(0).name = 'global_field'
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid')
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+                                  cuttoff=-10,zone_rename='mp_flowline_10')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+                                  cuttoff=-15,zone_rename='mp_flowline_15')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+                                  cuttoff=-20,zone_rename='mp_flowline_20')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+                                  cuttoff=-30,zone_rename='mp_flowline_30')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+                                  cuttoff=-40,zone_rename='mp_flowline_40')
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  shue=1998)
+                                  shue=1998, cuttoff=-15,
+                                  zone_rename='mp_shue98_15')
+    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
+                                  shue=1998, cuttoff=-30,
+                                  zone_rename='mp_shue98_30')
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings

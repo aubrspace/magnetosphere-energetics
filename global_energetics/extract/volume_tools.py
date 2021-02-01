@@ -18,12 +18,13 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                       dump_to_pandas)
 
 def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
-                    volKEperp=True, volEth=True, volume=True):
+                    volKEperp=True, volEth=True, volume=True, cuttoff=-20):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
         field_data- tecplot Dataset object with 3d field data and mp
         zone_name
+        cuttoff- X position to stop integration
     Outputs
         magnetic_energy- volume integrated magnetic energy B2/2mu0
     """
@@ -33,6 +34,15 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
     main_frame = [fr for fr in tp.frames('main')][0]
     volume_name = zone_name.split('_')[0]
     zone_index = int(field_data.zone(zone_name).index)
+    #Blank X < X_cuttoff
+    main_frame.plot().value_blanking.active = True
+    xblank = main_frame.plot().value_blanking.constraint(1)
+    xblank.active = True
+    xblank.variable = field_data.variable('X *')
+    xblank.comparison_operator = RelOp.LessThan
+    xblank.comparison_value = cuttoff
+    keys = []
+    data = []
     keys = []
     data = []
     if voluB:
@@ -80,6 +90,9 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         data.append(Vol)
     volume_energies = pd.DataFrame([data], columns=keys)
     volume_energies = volume_energies * 6370**3
+    #Turn blanking back off
+    xblank.active = False
+    main_frame.plot().value_blanking.active = False
 
     return volume_energies
 

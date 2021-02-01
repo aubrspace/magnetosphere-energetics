@@ -263,7 +263,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      n_flow=72, flow_seed_x=-5, rflow_max=20, rflow_min=0,
                      shue=None,
                      itr_max=100, tol=0.1,
-                     tail_cap=-40, innerbound=2,
+                     tail_cap=-40, innerbound=2, tail_analysis_cap=-20,
                      nslice=60, nalpha=36, nfill=10,
                      integrate_surface=True, integrate_volume=True,
                      xyzvar=[1,2,3], zone_rename=None):
@@ -291,6 +291,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         Surface
             itr_max, tol- settings for bisection search algorithm
             tail_cap, innerbound- X position of tail cap and inner cuttoff
+            tail_analysis_cap- X position where integration stops
             nslice, nalpha, nfill- cyl points for surface reconstruction
             integrate_surface/volume- booleans for settings
             xyzvar- for X, Y, Z variables in field data variable list
@@ -453,7 +454,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         path_to_mesh = outputpath+'/meshdata'
         os.system('mkdir '+outputpath+'/meshdata')
         meshfile = datafile.split('.')[0]+'.h5'
-        mp_mesh.to_hdf(path_to_mesh+'/'+meshfile, key=mode)
+        mp_mesh.to_hdf(path_to_mesh+'/'+meshfile, key=zonename)
         pd.Series(time.UTC[0]).to_hdf(path_to_mesh+'/'+meshfile, 'time')
 
         #create and load cylidrical zone
@@ -477,12 +478,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                       columns=['mp_vol_not_integrated'])
 
         if integrate_surface:
-            mp_powers = surface_analysis(field_data, zonename,
-                                                  nfill, nslice)
+            mp_powers = surface_analysis(field_data, zonename, nfill,
+                                         nslice, cuttoff=tail_analysis_cap)
             print('\nMagnetopause Power Terms')
             print(mp_powers)
         if integrate_volume:
-            mp_energies = volume_analysis(field_data, zonename)
+            mp_energies = volume_analysis(field_data, zonename,
+                                          cuttoff=tail_analysis_cap)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
         if integrate_surface or integrate_power:
