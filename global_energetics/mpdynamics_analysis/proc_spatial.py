@@ -323,8 +323,9 @@ def process_spatial_mp(data_path, nalpha, nslice, *, make_fig=True,
         else:
             statsdf = statsdf.append(pd.DataFrame([stats],
                                                   columns=statnames))
+    statsdf = statsdf.sort_values(by='Time [UTC]')
+    statsdf.to_csv(data_path+'/../spatial_stats.csv')
     print(statsdf)
-    from IPython import embed; embed()
 
 
 if __name__ == "__main__":
