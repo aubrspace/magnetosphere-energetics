@@ -1,3 +1,3 @@
 from . import preplot
 from . import extract
-from . import mpdynamics_anlaysis
+from . import mpdynamics_analysis

@@ -1,2 +1,2 @@
-from . import proc_spatial.py
-from . import proc_temporal.py
+from . import proc_spatial
+from . import proc_temporal

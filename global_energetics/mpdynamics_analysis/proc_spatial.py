@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#proc_spatial.py
 """Functions for handling and processing spatial magnetopause surface data
     that is static in time
 """
@@ -20,7 +19,6 @@ import spacepy
 import pandas as pd
 #from spacepy import coordinates as coord
 from spacepy import time as spacetime
-#from global_energetics.makevideo import get_time
 
 
 def count_files(path):
@@ -81,7 +79,7 @@ def prep_slices(dflist, dfnames, alpha, timestamp):
             nonempty_names.append(dfnames[df[0]])
     return nonempty_list, nonempty_names, timelabel
 
-def prepare_figures(dflist, dfnames, alpha, timestamp):
+def prepare_figures(dflist, dfnames, alpha, timestamp, outpath):
     """Function calls which figures to be plotted
     Inputs
         dflist- list containing all dataframes
@@ -100,7 +98,7 @@ def prepare_figures(dflist, dfnames, alpha, timestamp):
             ax1.set_ylim([0,30])
             plot_2Dpositions(ax1, nonempty_list, nonempty_names, alpha,
                              timestamp)
-            curve_plot.savefig('./temp/{}_a{}.png'.format(timelabel,alpha))
+            curve_plot.savefig(outpath+'{}_a{}.png'.format(timelabel,alpha))
             plt.close(curve_plot)
         ###################################################################
 
@@ -227,7 +225,7 @@ def prepare_stats(timedf, shue98, shue97, flow, field, hybrid,
 
 
 def single_file_proc(timedf, shue98, shue97, flow, field, hybrid,
-                    alpha_points, da, make_fig, get_stats):
+                    alpha_points, da, make_fig, get_stats, outpath):
     """Function takes set of magnetopause surfaces at fixed time and
         calculates statistics/makes figures
     Inputs
@@ -264,7 +262,8 @@ def single_file_proc(timedf, shue98, shue97, flow, field, hybrid,
                                                              dfnames[0:2],
                                                              alpha_points,
                                                              da)
-        prepare_figures(expanded_df_list, expanded_df_names, a, timedf)
+        prepare_figures(expanded_df_list, expanded_df_names, alpha_points,
+                        timedf, outpath)
     if get_stats:
         stats, statnames = prepare_stats(timedf, shue98, shue97, flow,
                                          field, hybrid, alpha_points, da)
@@ -273,7 +272,8 @@ def single_file_proc(timedf, shue98, shue97, flow, field, hybrid,
     return stats, statnames
 
 def process_spatial_mp(data_path, nalpha, nslice, *, make_fig=True,
-                                                        get_stats=True):
+                                                        get_stats=True,
+                                                        outpath=None):
     """Top level function reads data files in data_path then
         gives figures and/or single valued data statistics for temporal
         processing
@@ -317,20 +317,22 @@ def process_spatial_mp(data_path, nalpha, nslice, *, make_fig=True,
         stats, statnames = single_file_proc(timedf, shue98df, shue97df,
                                            flowdf, fielddf, hybriddf,
                                            alpha_points, da, make_fig,
-                                           get_stats)
+                                           get_stats, outpath)
         if len(statsdf.keys()) == 0:
             statsdf = pd.DataFrame(columns=statnames)
         else:
             statsdf = statsdf.append(pd.DataFrame([stats],
                                                   columns=statnames))
     statsdf = statsdf.sort_values(by='Time [UTC]')
-    statsdf.to_csv(data_path+'/../spatial_stats.csv')
+    os.system('mkdir '+data_path+'/stats')
+    with pd.HDFStore(data_path+'/stats/meshstats.h5') as store:
+        store['stats'] = statsdf
     print(statsdf)
 
 
 if __name__ == "__main__":
-    PATH = ('/Users/ngpdl/Code/swmf-energetics/output/'+
-                     'mpdynamics/jan25_3surf/meshdata')
+    PATH = ('/home/aubr/Code/swmf-energetics/output/meshdata')
+    OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
     NALPHA = 36
     NSLICE = 60
-    process_spatial_mp(PATH, NALPHA, NSLICE, make_fig=False)
+    process_spatial_mp(PATH, NALPHA, NSLICE, make_fig=True, outpath=OPATH)

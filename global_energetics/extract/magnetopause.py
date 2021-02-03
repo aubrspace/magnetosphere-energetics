@@ -34,7 +34,6 @@ from global_energetics.extract import shue
 from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
 
-
 def get_shue_mesh(field_data, year, nx, nphi, xtail,
                   *, x_subsolar=None, dx=5):
     """Function mesh of 3D volume points based on Shue 1997/8 model for
@@ -327,6 +326,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\ttol: {}\n'.format(tol)+
                '\ttail_cap: {}\n'.format(tail_cap)+
                '\tinnerbound: {}\n'.format(innerbound)+
+               '\ttail_analysis_cap: {}\n'.format(tail_analysis_cap)+
                '\tnslice: {}\n'.format(nslice)+
                '\tnalpha: {}\n'.format(nalpha)+
                '\tnfill: {}\n'.format(nfill)+
@@ -334,13 +334,18 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\tintegrate_volume: {}\n'.format(integrate_volume)+
                '\txyzvar: {}\n'.format(xyzvar)+
                '\tzone_rename: {}\n'.format(zone_rename))
+    if os.path.exists('banner.txt') & (
+                               not os.path.exists(outputpath+'/meshdata')):
+        with open('banner.txt') as image:
+            print(image.read())
+    print('**************************************************************')
     print(display)
-    print(field_data)
+    print('**************************************************************')
     #get date and time info from datafile name
     time = get_time(datafile)
-
-    #make unique outputname based on datafile string
-    outputname = datafile.split('e')[1].split('-000.')[0]+'-mp'
+    datestring = (str(time.UTC[0].year)+'-'+str(time.UTC[0].month)+'-'+
+                  str(time.UTC[0].day)+'-'+str(time.UTC[0].hour)+'-'+
+                  str(time.UTC[0].minute))
 
     with tp.session.suspend():
         #get r, lon, lat if not already set
@@ -451,9 +456,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         field_df = dayside_df.append(tail_df)
         '''
         #save mesh to hdf file as key=mode, along with time in key='time'
-        path_to_mesh = outputpath+'/meshdata'
-        os.system('mkdir '+outputpath+'/meshdata')
-        meshfile = datafile.split('.')[0]+'.h5'
+        path_to_mesh = outputpath+'meshdata'
+        if not os.path.exists(outputpath+'meshdata'):
+            os.system('mkdir '+outputpath+'meshdata')
+        meshfile = datestring+'_mesh.h5'
         mp_mesh.to_hdf(path_to_mesh+'/'+meshfile, key=zonename)
         pd.Series(time.UTC[0]).to_hdf(path_to_mesh+'/'+meshfile, 'time')
 
@@ -470,13 +476,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 source_zones=field_data.zone('global_field'))
 
         #perform integration for surface and volume quantities
-        mp_powers = pd.DataFrame([[0,0,0]],
-                                      columns=['no_mp_surf1',
-                                               'no_mp_surf2',
-                                               'no_mp_surf3'])
-        mp_magnetic_energy = pd.DataFrame([[0]],
-                                      columns=['mp_vol_not_integrated'])
-
+        mp_powers = pd.DataFrame()
+        mp_magnetic_energy = pd.DataFrame()
         if integrate_surface:
             mp_powers = surface_analysis(field_data, zonename, nfill,
                                          nslice, cuttoff=tail_analysis_cap)
@@ -487,12 +488,34 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                           cuttoff=tail_analysis_cap)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
-        if integrate_surface or integrate_power:
-            integralfile = outputpath+'mp_integral_log_'+mode+'.csv'
+        if integrate_surface or integrate_surface:
+            integralfile = outputpath+'mp_integral_log.h5'
             cols = mp_powers.keys().append(mp_energies.keys())
             mp_energetics = pd.DataFrame(columns=cols, data=[np.append(
                                      mp_powers.values,mp_energies.values)])
-            write_to_timelog(integralfile, time.UTC[0], mp_energetics)
+            #Add time column
+            mp_energetics.loc[:,'Time [UTC]'] = time.UTC[0]
+            with pd.HDFStore(integralfile) as store:
+                if any([key.find(zonename)!=-1 for key in store.keys()]):
+                    mp_energetics = store[zonename].append(mp_energetics,
+                                                         ignore_index=True)
+                store[zonename] = mp_energetics
+    #Display result from this step
+    result = ('Result\n'+
+               '\tmeshdatafile: {}\n'.format(path_to_mesh+'/'+meshfile))
+    if integrate_volume or integrate_surface:
+        result = (result+
+               '\tintegralfile: {}\n'.format(integralfile)+
+               '\tzonename_added: {}\n'.format(zonename))
+        with pd.HDFStore(integralfile) as store:
+            result = result+'\tmp_energetics:\n'
+            for key in store.keys():
+                result = (result+
+                '\t\tkey={}\n'.format(key)+
+                '\t\t\tn_values: {}\n'.format(len(store[key])))
+    print('**************************************************************')
+    print(result)
+    print('**************************************************************')
 
 
 

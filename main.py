@@ -19,6 +19,8 @@ from global_energetics.extract import stream_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
+from global_energetics.mpdynamics_analysis import proc_spatial
+from global_energetics.mpdynamics_analysis import proc_temporal
 
 if __name__ == "__main__":
     print('\nProcessing {pltfile}\n'.format(pltfile=sys.argv[1]))
@@ -31,8 +33,6 @@ if __name__ == "__main__":
     tp.new_layout()
     #pass in arguments
     datafile = sys.argv[1].split('/')[-1]
-    nameout = datafile.split('e')[1].split('-000.')[0]+'-mp'
-    print('nameout:{}'.format(nameout))
     OUTPATH = sys.argv[2]
     PNGPATH = sys.argv[3]
     PLTPATH = sys.argv[4]
@@ -46,21 +46,28 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  cuttoff=-10,zone_rename='mp_flowline_10')
+                                  tail_analysis_cap=-10,
+                                  zone_rename='mp_flowline_10')
     magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  cuttoff=-15,zone_rename='mp_flowline_15')
+                                  tail_analysis_cap=-15,
+                                  zone_rename='mp_flowline_15')
+    '''
     magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  cuttoff=-20,zone_rename='mp_flowline_20')
+                                  tail_analysis_cap=-20,
+                                  zone_rename='mp_flowline_20')
     magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  cuttoff=-30,zone_rename='mp_flowline_30')
+                                  tail_analysis_cap=-30,
+                                  zone_rename='mp_flowline_30')
     magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  cuttoff=-40,zone_rename='mp_flowline_40')
+                                  tail_analysis_cap=-40,
+                                  zone_rename='mp_flowline_40')
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  shue=1998, cuttoff=-15,
+                                  shue=1998, tail_analysis_cap=-15,
                                   zone_rename='mp_shue98_15')
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  shue=1998, cuttoff=-30,
+                                  shue=1998, tail_analysis_cap=-30,
                                   zone_rename='mp_shue98_30')
+    '''
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
