@@ -45,29 +45,15 @@ if __name__ == "__main__":
     field_data.zone(0).name = 'global_field'
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  tail_analysis_cap=-10,
-                                  zone_rename='mp_flowline_10')
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  tail_analysis_cap=-15,
-                                  zone_rename='mp_flowline_15')
-    '''
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
                                   tail_analysis_cap=-20,
-                                  zone_rename='mp_flowline_20')
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  tail_analysis_cap=-30,
-                                  zone_rename='mp_flowline_30')
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  tail_analysis_cap=-40,
-                                  zone_rename='mp_flowline_40')
+                                  outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  shue=1998, tail_analysis_cap=-15,
-                                  zone_rename='mp_shue98_15')
+                                  tail_analysis_cap=-20, shue_type=1997,
+                                  outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  shue=1998, tail_analysis_cap=-30,
-                                  zone_rename='mp_shue98_30')
-    '''
+                                  tail_analysis_cap=-20, shue_type=1998,
+                                  outputpath=OUTPATH)
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings

@@ -17,8 +17,9 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                       calculate_energetics,
                                                       dump_to_pandas)
 
-def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
-                    volKEperp=True, volEth=True, volume=True, cuttoff=-20):
+def volume_analysis(field_data, zone_name, *, voluB=True, voluE=True,
+                   volKEpar=True, volKEperp=True, volEth=True, volume=True,
+                   cuttoff=-20):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
@@ -49,17 +50,22 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         #integrate magnetic energy
         keys.append(volume_name+' uB [J]')
         uB_index = int(field_data.variable('uB *').index)
-        uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]',
-                              subspace='tail')
+        uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]')
         print('{} uB integration done'.format(zone_name))
         data.append(uB)
+    if voluB:
+        #integrate electric energy
+        keys.append(volume_name+' uE [J]')
+        uE_index = int(field_data.variable('uE *').index)
+        uE = integrate_volume(uB_index, zone_index, volume_name+' uE [J]')
+        print('{} uB integration done'.format(zone_name))
+        data.append(uE)
     if volKEpar:
         #integrate parallel KE
         keys.append(volume_name+' KEpar [J]')
         KEpar_index = int(field_data.variable('KEpar *').index)
         KEpar = integrate_volume(KEpar_index, zone_index,
-                                 volume_name+' KEpar [J]',
-                                 subspace='tail')
+                                 volume_name+' KEpar [J]')
         print('{} KEparallel integration done'.format(zone_name))
         data.append(KEpar)
     if volKEperp:
@@ -67,8 +73,7 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         keys.append(volume_name+' KEperp [J]')
         KEperp_index = int(field_data.variable('KEperp *').index)
         KEperp = integrate_volume(KEperp_index, zone_index,
-                                 volume_name+' KEperp [J]',
-                                 subspace='tail')
+                                 volume_name+' KEperp [J]')
         print('{} KEperp integration done'.format(zone_name))
         data.append(KEperp)
     if volEth:
@@ -76,20 +81,19 @@ def volume_analysis(field_data, zone_name, *, voluB=True, volKEpar=True,
         keys.append(volume_name+' Etherm [J]')
         Eth_index = int(field_data.variable('P *').index)
         Eth = integrate_volume(Eth_index, zone_index,
-                                 volume_name+' Etherm [J]',
-                                 subspace='tail')
+                                 volume_name+' Etherm [J]')
+        Eth = Eth*4.9430863e10
         print('{} Ethermal integration done'.format(zone_name))
         data.append(Eth)
     if volume:
         #integrate thermal energy
-        keys.append(volume_name+' Volume [R^3]')
+        keys.append(volume_name+' Volume [Re^3]')
         Vol = integrate_volume(None, zone_index,
-                               volume_name+' Volume [R^3]',
+                               volume_name+' Volume [Re^3]',
                                VariableOption='LengthAreaVolume')
         print('{} Volume integration done'.format(zone_name))
         data.append(Vol)
     volume_energies = pd.DataFrame([data], columns=keys)
-    volume_energies = volume_energies * 6370**3
     #Turn blanking back off
     xblank.active = False
     main_frame.plot().value_blanking.active = False

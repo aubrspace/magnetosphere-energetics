@@ -45,41 +45,40 @@ def surface_analysis(field_data, zone_name, nfill, nslice, *,
     data = []
     #integrate k flux
     if koutnorm:
-        keys.append(surface_name+' K_out [kW]')
+        keys.append(surface_name+' K_out [W]')
         kplus_index = int(field_data.variable('K_out+*').index)
         kout = integrate_surface(kplus_index, zone_index,
-                                   surface_name+' K_out [kW]',
+                                   surface_name+' K_out [W]',
                                    idimension=nfill, kdimension=nslice)
         print('{} kout integration done'.format(zone_name))
         data.append(kout)
     if knetnorm:
-        keys.append(surface_name+' K_net [kW]')
+        keys.append(surface_name+' K_net [W]')
         knet_index = int(field_data.variable('K_out *').index)
         knet = integrate_surface(knet_index, zone_index,
-                                   surface_name+' K_net [kW]',
+                                   surface_name+' K_net [W]',
                                    idimension=nfill, kdimension=nslice)
         print('{} knet integration done'.format(zone_name))
         data.append(knet)
-    if koutnorm:
-        keys.append(surface_name+' K_in [kW]')
+    if kinnorm:
+        keys.append(surface_name+' K_in [W]')
         kminus_index = int(field_data.variable('K_out-*').index)
         kin = integrate_surface(kminus_index, zone_index,
-                                   surface_name+' K_in [kW]',
+                                   surface_name+' K_in [W]',
                                    idimension=nfill, kdimension=nslice)
         print('{} kin integration done'.format(zone_name))
         data.append(kin)
     #integrate area
     if surface_area:
-        keys.append(surface_name+' Area [m^2]')
+        keys.append(surface_name+' Area [Re^2]')
         area_index = int(field_data.variable('K_out+*').index)
         SA = integrate_surface(area_index, zone_index,
-                                   surface_name+' Area [kW]',
+                                   surface_name+' Area [Re^2]',
                                    idimension=nfill, kdimension=nslice,
                                    VariableOption='LengthAreaVolume')
         print('{} area integration done'.format(zone_name))
         data.append(SA)
     surface_power = pd.DataFrame([data],columns=keys)
-    surface_power = surface_power*6371**2
     #Turn blanking back off
     xblank.active = False
     main_frame.plot().value_blanking.active = False

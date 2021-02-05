@@ -260,7 +260,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      n_day=72, lon_max=90, rday_max=30, rday_min=3.5,
                      n_tail=72, rtail_max=125, rtail_min=0.5,
                      n_flow=72, flow_seed_x=-5, rflow_max=20, rflow_min=0,
-                     shue=None,
+                     shue_type=1998,
                      itr_max=100, tol=0.1,
                      tail_cap=-40, innerbound=2, tail_analysis_cap=-20,
                      nslice=60, nalpha=36, nfill=10,
@@ -286,7 +286,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             flow_seed_x- x location to seed flowlines from
             rflow_min, rflow_max- boundaries for search criteria
         Shue
-            shue- None, 1997, 1998 uses Shue empirical, read iff mode=shue
+            shue- 1997, 1998 uses Shue empirical, read iff mode=shue
         Surface
             itr_max, tol- settings for bisection search algorithm
             tail_cap, innerbound- X position of tail cap and inner cuttoff
@@ -319,7 +319,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     if mode == 'shue':
         #shue empirical settings
         display = (display+
-               '\tshue: {}\n'.format(shue))
+               '\tshue: {}\n'.format(shue_type))
     #general surface settings
     display = (display+
                '\titr_max: {}\n'.format(itr_max)+
@@ -367,9 +367,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #Get mesh points depending on mode setting
         ################################################################
         if mode == 'shue':
-            mp_mesh, x_subsolar = get_shue_mesh(field_data, shue, nslice,
-                                                nalpha, -40)
-            zonename = 'mp_shue'+str(shue)
+            mp_mesh, x_subsolar = get_shue_mesh(field_data, shue_type,
+                                                nslice, nalpha, -40)
+            zonename = 'mp_shue'+str(shue_type)
         ################################################################
         elif mode == 'test':
             field_df, flow_df, x_subsolar = make_test_case()

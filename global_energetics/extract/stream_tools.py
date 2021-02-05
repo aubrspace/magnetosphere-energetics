@@ -523,6 +523,7 @@ def calculate_energetics(field_data, zone_name):
     """
     zone_index= field_data.zone(zone_name).index
     mu0 = 4*pi*1e-7
+    Re = 6371
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
@@ -550,83 +551,100 @@ def calculate_energetics(field_data, zone_name):
     eq('{bz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
 
     #Magnetic Energy per volume
-    eq('{uB [J/km^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '/(2*4*3.14159*1e-7) * 1e-9')
+    eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                        '*0.205785')
 
     #Ram pressure energy per volume
-    eq('{KEpar [J/km^3]} = {Rho [amu/cm^3]}/2 *'+
+    eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                                     '(({U_x [km/s]}*{bx})**2+'+
                                     '({U_y [km/s]}*{by})**2+'+
-                                    '({U_z [km/s]}*{bz})**2) * 1.66058e-5')
-    eq('{KEperp [J/km^3]} = {Rho [amu/cm^3]}/2 *'+
+                                    '({U_z [km/s]}*{bz})**2) * 4.2941e5')
+    eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                           '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
                            '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
                            '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
-                                                            '*1.66058e-5')
+                                                            '*4.2941e5')
 
-    #Electric Field
-    eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
+    #Motional Electric Field
+    eq('{Em_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
                           '-{U_y [km/s]}*{B_z [nT]})')
-    eq('{E_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
+    eq('{Em_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
                          '-{U_z [km/s]}*{B_x [nT]})')
-    eq('{E_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
+    eq('{Em_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
                          '-{U_x [km/s]}*{B_y [nT]})')
 
+    #Hall Electric Field
+    eq('{Eh_x [mV/km]} = ({J_z [`mA/m^2]}/{Rho [amu/cm^3]}*{B_y [nT]}'+
+                          '-{J_y [`mA/m^2]}/{Rho [amu/cm^3]}*{B_z [nT]})'+
+                          '*6.2415097523028e6')
+    eq('{Eh_y [mV/km]} = ({J_x [`mA/m^2]}/{Rho [amu/cm^3]}*{B_z [nT]}'+
+                         '-{J_z [`mA/m^2]}/{Rho [amu/cm^3]}*{B_x [nT]})'+
+                          '*6.2415097523028e6')
+    eq('{Eh_z [mV/km]} = ({J_y [`mA/m^2]}/{Rho [amu/cm^3]}*{B_x [nT]}'+
+                         '-{J_x [`mA/m^2]}/{Rho [amu/cm^3]}*{B_y [nT]})'+
+                          '*6.2415097523028e6')
+
+    #Total Electric Field
+    eq('{E_x [mV/km]} = ({Em_x [mV/km]}+{Eh_x [mV/km]})')
+    eq('{E_y [mV/km]} = ({Em_y [mV/km]}+{Eh_y [mV/km]})')
+    eq('{E_z [mV/km]} = ({Em_z [mV/km]}+{Eh_z [mV/km]})')
+
+    #Electric Energy per volume
+    eq('{uE [J/Re^3]} = ({E_x [mV/km]}**2+{E_y [mV/km]}**2+'+
+                        '{E_z [mV/km]}**2)*1.143247989e-3')
+
     #Poynting Flux
-    eq('{ExB_x [kW/km^2]} = -(1/1.25663706)*({E_z [mV/km]}*{B_y [nT]}'+
-                                            '-{E_y [mV/km]}*{B_z [nT]})'+
-                                            '*1e-6')
-    eq('{ExB_y [kW/km^2]} = -(1/1.25663706)*({E_x [mV/km]}*{B_z [nT]}'+
-                                            '-{E_z [mV/km]}*{B_x [nT]})'+
-                                            '*1e-6')
-    eq('{ExB_z [kW/km^2]} = -(1/1.25663706)*({E_y [mV/km]}*{B_x [nT]}'+
-                                            '-{E_x [mV/km]}*{B_y [nT]})'+
-                                            '*1e-6')
+    eq('{ExB_x [W/Re^2]} = -(3.22901e4)*({E_z [mV/km]}*{B_y [nT]}'+
+                                       '-{E_y [mV/km]}*{B_z [nT]})')
+    eq('{ExB_y [W/Re^2]} = -(3.22901e4)*({E_x [mV/km]}*{B_z [nT]}'+
+                                       '-{E_z [mV/km]}*{B_x [nT]})')
+    eq('{ExB_z [W/Re^2]} = -(3.22901e4)*({E_y [mV/km]}*{B_x [nT]}'+
+                                       '-{E_x [mV/km]}*{B_y [nT]})')
     #Total Energy Flux
-    eq('{K_x [kW/km^2]} = ({P [nPa]}*(1.666667/0.666667)'+
-                                        '+0.166058e-5*{Rho [amu/cm^3]}/2*'+
+    eq('{K_x [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*4.9430863e10'+
+                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
-                          '*1e3*{U_x [km/s]}'+
-                          '+  {ExB_x [kW/km^2]}')
-    eq('{K_y [kW/km^2]} = ({P [nPa]}*(1.666667/0.666667)'+
-                                        '+0.166058e-5*{Rho [amu/cm^3]}/2*'+
+                          '*1.5696123057605e-4*{U_x [km/s]}'+
+                          '+  {ExB_x [W/Re^2]}')
+    eq('{K_y [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*4.9430863e10'+
+                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
-                          '*1e3*{U_y [km/s]}'+
-                          '+  {ExB_y [kW/km^2]}')
-    eq('{K_z [kW/km^2]} = ({P [nPa]}*(1.666667/0.666667)'+
-                                        '+0.166058e-5*{Rho [amu/cm^3]}/2*'+
+                          '*1.5696123057605e-4*{U_y [km/s]}'+
+                          '+  {ExB_y [W/Re^2]}')
+    eq('{K_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*4.9430863e10'+
+                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
-                          '*1e3*{U_z [km/s]}'+
-                          '+  {ExB_z [kW/km^2]}')
+                          '*1.5696123057605e-4*{U_z [km/s]}'+
+                          '+  {ExB_z [W/Re^2]}')
 
     #Component Normal Flux
-    eq('{Kn_x [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+
-                            '+{K_y [kW/km^2]}*{surface_normal_y}'+
-                            '+{K_z [kW/km^2]}*{surface_normal_z})'+
+    eq('{Kn_x [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{K_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{K_z [W/Re^2]}*{surface_normal_z})'+
                           '/ sqrt({surface_normal_x}**2'+
                                   '+{surface_normal_y}**2'+
                                   '+{surface_normal_z}**2'+
                                   '+1e-25)'+
                           '* {surface_normal_x}',
        zones=[zone_index])
-    eq('{Kn_y [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+
-                            '+{K_y [kW/km^2]}*{surface_normal_y}'+
-                            '+{K_z [kW/km^2]}*{surface_normal_z})'+
+    eq('{Kn_y [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{K_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{K_z [W/Re^2]}*{surface_normal_z})'+
                           '/ sqrt({surface_normal_x}**2'+
                                   '+{surface_normal_y}**2'+
                                   '+{surface_normal_z}**2'+
                                   '+1e-25)'+
                           '* {surface_normal_y}',
         zones=[zone_index])
-    eq('{Kn_z [kW/km^2]} = ({K_x [kW/km^2]}*{surface_normal_x}'+
-                            '+{K_y [kW/km^2]}*{surface_normal_y}'+
-                            '+{K_z [kW/km^2]}*{surface_normal_z})'+
+    eq('{Kn_z [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{K_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{K_z [W/Re^2]}*{surface_normal_z})'+
                           '/ sqrt({surface_normal_x}**2'+
                                   '+{surface_normal_y}**2'+
                                   '+{surface_normal_z}**2'+
@@ -635,9 +653,9 @@ def calculate_energetics(field_data, zone_name):
         zones=[zone_index])
 
     #Magnitude Normal Flux
-    eq('{K_out [kW/km^2]} = ({Kn_x [kW/km^2]}*{surface_normal_x}'+
-                            '+{Kn_y [kW/km^2]}*{surface_normal_y}'+
-                            '+{Kn_z [kW/km^2]}*{surface_normal_z})'+
+    eq('{K_out [W/Re^2]} = ({Kn_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{Kn_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{Kn_z [W/Re^2]}*{surface_normal_z})'+
                           '/ sqrt({surface_normal_x}**2'+
                                   '+{surface_normal_y}**2 '+
                                   '+{surface_normal_z}**2'+
@@ -645,61 +663,9 @@ def calculate_energetics(field_data, zone_name):
         zones=[zone_index])
 
     #Split into + and - flux
-    eq('{K_out+} = max({K_out [kW/km^2]},0)', zones=[zone_index])
-    eq('{K_out-} = min({K_out [kW/km^2]},0)', zones=[zone_index])
+    eq('{K_out+} = max({K_out [W/Re^2]},0)', zones=[zone_index])
+    eq('{K_out-} = min({K_out [W/Re^2]},0)', zones=[zone_index])
 
-
-def display_variable_bar(oldframe, var_index, color, barid, newaxis):
-    """Function to display bargraph of variable quantity in upper right
-    Inputs
-        frame- tecplot frame object
-        var_index- index for displayed variable (4 for integrated qty)
-        color
-        barid- for multiple bars, setup to the right of the previous
-        newaxis- True if plotting on new axis
-    """
-    oldframe.activate()
-    tp.macro.execute_command('$!CreateNewFrame\n'+
-            'XYPos{X='+str(1.25+0.25*barid)+'\n'
-                  'Y=0}\n'+
-            'Width = 1\n'+
-            'Height = 3.7')
-    frame = tp.active_frame()
-    frame.show_border = False
-    plt = frame.plot(PlotType.XYLine)
-    frame.plot_type = PlotType.XYLine
-    plt.linemap(0).show = False
-    plt.linemap(2).show = True
-    frame.transparent = True
-    plt.show_bars = True
-    plt.linemap(2).bars.show = True
-    plt.linemap(2).bars.size = 16
-    plt.linemap(2).bars.line_color = color
-    plt.linemap(2).bars.fill_color = color
-    plt.view.translate(x=-10,y=0)
-    plt.axes.x_axis(0).show = False
-    plt.axes.y_axis(0).title.title_mode = AxisTitleMode.UseText
-    plt.axes.y_axis(0).title.text='Plasmasheet Power [kW]'
-    plt.axes.y_axis(0).min = -1400
-    plt.axes.y_axis(0).max = 1400
-    if newaxis:
-        plt.axes.y_axis(0).show = True
-        plt.axes.y_axis(0).title.text='Magnetopause Power [kW]'
-        plt.axes.y_axis(0).line.offset = -40
-        plt.axes.y_axis(0).title.offset = 40
-        if barid > 2:
-            plt.axes.y_axis(0).min = -140
-            plt.axes.y_axis(0).max = 140
-            plt.axes.y_axis(0).line.alignment = AxisAlignment.WithGridMax
-            plt.axes.y_axis(0).title.text='Plasmasheet Power [kW]'
-            plt.axes.y_axis(0).line.offset = -20
-            plt.axes.y_axis(0).title.offset = 20
-            plt.axes.y_axis(0).tick_labels.offset = 5
-            plt.view.translate(x=-25,y=0)
-    else:
-        plt.axes.y_axis(0).show = False
-    oldframe.move_to_bottom()
-    frame.activate()
 
 def integrate_surface(var_index, zone_index, qtname, idimension,
                       kdimension, *, is_cylinder=True, frame_id='main',
