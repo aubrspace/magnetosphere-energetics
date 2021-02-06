@@ -58,6 +58,9 @@ def get_shue_mesh(field_data, year, nx, nphi, xtail,
             x_subsolar = max(x_subsolar,
                                 field_data.zone(index).values('X *').max())
         print('x_subsolar found at {}'.format(x_subsolar))
+        #delete streamzones
+        for zone_index in reversed(frontzoneindicies):
+            field_data.delete_zones(field_data.zone(zone_index))
     #Probe field data at x_subsolar + dx to find Bz and Pdyn
     Bz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][9]
     rho = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][3]

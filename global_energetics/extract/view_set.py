@@ -284,19 +284,11 @@ def manage_zones(frame, nslice, *, approved_zones=None):
         show_list- list of zones shown after operations
     """
     plt = frame.plot()
-    #Generate predetermined approved zone names
-    zone_list = ['global_field', 'mp_shue', 'mp_test', 'mp_flowline',
-                 'mp_fieldline', 'mp_hybrid', 'cps_zone']
     show_list = []
-    if approved_zones != None:
-        for zone in approved_zones:
-            zone_list.append(zone)
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
-            if not any([zone.name.find(item)!=-1 for item in zone_list]):
-                plt.fieldmap(map_index).show = False
-            elif zone.name == 'global_field':
+            if zone.name == 'global_field':
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = None
             else:
                 #some assertion that checks that zone is cylindrical
@@ -312,17 +304,20 @@ def manage_zones(frame, nslice, *, approved_zones=None):
             frame.plot(PlotType.Cartesian3D).use_translucency=True
             plt.fieldmap(map_index).effects.use_translucency=True
             plt.fieldmap(map_index).effects.surface_translucency=40
-            if zone.name.find('mp_hybrid') != -1:
+            if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
-            if zone.name.find('mp_fieldline') != -1:
+            if zone.name.find('fieldline') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom34
-            if zone.name.find('mp_flowline') != -1:
+            if zone.name.find('flowline') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom11
-            if zone.name.find('mp_shue') != -1:
-                plt.fieldmap(map_index).shade.color = Color.Custom2
-            if zone.name.find('mp_test') != -1:
+            if zone.name.find('shue') != -1:
+                if zone.name.find('97') != -1:
+                    plt.fieldmap(map_index).shade.color = Color.Custom9
+                else:
+                    plt.fieldmap(map_index).shade.color = Color.Custom2
+            if zone.name.find('test') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom7
-            if zone.name.find('cps_zone') != -1:
+            if zone.name.find('cps') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom8
     return show_list
 

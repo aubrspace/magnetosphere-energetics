@@ -50,6 +50,7 @@ if __name__ == "__main__":
                                   tail_analysis_cap=-20,
                                   outputpath=OUTPATH,
                                   zone_rename='shue98_20')
+    '''
     magnetopause.get_magnetopause(field_data, datafile, mode='flow',
                                   tail_analysis_cap=-20,
                                   outputpath=OUTPATH,
@@ -74,6 +75,7 @@ if __name__ == "__main__":
                                   tail_analysis_cap=-30,
                                   outputpath=OUTPATH,
                                   zone_rename='hybrid_30')
+    '''
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings
