@@ -47,6 +47,7 @@ def plot_2Dpositions(axis, data, datalabels, alpha, timestamp):
         if datalabels[curve[0]].find('hybrid') != -1:
             axis.plot(curve[1]['X [R]'], curve[1]['height [R]'],
                       color='green')
+    for curve in enumerate(data):
         if datalabels[curve[0]].find('shue') != -1:
             axis.plot(curve[1]['X [R]'], curve[1]['height [R]'],
                       color='grey', linewidth=8)
@@ -79,26 +80,29 @@ def prep_slices(dflist, dfnames, alpha, timestamp):
             nonempty_names.append(dfnames[df[0]])
     return nonempty_list, nonempty_names, timelabel
 
-def prepare_figures(dflist, dfnames, alpha, timestamp, outpath):
+def prepare_figures(dflist, dfnames, alpha, timedf, outpath):
     """Function calls which figures to be plotted
     Inputs
         dflist- list containing all dataframes
         dfnames- names of each dataset
         alpha, timestamp- for figure display
     """
-    nonempty_list, nonempty_names, timelabel = prep_slices(dflist, dfnames,
-                                                          alpha, timestamp)
-    if nonempty_list != []:
+    #nonempty_list, nonempty_names, timelabel = prep_slices(dflist, dfnames,
+    #                                                      alpha, timestamp)
+    if dflist != []:
+        datestring = (str(timedf[0].year)+'-'+str(timedf[0].month)+'-'+
+                      str(timedf[0].day)+'-'+str(timedf[0].hour)+'-'+
+                      str(timedf[0].minute))
         ###################################################################
         #2D curve plot
         if True:
             curve_plot, ax1 = plt.subplots(nrows=1,ncols=1,sharex=True,
                                                             figsize=[18,6])
+            curve_plot.text(0,0,str(timedf[0]))
             ax1.set_xlim([-40,12])
             ax1.set_ylim([0,30])
-            plot_2Dpositions(ax1, nonempty_list, nonempty_names, alpha,
-                             timestamp)
-            curve_plot.savefig(outpath+'{}_a{}.png'.format(timelabel,alpha))
+            plot_2Dpositions(ax1, dflist, dfnames, alpha, str(timedf[0]))
+            curve_plot.savefig(outpath+'height_maps_{}.png'.format(datestring))
             plt.close(curve_plot)
         ###################################################################
 
@@ -185,12 +189,13 @@ def expand_azimuth(dflist, dfnames, alpha_points, da):
                 newnames.append(dfnames[df[0]]+'_'+str(a))
     return newlist, newnames
 
-def prepare_stats(timedf, shue98, shue97, flow, field, hybrid,
-                    alpha_points, da):
+def prepare_stats(timedf, shuedfs, shuenames, nonshue_dfs, nonshue_names,
+                  alpha_points, da):
     """Function calls which statistics are to be calculated
     Inputs
-        timestamp- Series object with a single datetime entry
-        shue98..hybrid- DataFrame objects with X [R], Y [R], Z [R] data
+        timedf- holds time information
+        shuedfs,shuenames- DataFrame objects with XYZ data from shue model
+        nonshue_dfs,nonshue_names- rest of DataFrames, non symmetric
         alpha_points, da- used to set the slices for comparison
     Outputs
         stats, statnames- single valued and string list
@@ -203,7 +208,7 @@ def prepare_stats(timedf, shue98, shue97, flow, field, hybrid,
     statnames.append('Time [UTC]')
     ###################################################################
     #Compare flow and shue98
-    if True:
+    if False:
         if shue98.empty | flow.empty:
             print('Missing data for shue98-flow compare!')
         else:
@@ -224,8 +229,8 @@ def prepare_stats(timedf, shue98, shue97, flow, field, hybrid,
     return stats, statnames
 
 
-def single_file_proc(timedf, shue98, shue97, flow, field, hybrid,
-                    alpha_points, da, make_fig, get_stats, outpath):
+def single_file_proc(dflist, dfnames, alpha_points, da, make_fig,
+                     get_stats, outpath):
     """Function takes set of magnetopause surfaces at fixed time and
         calculates statistics/makes figures
     Inputs
@@ -235,14 +240,24 @@ def single_file_proc(timedf, shue98, shue97, flow, field, hybrid,
     Outputs
         stats, statnames
     """
-    dflist = [shue98, shue97, flow, field, hybrid]
-    dfnames = ['shue98', 'shue97', 'flow', 'field', 'hybrid']
+    timedf, nonshue_dfs, nonshue_names, shuedfs, shuenames=(pd.DataFrame(),
+                                                            [], [], [], [])
+    #identify timedf, and shuedfs 
+    for df in enumerate(dflist):
+        if dfnames[df[0]].find('time') != -1:
+            timedf = df[1]
+        elif dfnames[df[0]].find('shue') != -1:
+            shuedfs.append(df[1])
+            shuenames.append(dfnames[df[0]])
+        else:
+            nonshue_dfs.append(df[1])
+            nonshue_names.append(dfnames[df[0]])
     #check that time exists
     if timedf.empty:
         print('No time given! file not processed')
         return None
     #add alpha and height as a column in the 3D dataset
-    for df in enumerate(dflist):
+    for df in enumerate(nonshue_dfs):
         if not df[1].empty:
             alpha = pd.DataFrame(rad2deg(np.arctan2(df[1]['Z [R]'],
                                                     df[1]['Y [R]'])),
@@ -250,28 +265,38 @@ def single_file_proc(timedf, shue98, shue97, flow, field, hybrid,
             height = pd.DataFrame(np.sqrt(df[1]['Z [R]'].values**2+
                                           df[1]['Y [R]'].values**2),
                                   columns=['height [R]'])
-            dflist[df[0]] = dflist[df[0]].combine(alpha, np.minimum,
-                                                  fill_value=1000)
-            dflist[df[0]] = dflist[df[0]].combine(height, np.maximum,
-                                                  fill_value=-1000)
-    shue98, shue97, flow, field, hybrid = [dflist[0], dflist[1], dflist[2],
-                                           dflist[3], dflist[4]]
+            nonshue_dfs[df[0]].loc[:,'alpha(deg)'] = alpha
+            nonshue_dfs[df[0]].loc[:,'height [R]'] = height
+    for df in enumerate(shuedfs):
+        if not df[1].empty:
+            alpha = pd.DataFrame(rad2deg(np.arctan2(df[1]['Z [R]'],
+                                                    df[1]['Y [R]'])),
+                                 columns=['alpha(deg)'])
+            height = pd.DataFrame(np.sqrt(df[1]['Z [R]'].values**2+
+                                          df[1]['Y [R]'].values**2),
+                                  columns=['height [R]'])
+            shuedfs[df[0]].loc[:,'alpha(deg)'] = alpha
+            shuedfs[df[0]].loc[:,'height [R]'] = height
     if make_fig:
         #expanded list for (shue + nonshue*nalpha)
-        expanded_df_list, expanded_df_names = expand_azimuth(dflist[0:2],
-                                                             dfnames[0:2],
+        expanded_df_list, expanded_df_names = expand_azimuth(nonshue_dfs,
+                                                             nonshue_names,
                                                              alpha_points,
                                                              da)
+        for df in enumerate(shuedfs):
+            expanded_df_list.append(df[1])
+            expanded_df_names.append(shuenames[df[0]])
         prepare_figures(expanded_df_list, expanded_df_names, alpha_points,
                         timedf, outpath)
     if get_stats:
-        stats, statnames = prepare_stats(timedf, shue98, shue97, flow,
-                                         field, hybrid, alpha_points, da)
+        stats, statnames = prepare_stats(timedf, shuedfs, shuenames,
+                                         nonshue_dfs, nonshue_names,
+                                         alpha_points, da)
     else:
         stats, statnames = None, None
     return stats, statnames
 
-def process_spatial_mp(data_path, nalpha, nslice, *, make_fig=True,
+def process_spatial_mp(data_path_list, nalpha, nslice, *, make_fig=True,
                                                         get_stats=True,
                                                         outpath=None):
     """Top level function reads data files in data_path then
@@ -283,41 +308,32 @@ def process_spatial_mp(data_path, nalpha, nslice, *, make_fig=True,
         make_fig,get_stats- boolean options for saving figures and stats
     """
     alpha_points, da = linspace(-180,180,nalpha, retstep=True)
-    timedf, shue98df, shue97df, flowdf, hybriddf, fielddf=[pd.DataFrame(),
-                                                           pd.DataFrame(),
-                                                           pd.DataFrame(),
-                                                           pd.DataFrame(),
-                                                           pd.DataFrame(),
-                                                           pd.DataFrame()]
-    #initialize stats objects for each object of each type
-    print(count_files(data_path))
-    statsdf = pd.DataFrame()
-    bar = Bar('processing spatial data ',max=count_files(data_path))
-    for datafile in glob.glob(data_path+'/*.h5'):
-        with pd.HDFStore(datafile) as hdf_file:
-            keysfound = hdf_file.keys()
-            for key in hdf_file.keys():
-                if key=='/shue98':
-                    shue98df = pd.read_hdf(hdf_file,key,'r')
-                elif key=='/shue97':
-                    shue97df = pd.read_hdf(hdf_file,key,'r')
-                elif key=='/shue':
-                    shue98df = pd.read_hdf(hdf_file,key,'r')
-                elif key=='/flowline':
-                    flowdf = pd.read_hdf(hdf_file,key,'r')
-                elif key=='/fieldline':
-                    fielddf = pd.read_hdf(hdf_file,key,'r')
-                elif key=='/hybrid':
-                    hybriddf = pd.read_hdf(hdf_file,key,'r')
-                elif key=='/time':
-                    timedf = pd.read_hdf(hdf_file,key,'r')
-                else:
-                    print('key {} not understood!'.format(key))
-        bar.next()
-        stats, statnames = single_file_proc(timedf, shue98df, shue97df,
-                                           flowdf, fielddf, hybriddf,
-                                           alpha_points, da, make_fig,
-                                           get_stats, outpath)
+    if data_path_list == []:
+        print('Nothing to do, no data_paths given!')
+    else:
+        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid',
+                    'field', 'time']
+        #initialize objects
+        statsdf = pd.DataFrame()
+        for path in data_path_list:
+            if path != None:
+                bar = Bar('processing data at {}'.format(path),
+                          max=count_files(path))
+                for datafile in glob.glob(path+'/*.h5'):
+                    dflist, dfnames = [],[]
+                    with pd.HDFStore(datafile) as store:
+                        for key in store.keys():
+                            if any([key.find(match)!=-1
+                                   for match in approved]):
+                                dflist.append(store[key])
+                                dfnames.append(key)
+                            else:
+                                print('key {} not understood!'.format(key))
+                    bar.next()
+                    stats, statnames = single_file_proc(dflist, dfnames,
+                                                       alpha_points, da,
+                                                       make_fig, get_stats,
+                                                       outpath)
         if len(statsdf.keys()) == 0:
             statsdf = pd.DataFrame(columns=statnames)
         else:
@@ -331,8 +347,8 @@ def process_spatial_mp(data_path, nalpha, nslice, *, make_fig=True,
 
 
 if __name__ == "__main__":
-    PATH = ('/home/aubr/Code/swmf-energetics/output/meshdata')
-    OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
+    PATH = ['output/mpdynamics/jan27_3surf/meshdata']
+    OPATH = 'output/mpdynamics/jan27_3surf/temp/'
     NALPHA = 36
     NSLICE = 60
     process_spatial_mp(PATH, NALPHA, NSLICE, make_fig=True, outpath=OPATH)

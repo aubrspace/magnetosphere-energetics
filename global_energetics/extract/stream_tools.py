@@ -589,33 +589,40 @@ def calculate_energetics(field_data, zone_name):
     eq('{E_y [mV/km]} = ({Em_y [mV/km]}+{Eh_y [mV/km]})')
     eq('{E_z [mV/km]} = ({Em_z [mV/km]}+{Eh_z [mV/km]})')
 
-    #Electric Energy per volume
-    eq('{uE [J/Re^3]} = ({E_x [mV/km]}**2+{E_y [mV/km]}**2+'+
-                        '{E_z [mV/km]}**2)*1.143247989e-3')
+    #Electric Energy per volume (motional only)
+    eq('{uE [J/Re^3]} = ({Em_x [mV/km]}**2+{Em_y [mV/km]}**2+'+
+                        '{Em_z [mV/km]}**2)*1.143247989e-3')
 
-    #Poynting Flux
-    eq('{ExB_x [W/Re^2]} = -(3.22901e4)*({E_z [mV/km]}*{B_y [nT]}'+
+    #Poynting Flux (motional and Hall)
+    eq('{ExBt_x [W/Re^2]} = 3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+
                                        '-{E_y [mV/km]}*{B_z [nT]})')
-    eq('{ExB_y [W/Re^2]} = -(3.22901e4)*({E_x [mV/km]}*{B_z [nT]}'+
+    eq('{ExBt_y [W/Re^2]} = 3.22901e4*({E_x [mV/km]}*{B_z [nT]}'+
                                        '-{E_z [mV/km]}*{B_x [nT]})')
-    eq('{ExB_z [W/Re^2]} = -(3.22901e4)*({E_y [mV/km]}*{B_x [nT]}'+
+    eq('{ExBt_z [W/Re^2]} = 3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
                                        '-{E_x [mV/km]}*{B_y [nT]})')
+    #Poynting Flux (motional E only)
+    eq('{ExB_x [W/Re^2]} = 3.22901e4*({Em_z [mV/km]}*{B_y [nT]}'+
+                                       '-{Em_y [mV/km]}*{B_z [nT]})')
+    eq('{ExB_y [W/Re^2]} = 3.22901e4*({Em_x [mV/km]}*{B_z [nT]}'+
+                                       '-{Em_z [mV/km]}*{B_x [nT]})')
+    eq('{ExB_z [W/Re^2]} = 3.22901e4*({Em_y [mV/km]}*{B_x [nT]}'+
+                                       '-{Em_x [mV/km]}*{B_y [nT]})')
     #Total Energy Flux
-    eq('{K_x [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*4.9430863e10'+
+    eq('{K_x [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
                                         '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
                           '*1.5696123057605e-4*{U_x [km/s]}'+
                           '+  {ExB_x [W/Re^2]}')
-    eq('{K_y [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*4.9430863e10'+
+    eq('{K_y [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
                                         '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
                           '*1.5696123057605e-4*{U_y [km/s]}'+
                           '+  {ExB_y [W/Re^2]}')
-    eq('{K_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*4.9430863e10'+
+    eq('{K_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
                                         '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+

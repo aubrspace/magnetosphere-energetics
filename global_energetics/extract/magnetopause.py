@@ -35,7 +35,7 @@ from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
 
 def get_shue_mesh(field_data, year, nx, nphi, xtail,
-                  *, x_subsolar=None, dx=5):
+                  *, x_subsolar=None, dx=10):
     """Function mesh of 3D volume points based on Shue 1997/8 model for
         magnetopause
     Inputs
@@ -64,7 +64,7 @@ def get_shue_mesh(field_data, year, nx, nphi, xtail,
     ux = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][4]
     uy = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][5]
     uz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][6]
-    Pdyn = 1/2*rho*(ux**2+uy**2+uz**2)*1.66058e-5
+    Pdyn = 1/2*rho*(ux**2+uy**2+uz**2)*1.6605e-6
     #Get r0 and alpha based on IMF conditions
     if year == 1997:
         r0, alpha = r0_alpha_1997(Bz, Pdyn)

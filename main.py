@@ -43,17 +43,37 @@ if __name__ == "__main__":
     #python objects
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
+    #field_data = tp.data.load_tecplot('output/mpdynamics/hybrid2shue/20140218-223000-a.plt')
 
     #Caclulate surfaces
+    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
+                                  tail_analysis_cap=-20,
+                                  outputpath=OUTPATH,
+                                  zone_rename='shue98_20')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flow',
+                                  tail_analysis_cap=-20,
+                                  outputpath=OUTPATH,
+                                  zone_rename='flow_20')
     magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
                                   tail_analysis_cap=-20,
-                                  outputpath=OUTPATH)
-    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  tail_analysis_cap=-20, shue_type=1997,
-                                  outputpath=OUTPATH)
-    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  tail_analysis_cap=-20, shue_type=1998,
-                                  outputpath=OUTPATH)
+                                  outputpath=OUTPATH,
+                                  zone_rename='hybrid_20')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flow',
+                                  tail_analysis_cap=-10,
+                                  outputpath=OUTPATH,
+                                  zone_rename='flow_10')
+    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
+                                  tail_analysis_cap=-10,
+                                  outputpath=OUTPATH,
+                                  zone_rename='hybrid_10')
+    magnetopause.get_magnetopause(field_data, datafile, mode='flow',
+                                  tail_analysis_cap=-30,
+                                  outputpath=OUTPATH,
+                                  zone_rename='flow_30')
+    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
+                                  tail_analysis_cap=-30,
+                                  outputpath=OUTPATH,
+                                  zone_rename='hybrid_30')
     #plasmasheet.get_plasmasheet(field_data, datafile)
 
     #adjust view settings

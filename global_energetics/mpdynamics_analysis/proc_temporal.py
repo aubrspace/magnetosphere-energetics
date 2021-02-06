@@ -75,13 +75,13 @@ def get_energy_dataframes(dflist, dfnames):
                 delta_t = (df[1]['Time [UTC]'].loc[1]-
                         df[1]['Time [UTC]'].loc[0]).seconds
                 #use pandas cumulative sum method
-                cumu_E_in = df[1]['mp K_in [kW]'].cumsum()*delta_t
-                cumu_E_out = df[1]['mp K_out [kW]'].cumsum()*delta_t
-                cumu_E_net = df[1]['mp K_net [kW]'].cumsum()*delta_t
+                cumu_E_in = df[1]['mp K_in [W]'].cumsum()*delta_t
+                cumu_E_out = df[1]['mp K_out [W]'].cumsum()*delta_t
+                cumu_E_net = df[1]['mp K_net [W]'].cumsum()*delta_t
                 #Add column to dataframe
-                dflist[df[0]].loc[:,'CumulE_in [kJ]'] = cumu_E_in
-                dflist[df[0]].loc[:,'CumulE_out [kJ]'] = cumu_E_out
-                dflist[df[0]].loc[:,'CumulE_net [kJ]'] = cumu_E_net
+                dflist[df[0]].loc[:,'CumulE_in [J]'] = cumu_E_in
+                dflist[df[0]].loc[:,'CumulE_out [J]'] = cumu_E_out
+                dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
                 ###Add modified dataframe to list
                 use_dflist.append(dflist[df[0]])
                 use_dflabels.append(dfnames[df[0]])
@@ -107,23 +107,23 @@ def prepare_figures(dflist, dfnames, outpath):
             cumulative_E, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'CumulE_in [kJ]'
-            ylabel = 'Cumulative Energy in [kJ]'
+            qtykey = 'CumulE_in [J]'
+            ylabel = 'Cumulative Energy in [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'CumulE_out [kJ]'
-            ylabel = 'Cumulative Energy out [kJ]'
+            qtykey = 'CumulE_out [J]'
+            ylabel = 'Cumulative Energy out [J]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'CumulE_net [kJ]'
-            ylabel = 'Cumulative Energy net [kJ]'
+            qtykey = 'CumulE_net [J]'
+            ylabel = 'Cumulative Energy net [J]'
             plot_all_runs_1Qty(ax3, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             '''
-            qtykey = 'mp K_net [kW]'
-            ylabel = 'Power net [kW]'
+            qtykey = 'mp K_net [W]'
+            ylabel = 'Power net [W]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             '''
@@ -137,12 +137,12 @@ def prepare_figures(dflist, dfnames, outpath):
             VolArea, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'mp Area [m^2]'
-            ylabel = 'Surface Area [m^2]'
+            qtykey = 'mp Area [Re^2]'
+            ylabel = 'Surface Area [Re^2]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'mp Volume [R^3]'
-            ylabel = 'Volume [m^3]'
+            qtykey = 'mp Volume [Re^3]'
+            ylabel = 'Volume [Re^3]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             VolArea.savefig(outpath+'{}.png'.format(figname))
@@ -197,8 +197,7 @@ def process_temporal_mp(data_path_list, outputpath):
                         for key in hdf_file.keys():
                             if any([key.find(match)!=-1
                                    for match in approved]):
-                                df = pd.read_hdf(hdf_file,key,'r')
-                                dflist.append(df)
+                                dflist.append(hdf_file[key])
                                 dfnames.append(key)
                             else:
                                 print('key {} not understood!'.format(key))
@@ -206,11 +205,11 @@ def process_temporal_mp(data_path_list, outputpath):
         prepare_figures(dflist, dfnames, outputpath)
 
 if __name__ == "__main__":
-    PATH1 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
-                     'mpdynamics/feb3')
-    PATH2 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
-                     'mpdynamics/jan27_3surf')
-    #IPATH = ('/home/aubr/Code/swmf-energetics/output')
+    #PATH1 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
+    #                 'mpdynamics/feb3')
+    #PATH2 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
+    #                 'mpdynamics/jan27_3surf')
     #SPATH = ('/home/aubr/Code/swmf-energetics/output/meshdata/stats')
     #OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
-    process_temporal_mp([PATH1,PATH2],PATH1+'/')
+    PATH1 = 'output/mpdynamics/hybrid2shue/'
+    process_temporal_mp([PATH1],PATH1+'/')
