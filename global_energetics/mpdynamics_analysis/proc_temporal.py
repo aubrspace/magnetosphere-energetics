@@ -209,7 +209,7 @@ if __name__ == "__main__":
     #                 'mpdynamics/feb3')
     #PATH2 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
     #                 'mpdynamics/jan27_3surf')
-    #SPATH = ('/home/aubr/Code/swmf-energetics/output/meshdata/stats')
+    SPATH = '/home/aubr/Code/swmf-energetics/output/'
     #OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
-    PATH1 = 'output/mpdynamics/hybrid2shue/'
-    process_temporal_mp([PATH1],PATH1+'/')
+    #PATH1 = 'output/mpdynamics/hybrid2shue/'
+    process_temporal_mp([SPATH],SPATH+'/figures/')

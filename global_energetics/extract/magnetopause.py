@@ -299,6 +299,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
+    approved = ['flowline', 'fieldline', 'hybrid', 'shue', 'test']
+    if not any([mode == match for match in approved]):
+        print('Magnetopause mode "{}" not recognized!!'.format(mode))
+        print('Please set mode to one of the following:')
+        for choice in approved:
+            print('\t{}'.format(choice))
+        return
     display = ('Analyzing Magnetopause with the following settings:\n'+
                '\tdatafile: {}\n'.format(datafile)+
                '\toutputpath: {}\n'.format(outputpath)+
