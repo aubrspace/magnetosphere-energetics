@@ -88,6 +88,7 @@ def add_jy_slice(frame, jyindex):
     """
     frame.plot().show_slices = True
     yslice = frame.plot().slice(0)
+    yslice.show=True
     yslice.orientation = SliceSurface.YPlanes
     yslice.origin[1] = -.10
     yslice.contour.flood_contour_group_index = 1
@@ -105,6 +106,33 @@ def add_jy_slice(frame, jyindex):
     jycontour.colormap_filter.continuous_max = 0.003
     jycontour.colormap_filter.continuous_min = -0.003
     jycontour.colormap_filter.reversed = True
+
+def add_jz_slice(frame, jzindex):
+    """adds iso contour for earth at r=1Re
+    Inputs
+        frame
+        jyindex
+    """
+    frame.plot().show_slices = True
+    zslice = frame.plot().slice(1)
+    zslice.show=True
+    zslice.orientation = SliceSurface.ZPlanes
+    zslice.origin[1] = -.10
+    zslice.contour.flood_contour_group_index = 2
+    zslice.effects.use_translucency = True
+    jzcontour = frame.plot().contour(2)
+    jzcontour.variable_index=jzindex
+    jzcontour.colormap_name = 'Diverging - Brown/Green'
+    jzcontour.legend.vertical = True
+    jzcontour.legend.position[1] = 72
+    jzcontour.legend.position[0] = 98
+    jzcontour.legend.box.box_type = TextBox.Filled
+    jzcontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+    jzcontour.labels.step = 2
+    jzcontour.colormap_filter.distribution=ColorMapDistribution.Continuous
+    jzcontour.colormap_filter.continuous_max = 0.003
+    jzcontour.colormap_filter.continuous_min = -0.003
+    jzcontour.colormap_filter.reversed = True
 
 def add_earth_iso(frame, rindex):
     """adds iso contour for earth at r=1Re
@@ -327,6 +355,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
                        pltpath='./', outputname='output',
                        show_contour=True, show_slice=True,
                        show_fieldline=True, do_blanking=True, tile=False,
+                       show_timestamp=True,
                        mpslice=60, cpsslice=20, zone_rename=None):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
@@ -355,6 +384,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
     #Optional items
     if show_slice:
         add_jy_slice(frame, jyindex=frame.dataset.variable('J_y *').index)
+        add_jz_slice(frame, jzindex=frame.dataset.variable('J_z *').index)
     if show_fieldline:
         add_fieldlines(frame)
     if tile:
@@ -392,7 +422,8 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
     else:
         add_shade_legend(frame, zones_shown, shade_legend_pos,
                          shade_markersize)
-    add_timestamp(frame, filename, timestamp_pos)
+    if show_timestamp:
+        add_timestamp(frame, filename, timestamp_pos)
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
     if save_img:
         tp.export.save_png(pngpath+outputname+'.png', width=3200)

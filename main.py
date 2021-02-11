@@ -48,9 +48,25 @@ if __name__ == "__main__":
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, mode='shue',
                                   tail_analysis_cap=-20,
-                                  outputpath=OUTPATH,
-                                  zone_rename='shue98_20')
+                                  outputpath=OUTPATH,shue_type=1997,
+                                  zone_rename='shue1997')
+    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
+                                  tail_analysis_cap=-20,
+                                  outputpath=OUTPATH,shue_type=1998,
+                                  zone_rename='shue1998')
     '''
+    field_data.zone('seed*').name = 'seed_original'
+    field_data.zone('rminseed*').name = 'rminseed_original'
+    field_data.zone('rmaxseed*').name = 'rmaxseed_original'
+    for zone in field_data.zones('flow*'):
+        oldname = zone.name
+        zone.name = 'original'+oldname.split('flow')[-1]
+    field_data.zone('original_original').name = 'mp_flowline'
+    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
+                                  tail_analysis_cap=-20,
+                                  outputpath=OUTPATH,
+                                  zone_rename='flow_modified',
+                                  flow_seed_dx=3)
     magnetopause.get_magnetopause(field_data, datafile, mode='flow',
                                   tail_analysis_cap=-20,
                                   outputpath=OUTPATH,

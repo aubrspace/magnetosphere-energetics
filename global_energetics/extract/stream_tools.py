@@ -224,10 +224,48 @@ def rotation(angle, axis):
                   [0,           0,          1]]
     return matrix
 
+def get_lateral_arc(zone, last_angle, last_r, method, *, dx=1):
+    '''Function to calculate lateral angle, used to ensure coverage in the
+        tail when seeding streams on the dayside
+    Inputs
+        zone- streamzone to probe values from
+        last_angle
+        last_r
+        method- flow, day, tail, cps determines how to define r
+    Outputs
+        l_arc defined by dangle*mean_r
+        rnew same as mean_r
+        angle
+    '''
+    xzonevals = zone.values('X *').as_numpy_array()
+    yzonevals = zone.values('Y *').as_numpy_array()
+    zzonevals = zone.values('Z *').as_numpy_array()
+    if method == 'dayside':
+        dayindices = np.where((zzonevals>-dx/2)&
+                              (zzonevals<dx/2))
+        yave_day = yzonevals[dayindices].mean()
+        xave_day = zzonevals[dayindices].mean()
+        angle = np.rad2deg(np.arctan2(yave_day,xave_day))
+        r = np.sqrt(yave_day**2+xave_day**2)
+    if (method == 'flow') or (method == 'tail'):
+        xzonevals = zone.values('X *').as_numpy_array()
+        yzonevals = zone.values('Y *').as_numpy_array()
+        zzonevals = zone.values('Z *').as_numpy_array()
+        tail_indices = np.where((xzonevals>-10-dx/2)&
+                                (xzonevals<-10+dx/2))
+        yave_tail = yzonevals[tail_indices].mean()
+        zave_tail = zzonevals[tail_indices].mean()
+        angle = np.rad2deg(np.arctan2(zave_tail,yave_tail))
+        r = np.sqrt(yave_tail**2+zave_tail**2)
+    dangle = deg2rad(abs(angle-last_angle))
+    mean_r = abs(r-last_r)/2
+    return dangle * mean_r, mean_r, angle
+
 def streamfind_bisection(field_data, method,
                          dimmax, nstream, rmax, rmin, itr_max, tolerance,
-                         *, rcheck=5, time=None,
-                         field_key_x='B_x*', global_key='global_field'):
+                         *, rcheck=7, time=None,
+                         field_key_x='B_x*', global_key='global_field',
+                         disp_search=False):
     """Generalized function for generating streamlines for a 'last closed'          condition based on a bisection algorithm
     Inputs
         General
@@ -250,12 +288,14 @@ def streamfind_bisection(field_data, method,
     """
     #validate method form
     approved_methods = ['dayside', 'tail', 'flow', 'plasmasheet']
+    seedpoints = pd.DataFrame(columns=['X [R]','Y [R]','Z [R]'])
+    seedmin = pd.DataFrame(columns=['X [R]','Y [R]','Z [R]'])
+    seedmax = pd.DataFrame(columns=['X [R]','Y [R]','Z [R]'])
     reverse_if_flow = 0
     if all([test.find(method)==-1 for test in approved_methods]):
         print('WARNING: method for streamfind_bisection not recognized!!'+
               '\nno streamzones created')
-        zonelist = None
-        return zonelist
+        return None
 
     #set streamline seed positions in the fixed dimension
     if method == 'dayside':
@@ -295,8 +335,9 @@ def streamfind_bisection(field_data, method,
 
     bar = Bar(disp_message, max=len(positions))
     zonelist = []
-    rold = 0
-    aold = positions[0]
+    rback, rfwd, nstep = 0, 0, 0
+    aback, afwd = positions[0], positions[0]
+    a_checkback, a_checkfwd = aback, afwd
     for a_int in positions:
         #start at intial position
         a = a_int
@@ -320,19 +361,22 @@ def streamfind_bisection(field_data, method,
                 cartesian = True
             elif method == 'flow':
                 def getseed(r):
-                    return [dimmax, r*cos(rad2deg(a)), r*sin(rad2deg(a)),
+                    return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
                             rcheck, lin_type]
                 cartesian = True
             elif method == 'plasmasheet':
-                def getseed(r):return sm2gsm_temp(1, r, a, time), None, lin_type
+                def getseed(r):return (sm2gsm_temp(1, r, a, time), None,
+                                       lin_type)
                 cartesian = True
             #Create initial max/min to lines
             x1, x2, x3, rchk, lin_type = getseed(rmax)
-            create_stream_zone(field_data, x1, x2, x3, 'max'+lineID.format(a),
-                            cart_given=cartesian)
+            create_stream_zone(field_data, x1, x2, x3,
+                               'max'+lineID.format(a),
+                                cart_given=cartesian)
             x1, x2, x3, rchk, lin_type = getseed(rmin)
-            create_stream_zone(field_data, x1, x2, x3, 'min'+lineID.format(a),
-                            cart_given=cartesian)
+            create_stream_zone(field_data, x1, x2, x3,
+                               'min'+lineID.format(a),
+                                cart_given=cartesian)
             #Check that last closed is bounded, delete min/max
             max_closed = check_streamline_closed(field_data, 'max*', rchk,
                                                 line_type=lin_type)
@@ -341,14 +385,12 @@ def streamfind_bisection(field_data, method,
             field_data.delete_zones(field_data.zone('min*'),
                                     field_data.zone('max*'))
             if max_closed and min_closed:
-                #print("WARNING:flowlines closed at {}R_e from YZ".format(rmax))
                 x1, x2, x3, rchk, lin_type = getseed(rmax)
                 create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
                                 cart_given=cartesian)
                 notfound = False
                 rmid = rmax
             elif not max_closed and not min_closed:
-                #print("WARNING:flowlines good at {}R_e from YZ".format(rmin))
                 x1, x2, x3, rchk, lin_type = getseed(rmin)
                 create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
                                 cart_given=cartesian)
@@ -359,21 +401,23 @@ def streamfind_bisection(field_data, method,
                 itr = 0
                 rout = rmax
                 rin = rmin
+                #Enter bisection search algorithm
                 while(notfound and itr < itr_max):
                     #create mid
                     x1, x2, x3, rchk, lin_type = getseed(rmid)
                     create_stream_zone(field_data, x1, x2, x3,
-                                    'mid'+lineID.format(a),
-                                    cart_given=cartesian)
+                                       'mid'+lineID.format(a),
+                                       cart_given=cartesian)
                     #check midclosed
-                    mid_closed = check_streamline_closed(field_data, 'mid*',
-                                                    rchk, line_type=lin_type)
+                    mid_closed = check_streamline_closed(field_data,
+                                                         'mid*', rchk,
+                                                       line_type=lin_type)
                     if mid_closed:
                         rin = rmid
                     else:
                         rout = rmid
                     if abs(rout-rin) < tolerance and (bool(
-                                            int(mid_closed)-reverse_if_flow)):
+                                        int(mid_closed)-reverse_if_flow)):
                         #keep closed on boundary unless in 'flowline' method
                         notfound = False
                         field_data.zone('mid*').name=lineID.format(a)
@@ -382,18 +426,82 @@ def streamfind_bisection(field_data, method,
                         field_data.delete_zones(field_data.zone('mid*'))
                     itr += 1
             zonelist.append(field_data.zone(lineID.format(a)).index)
-            #after adding to the list, check l_arc
-            l_arc = abs(a-aold) * abs(rmid - rold)/2
-            if l_arc < l_max:
-                rold = rmid
-                aold = a_int
+            newzone = field_data.zone(lineID.format(a))
+            if disp_search:
+                if cartesian == True:
+                    xmin, ymin, zmin, _, _ = getseed(rmin)
+                    xmax, ymax, zmax, _, _ = getseed(rmax)
+                    df = pd.DataFrame([[x1,x2,x3]],columns=['X [R]',
+                                                            'Y [R]',
+                                                            'Z [R]'])
+                    df_min = pd.DataFrame([[xmin,ymin,zmin]],columns=[
+                                                            'X [R]',
+                                                            'Y [R]',
+                                                            'Z [R]'])
+                    df_max = pd.DataFrame([[xmax,ymax,zmax]],columns=[
+                                                            'X [R]',
+                                                            'Y [R]',
+                                                            'Z [R]'])
+                    seedpoints = seedpoints.append(df)
+                    seedmin = seedmin.append(df_min)
+                    seedmax = seedmax.append(df_max)
+            #after adding to the list, check lateral_arc fwd and back
+            l_arc_back,rnew,a_check = get_lateral_arc(newzone, a_checkback,
+                                                      rback, method)
+            l_arc_fwd,rnew,a_check = get_lateral_arc(newzone, a_checkfwd,
+                                                     rfwd, method)
+            if (l_arc_back > l_max) & (a != positions[0]) & (nstep<10):
+                #step a back one half step
+                afwd = a
+                a_checkfwd = a_check
+                rfwd = rnew
+                a = a - (a-aback)/2
+                nstep +=1
+            elif (l_arc_fwd > l_max) & (a != positions[0]) & (nstep<10):
+                #step forward one half step
+                aback = a
+                a_checkback = a_check
+                rback = rnew
+                a = a + (afwd-a)/2
+                nstep += 1
+            else:
+                #set most forward setting as new "back" AND "fwd"
+                if afwd > aback:
+                    aback = afwd
+                    a_checkback = a_check
+                    rbac = rfwd
+                else:
+                    aback, afwd = a, a
+                    a_checkback, a_checkfwd = a_check, a_check
+                    rback, rfwd = rnew, rnew
+                nstep = 0
                 break
-            #half the distance and loop again
-            a = a - (a-aold)/2
-            rold = rmid
-            aold = a
         bar.next()
     bar.finish()
+    if disp_search:
+        create_cylinder(field_data, 1, len(seedpoints), 2, dimmax,dimmax,
+                        'seed'+method)
+        load_cylinder(field_data, seedpoints, 'seed'+method, 2,
+                      len(seedpoints), 1)
+        tp.data.operate.interpolate_linear(
+                destination_zone=field_data.zone('seed'+method),
+                source_zones=field_data.zone('global_field'))
+        #min
+        create_cylinder(field_data, 1, len(seedmin), 2, dimmax,dimmax,
+                        'rminseed'+method)
+        load_cylinder(field_data, seedmin, 'rminseed'+method, 2,
+                      len(seedmin), 1)
+        tp.data.operate.interpolate_linear(
+                destination_zone=field_data.zone('rminseed'+method),
+                source_zones=field_data.zone('global_field'))
+        #max
+        create_cylinder(field_data, 1, len(seedmax), 2, dimmax,dimmax,
+                        'rmaxseed'+method)
+        load_cylinder(field_data, seedmax, 'rmaxseed'+method, 2,
+                      len(seedmax), 1)
+        tp.data.operate.interpolate_linear(
+                destination_zone=field_data.zone('rmaxseed'+method),
+                source_zones=field_data.zone('global_field'))
     return zonelist
 
 def dump_to_pandas(frame, zonelist, varlist, filename):
@@ -510,8 +618,8 @@ def load_cylinder(field_data, data, zonename, I, J, K):
     bar = Bar('Loading I meshpoints', max=I)
     for i in range(0,I):
         mag_bound.values('X*')[i::I] = xdata
-        mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/I + ymean
-        mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/I + zmean
+        mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/(I-1) + ymean
+        mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/(I-1) + zmean
         bar.next()
     bar.finish()
 

@@ -262,7 +262,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      mode='hybrid',
                      n_day=72, lon_max=90, rday_max=30, rday_min=3.5,
                      n_tail=72, rtail_max=125, rtail_min=0.5,
-                     n_flow=72, flow_seed_x=-5, rflow_max=20, rflow_min=0,
+                     n_flow=72, flow_seed_dx=2, rflow_max=35, rflow_min=2,
                      shue_type=1998,
                      itr_max=100, tol=0.1,
                      tail_cap=-40, innerbound=2, tail_analysis_cap=-20,
@@ -286,7 +286,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             rtail_max, rtail_min- tail disc min and max search radius
         Flow lines
             n_flow- number of flowlines generated
-            flow_seed_x- x location to seed flowlines from
+            flow_seed_dx- x location to seed flowlines from
             rflow_min, rflow_max- boundaries for search criteria
         Shue
             shue- 1997, 1998 uses Shue empirical, read iff mode=shue
@@ -323,7 +323,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #flow line settings
         display = (display+
                '\tn_flow: {}\n'.format(n_flow)+
-               '\tflow_seed_x: {}\n'.format(flow_seed_x)+
+               '\tflow_seed_dx: {}\n'.format(flow_seed_dx)+
                '\trflow_max: {}\n'.format(rflow_max)+
                '\trflow_min: {}\n'.format(rflow_min))
     if mode == 'shue':
@@ -385,29 +385,32 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             field_df, flow_df, x_subsolar = make_test_case()
             zonename = 'mp_test'
         ################################################################
-        elif (mode == 'hybrid') or (mode == 'flowline'):
+        if mode == 'flowline':
+            #Call get streamfind with limitd settings to get x_subsolar
+            frontzoneindicies = streamfind_bisection(field_data,
+                                                         'dayside', 10, 5,
+                                                         30, 3.5, 100, 0.1)
+            for zone_index in reversed(frontzoneindicies):
+                field_data.delete_zones(field_data.zone(zone_index))
+            x_subsolar = 0
+            for index in frontzoneindicies:
+                x_subsolar = max(x_subsolar,
+                                field_data.zone(index).values('X *').max())
+            print('x_subsolar found at {}'.format(x_subsolar))
+        if (mode == 'hybrid') or (mode == 'flowline'):
             ###flowline points
-            flowlist = streamfind_bisection(field_data, 'flow',flow_seed_x,
-                                            n_flow, rflow_max, rflow_min,
-                                            itr_max, tol,
+            flowlist = streamfind_bisection(field_data, 'flow',
+                                            x_subsolar+flow_seed_dx,
+                                            144, rflow_max, rflow_min,
+                                            itr_max, tol,disp_search=False,
                                             field_key_x='U_x*')
             flow_df, _ = dump_to_pandas(main_frame, flowlist, xyzvar,
                                         'stream.csv')
-            for zone_index in reversed(flowlist):
-                field_data.delete_zones(field_data.zone(zone_index))
-            if mode == 'flowline':
-                #Call get streamfind with limitd settings to get x_subsolar
-                frontzoneindicies = streamfind_bisection(field_data,
-                                                         'dayside', 10, 5,
-                                                         30, 3.5, 100, 0.1)
-                #Find the max value from set of zones
-                x_subsolar = 0
-                for index in frontzoneindicies:
-                    x_subsolar = max(x_subsolar,
-                                field_data.zone(index).values('X *').max())
-                print('x_subsolar found at {}'.format(x_subsolar))
+            if mode=='flowline':
                 stream_df = flow_df
                 zonename = 'mp_flowline'
+            for zone_index in reversed(flowlist):
+                field_data.delete_zones(field_data.zone(zone_index))
         ################################################################
         if (mode == 'hybrid') or (mode == 'fieldline'):
             ###tail points
@@ -420,7 +423,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             for zone_index in reversed(taillist):
                 field_data.delete_zones(field_data.zone(zone_index))
             ###dayside points
-            daysidelist = streamfind_bisection(field_data, 'dayside',
+            daysidelist = streamfind_bisection(field_data, zone_rename,
                                                lon_max, n_day,
                                                rday_max, rday_min,
                                                itr_max, tol)
