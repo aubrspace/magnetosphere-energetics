@@ -48,48 +48,48 @@ def volume_analysis(field_data, zone_name, *, voluB=True, voluE=True,
     data = []
     if voluB:
         #integrate magnetic energy
-        keys.append(volume_name+' uB [J]')
+        keys.append('mp uB [J]')
         uB_index = int(field_data.variable('uB *').index)
-        uB = integrate_volume(uB_index, zone_index, volume_name+' uB [J]')
+        uB = integrate_volume(uB_index, zone_index, 'mp uB [J]')
         print('{} uB integration done'.format(zone_name))
         data.append(uB)
     if voluB:
         #integrate electric energy
-        keys.append(volume_name+' uE [J]')
+        keys.append('mp uE [J]')
         uE_index = int(field_data.variable('uE *').index)
-        uE = integrate_volume(uB_index, zone_index, volume_name+' uE [J]')
+        uE = integrate_volume(uB_index, zone_index, 'mp uE [J]')
         print('{} uB integration done'.format(zone_name))
         data.append(uE)
     if volKEpar:
         #integrate parallel KE
-        keys.append(volume_name+' KEpar [J]')
+        keys.append('mp KEpar [J]')
         KEpar_index = int(field_data.variable('KEpar *').index)
         KEpar = integrate_volume(KEpar_index, zone_index,
-                                 volume_name+' KEpar [J]')
+                                 'mp KEpar [J]')
         print('{} KEparallel integration done'.format(zone_name))
         data.append(KEpar)
     if volKEperp:
         #integrate perp KE
-        keys.append(volume_name+' KEperp [J]')
+        keys.append('mp KEperp [J]')
         KEperp_index = int(field_data.variable('KEperp *').index)
         KEperp = integrate_volume(KEperp_index, zone_index,
-                                 volume_name+' KEperp [J]')
+                                 'mp KEperp [J]')
         print('{} KEperp integration done'.format(zone_name))
         data.append(KEperp)
     if volEth:
         #integrate thermal energy
-        keys.append(volume_name+' Etherm [J]')
+        keys.append('mp Etherm [J]')
         Eth_index = int(field_data.variable('P *').index)
         Eth = integrate_volume(Eth_index, zone_index,
-                                 volume_name+' Etherm [J]')
+                                 'mp Etherm [J]')
         Eth = Eth*4.9430863e10
         print('{} Ethermal integration done'.format(zone_name))
         data.append(Eth)
     if volume:
         #integrate thermal energy
-        keys.append(volume_name+' Volume [Re^3]')
+        keys.append('mp Volume [Re^3]')
         Vol = integrate_volume(None, zone_index,
-                               volume_name+' Volume [Re^3]',
+                               'mp Volume [Re^3]',
                                VariableOption='LengthAreaVolume')
         print('{} Volume integration done'.format(zone_name))
         data.append(Vol)

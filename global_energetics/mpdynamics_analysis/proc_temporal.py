@@ -212,4 +212,4 @@ if __name__ == "__main__":
     SPATH = '/home/aubr/Code/swmf-energetics/output/'
     #OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
     #PATH1 = 'output/mpdynamics/hybrid2shue/'
-    process_temporal_mp([SPATH],SPATH+'/figures/')
+    process_temporal_mp([SPATH],SPATH+'figures/')
