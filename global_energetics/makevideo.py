@@ -5,6 +5,7 @@
 import glob
 import os
 import sys
+import time as sleeptime
 import numpy as np
 import datetime as dt
 import spacepy.time as spacetime

@@ -110,17 +110,17 @@ def prepare_figures(dflist, dfnames, outpath):
             qtykey = 'CumulE_in [J]'
             ylabel = 'Cumulative Energy in [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel)
+                               qtykey, ylabel, ylim=[-1e18,0])
             timekey = 'Time [UTC]'
             qtykey = 'CumulE_out [J]'
             ylabel = 'Cumulative Energy out [J]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel)
+                               qtykey, ylabel, ylim=[0,1e18])
             timekey = 'Time [UTC]'
             qtykey = 'CumulE_net [J]'
             ylabel = 'Cumulative Energy net [J]'
             plot_all_runs_1Qty(ax3, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel)
+                               qtykey, ylabel, ylim=[-1e18,1e18])
             '''
             qtykey = 'mp K_net [W]'
             ylabel = 'Power net [W]'
@@ -146,13 +146,14 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             VolArea.savefig(outpath+'{}.png'.format(figname))
+            plt.show()
             plt.close(VolArea)
         ###################################################################
         #Other Energies
         if True:
             figname = 'VolumeEnergies'
             Volume_E, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,
-                                               sharex=True, figsize=[18,6])
+                                               sharex=True, figsize=[20,10])
             timekey = 'Time [UTC]'
             qtykey = 'mp uB [J]'
             ylabel = 'Magnetic Energy [J]'
@@ -171,6 +172,7 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax4, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel, ylim=[0,3e13])
             Volume_E.savefig(outpath+'{}.png'.format(figname))
+            plt.show()
             plt.close(Volume_E)
         ###################################################################
     else:
@@ -207,9 +209,9 @@ def process_temporal_mp(data_path_list, outputpath):
 if __name__ == "__main__":
     #PATH1 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
     #                 'mpdynamics/feb3')
-    #PATH2 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
-    #                 'mpdynamics/jan27_3surf')
-    SPATH = '/home/aubr/Code/swmf-energetics/output/'
+    SPATH = ('/Users/ngpdl/Code/swmf-energetics/output/'+
+                     'mpdynamics/feb11/output')
+    #SPATH = '/home/aubr/Code/swmf-energetics/output/'
     #OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
     #PATH1 = 'output/mpdynamics/hybrid2shue/'
     process_temporal_mp([SPATH],SPATH+'figures/')

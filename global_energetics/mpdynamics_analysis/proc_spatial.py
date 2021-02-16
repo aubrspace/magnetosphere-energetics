@@ -20,6 +20,14 @@ import pandas as pd
 #from spacepy import coordinates as coord
 from spacepy import time as spacetime
 
+def twodigit(num):
+    """Function makes two digit str from a number
+    Inputs
+        num
+    Ouputs
+        num_str
+    """
+    return '{:.0f}{:.0f}'.format(np.floor(num/10),num%10)
 
 def count_files(path):
     """Function returns number of files at the path
@@ -41,16 +49,22 @@ def plot_2Dpositions(axis, data, datalabels, alpha, timestamp):
         alpha, timestamp- for figure display
     """
     for curve in enumerate(data):
+        height = pd.DataFrame(np.sqrt(curve[1]['Z [R]'].values**2+
+                                      curve[1]['Y [R]'].values**2),
+                                  columns=['height [R]'])
         if datalabels[curve[0]].find('flow') != -1:
-            axis.plot(curve[1]['X [R]'], curve[1]['height [R]'],
+            axis.plot(curve[1]['X [R]'], height,
                       color='orange')
         if datalabels[curve[0]].find('hybrid') != -1:
-            axis.plot(curve[1]['X [R]'], curve[1]['height [R]'],
+            axis.plot(curve[1]['X [R]'], height,
                       color='green')
     for curve in enumerate(data):
-        if datalabels[curve[0]].find('shue') != -1:
-            axis.plot(curve[1]['X [R]'], curve[1]['height [R]'],
-                      color='grey', linewidth=8)
+        if datalabels[curve[0]].find('shue1998') != -1:
+            axis.plot(curve[1]['X [R]'], height,
+                      color='blue', linewidth=8)
+        if datalabels[curve[0]].find('shue1997') != -1:
+            axis.plot(curve[1]['X [R]'], height,
+                      color='red', linewidth=8)
     axis.set_xlabel('X [R]')
     axis.set_ylabel('sqrt(Y**2+Z**2) [R]')
     #axis.legend(loc='lower left')
@@ -90,19 +104,20 @@ def prepare_figures(dflist, dfnames, alpha, timedf, outpath):
     #nonempty_list, nonempty_names, timelabel = prep_slices(dflist, dfnames,
     #                                                      alpha, timestamp)
     if dflist != []:
-        datestring = (str(timedf[0].year)+'-'+str(timedf[0].month)+'-'+
-                      str(timedf[0].day)+'-'+str(timedf[0].hour)+'-'+
-                      str(timedf[0].minute))
+        datestring = (str(timedf[0].year)+str(twodigit(timedf[0].month))+
+                      str(twodigit(timedf[0].day))+'-'+
+                      str(twodigit(timedf[0].hour))+
+                      str(twodigit(timedf[0].minute))+'00-a')
         ###################################################################
         #2D curve plot
         if True:
             curve_plot, ax1 = plt.subplots(nrows=1,ncols=1,sharex=True,
                                                             figsize=[18,6])
             curve_plot.text(0,0,str(timedf[0]))
-            ax1.set_xlim([-40,12])
+            ax1.set_xlim([-40,20])
             ax1.set_ylim([0,30])
             plot_2Dpositions(ax1, dflist, dfnames, alpha, str(timedf[0]))
-            curve_plot.savefig(outpath+'height_maps_{}.png'.format(datestring))
+            curve_plot.savefig(outpath+'{}.png'.format(datestring))
             plt.close(curve_plot)
         ###################################################################
 
@@ -347,8 +362,8 @@ def process_spatial_mp(data_path_list, nalpha, nslice, *, make_fig=True,
 
 
 if __name__ == "__main__":
-    PATH = ['output/mpdynamics/jan27_3surf/meshdata']
-    OPATH = 'output/mpdynamics/jan27_3surf/temp/'
+    PATH = ['output/mpdynamics/feb11/output/meshdata']
+    OPATH = 'output/mpdynamics/feb11/output/processed_mesh/forvideo/'
     NALPHA = 36
     NSLICE = 60
-    process_spatial_mp(PATH, NALPHA, NSLICE, make_fig=True, outpath=OPATH)
+    process_spatial_mp(PATH, NALPHA, NSLICE, make_fig=True, get_stats=False, outpath=OPATH)

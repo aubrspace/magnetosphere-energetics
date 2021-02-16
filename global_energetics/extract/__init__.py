@@ -5,5 +5,6 @@ from . import shue
 from . import stream_tools
 from . import surface_construct
 from . import surface_tools
+from . import swmf_access
 from . import view_set
 from . import volume_tools

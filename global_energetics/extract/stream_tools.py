@@ -642,6 +642,7 @@ def calculate_energetics(field_data, zone_name):
                                       'CELLCENTERED')
     eq = tp.data.operate.execute_equation
 
+    '''
     #Surface normal vector components
     eq('{surface_normal_x} = IF(K==40||K==1,'+
                             '-1*{X Grid K Unit Normal},'+
@@ -652,6 +653,11 @@ def calculate_energetics(field_data, zone_name):
     eq('{surface_normal_z} = IF(K==40||K==1,'+
                             '-1*{Z Grid K Unit Normal},'+
                             '{Z Grid I Unit Normal})')
+    '''
+    #Surface normal vector components
+    eq('{surface_normal_x} = {X Grid K Unit Normal}')
+    eq('{surface_normal_y} = {Y Grid K Unit Normal}')
+    eq('{surface_normal_z} = {Z Grid K Unit Normal}')
 
     #Magnetic field unit vectors
     eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
@@ -660,7 +666,7 @@ def calculate_energetics(field_data, zone_name):
 
     #Magnetic Energy per volume
     eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '*0.205785')
+                        '*2.031e9')
 
     #Ram pressure energy per volume
     eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
@@ -780,6 +786,15 @@ def calculate_energetics(field_data, zone_name):
     #Split into + and - flux
     eq('{K_out+} = max({K_out [W/Re^2]},0)', zones=[zone_index])
     eq('{K_out-} = min({K_out [W/Re^2]},0)', zones=[zone_index])
+
+    '''
+    eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)', zones=[zone_index])
+    eq('{mp_rho_innerradius} = IF({X [R]} > -42 &&'+
+                            '{X [R]} < 9.77 && {h} < 50,'+
+                            'IF({Rho [amu/cm^3]}<1.3, 1,'+
+                            'IF({r [R]} <6.866||{X [R]}==-40, 1,0)), 0)',
+                            zones=[zone_index])
+    '''
 
 
 def integrate_surface(var_index, zone_index, qtname, idimension,
@@ -924,6 +939,64 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
     blank.active = False
     plt.value_blanking.active = False
     return integral
+
+def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
+    """Function creates an isosurface and then extracts and names the zone
+    Inputs
+        iso_value
+        varindex, contindex, isoindex- storage locations on tecplot side
+        zonename
+    Outputs
+        newzone
+    """
+    frame = tp.active_frame()
+    frame.plot().show_isosurfaces = True
+    iso = frame.plot().isosurface(isoindex)
+    iso.show = True
+    iso.definition_contour_group_index = contindex
+    frame.plot().contour(contindex).variable_index = varindex
+    iso.isosurface_values[0] = iso_value
+    print('creating isosurface of {}={:.2f}'.format(
+                                    frame.dataset.variable(varindex).name,
+                                    iso_value))
+    orig_nzones = frame.dataset.num_zones
+    tp.macro.execute_command('$!ExtractIsoSurfaces Group = {:d} '.format(
+                                                              isoindex+1)+
+                             'ExtractMode = OneZonePerConnectedRegion')
+    iso.show = False
+    #only keep zone with the highest number of elements
+    nelements = 0
+    for i in range(orig_nzones, frame.dataset.num_zones):
+        if len(frame.dataset.zone(i).values('X *')) > nelements:
+            nelements = len(frame.dataset.zone(i).values('X *'))
+            keep_index = i
+    for i in reversed(range(orig_nzones, frame.dataset.num_zones)):
+        if i != keep_index:
+            frame.dataset.delete_zones(i)
+        else:
+            newzone = frame.dataset.zone(i)
+            newzone.name = zonename
+    return newzone
+
+def calc_rho_innersurf_state(xmax, xmin, hmax, rhomax, rmin):
+    """Function creates equation in tecplot representing surface
+    Inputs
+        xmax, xmin, hmax, hmin, rmin- spatial bounds
+        rhomax- density bound
+    Outputs
+        created variable index
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{mp_rho_innerradius} = '+
+        'IF({X [R]} >'+str(xmin-2)+'&&'+
+        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
+            'IF({Rho [amu/cm^3]}<'+str(rhomax)+', 1,'+
+                'IF({r [R]} <'+str(rmin)+
+                    '||{X [R]}=='+str(xmin)+', 1,0)), 0)')
+    return tp.active_frame().dataset.variable('mp_rho_innerradius').index
+
+def extract_isosurface():
+    pass
 
 def abs_to_timestamp(abstime):
     """Function converts absolute time in sec to a timestamp list

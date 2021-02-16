@@ -23,7 +23,7 @@ from global_energetics.mpdynamics_analysis import proc_spatial
 from global_energetics.mpdynamics_analysis import proc_temporal
 
 if __name__ == "__main__":
-    print('\nProcessing {pltfile}\n'.format(pltfile=sys.argv[1]))
+    #print('\nProcessing {pltfile}\n'.format(pltfile=sys.argv[1]))
     start_time = time.time()
     if '-c' in sys.argv:
         tp.session.connect()
@@ -43,60 +43,15 @@ if __name__ == "__main__":
     #python objects
     field_data=tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
-    #field_data = tp.data.load_tecplot('output/mpdynamics/hybrid2shue/20140218-223000-a.plt')
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  tail_analysis_cap=-20,
-                                  outputpath=OUTPATH,shue_type=1997,
-                                  zone_rename='shue1997')
-    magnetopause.get_magnetopause(field_data, datafile, mode='shue',
-                                  tail_analysis_cap=-20,
-                                  outputpath=OUTPATH,shue_type=1998,
-                                  zone_rename='shue1998')
-    '''
-    field_data.zone('seed*').name = 'seed_original'
-    field_data.zone('rminseed*').name = 'rminseed_original'
-    field_data.zone('rmaxseed*').name = 'rmaxseed_original'
-    for zone in field_data.zones('flow*'):
-        oldname = zone.name
-        zone.name = 'original'+oldname.split('flow')[-1]
-    field_data.zone('original_original').name = 'mp_flowline'
-    magnetopause.get_magnetopause(field_data, datafile, mode='flowline',
-                                  tail_analysis_cap=-20,
-                                  outputpath=OUTPATH,
-                                  zone_rename='flow_modified',
-                                  flow_seed_dx=3)
-    magnetopause.get_magnetopause(field_data, datafile, mode='flow',
-                                  tail_analysis_cap=-20,
-                                  outputpath=OUTPATH,
-                                  zone_rename='flow_20')
-    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
-                                  tail_analysis_cap=-20,
-                                  outputpath=OUTPATH,
-                                  zone_rename='hybrid_20')
-    magnetopause.get_magnetopause(field_data, datafile, mode='flow',
-                                  tail_analysis_cap=-10,
-                                  outputpath=OUTPATH,
-                                  zone_rename='flow_10')
-    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
-                                  tail_analysis_cap=-10,
-                                  outputpath=OUTPATH,
-                                  zone_rename='hybrid_10')
-    magnetopause.get_magnetopause(field_data, datafile, mode='flow',
-                                  tail_analysis_cap=-30,
-                                  outputpath=OUTPATH,
-                                  zone_rename='flow_30')
-    magnetopause.get_magnetopause(field_data, datafile, mode='hybrid',
-                                  tail_analysis_cap=-30,
-                                  outputpath=OUTPATH,
-                                  zone_rename='hybrid_30')
-    '''
-    #plasmasheet.get_plasmasheet(field_data, datafile)
+    magnetopause.get_magnetopause(field_data, datafile,
+                                  integrate_surface=False,
+                                  integrate_volume=False)
 
     #adjust view settings
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],
-                                'K_out *', datafile, show_contour=False,
+                                'J_y *', datafile, show_contour=False,
                                 pngpath=PNGPATH, pltpath=PLTPATH,
                                 outputname=OUTPUTNAME)
 

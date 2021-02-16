@@ -72,6 +72,10 @@ def add_fieldlines(frame):
         TBD more options for where to seed rakes
     """
     plt = frame.plot()
+    ds = frame.dataset
+    plt.vector.u_variable = ds.variable('B_x *')
+    plt.vector.v_variable = ds.variable('B_y *')
+    plt.vector.w_variable = ds.variable('B_z *')
     plt.show_streamtraces = True
     plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
@@ -232,7 +236,7 @@ def set_camera(frame, *, setting='iso_day'):
         print('Camera setting {} not developed!'.format(setting))
 
 def set_3Daxes(frame, *,
-                  xmax=15, xmin=-40, ymax=40, ymin=-40, zmax=40, zmin=-40,
+                  xmax=15, xmin=-45, ymax=40, ymin=-40, zmax=40, zmin=-40,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
     Inputs
