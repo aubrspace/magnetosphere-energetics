@@ -26,9 +26,8 @@ from global_energetics.extract import volume_tools
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import (streamfind_bisection,
+                                                    get_global_variables,
                                                     dump_to_pandas,
-                                                    create_cylinder,
-                                                    load_cylinder,
                                                     setup_isosurface,
                                                   calc_rho_innersurf_state,
                                                     abs_to_timestamp,
@@ -287,18 +286,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             main_frame = tp.active_frame()
             aux = field_data.zone('global_field').aux_data
             main_frame.name = 'main'
-            tp.data.operate.execute_equation(
-                    '{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-            tp.data.operate.execute_equation(
-                    '{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
-            tp.data.operate.execute_equation(
-                    '{lon [deg]} = if({X [R]}>0,'+
-                                     '180/pi*atan({Y [R]} / {X [R]}),'+
-                                  'if({Y [R]}>0,'+
-                                     '180/pi*atan({Y [R]}/{X [R]})+180,'+
-                                     '180/pi*atan({Y [R]}/{X [R]})-180))')
-            tp.data.operate.execute_equation(
-                                      '{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
+            get_global_variables(field_data)
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
         #Get x_subsolar if not already there
@@ -356,6 +344,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                            tail_cap, 50,
                                                            surface_density,
                                                            rinclude)
+            state_var_name = field_data.variable(rho_innersurf_index).name
             #remake iso zone using new equation
             rho_innersurf_zone = setup_isosurface(1, rho_innersurf_index,
                                                   7, 7, zonename)
@@ -365,7 +354,6 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 zonename = zone_rename
         ################################################################
         #save mesh to hdf file as key=mode, along with time in key='time'
-        print(zoneindex)
         mp_mesh, _ = dump_to_pandas(main_frame, [zoneindex], xyzvar,
                                     'temp.csv')
         path_to_mesh = outputpath+'meshdata'
@@ -377,15 +365,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
 
         #perform integration for surface and volume quantities
         mp_powers = pd.DataFrame()
-        mp_magnetic_energy = pd.DataFrame()
-        '''
+        mp_energies = pd.DataFrame()
         if integrate_surface:
-            mp_powers = surface_analysis(field_data, zonename, nfill,
-                                         nslice, cuttoff=tail_analysis_cap)
+            mp_powers = surface_analysis(main_frame, zonename,
+                                    cuttoff=tail_analysis_cap)
             print('\nMagnetopause Power Terms')
             print(mp_powers)
         if integrate_volume:
-            mp_energies = volume_analysis(field_data, zonename,
+            mp_energies = volume_analysis(main_frame, state_var_name,
                                           cuttoff=tail_analysis_cap)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
@@ -401,11 +388,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                     mp_energetics = store[zonename].append(mp_energetics,
                                                          ignore_index=True)
                 store[zonename] = mp_energetics
-        '''
     #Display result from this step
     result = ('Result\n'+
                '\tmeshdatafile: {}\n'.format(path_to_mesh+'/'+meshfile))
-    '''
     if integrate_volume or integrate_surface:
         result = (result+
                '\tintegralfile: {}\n'.format(integralfile)+
@@ -416,7 +401,6 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 result = (result+
                 '\t\tkey={}\n'.format(key)+
                 '\t\t\tn_values: {}\n'.format(len(store[key])))
-    '''
     print('**************************************************************')
     print(result)
     print('**************************************************************')

@@ -14,30 +14,31 @@ import pandas as pd
 #interpackage modules, different path if running as main to test
 from global_energetics.extract.stream_tools import (integrate_surface,
                                                     integrate_volume,
-                                                      calculate_energetics,
                                                       dump_to_pandas)
 
-def volume_analysis(field_data, zone_name, *, voluB=True, voluE=True,
-                   volKEpar=True, volKEperp=True, volEth=True, volume=True,
-                   cuttoff=-20):
+def volume_analysis(frame, state_variable_name, *,
+                    voluB=True, voluE=True, volKEpar=True, volKEperp=True,
+                    volEth=True, volume=True,
+                    cuttoff=-20):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
-        field_data- tecplot Dataset object with 3d field data and mp
+        frame- tecplot frame that contains the field data dataset
         zone_name
         cuttoff- X position to stop integration
     Outputs
         magnetic_energy- volume integrated magnetic energy B2/2mu0
     """
-    if [var.name for var in field_data.variables()][::].count('K_out+')==0:
-        calculate_energetics(field_data, zone_name)
     #initialize objects for main frame
-    main_frame = [fr for fr in tp.frames('main')][0]
-    volume_name = zone_name.split('_')[0]
-    zone_index = int(field_data.zone(zone_name).index)
+    field_data = frame.dataset
+    volume_name = state_variable_name
+    zone_index = int(field_data.zone('global_field').index)
+    if len([var for var in field_data.variables('K_x *')]) < 1:
+        print('Global variables not setup! Cannot perform integration')
+        return None
     #Blank X < X_cuttoff
-    main_frame.plot().value_blanking.active = True
-    xblank = main_frame.plot().value_blanking.constraint(1)
+    frame.plot().value_blanking.active = True
+    xblank = frame.plot().value_blanking.constraint(1)
     xblank.active = True
     xblank.variable = field_data.variable('X *')
     xblank.comparison_operator = RelOp.LessThan
@@ -46,57 +47,63 @@ def volume_analysis(field_data, zone_name, *, voluB=True, voluE=True,
     data = []
     keys = []
     data = []
+    eq = tp.data.operate.execute_equation
     if voluB:
         #integrate magnetic energy
-        keys.append('mp uB [J]')
-        uB_index = int(field_data.variable('uB *').index)
-        uB = integrate_volume(uB_index, zone_index, 'mp uB [J]')
-        print('{} uB integration done'.format(zone_name))
+        eq('{uB temp} = IF({'+state_variable_name+'}<1, 0, {uB [J/Re^3]})')
+        keys.append(volume_name+' uB [J]')
+        uB_index = int(field_data.variable('uB temp').index)
+        uB = integrate_volume(uB_index, zone_index)
+        print('{} uB integration done'.format(volume_name))
         data.append(uB)
-    if voluB:
+    if voluE:
         #integrate electric energy
-        keys.append('mp uE [J]')
-        uE_index = int(field_data.variable('uE *').index)
-        uE = integrate_volume(uB_index, zone_index, 'mp uE [J]')
-        print('{} uB integration done'.format(zone_name))
+        eq('{uE temp} = IF({'+state_variable_name+'}<1, 0, {uE [J/Re^3]})')
+        keys.append(volume_name+' uE [J]')
+        uE_index = int(field_data.variable('uE temp').index)
+        uE = integrate_volume(uE_index, zone_index)
+        print('{} uE integration done'.format(volume_name))
         data.append(uE)
     if volKEpar:
         #integrate parallel KE
-        keys.append('mp KEpar [J]')
-        KEpar_index = int(field_data.variable('KEpar *').index)
-        KEpar = integrate_volume(KEpar_index, zone_index,
-                                 'mp KEpar [J]')
-        print('{} KEparallel integration done'.format(zone_name))
+        eq(
+         '{KEpar temp}=IF({'+state_variable_name+'}<1,0,{KEpar [J/Re^3]})')
+        keys.append(volume_name+' KEpar [J]')
+        KEpar_index = int(field_data.variable('KEpar temp').index)
+        KEpar = integrate_volume(KEpar_index, zone_index)
+        print('{} KEparallel integration done'.format(volume_name))
         data.append(KEpar)
     if volKEperp:
         #integrate perp KE
-        keys.append('mp KEperp [J]')
-        KEperp_index = int(field_data.variable('KEperp *').index)
-        KEperp = integrate_volume(KEperp_index, zone_index,
-                                 'mp KEperp [J]')
-        print('{} KEperp integration done'.format(zone_name))
+        eq('{KEperp temp} =IF({'+state_variable_name+'}<1,0,'+
+                                                      '{KEperp [J/Re^3]})')
+        keys.append(volume_name+' KEperp [J]')
+        KEperp_index = int(field_data.variable('KEperp temp').index)
+        KEperp = integrate_volume(KEperp_index, zone_index)
+        print('{} KEperp integration done'.format(volume_name))
         data.append(KEperp)
     if volEth:
         #integrate thermal energy
-        keys.append('mp Etherm [J]')
-        Eth_index = int(field_data.variable('P *').index)
-        Eth = integrate_volume(Eth_index, zone_index,
-                                 'mp Etherm [J]')
-        Eth = Eth*4.9430863e10
-        print('{} Ethermal integration done'.format(zone_name))
+        eq('{Etherm temp} =IF({'+state_variable_name+'}<1,0,'+
+                                                      '{P [nPa]}*6371**3)')
+        keys.append(volume_name+' Etherm [J]')
+        Eth_index = int(field_data.variable('Etherm temp').index)
+        Eth = integrate_volume(Eth_index, zone_index)
+        print('{} Ethermal integration done'.format(volume_name))
         data.append(Eth)
     if volume:
         #integrate thermal energy
-        keys.append('mp Volume [Re^3]')
-        Vol = integrate_volume(None, zone_index,
-                               'mp Volume [Re^3]',
-                               VariableOption='LengthAreaVolume')
-        print('{} Volume integration done'.format(zone_name))
+        eq('{Volume temp} =IF({'+state_variable_name+'}<1,0,'+
+                                                          '{Cell Volume})')
+        keys.append(volume_name+' Volume [Re^3]')
+        Vol_index = int(field_data.variable('Volume temp').index)
+        Vol = integrate_volume(Vol_index, zone_index)
+        print('{} Volume integration done'.format(volume_name))
         data.append(Vol)
     volume_energies = pd.DataFrame([data], columns=keys)
     #Turn blanking back off
     xblank.active = False
-    main_frame.plot().value_blanking.active = False
+    frame.plot().value_blanking.active = False
 
     return volume_energies
 

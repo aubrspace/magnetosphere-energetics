@@ -46,12 +46,12 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile,
-                                  integrate_surface=False,
-                                  integrate_volume=False)
+                                  integrate_surface=True,
+                                  integrate_volume=True)
 
     #adjust view settings
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],
-                                'J_y *', datafile, show_contour=False,
+                                'K_net *', datafile, show_contour=True,
                                 pngpath=PNGPATH, pltpath=PLTPATH,
                                 outputname=OUTPUTNAME)
 

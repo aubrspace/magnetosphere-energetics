@@ -97,6 +97,7 @@ def add_jy_slice(frame, jyindex):
     yslice.origin[1] = -.10
     yslice.contour.flood_contour_group_index = 1
     yslice.effects.use_translucency = True
+    yslice.effects.surface_translucency = 40
     jycontour = frame.plot().contour(1)
     jycontour.variable_index=jyindex
     jycontour.colormap_name = 'Diverging - Brown/Green'
@@ -124,6 +125,7 @@ def add_jz_slice(frame, jzindex):
     zslice.origin[1] = -.10
     zslice.contour.flood_contour_group_index = 2
     zslice.effects.use_translucency = True
+    zslice.effects.surface_translucency = 40
     jzcontour = frame.plot().contour(2)
     jzcontour.variable_index=jzindex
     jzcontour.colormap_name = 'Diverging - Brown/Green'
@@ -193,14 +195,14 @@ def add_timestamp(frame, filename, position):
     timebox.color = Color.White
 
 def add_energy_contour(frame, powermax, contour_key, *,
-                          colormap='cmocean - balance'):
+                          colormap='Diverging - Blue/Red'):
     """Function sets contour settings for energy input
     Inputs
         frame- object to set contour on
         powermax- saturation/limit for contour colorbar
         colormap- which colormap to use
     """
-    colorbar = np.linspace(-1*powermax, powermax, int(10*(powermax*10)+1))
+    colorbar = np.linspace(-1*powermax, powermax, 11)
     contourvar = frame.dataset.variable(contour_key).index
     contour = frame.plot().contour(0)
     contour.variable_index = contourvar
@@ -232,6 +234,11 @@ def set_camera(frame, *, setting='iso_day'):
         view.alpha, view.theta, view.psi = (0,137,64)
         view.position = (-490,519,328)
         view.magnification = 5.470
+    elif setting == 'other_iso':
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (0,17,116)
+        view.position = (-680,-2172,-1120)
+        view.magnification = 4.56
     else:
         print('Camera setting {} not developed!'.format(setting))
 
@@ -335,7 +342,7 @@ def manage_zones(frame, nslice, *, approved_zones=None):
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
             plt.fieldmap(map_index).effects.use_translucency=True
-            plt.fieldmap(map_index).effects.surface_translucency=40
+            plt.fieldmap(map_index).effects.surface_translucency=20
             if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
             if zone.name.find('fieldline') != -1:
@@ -354,7 +361,7 @@ def manage_zones(frame, nslice, *, approved_zones=None):
     return show_list
 
 
-def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
+def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        save_img=True, pngpath='./', save_plt=True,
                        pltpath='./', outputname='output',
                        show_contour=True, show_slice=True,
@@ -381,7 +388,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=0.1,
     #Always included
     zones_shown = manage_zones(frame, mpslice)
     set_3Daxes(frame)
-    set_camera(frame)
+    set_camera(frame, setting='other_iso')
     add_energy_contour(frame, energyrange, contour_key)
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     set_orientation_axis(frame)

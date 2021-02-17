@@ -516,7 +516,6 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
         x_max
     """
     frame.activate()
-    print('converting '+filename.split('.')[0]+' to DataFrame')
     os.system('touch '+filename)
     #Export 3D point data to csv file
     tp.macro.execute_extended_command(command_processor_id='excsv',
@@ -541,210 +540,114 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     os.system('rm '+os.getcwd()+'/'+filename)
     return loc_data, x_max
 
-def create_cylinder(field_data, nx, nalpha, nfill, x_min, x_max,
-                    zone_name):
-    """Function creates empty cylindrical zone for loading of slice data
+
+def get_surface_variables(field_data, zone_name):
+    """Function calculated variables for a specific 3D surface
     Inputs
-        field_data- tecplot Dataset class with 3D field data
-        nx- number of x positions, same as n_slice
-        nalpha- number of aximuthal points
-        nfill- number of radial points
-        x_min
-        x_max
-        zone_name
+        field_data, zone_name
     """
-    #use built in create zone function for verticle cylinder
-    tp.macro.execute_command('''$!CreateCircularZone
-                             IMax = {:d}
-                             JMax = {:d}
-                             KMax = {:d}
-                             X = 0
-                             Y = 0
-                             Z1 = {:f}
-                             Z2 = {:f}
-                             Radius = 50'''.format(nfill, nalpha, nx,
-                                                   x_min, x_max))
-
-    #use built in function to rotate 90deg about y axis
-    tp.macro.execute_command('''$!AxialDuplicate
-                             ZoneList =  [{:d}]
-                             Angle = 90
-                             NumDuplicates = 1
-                             XVar = 1
-                             YVar = 2
-                             ZVar = 3
-                             UVarList =  [8]
-                             VVarList =  [9]
-                             WVarList =  [10]
-                             NormalX = 0
-                             NormalY = 1
-                             NormalZ = 0'''.format(field_data.num_zones))
-
-    #delete verticle cylinder
-    field_data.delete_zones(field_data.zone('Circular zone'))
-    field_data.zone('Circular*').name = zone_name
-    print('empty zone created')
-
-def load_cylinder(field_data, data, zonename, I, J, K):
-    """Function to load processed slice data into cylindrial ordered zone
-       I, J, K -> radial, azimuthal, axial
-    Inputs
-        field_data- tecplot Dataset class with 3D field data
-        filename- path to .csv file for loading data
-        zonename- name of cylindrical zone
-        I- vector of I coordinates (0 to 1)
-        J- vector of J coordinates (0 to num_alpha)
-        K- vector of K coordinates (0 to num_slices)
-    """
-    print('cylindrical zone loading')
-    mag_bound = field_data.zone(zonename)
-    #copy data points
-    xdata = data['X [R]'].values.copy()
-    ydata = data['Y [R]'].values.copy()
-    zdata = data['Z [R]'].values.copy()
-    #initialize values
-    mag_bound.values('X*')[0::I] = xdata
-    mag_bound.values('Y*')[0::I] = np.zeros(J*K)
-    mag_bound.values('Z*')[0::I] = np.zeros(J*K)
-    ymean = np.zeros(len(ydata))
-    zmean = np.zeros(len(zdata))
-    #determine center point
-    bar = Bar('Loading cylinder centers', max=K)
-    for k in range(0,K):
-        ymean[k*J:(k+1)*J] = np.mean(ydata[k*J:(k+1)*J])
-        zmean[k*J:(k+1)*J] = np.mean(zdata[k*J:(k+1)*J])
-        bar.next()
-    bar.finish()
-    bar = Bar('Loading I meshpoints', max=I)
-    for i in range(0,I):
-        mag_bound.values('X*')[i::I] = xdata
-        mag_bound.values('Y*')[i::I] = (ydata-ymean) * i/(I-1) + ymean
-        mag_bound.values('Z*')[i::I] = (zdata-zmean) * i/(I-1) + zmean
-        bar.next()
-    bar.finish()
-
-
-def calculate_energetics(field_data, zone_name):
-    """Function calculates values for energetics tracing
-    Inputs
-        field_data- tecplot Dataset class containing 3D field data
-    """
-    zone_index= field_data.zone(zone_name).index
-    mu0 = 4*pi*1e-7
-    Re = 6371
+    zone_index = field_data.zone(zone_name).index
+    #Get grid dependent variables
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
                                       'CELLCENTERED')
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
-                                      'GRIDIUNITNORMAL VALUELOCATION = '+
+                                      'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
     eq = tp.data.operate.execute_equation
+    eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
+    eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
+    eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+    ######################################################################
+    #Component Normal Poynting Flux
+    eq('{ExBn_x [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{ExB_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)'+
+                          '* {surface_normal_x}',
+       zones=[zone_index])
+    eq('{ExBn_y [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{ExB_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)'+
+                          '* {surface_normal_y}',
+        zones=[zone_index])
+    eq('{ExBn_z [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{ExB_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)'+
+                          '* {surface_normal_z}',
+        zones=[zone_index])
 
-    '''
-    #Surface normal vector components
-    eq('{surface_normal_x} = IF(K==40||K==1,'+
-                            '-1*{X Grid K Unit Normal},'+
-                            '{X Grid I Unit Normal})')
-    eq('{surface_normal_y} = IF(K==40||K==1,'+
-                            '-1*{Y Grid K Unit Normal},'+
-                            '{Y Grid I Unit Normal})')
-    eq('{surface_normal_z} = IF(K==40||K==1,'+
-                            '-1*{Z Grid K Unit Normal},'+
-                            '{Z Grid I Unit Normal})')
-    '''
-    #Surface normal vector components
-    eq('{surface_normal_x} = {X Grid K Unit Normal}')
-    eq('{surface_normal_y} = {Y Grid K Unit Normal}')
-    eq('{surface_normal_z} = {Z Grid K Unit Normal}')
+    #Magnitude Normal Total Energy Flux
+    eq('{ExB_net [W/Re^2]} = ({ExBn_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{ExBn_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{ExBn_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2 '+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)',
+        zones=[zone_index])
 
-    #Magnetic field unit vectors
-    eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{by} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{bz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    #Split into + and - flux
+    eq('{ExB_escape} = max({ExB_net [W/Re^2]},0)', zones=[zone_index])
+    eq('{ExB_injection} = min({ExB_net [W/Re^2]},0)', zones=[zone_index])
+    ######################################################################
+    #Component Normal Total Pressure Flux
+    eq('{P0n_x [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{P0_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{P0_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)'+
+                          '* {surface_normal_x}',
+       zones=[zone_index])
+    eq('{P0n_y [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{P0_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{P0_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)'+
+                          '* {surface_normal_y}',
+        zones=[zone_index])
+    eq('{P0n_z [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{P0_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{P0_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2'+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)'+
+                          '* {surface_normal_z}',
+        zones=[zone_index])
 
-    #Magnetic Energy per volume
-    eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '*2.031e9')
+    #Magnitude Normal Total Pressure Flux
+    eq('{P0_net [W/Re^2]} = ({P0n_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{P0n_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{P0n_z [W/Re^2]}*{surface_normal_z})'+
+                          '/ sqrt({surface_normal_x}**2'+
+                                  '+{surface_normal_y}**2 '+
+                                  '+{surface_normal_z}**2'+
+                                  '+1e-25)',
+        zones=[zone_index])
 
-    #Ram pressure energy per volume
-    eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                                    '(({U_x [km/s]}*{bx})**2+'+
-                                    '({U_y [km/s]}*{by})**2+'+
-                                    '({U_z [km/s]}*{bz})**2) * 4.2941e5')
-    eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                          '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
-                           '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
-                           '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
-                                                            '*4.2941e5')
-
-    #Motional Electric Field
-    eq('{Em_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
-                          '-{U_y [km/s]}*{B_z [nT]})')
-    eq('{Em_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
-                         '-{U_z [km/s]}*{B_x [nT]})')
-    eq('{Em_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
-                         '-{U_x [km/s]}*{B_y [nT]})')
-
-    #Hall Electric Field
-    eq('{Eh_x [mV/km]} = ({J_z [`mA/m^2]}/{Rho [amu/cm^3]}*{B_y [nT]}'+
-                          '-{J_y [`mA/m^2]}/{Rho [amu/cm^3]}*{B_z [nT]})'+
-                          '*6.2415097523028e6')
-    eq('{Eh_y [mV/km]} = ({J_x [`mA/m^2]}/{Rho [amu/cm^3]}*{B_z [nT]}'+
-                         '-{J_z [`mA/m^2]}/{Rho [amu/cm^3]}*{B_x [nT]})'+
-                          '*6.2415097523028e6')
-    eq('{Eh_z [mV/km]} = ({J_y [`mA/m^2]}/{Rho [amu/cm^3]}*{B_x [nT]}'+
-                         '-{J_x [`mA/m^2]}/{Rho [amu/cm^3]}*{B_y [nT]})'+
-                          '*6.2415097523028e6')
-
-    #Total Electric Field
-    eq('{E_x [mV/km]} = ({Em_x [mV/km]}+{Eh_x [mV/km]})')
-    eq('{E_y [mV/km]} = ({Em_y [mV/km]}+{Eh_y [mV/km]})')
-    eq('{E_z [mV/km]} = ({Em_z [mV/km]}+{Eh_z [mV/km]})')
-
-    #Electric Energy per volume (motional only)
-    eq('{uE [J/Re^3]} = ({Em_x [mV/km]}**2+{Em_y [mV/km]}**2+'+
-                        '{Em_z [mV/km]}**2)*1.143247989e-3')
-
-    #Poynting Flux (motional and Hall)
-    eq('{ExBt_x [W/Re^2]} = 3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+
-                                       '-{E_y [mV/km]}*{B_z [nT]})')
-    eq('{ExBt_y [W/Re^2]} = 3.22901e4*({E_x [mV/km]}*{B_z [nT]}'+
-                                       '-{E_z [mV/km]}*{B_x [nT]})')
-    eq('{ExBt_z [W/Re^2]} = 3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
-                                       '-{E_x [mV/km]}*{B_y [nT]})')
-    #Poynting Flux (motional E only)
-    eq('{ExB_x [W/Re^2]} = 3.22901e4*({Em_z [mV/km]}*{B_y [nT]}'+
-                                       '-{Em_y [mV/km]}*{B_z [nT]})')
-    eq('{ExB_y [W/Re^2]} = 3.22901e4*({Em_x [mV/km]}*{B_z [nT]}'+
-                                       '-{Em_z [mV/km]}*{B_x [nT]})')
-    eq('{ExB_z [W/Re^2]} = 3.22901e4*({Em_y [mV/km]}*{B_x [nT]}'+
-                                       '-{Em_x [mV/km]}*{B_y [nT]})')
-    #Total Energy Flux
-    eq('{K_x [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
-                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
-                                                    '({U_x [km/s]}**2'+
-                                                    '+{U_y [km/s]}**2'+
-                                                    '+{U_z [km/s]}**2))'+
-                          '*1.5696123057605e-4*{U_x [km/s]}'+
-                          '+  {ExB_x [W/Re^2]}')
-    eq('{K_y [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
-                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
-                                                    '({U_x [km/s]}**2'+
-                                                    '+{U_y [km/s]}**2'+
-                                                    '+{U_z [km/s]}**2))'+
-                          '*1.5696123057605e-4*{U_y [km/s]}'+
-                          '+  {ExB_y [W/Re^2]}')
-    eq('{K_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
-                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
-                                                    '({U_x [km/s]}**2'+
-                                                    '+{U_y [km/s]}**2'+
-                                                    '+{U_z [km/s]}**2))'+
-                          '*1.5696123057605e-4*{U_z [km/s]}'+
-                          '+  {ExB_z [W/Re^2]}')
-
-    #Component Normal Flux
+    #Split into + and - flux
+    eq('{P0_escape} = max({P0_net [W/Re^2]},0)', zones=[zone_index])
+    eq('{P0_injection} = min({P0_net [W/Re^2]},0)', zones=[zone_index])
+    ######################################################################
+    #Component Normal Total Energy Flux
     eq('{Kn_x [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
                             '+{K_y [W/Re^2]}*{surface_normal_y}'+
                             '+{K_z [W/Re^2]}*{surface_normal_z})'+
@@ -773,8 +676,8 @@ def calculate_energetics(field_data, zone_name):
                           '* {surface_normal_z}',
         zones=[zone_index])
 
-    #Magnitude Normal Flux
-    eq('{K_out [W/Re^2]} = ({Kn_x [W/Re^2]}*{surface_normal_x}'+
+    #Magnitude Normal Total Energy Flux
+    eq('{K_net [W/Re^2]} = ({Kn_x [W/Re^2]}*{surface_normal_x}'+
                             '+{Kn_y [W/Re^2]}*{surface_normal_y}'+
                             '+{Kn_z [W/Re^2]}*{surface_normal_z})'+
                           '/ sqrt({surface_normal_x}**2'+
@@ -784,130 +687,129 @@ def calculate_energetics(field_data, zone_name):
         zones=[zone_index])
 
     #Split into + and - flux
-    eq('{K_out+} = max({K_out [W/Re^2]},0)', zones=[zone_index])
-    eq('{K_out-} = min({K_out [W/Re^2]},0)', zones=[zone_index])
-
-    '''
-    eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)', zones=[zone_index])
-    eq('{mp_rho_innerradius} = IF({X [R]} > -42 &&'+
-                            '{X [R]} < 9.77 && {h} < 50,'+
-                            'IF({Rho [amu/cm^3]}<1.3, 1,'+
-                            'IF({r [R]} <6.866||{X [R]}==-40, 1,0)), 0)',
-                            zones=[zone_index])
-    '''
+    eq('{K_escape} = max({K_net [W/Re^2]},0)', zones=[zone_index])
+    eq('{K_injection} = min({K_net [W/Re^2]},0)', zones=[zone_index])
 
 
-def integrate_surface(var_index, zone_index, qtname, idimension,
-                      kdimension, *, is_cylinder=True, frame_id='main',
-                      VariableOption='Scalar'):
+def get_global_variables(field_data):
+    """Function calculates values for energetics tracing
+    Inputs
+        field_data- tecplot Dataset class containing 3D field data
+    """
+    eq = tp.data.operate.execute_equation
+    #Useful spatial variables
+    eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+    eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
+    eq('{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
+    eq('{lon [deg]} = if({X [R]}>0, 180/pi*atan({Y [R]} / {X [R]}),'+
+                     'if({Y [R]}>0, 180/pi*atan({Y [R]}/{X [R]})+180,'+
+                                   '180/pi*atan({Y [R]}/{X [R]})-180))')
+
+    #Magnetic field unit vectors
+    eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{by} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{bz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+
+    #Magnetic Energy per volume
+    eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                        '*2.031e9')
+
+    #Ram pressure energy per volume
+    eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                                    '(({U_x [km/s]}*{bx})**2+'+
+                                    '({U_y [km/s]}*{by})**2+'+
+                                    '({U_z [km/s]}*{bz})**2) * 4.2941e5')
+    eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                          '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
+                           '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
+                           '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
+                                                            '*4.2941e5')
+
+    #Electric Field
+    eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
+                          '-{U_y [km/s]}*{B_z [nT]})')
+    eq('{E_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
+                         '-{U_z [km/s]}*{B_x [nT]})')
+    eq('{E_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
+                         '-{U_x [km/s]}*{B_y [nT]})')
+
+    #Electric Energy per volume
+    eq('{uE [J/Re^3]} = ({E_x [mV/km]}**2+{E_y [mV/km]}**2+'+
+                        '{E_z [mV/km]}**2)*1.143247989e-3')
+
+    #Poynting Flux
+    eq('{ExB_x [W/Re^2]} = 3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+
+                                       '-{E_y [mV/km]}*{B_z [nT]})')
+    eq('{ExB_y [W/Re^2]} = 3.22901e4*({E_x [mV/km]}*{B_z [nT]}'+
+                                       '-{E_z [mV/km]}*{B_x [nT]})')
+    eq('{ExB_z [W/Re^2]} = 3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
+                                       '-{E_x [mV/km]}*{B_y [nT]})')
+
+    #Total pressure Flux
+    eq('{P0_x [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
+                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
+                                                    '({U_x [km/s]}**2'+
+                                                    '+{U_y [km/s]}**2'+
+                                                    '+{U_z [km/s]}**2))'+
+                          '*1.5696123057605e-4*{U_x [km/s]}')
+    eq('{P0_y [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
+                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
+                                                    '({U_x [km/s]}**2'+
+                                                    '+{U_y [km/s]}**2'+
+                                                    '+{U_z [km/s]}**2))'+
+                          '*1.5696123057605e-4*{U_y [km/s]}')
+    eq('{P0_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
+                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
+                                                    '({U_x [km/s]}**2'+
+                                                    '+{U_y [km/s]}**2'+
+                                                    '+{U_z [km/s]}**2))'+
+                          '*1.5696123057605e-4*{U_z [km/s]}')
+    #Total Energy Flux
+    eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}')
+    eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}')
+    eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}')
+
+def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
     Inputs
         var_index- variable to be integrated
         zone_index- index of the zone to perform integration
-        qtname- integrated quantity will be saved as this name
-        idimension- used to determine which planes are outer surface
-        kdimension- used to determine which planes are outer surface
-        is_cylinder- default true
         VariableOption- default scalar, can choose others
-        frame_id- frame name with the surface that integral is performed
     Output
-        integrated_total
+        integrated_total from result dataframe
     """
-    #Integrate total surface Flux
-    frame=[fr for fr in tp.frames(frame_id)][0]
-    page = tp.active_page()
-    #validate name (special characters give tp a lot of problems
-    qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
-    if not is_cylinder:
-        print("WARNING: not cylindrical object, check surface integrals")
-    surface_planes=["IRange={MIN =1 MAX = 0 SKIP ="+str(idimension-1)+"} "+
-                    "JRange={MIN =1 MAX = 0 SKIP =1} "+
-                    "KRange={MIN =1 MAX = 0 SKIP ="+str(kdimension-1)+"}"]
-
-    integrate_command_I=("Integrate [{:d}] ".format(zone_index+1)+
+    #setup integration command
+    integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
                          "VariableOption="+VariableOption+" ")
     if VariableOption == 'Scalar':
-        integrate_command_I = (integrate_command_I+
+        integrate_command = (integrate_command+
                          "ScalarVar={:d} ".format(var_index+1))
-    integrate_command_I = (integrate_command_I+
+    integrate_command = (integrate_command+
                          "XVariable=1 "+
                          "YVariable=2 "+
                          "ZVariable=3 "+
                          "ExcludeBlanked='T' "+
-                         "IntegrateOver='IPlanes' "+
-                         "IntegrateBy='Zones' "+
-                         surface_planes[0]+
-                         " PlotResults='F' "+
-                         "PlotAs='"+qtname+"_I' "+
-                         "TimeMin=0 TimeMax=0")
-
-    integrate_command_K=("Integrate [{:d}] ".format(zone_index+1)+
-                         "VariableOption="+VariableOption+" ")
-    if VariableOption == 'Scalar':
-        integrate_command_K = (integrate_command_K+
-                         "ScalarVar={:d} ".format(var_index+1))
-    integrate_command_K = (integrate_command_K+
-                         "XVariable=1 "+
-                         "YVariable=2 "+
-                         "ZVariable=3 "+
-                         "ExcludeBlanked='T' "+
-                         "IntegrateOver='KPlanes' "+
-                         "IntegrateBy='Zones' "+
-                         surface_planes[0]+
-                         " PlotResults='F' "+
-                         "PlotAs='"+qtname+"_K' "+
-                         "TimeMin=0 TimeMax=0")
-
-
-    #integrate over I planes
+                         " PlotResults='F' ")
+    #integrate
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-                                      command=integrate_command_I)
+                                      command=integrate_command)
+    #access data via file write out then delete file
     filename = os.getcwd()+'/Out.txt'
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
         command='SaveIntegrationResults FileName="'+filename+'"')
     result = pd.read_table('./Out.txt', sep=':',index_col=0)
-    Ivalue = result.iloc[-1].values[0]
-    #integrate over K planes
-    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-                                      command=integrate_command_K)
-    filename = os.getcwd()+'/Out.txt'
-    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-        command='SaveIntegrationResults FileName="'+filename+'"')
-    result = pd.read_table('./Out.txt', sep=':',index_col=0)
-    Kvalue = result.iloc[-1].values[0]
-    #sum all parts together
-    integrated_total = Ivalue+Kvalue
-    return integrated_total
+    os.system('rm {}'.format(filename))
+    return result.iloc[-1].values[0]
 
-def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
-                     subspace=None, VariableOption='Scalar'):
+def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
     """Function to calculate integral of variable within a 3D volume
     Inputs
         var_index- variable to be integrated
         zone_index- index of the zone to perform integration
-        qtname- integrated quantity will be saved as this name
-        frame_id- frame name with the surface that integral is performed
-        subspace- used to integrate only partial volumes, default None
         VariableOption- default scalar, can choose others
     Output
         integral
     """
-    #Ensure that objects are initialized for tp operations
-    page = tp.active_page()
-    frame = [fr for fr in tp.frames(frame_id)][0]
-    frame.activate()
-    data = frame.dataset
-    plt= frame.plot()
-    #validate name (special characters give tp a lot of problems)
-    qtname_abr = qtname.split('?')[0].split('[')[0].split('*')[0]+'*'
-    if subspace == 'tail':
-        #value blank domain around X>-2
-        plt.value_blanking.active = True
-        blank = plt.value_blanking.constraint(0)
-        blank.active = True
-        blank.variable = data.variable('X *')
-        blank.comparison_operator = RelOp.GreaterThan
-        blank.comparison_value = -3
     #Setup macrofunction command
     integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
                        "VariableOption={} ".format(VariableOption))
@@ -921,9 +823,7 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
                        "ExcludeBlanked='T' "+
                        "IntegrateOver='Cells' "+
                        "IntegrateBy='Zones' "+
-                       "PlotResults='F' "+
-                       "PlotAs='"+qtname+"' "+
-                       "TimeMin=0 TimeMax=0")
+                       "PlotResults='F' ")
     #Perform integration and extract resultant value
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
@@ -935,9 +835,6 @@ def integrate_volume(var_index, zone_index, qtname, *, frame_id='main',
 
     #Delete created file and turn off blanking
     os.system('rm Out.txt')
-    blank = plt.value_blanking.constraint(0)
-    blank.active = False
-    plt.value_blanking.active = False
     return integral
 
 def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
@@ -995,8 +892,6 @@ def calc_rho_innersurf_state(xmax, xmin, hmax, rhomax, rmin):
                     '||{X [R]}=='+str(xmin)+', 1,0)), 0)')
     return tp.active_frame().dataset.variable('mp_rho_innerradius').index
 
-def extract_isosurface():
-    pass
 
 def abs_to_timestamp(abstime):
     """Function converts absolute time in sec to a timestamp list
@@ -1104,5 +999,3 @@ if __name__ == "__main__":
         STREAM_DF, X_MAX = dump_to_pandas(STREAM_ZONE_LIST, [1,2,3],
                                           'stream_points.csv')
 
-        #create and load cylidrical zone
-        create_cylinder(N_SLICE, N_ALPHA, X_TAIL_CAP, X_MAX)
