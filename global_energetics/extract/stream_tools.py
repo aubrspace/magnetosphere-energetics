@@ -18,6 +18,10 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
+#Interpackage modules
+from global_energetics.extract import shue
+from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
+                                                    r0_alpha_1998)
 
 def create_stream_zone(field_data, x1start, x2start, x3start,
                        zone_name, *, line_type=None, cart_given=False):
@@ -700,10 +704,14 @@ def get_global_variables(field_data):
     #Useful spatial variables
     eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
     eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
+    eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
     eq('{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
     eq('{lon [deg]} = if({X [R]}>0, 180/pi*atan({Y [R]} / {X [R]}),'+
                      'if({Y [R]}>0, 180/pi*atan({Y [R]}/{X [R]})+180,'+
                                    '180/pi*atan({Y [R]}/{X [R]})-180))')
+    #Dynamic Pressure
+    eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9')
 
     #Magnetic field unit vectors
     eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
@@ -712,7 +720,7 @@ def get_global_variables(field_data):
 
     #Magnetic Energy per volume
     eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '*2.031e9')
+                        '*1.02892e8')
 
     #Ram pressure energy per volume
     eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
@@ -875,7 +883,7 @@ def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
             newzone.name = zonename
     return newzone
 
-def calc_rho_innersurf_state(xmax, xmin, hmax, rhomax, rmin):
+def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin):
     """Function creates equation in tecplot representing surface
     Inputs
         xmax, xmin, hmax, hmin, rmin- spatial bounds
@@ -892,6 +900,48 @@ def calc_rho_innersurf_state(xmax, xmin, hmax, rhomax, rmin):
                     '||{X [R]}=='+str(xmin)+', 1,0)), 0)')
     return tp.active_frame().dataset.variable('mp_rho_innerradius').index
 
+def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
+    """Function creates state variable for magnetopause surface based on
+        Shue emperical model
+    Inputs
+        field_data
+        mode
+        x_subsolar- if None will calculate with dayside fieldlines
+        xtail- limit for how far to extend in negative x direction
+    Outputs
+        state_var_index- index to find state variable in tecplot
+    """
+    #Probe field data at x_subsolar + dx to find Bz and Dp
+    Bz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][9]
+    Dp_index = field_data.variable('Dp *').index
+    Dp = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][Dp_index]
+    #Get r0 and alpha based on IMF conditions
+    if mode == 'shue97':
+        r0, alpha = r0_alpha_1997(Bz, Dp)
+    else:
+        r0, alpha = r0_alpha_1998(Bz, Dp)
+    eq = tp.data.operate.execute_equation
+    eq('{r'+mode+'} = '+str(r0)+'*(2/(1+cos({theta})))**'+str(alpha))
+    eq('{'+mode+'} = IF(({r [R]} < {r'+mode+'}) &&'+
+                      '({X [R]} > '+str(xtail)+'), 1, 0)')
+    return field_data.variable(mode).index
+
+def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
+    """Function creates state variable for a simple box
+    Inputs
+        mode
+        xmax,xmin...zmin- locations for box vertices
+    Outputs
+        state_var_index- index to find state variable in tecplot
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{'+mode+'} = IF(({X [R]} >'+str(xmin)+') &&'+
+                       '({X [R]} <'+str(xmax)+') &&'+
+                       '({Y [R]} >'+str(ymin)+') &&'+
+                       '({Y [R]} <'+str(ymax)+') &&'+
+                       '({Z [R]} >'+str(zmin)+') &&'+
+                       '({Z [R]} <'+str(zmax)+'), 1, 0)')
+    return tp.active_frame().dataset.variable(mode).index
 
 def abs_to_timestamp(abstime):
     """Function converts absolute time in sec to a timestamp list

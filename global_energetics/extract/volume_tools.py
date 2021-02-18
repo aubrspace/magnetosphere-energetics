@@ -91,15 +91,22 @@ def volume_analysis(frame, state_variable_name, *,
         Eth = integrate_volume(Eth_index, zone_index)
         print('{} Ethermal integration done'.format(volume_name))
         data.append(Eth)
+    #Total energy
+    keys.append(volume_name+' Total [J]')
+    total = sum(data)
+    data.append(total)
     if volume:
         #integrate thermal energy
-        eq('{Volume temp} =IF({'+state_variable_name+'}<1,0,'+
-                                                          '{Cell Volume})')
+        eq('{Volume temp} =IF({'+state_variable_name+'}<1,0,1)')
         keys.append(volume_name+' Volume [Re^3]')
         Vol_index = int(field_data.variable('Volume temp').index)
         Vol = integrate_volume(Vol_index, zone_index)
         print('{} Volume integration done'.format(volume_name))
         data.append(Vol)
+    #Energy density
+    keys.append(volume_name+' Energy Density [J/Re^3]')
+    energy_density = total/Vol
+    data.append(energy_density)
     volume_energies = pd.DataFrame([data], columns=keys)
     #Turn blanking back off
     xblank.active = False

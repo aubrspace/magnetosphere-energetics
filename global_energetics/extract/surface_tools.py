@@ -109,6 +109,21 @@ def surface_analysis(frame, zone_name, *,
         data.append(SA)
         print('{} area integration done'.format(zone_name))
     ######################################################################
+    #average K flux
+    if calc_K and surface_area:
+        #ESCAPE
+        keys.append(zone_name+' Average K_escape [W/Re^2]')
+        kesc_average = kesc/SA
+        data.append(kesc_average)
+        #NET
+        keys.append(zone_name+' Average K_net [W/Re^2]')
+        knet_average = knet/SA
+        data.append(knet_average)
+        #INJECTION
+        keys.append(zone_name+' Average K_injection [W/Re^2]')
+        kinj_average = kinj/SA
+        data.append(kinj_average)
+    ######################################################################
     #Collect and report surface integrated quantities
     surface_power = pd.DataFrame([data],columns=keys)
     #Turn blanking back off

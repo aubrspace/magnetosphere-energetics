@@ -35,7 +35,7 @@ def plot_all_runs_1Qty(axis, dflist, dflabels, timekey, qtkey, ylabel, *,
     """
     for data in enumerate(dflist):
         axis.plot(data[1][timekey],data[1][qtkey],
-                  label=dflabels[data[0]])
+                  label=qtkey)
         '''
         if dflabels[data[0]].find('flow') != -1:
             axis.plot(data[1][timekey],data[1][qtkey],color='orange',
@@ -75,12 +75,12 @@ def get_energy_dataframes(dflist, dfnames):
                 delta_t = (df[1]['Time [UTC]'].loc[1]-
                         df[1]['Time [UTC]'].loc[0]).seconds
                 #use pandas cumulative sum method
-                cumu_E_in = df[1]['mp K_in [W]'].cumsum()*delta_t
-                cumu_E_out = df[1]['mp K_out [W]'].cumsum()*delta_t
-                cumu_E_net = df[1]['mp K_net [W]'].cumsum()*delta_t
+                cumu_E_in = df[1]['mp_iso_innersurf K_injection [W]'].cumsum()*delta_t
+                cumu_E_out = df[1]['mp_iso_innersurf K_escape [W]'].cumsum()*delta_t
+                cumu_E_net = df[1]['mp_iso_innersurf K_net [W]'].cumsum()*delta_t
                 #Add column to dataframe
-                dflist[df[0]].loc[:,'CumulE_in [J]'] = cumu_E_in
-                dflist[df[0]].loc[:,'CumulE_out [J]'] = cumu_E_out
+                dflist[df[0]].loc[:,'CumulE_injection [J]'] = cumu_E_in
+                dflist[df[0]].loc[:,'CumulE_escape [J]'] = cumu_E_out
                 dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
                 ###Add modified dataframe to list
                 use_dflist.append(dflist[df[0]])
@@ -100,36 +100,56 @@ def prepare_figures(dflist, dfnames, outpath):
             stats_dfs.append(df[1])
             stats_dfnames.append(dfnames[df[0]])
     if energy_dfs != []:
+        for df in enumerate(energy_dfs):
+            energy_dfs[df[0]] = df[1][(df[1]['Time [UTC]'] > dt.datetime(2014,2,18,8))]
         ###################################################################
-        #Cumulative Energy, and Power
+        #Cumulative Energy
         if True:
-            figname = 'PowerEnergy'
-            cumulative_E, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+            figname = 'Energy Accumulation'
+            cumulative_E, ax1 = plt.subplots(nrows=1,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'CumulE_in [J]'
-            ylabel = 'Cumulative Energy in [J]'
+            qtykey = 'CumulE_injection [J]'
+            ylabel = 'Cumulative Energy injection [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[-1e18,0])
+                               qtykey, ylabel, ylim=[-1e18,1e18])
             timekey = 'Time [UTC]'
-            qtykey = 'CumulE_out [J]'
-            ylabel = 'Cumulative Energy out [J]'
-            plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[0,1e18])
+            qtykey = 'CumulE_escape [J]'
+            ylabel = 'Cumulative Energy escape [J]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel, ylim=[-1e18,1e18])
             timekey = 'Time [UTC]'
             qtykey = 'CumulE_net [J]'
             ylabel = 'Cumulative Energy net [J]'
-            plot_all_runs_1Qty(ax3, energy_dfs, energy_dfnames, timekey,
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel, ylim=[-1e18,1e18])
-            '''
-            qtykey = 'mp K_net [W]'
-            ylabel = 'Power net [W]'
-            plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel)
-            '''
             cumulative_E.savefig(outpath+'{}.png'.format(figname))
             plt.show()
             plt.close(cumulative_E)
+        ###################################################################
+        #Power
+        if True:
+            figname = 'Power'
+            power, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,6])
+            timekey = 'Time [UTC]'
+            qtykey = 'mp_iso_innersurf K_injection [W]'
+            ylabel = 'Power injecting [W]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            timekey = 'Time [UTC]'
+            qtykey = 'mp_iso_innersurf K_escape [W]'
+            ylabel = 'Power escaping [W]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            timekey = 'Time [UTC]'
+            qtykey = 'mp_iso_innersurf K_net [W]'
+            ylabel = 'Power transfer net [W]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            power.savefig(outpath+'{}.png'.format(figname))
+            plt.show()
+            plt.close(power)
         ###################################################################
         #Volume and Surface Area
         if True:
@@ -137,11 +157,11 @@ def prepare_figures(dflist, dfnames, outpath):
             VolArea, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'mp Area [Re^2]'
+            qtykey = 'mp_iso_innersurf Area [Re^2]'
             ylabel = 'Surface Area [Re^2]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'mp Volume [Re^3]'
+            qtykey = 'mp_rho_innerradius Volume [Re^3]'
             ylabel = 'Volume [Re^3]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -152,26 +172,78 @@ def prepare_figures(dflist, dfnames, outpath):
         #Other Energies
         if True:
             figname = 'VolumeEnergies'
-            Volume_E, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,
+            Volume_E, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
                                                sharex=True, figsize=[20,10])
             timekey = 'Time [UTC]'
-            qtykey = 'mp uB [J]'
+            qtykey = 'mp_rho_innerradius uB [J]'
             ylabel = 'Magnetic Energy [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[0,5e15])
-            qtykey = 'mp KEpar [J]'
+                               qtykey, ylabel)
+            timekey = 'Time [UTC]'
+            qtykey = 'mp_rho_innerradius uE [J]'
+            ylabel = 'Electric Energy [J]'
+            plot_all_runs_1Qty(ax5, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'mp_rho_innerradius KEpar [J]'
             ylabel = 'Parallel Kinetic Energy [J]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[0,3e15])
-            qtykey = 'mp KEperp [J]'
+                               qtykey, ylabel)
+            qtykey = 'mp_rho_innerradius KEperp [J]'
             ylabel = 'Perpendicular Kinetic Energy [J]'
             plot_all_runs_1Qty(ax3, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[0,3e15])
-            qtykey = 'mp Etherm [J]'
+                               qtykey, ylabel)
+            qtykey = 'mp_rho_innerradius Etherm [J]'
             ylabel = 'Thermal Energy [J]'
             plot_all_runs_1Qty(ax4, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[0,3e13])
+                               qtykey, ylabel)
             Volume_E.savefig(outpath+'{}.png'.format(figname))
+            plt.show()
+            plt.close(Volume_E)
+        ###################################################################
+        #Energy split
+        if True:
+            data = energy_dfs[0]
+            uB = data['mp_rho_innerradius uB [J]']
+            uB = uB - uB.min()
+            uE = data['mp_rho_innerradius uE [J]']
+            Etherm = data['mp_rho_innerradius Etherm [J]']
+            KEpar = data['mp_rho_innerradius KEpar [J]']
+            KEperp = data['mp_rho_innerradius KEperp [J]']
+            total = uE+Etherm+KEpar+KEperp
+            energy_dfs[0].loc[:,'total energy'] = total.values
+            #energy_dfs[0].loc[:,'uB partition'] = uB/total*100
+            energy_dfs[0].loc[:,'uE partition'] = uE/total*100
+            energy_dfs[0].loc[:,'Etherm partition'] = Etherm/total*100
+            energy_dfs[0].loc[:,'KEpar partition'] = KEpar/total*100
+            energy_dfs[0].loc[:,'KEperp partition'] = KEperp/total*100
+            figname = 'VolumeEnergyBreakdown'
+            Volume_Ebreakdown, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[20,10])
+            '''
+            timekey = 'Time [UTC]'
+            qtykey = 'uB partition'
+            ylabel = 'Magnetic Energy [J]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            '''
+            timekey = 'Time [UTC]'
+            qtykey = 'uE partition'
+            ylabel = 'Electric Energy [J]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'Etherm partition'
+            ylabel = 'Parallel Kinetic Energy [J]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'KEpar partition'
+            ylabel = 'Perpendicular Kinetic Energy [J]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'KEperp partition'
+            ylabel = 'Energy fraction [%]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            Volume_Ebreakdown.savefig(outpath+'{}.png'.format(figname))
             plt.show()
             plt.close(Volume_E)
         ###################################################################
@@ -189,7 +261,7 @@ def process_temporal_mp(data_path_list, outputpath):
     if data_path_list == []:
         print('Nothing to do, no data_paths were given!')
     else:
-        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid', 'field']
+        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid', 'field', 'mp_iso_innersurf']
         dflist, dfnames = [], []
         spin = Spinner('finding available temporal data ')
         for path in data_path_list:
@@ -207,11 +279,5 @@ def process_temporal_mp(data_path_list, outputpath):
         prepare_figures(dflist, dfnames, outputpath)
 
 if __name__ == "__main__":
-    #PATH1 = ('/Users/ngpdl/Code/swmf-energetics/output/'+
-    #                 'mpdynamics/feb3')
-    SPATH = ('/Users/ngpdl/Code/swmf-energetics/output/'+
-                     'mpdynamics/feb11/output')
-    #SPATH = '/home/aubr/Code/swmf-energetics/output/'
-    #OPATH = ('/home/aubr/Code/swmf-energetics/output/figures/')
-    #PATH1 = 'output/mpdynamics/hybrid2shue/'
-    process_temporal_mp([SPATH],SPATH+'figures/')
+    datapath = '/Users/ngpdl/Code/swmf-energetics/output/mpdynamics/isoFeb17/'
+    process_temporal_mp([datapath],datapath+'figures/')

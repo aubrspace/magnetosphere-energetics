@@ -45,15 +45,16 @@ if __name__ == "__main__":
     field_data.zone(0).name = 'global_field'
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
+    magnetopause.get_magnetopause(field_data, datafile, mode='box',
+                                  box_xmax= 30, box_xmin=20)
 
+    '''
     #adjust view settings
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],
                                 'K_net *', datafile, show_contour=True,
                                 pngpath=PNGPATH, pltpath=PLTPATH,
                                 outputname=OUTPUTNAME)
+    '''
 
     #timestamp
     ltime = time.time()-start_time
