@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile, mode='box',
-                                  box_xmax= 30, box_xmin=20)
+                                  box_xmax= 7, box_xmin=-7)
 
     '''
     #adjust view settings
