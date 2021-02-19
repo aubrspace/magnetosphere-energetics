@@ -45,9 +45,7 @@ if __name__ == "__main__":
     field_data.zone(0).name = 'global_field'
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile, mode='box',
-                                  box_xmax= 7, box_xmin=-7)
-
+    magnetopause.get_magnetopause(field_data, datafile)
     '''
     #adjust view settings
     view_set.display_single_iso([frame for frame in tp.frames('main')][0],

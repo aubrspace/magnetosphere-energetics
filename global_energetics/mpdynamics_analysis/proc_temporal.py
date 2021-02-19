@@ -72,16 +72,26 @@ def get_energy_dataframes(dflist, dfnames):
             if len(df[1]) > 1:
                 ###Add cumulative energy terms
                 #Compute cumulative energy In, Out, and Net
-                delta_t = (df[1]['Time [UTC]'].loc[1]-
-                        df[1]['Time [UTC]'].loc[0]).seconds
+                start = df[1].index[0]
+                delta_t = (df[1]['Time [UTC]'].loc[start]-
+                        df[1]['Time [UTC]'].loc[start+1]).seconds
                 #use pandas cumulative sum method
-                cumu_E_in = df[1]['box K_injection [W]'].cumsum()*delta_t
-                cumu_E_out = df[1]['box K_escape [W]'].cumsum()*delta_t
-                cumu_E_net = df[1]['box K_net [W]'].cumsum()*delta_t
+                cumu_E_net = df[1]['iso_rho K_net [W]'].cumsum()*delta_t
+                cumu_E_in = df[1]['iso_rho K_injection [W]'].cumsum()*delta_t
+                cumu_E_out = df[1]['iso_rho K_escape [W]'].cumsum()*delta_t
+                #readjust to initialize error to 0 at start
+                cumu_E_net = (cumu_E_net+df[1]['iso_rho Total [J]'].loc[start]-
+                              cumu_E_net.loc[start])
+                E_net_error = cumu_E_net-df[1]['iso_rho Total [J]']
+                total_minus_mean = df[1]['iso_rho Total [J]']-df[1][
+                                                    'iso_rho Total [J]'].mean()
+                E_net_rel_error = E_net_error/abs(total_minus_mean)*100
                 #Add column to dataframe
+                dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
                 dflist[df[0]].loc[:,'CumulE_injection [J]'] = cumu_E_in
                 dflist[df[0]].loc[:,'CumulE_escape [J]'] = cumu_E_out
-                dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
+                dflist[df[0]].loc[:,'Energy_error [J]'] = E_net_error
+                dflist[df[0]].loc[:,'RelativeE_error [%]'] =E_net_rel_error
                 ###Add modified dataframe to list
                 use_dflist.append(dflist[df[0]])
                 use_dflabels.append(dfnames[df[0]])
@@ -93,6 +103,8 @@ def prepare_figures(dflist, dfnames, outpath):
         dfilist- list object containing dataframes
         dfnames- names of each dataset
     """
+    for df in enumerate(dflist):
+        dflist[df[0]] = df[1][(df[1]['Time [UTC]'] > dt.datetime(2014,2,18,8))]
     energy_dfs, energy_dfnames= get_energy_dataframes(dflist, dfnames)
     stats_dfs, stats_dfnames = [], []
     for df in enumerate(dflist):
@@ -100,8 +112,6 @@ def prepare_figures(dflist, dfnames, outpath):
             stats_dfs.append(df[1])
             stats_dfnames.append(dfnames[df[0]])
     if energy_dfs != []:
-        for df in enumerate(energy_dfs):
-            energy_dfs[df[0]] = df[1][(df[1]['Time [UTC]'] > dt.datetime(2014,2,18,8))]
         ###################################################################
         #Cumulative Energy
         if True:
@@ -112,17 +122,27 @@ def prepare_figures(dflist, dfnames, outpath):
             qtykey = 'CumulE_injection [J]'
             ylabel = 'Cumulative Energy injection [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[-1e18,1e18])
+                               qtykey, ylabel)
             timekey = 'Time [UTC]'
             qtykey = 'CumulE_escape [J]'
             ylabel = 'Cumulative Energy escape [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[-1e18,1e18])
+                               qtykey, ylabel)
             timekey = 'Time [UTC]'
             qtykey = 'CumulE_net [J]'
             ylabel = 'Cumulative Energy net [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
-                               qtykey, ylabel, ylim=[-1e18,1e18])
+                               qtykey, ylabel)
+            timekey = 'Time [UTC]'
+            qtykey = 'iso_rho Total [J]'
+            ylabel = 'Total Energy [J]'
+            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+                               qtykey, ylabel)
+            timekey = 'Time [UTC]'
+            qtykey = 'RelativeE_error [%]'
+            ylabel = 'Relative Error [%]'
+            plot_all_runs_1Qty(ax1.twinx(), energy_dfs, energy_dfnames,
+                               timekey, qtykey, ylabel)
             cumulative_E.savefig(outpath+'{}.png'.format(figname))
             plt.show()
             plt.close(cumulative_E)
@@ -133,17 +153,17 @@ def prepare_figures(dflist, dfnames, outpath):
             power, (ax1) = plt.subplots(nrows=1,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'box K_injection [W]'
+            qtykey = 'iso_rho K_injection [W]'
             ylabel = 'Power injecting [W]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'box K_escape [W]'
+            qtykey = 'iso_rho K_escape [W]'
             ylabel = 'Power escaping [W]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'box K_net [W]'
+            qtykey = 'iso_rho K_net [W]'
             ylabel = 'Power transfer net [W]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -157,11 +177,11 @@ def prepare_figures(dflist, dfnames, outpath):
             VolArea, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'box Area [Re^2]'
+            qtykey = 'iso_rho Area [Re^2]'
             ylabel = 'Surface Area [Re^2]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'box Volume [Re^3]'
+            qtykey = 'iso_rho Volume [Re^3]'
             ylabel = 'Volume [Re^3]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -175,24 +195,24 @@ def prepare_figures(dflist, dfnames, outpath):
             Volume_E, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
                                                sharex=True, figsize=[20,10])
             timekey = 'Time [UTC]'
-            qtykey = 'box uB [J]'
+            qtykey = 'iso_rho uB [J]'
             ylabel = 'Magnetic Energy [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'box uE [J]'
+            qtykey = 'iso_rho uE [J]'
             ylabel = 'Electric Energy [J]'
             plot_all_runs_1Qty(ax5, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'box KEpar [J]'
+            qtykey = 'iso_rho KEpar [J]'
             ylabel = 'Parallel Kinetic Energy [J]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'box KEperp [J]'
+            qtykey = 'iso_rho KEperp [J]'
             ylabel = 'Perpendicular Kinetic Energy [J]'
             plot_all_runs_1Qty(ax3, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'box Etherm [J]'
+            qtykey = 'iso_rho Etherm [J]'
             ylabel = 'Thermal Energy [J]'
             plot_all_runs_1Qty(ax4, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -203,11 +223,11 @@ def prepare_figures(dflist, dfnames, outpath):
         #Energy split
         if True:
             data = energy_dfs[0]
-            uB = data['box uB [J]']
-            uE = data['box uE [J]']
-            Etherm = data['box Etherm [J]']
-            KEpar = data['box KEpar [J]']
-            KEperp = data['box KEperp [J]']
+            uB = data['iso_rho uB [J]']
+            uE = data['iso_rho uE [J]']
+            Etherm = data['iso_rho Etherm [J]']
+            KEpar = data['iso_rho KEpar [J]']
+            KEperp = data['iso_rho KEperp [J]']
             total = uE+uB+Etherm+KEpar+KEperp
             energy_dfs[0].loc[:,'total energy'] = total.values
             energy_dfs[0].loc[:,'uB partition'] = uB/total*100
@@ -258,7 +278,7 @@ def process_temporal_mp(data_path_list, outputpath):
     if data_path_list == []:
         print('Nothing to do, no data_paths were given!')
     else:
-        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid', 'field', 'mp_iso_innersurf', 'box']
+        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid', 'field', 'iso_rho', 'box']
         dflist, dfnames = [], []
         spin = Spinner('finding available temporal data ')
         for path in data_path_list:
@@ -278,4 +298,4 @@ def process_temporal_mp(data_path_list, outputpath):
 if __name__ == "__main__":
     datapath = os.getcwd()+'/output/'
     print(datapath)
-    #process_temporal_mp([datapath],datapath+'figures/')
+    process_temporal_mp([datapath],datapath+'figures/')
