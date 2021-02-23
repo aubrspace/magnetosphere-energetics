@@ -746,11 +746,11 @@ def get_global_variables(field_data):
                         '{E_z [mV/km]}**2)*1.143247989e-3')
 
     #Poynting Flux
-    eq('{ExB_x [W/Re^2]} = 3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+
+    eq('{ExB_x [W/Re^2]} = -3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+
                                        '-{E_y [mV/km]}*{B_z [nT]})')
-    eq('{ExB_y [W/Re^2]} = 3.22901e4*({E_x [mV/km]}*{B_z [nT]}'+
+    eq('{ExB_y [W/Re^2]} = -3.22901e4*({E_x [mV/km]}*{B_z [nT]}'+
                                        '-{E_z [mV/km]}*{B_x [nT]})')
-    eq('{ExB_z [W/Re^2]} = 3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
+    eq('{ExB_z [W/Re^2]} = -3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
                                        '-{E_x [mV/km]}*{B_y [nT]})')
 
     #Total pressure Flux
