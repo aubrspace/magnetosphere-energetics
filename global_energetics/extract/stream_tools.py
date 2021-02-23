@@ -883,7 +883,24 @@ def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
             newzone.name = zonename
     return newzone
 
-def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin):
+def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin):
+    """Function creates equation in tecplot representing surface
+    Inputs
+        xmax, xmin, hmax, hmin, rmin- spatial bounds
+        rhomax- density bound
+    Outputs
+        created variable index
+    """
+    drho = rhomax-rhomin
+    eq = tp.data.operate.execute_equation
+    eq('{mp_rho_transition} = '+
+        'IF({X [R]} >'+str(xmin)+' &&'+
+        '{X [R]} <'+str(xmax)+' && {h} < '+str(hmax)+','+
+           'IF({Rho [amu/cm^3]}<(atan({X [R]}+5)+pi/2)/pi*'+str(drho)+'+'+
+            str(rhomin)+'||({h}<5&&{X [R]}<'+str(xmax/2)+'), 1, 0), 0)')
+    return tp.active_frame().dataset.variable('mp_rho_transition').index
+
+def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
     """Function creates equation in tecplot representing surface
     Inputs
         xmax, xmin, hmax, hmin, rmin- spatial bounds
@@ -896,8 +913,8 @@ def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin):
         'IF({X [R]} >'+str(xmin-2)+'&&'+
         '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
             'IF({Rho [amu/cm^3]}<'+str(rhomax)+', 1,'+
-                'IF({r [R]} <'+str(rmin)+
-                    '||{X [R]}=='+str(xmin)+', 1,0)), 0)')
+                'IF(({r [R]} <'+str(rmin_north)+'&&{Z [R]}>0)||'+
+                   '({r [R]} <'+str(rmin_south)+'&&{Z [R]}<0),1,0)),0)')
     return tp.active_frame().dataset.variable('mp_rho_innerradius').index
 
 def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):

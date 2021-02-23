@@ -152,6 +152,7 @@ def add_earth_iso(frame, rindex):
     iso.contour.flood_contour_group_index = 5
     frame.plot().contour(5).variable_index = 14
     iso.isosurface_values[0] = 1
+    iso.show = True
     frame.plot().contour(5).colormap_name = 'Sequential - Green/Blue'
     frame.plot().contour(5).colormap_filter.reversed = True
     frame.plot().contour(5).legend.show = False
@@ -226,19 +227,24 @@ def set_camera(frame, *, setting='iso_day'):
     view = frame.plot().view
     if setting == 'iso_day':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
-        view.psi = 64
+        view.alpha, view.theta, view.psi = (0, 240, 64)
         view.position = (1960, 1140, 1100)
         view.magnification = 4.7
     elif setting == 'iso_tail':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,137,64)
         view.position = (-490,519,328)
-        view.magnification = 5.470
+        view.magnification = 6.470
     elif setting == 'other_iso':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,17,116)
         view.position = (-680,-2172,-1120)
-        view.magnification = 4.56
+        view.magnification = 5.56
+    elif setting == 'inside_from_tail':
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (0,83,84)
+        view.position = (-2514.8,-310.4,264.5)
+        view.magnification = 15.30
     else:
         print('Camera setting {} not developed!'.format(setting))
 
@@ -362,11 +368,11 @@ def manage_zones(frame, nslice, *, approved_zones=None):
 
 
 def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
-                       save_img=True, pngpath='./', save_plt=True,
+                       save_img=True, pngpath='./', save_plt=False,
                        pltpath='./', outputname='output',
                        show_contour=True, show_slice=True,
                        show_fieldline=True, do_blanking=True, tile=False,
-                       show_timestamp=True,
+                       show_timestamp=True, mode='iso_day',
                        mpslice=60, cpsslice=20, zone_rename=None):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
@@ -387,8 +393,12 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     """
     #Always included
     zones_shown = manage_zones(frame, mpslice)
-    set_3Daxes(frame)
-    set_camera(frame, setting='other_iso')
+    if mode == 'inside_from_tail':
+        xtail = -30
+    else:
+        xtail = -45
+    set_3Daxes(frame, xmin=xtail)
+    set_camera(frame, setting=mode)
     add_energy_contour(frame, energyrange, contour_key)
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     set_orientation_axis(frame)

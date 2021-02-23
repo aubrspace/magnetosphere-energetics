@@ -30,6 +30,7 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     dump_to_pandas,
                                                     setup_isosurface,
                                                     calc_iso_rho_state,
+                                                 calc_transition_rho_state,
                                                     calc_shue_state,
                                                     calc_box_state,
                                                     abs_to_timestamp,
@@ -128,6 +129,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         aux = field_data.zone('global_field').aux_data
         #set frame name and calculate global variables
         if field_data.variable_names.count('r [R]') ==0:
+            print('Calculating global energetic variables')
             main_frame.name = 'main'
             get_global_variables(field_data)
         else:
@@ -183,32 +185,86 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = 'mp_'+mode
             #probe data to find density value for isosurface
             density_index = field_data.variable('Rho *').index
-            surface_density= tp.data.query.probe_at_position(
+            inner_density= tp.data.query.probe_at_position(
                                                      x_subsolar+dx_probe,
                                                      0,0)[0][density_index]
+            solar_wind_density= tp.data.query.probe_at_position(
+                                                     20,
+                                                     0,0)[0][density_index]
+            dayside_density = (inner_density+solar_wind_density)/2
+            print('SW density: {}\nDayside density: {}\nInner: {}'.format(
+                solar_wind_density, dayside_density, inner_density))
+            '''
             #create density contour
             density_zone = setup_isosurface(surface_density, density_index,
                                             7, 7, 'iso_rho')
+            global_zone = field_data.zone('global_field')
             #scrape at the cusps, to id the maximum r between the two,
             #limited to maximum of x_subsolar
+            xvalues = density_zone.values('X *').as_numpy_array()
+            #yvalues = global_zone.values('Y *').as_numpy_array()
+            zvalues = density_zone.values('Z *').as_numpy_array()
             rvalues = density_zone.values('r *').as_numpy_array()
             latvalues = density_zone.values('lat *').as_numpy_array()
-            cusplat = 90
-            cusp_indices = np.where(abs(latvalues)>90)
-            while (len(cusp_indices[0]) == 0) & (cusplat>0):
-                cusp_indices = np.where(abs(latvalues)>cusplat)
-                cusplat -= 0.5
-            if cusplat == 0:
-                print('No cusp indices found!! Setting to subsolar length')
-                rinclude = x_subsolar
-            else:
-                print('cusplatitude found at {}'.format(cusplat))
-                rinclude = min([max(rvalues[cusp_indices]),x_subsolar])
-            field_data.delete_zones(density_zone)
+            lonvalues = density_zone.values('lon *').as_numpy_array()
+            surfacedf = pd.DataFrame({'lat':latvalues,'lon':lonvalues,
+                                  'r':rvalues, 'x':xvalues, 'z':zvalues})
+            daydf = surfacedf[surfacedf['x']>1]
+            northsurf = daydf[daydf['z']>0]
+            rinclude_north = (northsurf['r'].max()*0.8+
+                              northsurf['r'].min()*1.2)/2
+            southsurf = daydf[daydf['z']<0]
+            rinclude_south = (southsurf['r'].max()*0.8+
+                              southsurf['r'].min()*1.2)/2
+            dl = 0.5
+            gapradius = 0
+            #identify north gap
+            print('finding north dayside gaps')
+            for lat in linspace(10,90,80):
+                for lon in linspace(-90, 90, 181):
+                    north_hits =northsurf[(northsurf['lat'] < lat+dl) &
+                                          (northsurf['lat'] > lat-dl) &
+                                          (northsurf['lon'] < lon+dl) &
+                                          (northsurf['lon'] > lon-dl)]
+                    if north_hits.empty:
+                        tangents =northsurf[(northsurf['lat']<lat+2*dl)&
+                                            (northsurf['lat']>lat-2*dl)&
+                                            (northsurf['lon']<lon+2*dl)&
+                                            (northsurf['lon']>lon-2*dl)]
+                        if not tangents.empty:
+                            gapradius = min(x_subsolar,
+                                       max(gapradius, tangents['r'].min()))
+                            print('gapradius: {}'.format(gapradius))
+            rinclude_north = gapradius
+            gapradius = 0
+            #identify south gap
+            print('finding south dayside gaps')
+            for lat in linspace(-60,-10,35):
+                for lon in linspace(-60, 60, 61):
+                    south_hits =southsurf[(southsurf['lat'] < lat+dl) &
+                                          (southsurf['lat'] > lat-dl) &
+                                          (southsurf['lon'] < lon+dl) &
+                                          (southsurf['lon'] > lon-dl)]
+                    if south_hits.empty:
+                        tangents =southsurf[(southsurf['lat']<lat+2*dl)&
+                                            (southsurf['lat']>lat-2*dl)&
+                                            (southsurf['lon']<lon+2*dl)&
+                                            (southsurf['lon']>lon-2*dl)]
+                        if not tangents.empty:
+                            gapradius = min(x_subsolar,
+                                       max(gapradius, tangents['r'].min()))
+                            print('gapradius: {}'.format(gapradius))
+            rinclude_south = gapradius
+            #field_data.delete_zones(density_zone)
             #calculate surface state variable
             iso_rho_index = calc_iso_rho_state(x_subsolar, tail_cap,
                                                      50, surface_density,
-                                                     rinclude)
+                                                     rinclude_north,
+                                                     rinclude_south)
+            '''
+            iso_rho_index = calc_transition_rho_state(x_subsolar, tail_cap,
+                                                      50, dayside_density,
+                                                      inner_density)
             state_var_name = field_data.variable(iso_rho_index).name
             #remake iso zone using new equation
             iso_rho_zone = setup_isosurface(1, iso_rho_index,

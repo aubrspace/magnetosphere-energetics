@@ -73,19 +73,18 @@ def get_energy_dataframes(dflist, dfnames):
                 ###Add cumulative energy terms
                 #Compute cumulative energy In, Out, and Net
                 start = df[1].index[0]
+                totalE = df[1]['Total [J]']
                 delta_t = (df[1]['Time [UTC]'].loc[start]-
                         df[1]['Time [UTC]'].loc[start+1]).seconds
                 #use pandas cumulative sum method
-                cumu_E_net = df[1]['iso_rho K_net [W]'].cumsum()*delta_t
-                cumu_E_in = df[1]['iso_rho K_injection [W]'].cumsum()*delta_t
-                cumu_E_out = df[1]['iso_rho K_escape [W]'].cumsum()*delta_t
+                cumu_E_net = df[1]['K_net [W]'].cumsum()*delta_t
+                cumu_E_in = df[1]['K_injection [W]'].cumsum()*delta_t
+                cumu_E_out = df[1]['K_escape [W]'].cumsum()*delta_t
                 #readjust to initialize error to 0 at start
-                cumu_E_net = (cumu_E_net+df[1]['iso_rho Total [J]'].loc[start]-
+                cumu_E_net = (cumu_E_net+totalE.loc[start]-
                               cumu_E_net.loc[start])
-                E_net_error = cumu_E_net-df[1]['iso_rho Total [J]']
-                total_minus_mean = df[1]['iso_rho Total [J]']-df[1][
-                                                    'iso_rho Total [J]'].mean()
-                E_net_rel_error = E_net_error/abs(total_minus_mean)*100
+                E_net_error = cumu_E_net - totalE
+                E_net_rel_error = E_net_error/totalE*100
                 #Add column to dataframe
                 dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
                 dflist[df[0]].loc[:,'CumulE_injection [J]'] = cumu_E_in
@@ -134,7 +133,7 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho Total [J]'
+            qtykey = 'Total [J]'
             ylabel = 'Total Energy [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -153,17 +152,17 @@ def prepare_figures(dflist, dfnames, outpath):
             power, (ax1) = plt.subplots(nrows=1,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho K_injection [W]'
+            qtykey = 'K_injection [W]'
             ylabel = 'Power injecting [W]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho K_escape [W]'
+            qtykey = 'K_escape [W]'
             ylabel = 'Power escaping [W]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho K_net [W]'
+            qtykey = 'K_net [W]'
             ylabel = 'Power transfer net [W]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -177,11 +176,11 @@ def prepare_figures(dflist, dfnames, outpath):
             VolArea, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho Area [Re^2]'
+            qtykey = 'Area [Re^2]'
             ylabel = 'Surface Area [Re^2]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'iso_rho Volume [Re^3]'
+            qtykey = 'Volume [Re^3]'
             ylabel = 'Volume [Re^3]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -195,24 +194,24 @@ def prepare_figures(dflist, dfnames, outpath):
             Volume_E, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
                                                sharex=True, figsize=[20,10])
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho uB [J]'
+            qtykey = 'uB [J]'
             ylabel = 'Magnetic Energy [J]'
             plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'iso_rho uE [J]'
+            qtykey = 'uE [J]'
             ylabel = 'Electric Energy [J]'
             plot_all_runs_1Qty(ax5, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'iso_rho KEpar [J]'
+            qtykey = 'KEpar [J]'
             ylabel = 'Parallel Kinetic Energy [J]'
             plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'iso_rho KEperp [J]'
+            qtykey = 'KEperp [J]'
             ylabel = 'Perpendicular Kinetic Energy [J]'
             plot_all_runs_1Qty(ax3, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
-            qtykey = 'iso_rho Etherm [J]'
+            qtykey = 'Etherm [J]'
             ylabel = 'Thermal Energy [J]'
             plot_all_runs_1Qty(ax4, energy_dfs, energy_dfnames, timekey,
                                qtykey, ylabel)
@@ -223,11 +222,11 @@ def prepare_figures(dflist, dfnames, outpath):
         #Energy split
         if True:
             data = energy_dfs[0]
-            uB = data['iso_rho uB [J]']
-            uE = data['iso_rho uE [J]']
-            Etherm = data['iso_rho Etherm [J]']
-            KEpar = data['iso_rho KEpar [J]']
-            KEperp = data['iso_rho KEperp [J]']
+            uB = data['uB [J]']
+            uE = data['uE [J]']
+            Etherm = data['Etherm [J]']
+            KEpar = data['KEpar [J]']
+            KEperp = data['KEperp [J]']
             total = uE+uB+Etherm+KEpar+KEperp
             energy_dfs[0].loc[:,'total energy'] = total.values
             energy_dfs[0].loc[:,'uB partition'] = uB/total*100
