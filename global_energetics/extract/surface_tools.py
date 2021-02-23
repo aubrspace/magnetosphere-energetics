@@ -46,17 +46,17 @@ def surface_analysis(frame, zone_name, *,
     #integrate Poynting flux
     if calc_ExB:
         #ESCAPE
-        keys.append(zone_name+' ExB_escape [W]')
+        keys.append('ExB_escape [W]')
         ExBesc_index = int(field_data.variable('ExB_escape*').index)
         ExBesc = integrate_surface(ExBesc_index, zone_index)
         data.append(ExBesc)
         #NET
-        keys.append(zone_name+' ExB_net [W]')
+        keys.append('ExB_net [W]')
         ExBnet_index = int(field_data.variable('ExB_net *').index)
         ExBnet = integrate_surface(ExBnet_index, zone_index)
         data.append(ExBnet)
         #INJECTION
-        keys.append(zone_name+' ExB_injection [W]')
+        keys.append('ExB_injection [W]')
         ExBinj_index = int(field_data.variable('ExB_injection*').index)
         ExBinj = integrate_surface(ExBinj_index, zone_index)
         data.append(ExBinj)
@@ -65,17 +65,17 @@ def surface_analysis(frame, zone_name, *,
     #integrate P0 flux
     if calc_P0:
         #ESCAPE
-        keys.append(zone_name+' P0_escape [W]')
+        keys.append('P0_escape [W]')
         P0esc_index = int(field_data.variable('P0_escape*').index)
         P0esc = integrate_surface(P0esc_index, zone_index)
         data.append(P0esc)
         #NET
-        keys.append(zone_name+' P0_net [W]')
+        keys.append('P0_net [W]')
         P0net_index = int(field_data.variable('P0_net *').index)
         P0net = integrate_surface(P0net_index, zone_index)
         data.append(P0net)
         #INJECTION
-        keys.append(zone_name+' P0_injection [W]')
+        keys.append('P0_injection [W]')
         P0inj_index = int(field_data.variable('P0_injection*').index)
         P0inj = integrate_surface(P0inj_index, zone_index)
         data.append(P0inj)
@@ -84,17 +84,17 @@ def surface_analysis(frame, zone_name, *,
     #integrate K flux
     if calc_K:
         #ESCAPE
-        keys.append(zone_name+' K_escape [W]')
+        keys.append('K_escape [W]')
         kesc_index = int(field_data.variable('K_escape*').index)
         kesc = integrate_surface(kesc_index, zone_index)
         data.append(kesc)
         #NET
-        keys.append(zone_name+' K_net [W]')
+        keys.append('K_net [W]')
         knet_index = int(field_data.variable('K_net *').index)
         knet = integrate_surface(knet_index, zone_index)
         data.append(knet)
         #INJECTION
-        keys.append(zone_name+' K_injection [W]')
+        keys.append('K_injection [W]')
         kinj_index = int(field_data.variable('K_injection*').index)
         kinj = integrate_surface(kinj_index, zone_index)
         data.append(kinj)
@@ -102,7 +102,7 @@ def surface_analysis(frame, zone_name, *,
     ######################################################################
     #integrate area
     if surface_area:
-        keys.append(zone_name+' Area [Re^2]')
+        keys.append('Area [Re^2]')
         area_index = None
         SA = integrate_surface(area_index, zone_index,
                                    VariableOption='LengthAreaVolume')
@@ -112,15 +112,15 @@ def surface_analysis(frame, zone_name, *,
     #average K flux
     if calc_K and surface_area:
         #ESCAPE
-        keys.append(zone_name+' Average K_escape [W/Re^2]')
+        keys.append('Average K_escape [W/Re^2]')
         kesc_average = kesc/SA
         data.append(kesc_average)
         #NET
-        keys.append(zone_name+' Average K_net [W/Re^2]')
+        keys.append('Average K_net [W/Re^2]')
         knet_average = knet/SA
         data.append(knet_average)
         #INJECTION
-        keys.append(zone_name+' Average K_injection [W/Re^2]')
+        keys.append('Average K_injection [W/Re^2]')
         kinj_average = kinj/SA
         data.append(kinj_average)
     ######################################################################

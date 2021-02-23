@@ -19,7 +19,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
 def volume_analysis(frame, state_variable_name, *,
                     voluB=True, voluE=True, volKEpar=True, volKEperp=True,
                     volEth=True, volume=True,
-                    cuttoff=-20):
+                    cuttoff=-20, blank=True):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
@@ -36,13 +36,19 @@ def volume_analysis(frame, state_variable_name, *,
     if len([var for var in field_data.variables('K_x *')]) < 1:
         print('Global variables not setup! Cannot perform integration')
         return None
-    #Blank X < X_cuttoff
-    frame.plot().value_blanking.active = True
-    xblank = frame.plot().value_blanking.constraint(1)
-    xblank.active = True
-    xblank.variable = field_data.variable('X *')
-    xblank.comparison_operator = RelOp.LessThan
-    xblank.comparison_value = cuttoff
+    if blank:
+        #Blank X < X_cuttoff
+        frame.plot().value_blanking.active = True
+        rblank = frame.plot().value_blanking.constraint(2)
+        rblank.active = True
+        rblank.variable = field_data.variable('r *')
+        rblank.comparison_operator = RelOp.LessThan
+        rblank.comparison_value = 4
+        xblank = frame.plot().value_blanking.constraint(1)
+        xblank.active = True
+        xblank.variable = field_data.variable('X *')
+        xblank.comparison_operator = RelOp.LessThan
+        xblank.comparison_value = cuttoff
     keys = []
     data = []
     keys = []
@@ -108,9 +114,11 @@ def volume_analysis(frame, state_variable_name, *,
     energy_density = total/Vol
     data.append(energy_density)
     volume_energies = pd.DataFrame([data], columns=keys)
-    #Turn blanking back off
-    xblank.active = False
-    frame.plot().value_blanking.active = False
+    if blank:
+        #Turn blanking back off
+        rblank.active = False
+        xblank.active = False
+        frame.plot().value_blanking.active = False
 
     return volume_energies
 

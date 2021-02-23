@@ -30,8 +30,10 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     dump_to_pandas,
                                                     setup_isosurface,
                                                     calc_iso_rho_state,
+                                                    calc_iso_rho_uB_state,
                                                  calc_transition_rho_state,
                                                     calc_shue_state,
+                                                    calc_sphere_state,
                                                     calc_box_state,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
@@ -40,6 +42,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      mode='iso_rho', source='swmf',
                      longitude_bounds=10, n_fieldlines=5,rmax=30,rmin=3,
                      dx_probe=-1,
+                     sp_x=0, sp_y=0, sp_z=0, sp_r=4,
                      box_xmax=-5, box_xmin=-8,
                      box_ymax=5, box_ymin=-5,
                      box_zmax=5, box_zmin=-5,
@@ -67,7 +70,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
-    approved = ['iso_rho', 'shue97', 'shue98', 'shue', 'box']
+    approved = ['iso_rho', 'shue97', 'shue98', 'shue', 'box', 'sphere']
     if not any([mode == match for match in approved]):
         print('Magnetopause mode "{}" not recognized!!'.format(mode))
         print('Please set mode to one of the following:')
@@ -79,6 +82,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\toutputpath: {}\n'.format(outputpath)+
                '\tmode: {}\n'.format(mode)+
                '\tsource: {}\n'.format(source))
+    if mode == 'sphere':
+        #sphere settings
+        display = (display +
+               '\tSphere settings:\n'+
+               '\t\tsp_x: {}\n'.format(sp_x)+
+               '\t\tsp_y: {}\n'.format(sp_y)+
+               '\t\tsp_z: {}\n'.format(sp_z)+
+               '\t\tsp_r: {}\n'.format(sp_r))
     if mode == 'box':
         #box settings
         display = (display +
@@ -152,6 +163,18 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 field_data.delete_zones(field_data.zone(zone_index))
         #Create isosurface zone depending on mode setting
         ################################################################
+        if mode == 'sphere':
+            zonename = mode
+            #calculate surface state variable
+            sp_state_index = calc_sphere_state(mode,sp_x, sp_y, sp_z, sp_r)
+            state_var_name = field_data.variable(sp_state_index).name
+            #make iso zone
+            sp_zone = setup_isosurface(1, sp_state_index,
+                                        7, 7, zonename)
+            zoneindex = sp_zone.index
+            if zone_rename != None:
+                sp_zone.name = zone_rename
+        ################################################################
         if mode == 'box':
             zonename = mode
             #calculate surface state variable
@@ -185,6 +208,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = 'mp_'+mode
             #probe data to find density value for isosurface
             density_index = field_data.variable('Rho *').index
+            uB_index = field_data.variable('uB *').index
+            uBmin= tp.data.query.probe_at_position(
+                                                     x_subsolar+dx_probe,
+                                                     0,0)[0][uB_index]
             inner_density= tp.data.query.probe_at_position(
                                                      x_subsolar+dx_probe,
                                                      0,0)[0][density_index]
@@ -192,8 +219,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                      20,
                                                      0,0)[0][density_index]
             dayside_density = (inner_density+solar_wind_density)/2
-            print('SW density: {}\nDayside density: {}\nInner: {}'.format(
-                solar_wind_density, dayside_density, inner_density))
+            print('SW rho: {}\nDayside rho: {}\nInner: {}\nuB: {}'.format(
+                solar_wind_density, dayside_density, inner_density,uBmin))
             '''
             #create density contour
             density_zone = setup_isosurface(surface_density, density_index,
@@ -264,7 +291,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             '''
             iso_rho_index = calc_transition_rho_state(x_subsolar, tail_cap,
                                                       50, dayside_density,
-                                                      inner_density)
+                                                      inner_density, uBmin)
             state_var_name = field_data.variable(iso_rho_index).name
             #remake iso zone using new equation
             iso_rho_zone = setup_isosurface(1, iso_rho_index,
@@ -293,8 +320,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             print('\nMagnetopause Power Terms')
             print(mp_powers)
         if integrate_volume:
+            if mode == 'sphere':
+                doblank = False
+            else:
+                doblank = True
             mp_energies = volume_analysis(main_frame, state_var_name,
-                                          cuttoff=tail_analysis_cap)
+                                          cuttoff=tail_analysis_cap,
+                                          blank=doblank)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
         if integrate_surface or integrate_surface:

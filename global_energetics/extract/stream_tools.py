@@ -883,7 +883,7 @@ def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
             newzone.name = zonename
     return newzone
 
-def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin):
+def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
     """Function creates equation in tecplot representing surface
     Inputs
         xmax, xmin, hmax, hmin, rmin- spatial bounds
@@ -897,8 +897,25 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin):
         'IF({X [R]} >'+str(xmin)+' &&'+
         '{X [R]} <'+str(xmax)+' && {h} < '+str(hmax)+','+
            'IF({Rho [amu/cm^3]}<(atan({X [R]}+5)+pi/2)/pi*'+str(drho)+'+'+
-            str(rhomin)+'||({h}<5&&{X [R]}<'+str(xmax/2)+'), 1, 0), 0)')
+            str(rhomin)+'||({uB [J/Re^3]}>'+str(uBmin)+'), 1, 0), 0)')
     return tp.active_frame().dataset.variable('mp_rho_transition').index
+
+def calc_iso_rho_uB_state(xmax, xmin, hmax, rhomax, uBmin):
+    """Function creates equation in tecplot representing surface
+    Inputs
+        xmax, xmin, hmax, hmin, rmin- spatial bounds
+        rhomax- density bound
+    Outputs
+        created variable index
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{rho_uB_iso} = '+
+        'IF({X [R]} >'+str(xmin-2)+'&&'+
+        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
+            'IF({Rho [amu/cm^3]}<'+str(rhomax)+', 1,'+
+                'IF({uB [J/Re^3]}>'+str(uBmin)+',1,'+
+                   '0)),0)')
+    return tp.active_frame().dataset.variable('rho_uB_iso').index
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
     """Function creates equation in tecplot representing surface
@@ -942,6 +959,22 @@ def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
     eq('{'+mode+'} = IF(({r [R]} < {r'+mode+'}) &&'+
                       '({X [R]} > '+str(xtail)+'), 1, 0)')
     return field_data.variable(mode).index
+
+def calc_sphere_state(mode, xc, yc, zc, rmin):
+    """Function creates state variable for a simple box
+    Inputs
+        mode
+        xc, yc, zc- locations for sphere center
+        rmin- sphere radius
+    Outputs
+        state_var_index- index to find state variable in tecplot
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{'+mode+'} = IF(sqrt(({X [R]} -'+str(xc)+')**2 +'+
+                            '({Y [R]} -'+str(yc)+')**2 +'+
+                            '({Z [R]} -'+str(zc)+')**2) >'+
+                             str(rmin)+', 1, 0)')
+    return tp.active_frame().dataset.variable(mode).index
 
 def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
     """Function creates state variable for a simple box

@@ -46,6 +46,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile)
+    magnetopause.get_magnetopause(field_data, datafile, mode='sphere')
     #adjust view settings
     #tile
     proc = 'Multi Frame Manager'
