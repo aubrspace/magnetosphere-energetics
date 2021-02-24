@@ -77,10 +77,16 @@ def add_fieldlines(frame):
     plt.vector.v_variable = ds.variable('B_y *')
     plt.vector.w_variable = ds.variable('B_z *')
     plt.show_streamtraces = True
+    '''
     plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    '''
+    plt.streamtraces.add_rake([10,0,30],[-40,0,30],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([10,0,-30],[-40,0,-30],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([10,30,0],[-40,30,0],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([10,-30,0],[-40,-30,0],Streamtrace.VolumeLine)
     plt.streamtraces.color = Color.Custom41
     plt.streamtraces.line_thickness = 0.2
 
@@ -348,7 +354,7 @@ def manage_zones(frame, nslice, *, approved_zones=None):
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
             plt.fieldmap(map_index).effects.use_translucency=True
-            plt.fieldmap(map_index).effects.surface_translucency=20
+            plt.fieldmap(map_index).effects.surface_translucency=80
             if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
             if zone.name.find('fieldline') != -1:

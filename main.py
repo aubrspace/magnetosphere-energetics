@@ -48,6 +48,14 @@ if __name__ == "__main__":
     magnetopause.get_magnetopause(field_data, datafile)
     magnetopause.get_magnetopause(field_data, datafile, mode='sphere')
     #adjust view settings
+    main = [frame for frame in tp.frames('main')][0]
+    view_set.display_single_iso(main,
+                                'K_net *', datafile, show_contour=True,
+                                show_slice=True, show_fieldline=False,
+                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                outputname=OUTPUTNAME, save_img=False,
+                                mode='iso_day')
+    '''
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
@@ -87,6 +95,7 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),

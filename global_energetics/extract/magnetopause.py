@@ -31,6 +31,7 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     setup_isosurface,
                                                     calc_iso_rho_state,
                                                     calc_iso_rho_uB_state,
+                                                    calc_iso_rho_beta_state,
                                                  calc_transition_rho_state,
                                                     calc_shue_state,
                                                     calc_sphere_state,
@@ -219,6 +220,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                      20,
                                                      0,0)[0][density_index]
             dayside_density = (inner_density+solar_wind_density)/2
+            inner_density = dayside_density/2
             print('SW rho: {}\nDayside rho: {}\nInner: {}\nuB: {}'.format(
                 solar_wind_density, dayside_density, inner_density,uBmin))
             '''
@@ -289,9 +291,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                      rinclude_north,
                                                      rinclude_south)
             '''
+            iso_rho_index = calc_iso_rho_beta_state(x_subsolar, tail_cap,
+                                                  50, inner_density,
+                                                  1)
+            '''
             iso_rho_index = calc_transition_rho_state(x_subsolar, tail_cap,
                                                       50, dayside_density,
                                                       inner_density, uBmin)
+            '''
             state_var_name = field_data.variable(iso_rho_index).name
             #remake iso zone using new equation
             iso_rho_zone = setup_isosurface(1, iso_rho_index,

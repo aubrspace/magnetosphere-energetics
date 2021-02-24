@@ -712,6 +712,13 @@ def get_global_variables(field_data):
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9')
+    #Plasma Beta
+    eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                '*(2*4*pi*1e-7)*1e9')
+    #Plasma Beta* using total pressure
+    eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
+                          '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                '*(2*4*pi*1e-7)*1e9')
 
     #Magnetic field unit vectors
     eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
@@ -899,6 +906,23 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
            'IF({Rho [amu/cm^3]}<(atan({X [R]}+5)+pi/2)/pi*'+str(drho)+'+'+
             str(rhomin)+'||({uB [J/Re^3]}>'+str(uBmin)+'), 1, 0), 0)')
     return tp.active_frame().dataset.variable('mp_rho_transition').index
+
+def calc_iso_rho_beta_state(xmax, xmin, hmax, rhomax, betamin):
+    """Function creates equation in tecplot representing surface
+    Inputs
+        xmax, xmin, hmax, hmin, rmin- spatial bounds
+        rhomax- density bound
+    Outputs
+        created variable index
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{rho_beta_iso} = '+
+        'IF({X [R]} >'+str(xmin-2)+'&&'+
+        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
+            'IF({Rho [amu/cm^3]}<'+str(rhomax)+', 1,'+
+                'IF({beta_star}<'+str(betamin)+',1,'+
+                   '0)),0)')
+    return tp.active_frame().dataset.variable('rho_beta_iso').index
 
 def calc_iso_rho_uB_state(xmax, xmin, hmax, rhomax, uBmin):
     """Function creates equation in tecplot representing surface
