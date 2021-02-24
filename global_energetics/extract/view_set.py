@@ -354,7 +354,7 @@ def manage_zones(frame, nslice, *, approved_zones=None):
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
             plt.fieldmap(map_index).effects.use_translucency=True
-            plt.fieldmap(map_index).effects.surface_translucency=80
+            plt.fieldmap(map_index).effects.surface_translucency=50
             if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
             if zone.name.find('fieldline') != -1:
@@ -400,7 +400,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     #Always included
     zones_shown = manage_zones(frame, mpslice)
     if mode == 'inside_from_tail':
-        xtail = -30
+        xtail = -15
     else:
         xtail = -45
     set_3Daxes(frame, xmin=xtail)
@@ -411,7 +411,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     #Optional items
     if show_slice:
         add_jy_slice(frame, jyindex=frame.dataset.variable('J_y *').index)
-        add_jz_slice(frame, jzindex=frame.dataset.variable('J_z *').index)
+        #add_jz_slice(frame, jzindex=frame.dataset.variable('J_z *').index)
     if show_fieldline:
         add_fieldlines(frame)
     if tile:

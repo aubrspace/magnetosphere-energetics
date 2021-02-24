@@ -67,6 +67,12 @@ def get_energy_dataframes(dflist, dfnames):
         use_dflist, use_dfnames
     """
     use_dflist, use_dflabels = [], []
+    totalE0 = (dflist[0]['Total [J]'].loc[dflist[0].index[0]]+
+               dflist[1]['Total [J]'].loc[dflist[1].index[1]])
+    dflist[0].loc[:,'K_net_minus_bound [W]'] = (dflist[0]['K_net [W]']-
+                                                dflist[1]['K_net [W]'])
+    dflist[1].loc[:,'K_net_minus_bound [W]'] = (dflist[1]['K_net [W]']-
+                                                dflist[1]['K_net [W]'])
     for df in enumerate(dflist):
         if not df[1].empty & (dfnames[df[0]].find('stat')==-1):
             if len(df[1]) > 1:
@@ -77,9 +83,10 @@ def get_energy_dataframes(dflist, dfnames):
                 delta_t = (df[1]['Time [UTC]'].loc[start]-
                         df[1]['Time [UTC]'].loc[start+1]).seconds
                 #use pandas cumulative sum method
-                cumu_E_net = df[1]['K_net [W]'].cumsum()*delta_t
-                cumu_E_in = df[1]['K_injection [W]'].cumsum()*delta_t
-                cumu_E_out = df[1]['K_escape [W]'].cumsum()*delta_t
+                cumu_E_net = df[1]['K_net [W]'].cumsum()*delta_t*-1
+                adjust_cumu_E_net = df[1]['K_net_minus_bound [W]'].cumsum()*delta_t*-1
+                cumu_E_in = df[1]['K_injection [W]'].cumsum()*delta_t*-1
+                cumu_E_out = df[1]['K_escape [W]'].cumsum()*delta_t*-1
                 #readjust to initialize error to 0 at start
                 cumu_E_net = (cumu_E_net+totalE.loc[start]-
                               cumu_E_net.loc[start])
@@ -87,6 +94,7 @@ def get_energy_dataframes(dflist, dfnames):
                 E_net_rel_error = E_net_error/totalE*100
                 #Add column to dataframe
                 dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
+                dflist[df[0]].loc[:,'Adjusted_CumulE_net [J]'] = adjust_cumu_E_net
                 dflist[df[0]].loc[:,'CumulE_injection [J]'] = cumu_E_in
                 dflist[df[0]].loc[:,'CumulE_escape [J]'] = cumu_E_out
                 dflist[df[0]].loc[:,'Energy_error [J]'] = E_net_error
@@ -116,10 +124,10 @@ def prepare_figures(dflist, dfnames, outpath):
         if True:
             figname = 'EnergyAccumulation'
             #quick manipulation
-            isodf = energy_dfs[0:1]
+            isodfs = energy_dfs[0:1]
             isodfnames = energy_dfnames[0:1]
-            spdf = energy_dfs[0:1]
-            spdfnames = energy_dfnames[0:1]
+            spdfs = energy_dfs[1::]
+            spdfnames = energy_dfnames[1::]
             #figure settings
             cumulative_E, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
@@ -130,8 +138,8 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'CumulE_net [J]'
-            ylabel = 'Cumulative Energy net [J]'
+            qtykey = 'Adjusted_CumulE_net [J]'
+            ylabel = 'Adjusted Cumulative Energy net [J]'
             plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'

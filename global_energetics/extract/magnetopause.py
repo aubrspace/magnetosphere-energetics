@@ -48,7 +48,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      box_ymax=5, box_ymin=-5,
                      box_zmax=5, box_zmin=-5,
                      itr_max=100, tol=0.1,
-                     tail_cap=-40, tail_analysis_cap=-20,
+                     tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
                      xyzvar=[1,2,3], zone_rename=None):
     """Function that finds, plots and calculates energetics on the

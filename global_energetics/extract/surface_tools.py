@@ -33,6 +33,7 @@ def surface_analysis(frame, zone_name, *,
     get_surface_variables(field_data, zone_name)
     #initialize objects for frame
     zone_index = int(field_data.zone(zone_name).index)
+    '''
     #Blank X < X_cuttoff
     frame.plot().value_blanking.active = True
     xblank = frame.plot().value_blanking.constraint(1)
@@ -40,6 +41,7 @@ def surface_analysis(frame, zone_name, *,
     xblank.variable = field_data.variable('X *')
     xblank.comparison_operator = RelOp.LessThan
     xblank.comparison_value = cuttoff
+    '''
     keys = []
     data = []
     ######################################################################
@@ -126,9 +128,11 @@ def surface_analysis(frame, zone_name, *,
     ######################################################################
     #Collect and report surface integrated quantities
     surface_power = pd.DataFrame([data],columns=keys)
+    '''
     #Turn blanking back off
     xblank.active = False
     frame.plot().value_blanking.active = False
+    '''
     return surface_power
 
 

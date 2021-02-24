@@ -44,11 +44,13 @@ def volume_analysis(frame, state_variable_name, *,
         rblank.variable = field_data.variable('r *')
         rblank.comparison_operator = RelOp.LessThan
         rblank.comparison_value = 4
+        '''
         xblank = frame.plot().value_blanking.constraint(1)
         xblank.active = True
         xblank.variable = field_data.variable('X *')
         xblank.comparison_operator = RelOp.LessThan
         xblank.comparison_value = cuttoff
+        '''
     keys = []
     data = []
     keys = []
@@ -117,7 +119,9 @@ def volume_analysis(frame, state_variable_name, *,
     if blank:
         #Turn blanking back off
         rblank.active = False
+        '''
         xblank.active = False
+        '''
         frame.plot().value_blanking.active = False
 
     return volume_energies
