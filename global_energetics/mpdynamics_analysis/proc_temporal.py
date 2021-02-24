@@ -116,43 +116,37 @@ def prepare_figures(dflist, dfnames, outpath):
         if True:
             figname = 'EnergyAccumulation'
             #quick manipulation
-            dfs = energy_dfs[0:1]
-            dfnames = energy_dfnames[0:1]
-            dfs[0].loc[:,'CumulE_mp-Sphere [J]'] = energy_dfs[0]['CumulE_net [J]']-energy_dfs[1]['CumulE_net [J]']
+            isodf = energy_dfs[0:1]
+            isodfnames = energy_dfnames[0:1]
+            spdf = energy_dfs[0:1]
+            spdfnames = energy_dfnames[0:1]
             #figure settings
             cumulative_E, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
             #axes
-            '''
             timekey = 'Time [UTC]'
             qtykey = 'Total [J]'
             ylabel = 'Total Energy [J]'
-            plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
-            timekey = 'Time [UTC]'
-            qtykey = 'CumulE_mp-Sphere [J]'
-            ylabel = 'Total Energy sphere subtracted [J]'
-            plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
-                               qtykey, ylabel)
-            '''
             timekey = 'Time [UTC]'
             qtykey = 'CumulE_net [J]'
             ylabel = 'Cumulative Energy net [J]'
-            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
             qtykey = 'Total [J]'
             ylabel = 'Total Energy [J]'
-            plot_all_runs_1Qty(ax1, energy_dfs, energy_dfnames, timekey,
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
                                qtykey, ylabel)
             timekey = 'Time [UTC]'
-            qtykey = 'RelativeE_error [%]'
-            ylabel = 'Relative Error [%]'
-            plot_all_runs_1Qty(ax2, energy_dfs, energy_dfnames,
-                               timekey, qtykey, ylabel)
+            qtykey = 'CumulE_net [J]'
+            ylabel = 'Cumulative Energy net [J]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
             cumulative_E.savefig(outpath+'{}.png'.format(figname))
-            plt.show()
-            plt.close(cumulative_E)
+            #plt.show()
+            #plt.close(cumulative_E)
         ###################################################################
         #Power
         if True:
@@ -180,8 +174,8 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
                                qtykey, ylabel)
             power.savefig(outpath+'{}.png'.format(figname))
-            plt.show()
-            plt.close(power)
+            #plt.show()
+            #plt.close(power)
         ###################################################################
         #Volume and Surface Area
         if True:
@@ -208,8 +202,8 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax3, dfs, dfnames, timekey,
                                qtykey, ylabel)
             VolArea.savefig(outpath+'{}.png'.format(figname))
-            plt.show()
-            plt.close(VolArea)
+            #plt.show()
+            #plt.close(VolArea)
         ###################################################################
         '''
         #Other Energies
@@ -277,8 +271,8 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax4, dfs, dfnames, timekey,
                                qtykey, ylabel)
             Volume_E.savefig(outpath+'{}.png'.format(figname))
-            plt.show()
-            plt.close(Volume_E)
+            #plt.show()
+            #plt.close(Volume_E)
         ###################################################################
         #Energy split
         if True:
@@ -326,8 +320,8 @@ def prepare_figures(dflist, dfnames, outpath):
             plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
                                qtykey, ylabel, ylim=[0,5])
             Volume_Ebreakdown.savefig(outpath+'{}.png'.format(figname))
-            plt.show()
-            plt.close(Volume_E)
+            #plt.show()
+            #plt.close(Volume_E)
         ###################################################################
     else:
         print('Unable to create ___ plot, data missing!')
@@ -361,6 +355,6 @@ def process_temporal_mp(data_path_list, outputpath):
         prepare_figures(dflist, dfnames, outputpath)
 
 if __name__ == "__main__":
-    datapath = os.getcwd()+'/output/mpdynamics/feb24/output/'
+    datapath = os.getcwd()+'/output/'
     print(datapath)
     process_temporal_mp([datapath],datapath+'figures/')
