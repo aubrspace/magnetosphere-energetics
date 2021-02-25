@@ -116,7 +116,6 @@ def volume_analysis(frame, state_variable_name, *,
     energy_density = total/Vol
     data.append(energy_density)
     volume_energies = pd.DataFrame([data], columns=keys)
-    from IPython import embed; embed()
     if blank:
         #Turn blanking back off
         rblank.active = False

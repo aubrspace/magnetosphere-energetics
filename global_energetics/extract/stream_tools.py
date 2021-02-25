@@ -1012,7 +1012,7 @@ def calc_sphere_state(mode, xc, yc, zc, rmin):
     eq = tp.data.operate.execute_equation
     eq('{'+mode+'} = IF(sqrt(({X [R]} -'+str(xc)+')**2 +'+
                             '({Y [R]} -'+str(yc)+')**2 +'+
-                            '({Z [R]} -'+str(zc)+')**2) >'+
+                            '({Z [R]} -'+str(zc)+')**2) <'+
                              str(rmin)+', 1, 0)')
     return tp.active_frame().dataset.variable(mode).index
 
