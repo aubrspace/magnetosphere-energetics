@@ -167,21 +167,23 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         ################################################################
         if mode == 'sphere':
             zonename = mode
+            if zone_rename != None:
+                zonename = zone_rename
             #calculate surface state variable
-            sp_state_index = calc_sphere_state(mode,sp_x, sp_y, sp_z, sp_r)
+            sp_state_index = calc_sphere_state(zonename,sp_x, sp_y, sp_z,
+                                               sp_r)
             state_var_name = field_data.variable(sp_state_index).name
             #make iso zone
             sp_zone = setup_isosurface(1, sp_state_index,
                                         7, 7, zonename)
             zoneindex = sp_zone.index
-            if zone_rename != None:
-                sp_zone.name = zone_rename
-                zonename = zone_rename
         ################################################################
         if mode == 'box':
             zonename = mode
+            if zone_rename != None:
+                zonename = zone_rename
             #calculate surface state variable
-            box_state_index = calc_box_state(mode,box_xmax, box_xmin,
+            box_state_index = calc_box_state(zonename,box_xmax, box_xmin,
                                                   box_ymax, box_ymin,
                                                   box_zmax, box_zmin)
             state_var_name = field_data.variable(box_state_index).name
@@ -189,23 +191,19 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             box_zone = setup_isosurface(1, box_state_index,
                                         7, 7, zonename)
             zoneindex = box_zone.index
-            if zone_rename != None:
-                box_zone.name = zone_rename
-                zonename = zone_rename
         ################################################################
         if mode.find('shue') != -1:
             zonename = 'mp_'+mode
+            if zone_rename != None:
+                zonename = zone_rename
             #calculate surface state variable
-            shue_state_index = calc_shue_state(field_data, mode,
+            shue_state_index = calc_shue_state(field_data, zonename,
                                               x_subsolar, tail_cap)
             state_var_name = field_data.variable(shue_state_index).name
             #make iso zone
             shue_zone = setup_isosurface(1, shue_state_index,
                                                   7, 7, zonename)
             zoneindex = shue_zone.index
-            if zone_rename != None:
-                shue_zone.name = zone_rename
-                zonename = zone_rename
         ################################################################
         if mode == 'iso_rho':
             zonename = 'mp_'+mode
@@ -328,8 +326,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             print('\nMagnetopause Power Terms')
             print(mp_powers)
         if integrate_volume:
-            if zone_name == 'sphere':
+            print('Zonename is: {}'.format(zonename))
+            if zonename == 'sphere':
                 doblank = False
+                print('Noblanking!!')
             else:
                 doblank = True
             mp_energies = volume_analysis(main_frame, state_var_name,
@@ -342,10 +342,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             cols = mp_powers.keys().append(mp_energies.keys())
             mp_energetics = pd.DataFrame(columns=cols, data=[np.append(
                                      mp_powers.values,mp_energies.values)])
-            #Add time column
+            #Add time and x_subsolar column
             mp_energetics.loc[:,'Time [UTC]'] = eventtime
+            mp_energetics.loc[:,'X_subsolar [Re]'] = x_subsolar
             with pd.HDFStore(integralfile) as store:
-                if any([key.find(zonename)!=-1 for key in store.keys()]):
+                if any([key == zonename for key in store.keys()]):
                     mp_energetics = store[zonename].append(mp_energetics,
                                                          ignore_index=True)
                 store[zonename] = mp_energetics
