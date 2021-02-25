@@ -73,6 +73,8 @@ def get_energy_dataframes(dflist, dfnames):
                                                 dflist[1]['K_net [W]'])
     dflist[1].loc[:,'K_net_minus_bound [W]'] = (dflist[1]['K_net [W]']-
                                                 dflist[1]['K_net [W]'])
+    dflist[2].loc[:,'K_net_minus_bound [W]'] = (dflist[2]['K_net [W]']-
+                                                dflist[1]['K_net [W]'])
     for df in enumerate(dflist):
         if not df[1].empty & (dfnames[df[0]].find('stat')==-1):
             if len(df[1]) > 1:
@@ -137,11 +139,13 @@ def prepare_figures(dflist, dfnames, outpath):
             ylabel = 'Total Energy [J]'
             plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
+            '''
             timekey = 'Time [UTC]'
             qtykey = 'Adjusted_CumulE_net [J]'
             ylabel = 'Adjusted Cumulative Energy net [J]'
             plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
+            '''
             timekey = 'Time [UTC]'
             qtykey = 'Total [J]'
             ylabel = 'Total Energy [J]'
@@ -363,6 +367,6 @@ def process_temporal_mp(data_path_list, outputpath):
         prepare_figures(dflist, dfnames, outputpath)
 
 if __name__ == "__main__":
-    datapath = os.getcwd()+'/output/'
+    datapath = os.getcwd()+'/output/mpdynamics/betastar/'
     print(datapath)
     process_temporal_mp([datapath],datapath+'figures/')
