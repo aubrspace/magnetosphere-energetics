@@ -175,6 +175,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zoneindex = sp_zone.index
             if zone_rename != None:
                 sp_zone.name = zone_rename
+                zonename = zone_rename
         ################################################################
         if mode == 'box':
             zonename = mode

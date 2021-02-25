@@ -47,6 +47,9 @@ if __name__ == "__main__":
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile)
     magnetopause.get_magnetopause(field_data, datafile, mode='sphere')
+    x_subsolar = float(field_data.zone('global_field').aux_data['x_subsolar'])
+    magnetopause.get_magnetopause(field_data, datafile, mode='sphere',
+                                  sp_r=x_subsolar, zone_rename='subsolar_sphere')
     #adjust view settings
     #tile
     proc = 'Multi Frame Manager'
