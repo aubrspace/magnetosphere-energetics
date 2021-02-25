@@ -32,6 +32,7 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     calc_iso_rho_state,
                                                     calc_iso_rho_uB_state,
                                                     calc_iso_rho_beta_state,
+                                                    calc_iso_beta_state,
                                                  calc_transition_rho_state,
                                                     calc_shue_state,
                                                     calc_sphere_state,
@@ -292,9 +293,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                      rinclude_north,
                                                      rinclude_south)
             '''
-            iso_rho_index = calc_iso_rho_beta_state(x_subsolar, tail_cap,
-                                                  50, inner_density,
-                                                  1)
+            iso_rho_index = calc_iso_beta_state(x_subsolar, tail_cap,
+                                                  50, 1,)
             '''
             iso_rho_index = calc_transition_rho_state(x_subsolar, tail_cap,
                                                       50, dayside_density,
@@ -328,7 +328,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             print('\nMagnetopause Power Terms')
             print(mp_powers)
         if integrate_volume:
-            if mode == 'sphere':
+            if zone_name == 'sphere':
                 doblank = False
             else:
                 doblank = True
