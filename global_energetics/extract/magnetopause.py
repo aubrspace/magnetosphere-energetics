@@ -346,7 +346,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             mp_energetics.loc[:,'Time [UTC]'] = eventtime
             mp_energetics.loc[:,'X_subsolar [Re]'] = x_subsolar
             with pd.HDFStore(integralfile) as store:
-                if any([key == zonename for key in store.keys()]):
+                if any([key == '/'+zonename for key in store.keys()]):
                     mp_energetics = store[zonename].append(mp_energetics,
                                                          ignore_index=True)
                 store[zonename] = mp_energetics
