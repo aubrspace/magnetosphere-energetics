@@ -727,18 +727,19 @@ def get_global_variables(field_data):
 
     #Magnetic Energy per volume
     eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '*1.02892e8')
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3')
 
     #Ram pressure energy per volume
     eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                                     '(({U_x [km/s]}*{bx})**2+'+
                                     '({U_y [km/s]}*{by})**2+'+
-                                    '({U_z [km/s]}*{bz})**2) * 4.2941e5')
+                                    '({U_z [km/s]}*{bz})**2) *'+
+                                    '1e6*1.6605e-27*1e6*1e9*6371**3')
     eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                           '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
                            '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
                            '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
-                                                            '*4.2941e5')
+                                       '*1e6*1.6605e-27*1e6*1e9*6371**3')
 
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
@@ -750,7 +751,8 @@ def get_global_variables(field_data):
 
     #Electric Energy per volume
     eq('{uE [J/Re^3]} = ({E_x [mV/km]}**2+{E_y [mV/km]}**2+'+
-                        '{E_z [mV/km]}**2)*1.143247989e-3')
+                        '{E_z [mV/km]}**2)*'+
+                        '1e-6/(2*4*pi*1e-7*(3e8)**2)*1e9*6371**3')
 
     #Poynting Flux
     eq('{ExB_x [W/Re^2]} = -3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+

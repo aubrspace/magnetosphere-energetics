@@ -25,7 +25,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 
 def plot_all_runs_1Qty(axis, dflist, dflabels, timekey, qtkey, ylabel, *,
-                       xlim=None, ylim=None):
+                       xlim=None, ylim=None, Color=None):
     """Function plots cumulative energy over time on axis with lables
     Inputs
         axis- object plotted on
@@ -34,8 +34,14 @@ def plot_all_runs_1Qty(axis, dflist, dflabels, timekey, qtkey, ylabel, *,
         timekey, qtkey- used to located column with time and the qt to plot
     """
     for data in enumerate(dflist):
-        axis.plot(data[1][timekey],data[1][qtkey],
+        if Color == None:
+            axis.plot(data[1][timekey],data[1][qtkey],
                   label=qtkey+dflabels[data[0]])
+            legend_loc = 'lower left'
+        else:
+            axis.plot(data[1][timekey],data[1][qtkey],
+                  label=qtkey+dflabels[data[0]], color=Color)
+            legend_loc = 'lower right'
         '''
         if dflabels[data[0]].find('flow') != -1:
             axis.plot(data[1][timekey],data[1][qtkey],color='orange',
@@ -56,7 +62,7 @@ def plot_all_runs_1Qty(axis, dflist, dflabels, timekey, qtkey, ylabel, *,
         axis.set_ylim(ylim)
     axis.set_xlabel(timekey)
     axis.set_ylabel(ylabel)
-    axis.legend()
+    axis.legend(loc=legend_loc)
 
 def get_energy_dataframes(dflist, dfnames):
     """Function adds cumulative energy columns based on power columns
@@ -82,8 +88,8 @@ def get_energy_dataframes(dflist, dfnames):
                 #Compute cumulative energy In, Out, and Net
                 start = df[1].index[0]
                 totalE = df[1]['Total [J]']
-                delta_t = (df[1]['Time [UTC]'].loc[start]-
-                        df[1]['Time [UTC]'].loc[start+1]).seconds
+                delta_t = (df[1]['Time [UTC]'].loc[start+1]-
+                        df[1]['Time [UTC]'].loc[start]).seconds
                 #use pandas cumulative sum method
                 cumu_E_net = df[1]['K_net [W]'].cumsum()*delta_t*-1
                 adjust_cumu_E_net = df[1]['K_net_minus_bound [W]'].cumsum()*delta_t*-1
@@ -92,7 +98,9 @@ def get_energy_dataframes(dflist, dfnames):
                 #readjust to initialize error to 0 at start
                 cumu_E_net = (cumu_E_net+totalE.loc[start]-
                               cumu_E_net.loc[start])
-                E_net_error = cumu_E_net - totalE
+                adjust_cumu_E_net = (adjust_cumu_E_net+totalE.loc[start]-
+                                     adjust_cumu_E_net.loc[start])
+                E_net_error = adjust_cumu_E_net - totalE
                 E_net_rel_error = E_net_error/totalE*100
                 #Add column to dataframe
                 dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
@@ -128,37 +136,142 @@ def prepare_figures(dflist, dfnames, outpath):
             #quick manipulation
             isodfs = energy_dfs[0:1]
             isodfnames = energy_dfnames[0:1]
-            spdfs = energy_dfs[1::]
-            spdfnames = energy_dfnames[1::]
+            spdfs = energy_dfs[2::]
+            spdfnames = energy_dfnames[2::]
+            coredfs = energy_dfs[1:2]
+            coredfnames = energy_dfnames[1:2]
             #figure settings
-            cumulative_E, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
+            cumulative_E, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
                                                sharex=True, figsize=[18,6])
             #axes
             timekey = 'Time [UTC]'
+            ylabel = 'Energy [J]'
             qtykey = 'Total [J]'
-            ylabel = 'Total Energy [J]'
-            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+            plot_all_runs_1Qty(ax2, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
-            '''
-            timekey = 'Time [UTC]'
             qtykey = 'Adjusted_CumulE_net [J]'
-            ylabel = 'Adjusted Cumulative Energy net [J]'
-            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+            plot_all_runs_1Qty(ax2, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'RelativeE_error [%]'
+            ylabel = 'Error'
+            plot_all_runs_1Qty(ax2.twinx(), isodfs, isodfnames, timekey,
+                               qtykey, ylabel, Color='green')
+            qtykey = 'Total [J]'
+            plot_all_runs_1Qty(ax1, spdfs, spdfnames, timekey,
                                qtykey, ylabel)
             '''
-            timekey = 'Time [UTC]'
-            qtykey = 'Total [J]'
-            ylabel = 'Total Energy [J]'
+            qtykey = 'CumulE_net [J]'
             plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
                                qtykey, ylabel)
-            timekey = 'Time [UTC]'
+            '''
+            qtykey = 'Total [J]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
             qtykey = 'CumulE_net [J]'
-            ylabel = 'Cumulative Energy net [J]'
-            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
                                qtykey, ylabel)
             cumulative_E.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
             #plt.close(cumulative_E)
+        ###################################################################
+        #Power- surface compare
+        if True:
+            figname = 'Power_surface_compare'
+            #quick manipulation
+            dfs = energy_dfs[0:1]
+            dfnames = energy_dfnames[0:1]
+            #figure settings
+            power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,6])
+            #axes
+            timekey = 'Time [UTC]'
+            ylabel = 'Power [W]'
+            #mp
+            qtykey = 'K_injection [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_escape [W]'
+            plot_all_runs_1Qty(ax2, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_net [W]'
+            plot_all_runs_1Qty(ax3, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            #sphere
+            qtykey = 'K_injection [W]'
+            plot_all_runs_1Qty(ax1, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_escape [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_net [W]'
+            plot_all_runs_1Qty(ax3, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            #core
+            qtykey = 'K_injection [W]'
+            plot_all_runs_1Qty(ax1, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_escape [W]'
+            plot_all_runs_1Qty(ax2, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_net [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            power.savefig(outpath+'{}.png'.format(figname))
+            #plt.show()
+            #plt.close(power)
+        ###################################################################
+        #Power
+        if True:
+            figname = 'PoyntingPower'
+            #quick manipulation
+            dfs = energy_dfs[0:1]
+            dfnames = energy_dfnames[0:1]
+            #figure settings
+            power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,6])
+            #axes
+            timekey = 'Time [UTC]'
+            ylabel = 'Power [W]'
+            #mp
+            qtykey = 'ExB_injection [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'ExB_escape [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'ExB_net [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            #sphere
+            qtykey = 'ExB_injection [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'ExB_escape [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'ExB_net [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            #core
+            qtykey = 'ExB_injection [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'ExB_escape [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'ExB_net [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            #Fill between to distinguish +/- net powers
+            ax1.fill_between(isodfs[0]['Time [UTC]'], 0,
+                             isodfs[0]['ExB_net [W]'])
+            ax2.fill_between(spdfs[0]['Time [UTC]'], 0,
+                             spdfs[0]['ExB_net [W]'])
+            ax3.fill_between(coredfs[0]['Time [UTC]'], 0,
+                             coredfs[0]['ExB_net [W]'])
+            power.savefig(outpath+'{}.png'.format(figname))
+            #plt.show()
+            #plt.close(power)
         ###################################################################
         #Power
         if True:
@@ -167,24 +280,101 @@ def prepare_figures(dflist, dfnames, outpath):
             dfs = energy_dfs[0:1]
             dfnames = energy_dfnames[0:1]
             #figure settings
-            power, (ax1) = plt.subplots(nrows=1,ncols=1,
+            power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
                                                sharex=True, figsize=[18,6])
             #axes
             timekey = 'Time [UTC]'
+            ylabel = 'Power [W]'
+            #mp
+            qtykey = 'K_injection [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_escape [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_net_minus_bound [W]'
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
+                               qtykey, ylabel)
+            #sphere
+            qtykey = 'K_injection [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_escape [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_net_minus_bound [W]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            #core
+            qtykey = 'K_injection [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_escape [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'K_net [W]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            #Fill between to distinguish +/- net powers
+            ax1.fill_between(isodfs[0]['Time [UTC]'], 0,
+                             isodfs[0]['K_net [W]'])
+            ax2.fill_between(spdfs[0]['Time [UTC]'], 0,
+                             spdfs[0]['K_net [W]'])
+            ax3.fill_between(coredfs[0]['Time [UTC]'], 0,
+                             coredfs[0]['K_net [W]'])
+            power.savefig(outpath+'{}.png'.format(figname))
+            #plt.show()
+            #plt.close(power)
+        ###################################################################
+        #Normalized Power
+        if True:
+            figname = 'AveragePower'
+            #quick manipulation
+            dfs = energy_dfs[0:1]
+            dfnames = energy_dfnames[0:1]
+            #figure settings
+            power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,6])
+            #axes
+            timekey = 'Time [UTC]'
+            ylabel = 'Average Power [W/Re^2]'
+            #mp
             qtykey = 'Average K_injection [W/Re^2]'
-            ylabel = 'Power injecting [W]'
-            plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
-            timekey = 'Time [UTC]'
             qtykey = 'Average K_escape [W/Re^2]'
-            ylabel = 'Power escaping [W]'
-            plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
-            timekey = 'Time [UTC]'
             qtykey = 'Average K_net [W/Re^2]'
-            ylabel = 'Power transfer net [W]'
-            plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax1, isodfs, isodfnames, timekey,
                                qtykey, ylabel)
+            #sphere
+            qtykey = 'Average K_injection [W/Re^2]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'Average K_escape [W/Re^2]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'Average K_net [W/Re^2]'
+            plot_all_runs_1Qty(ax2, spdfs, spdfnames, timekey,
+                               qtykey, ylabel)
+            #core
+            qtykey = 'Average K_injection [W/Re^2]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'Average K_escape [W/Re^2]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            qtykey = 'Average K_net [W/Re^2]'
+            plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                               qtykey, ylabel)
+            #Fill between to distinguish +/- net powers
+            ax1.fill_between(isodfs[0]['Time [UTC]'], 0,
+                             isodfs[0]['Average K_net [W/Re^2]'])
+            ax2.fill_between(spdfs[0]['Time [UTC]'], 0,
+                             spdfs[0]['Average K_net [W/Re^2]'])
+            ax3.fill_between(coredfs[0]['Time [UTC]'], 0,
+                             coredfs[0]['Average K_net [W/Re^2]'])
             power.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
             #plt.close(power)
@@ -197,7 +387,7 @@ def prepare_figures(dflist, dfnames, outpath):
             dfs = energy_dfs[0:1]
             dfnames = energy_dfnames[0:1]
             #figure settings
-            VolArea, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+            VolArea, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
                                                sharex=True, figsize=[18,6])
             #axes
             timekey = 'Time [UTC]'
@@ -207,12 +397,16 @@ def prepare_figures(dflist, dfnames, outpath):
                                qtykey, ylabel)
             qtykey = 'Volume [Re^3]'
             ylabel = 'Volume [Re^3]'
-            plot_all_runs_1Qty(ax2, dfs, dfnames, timekey,
-                               qtykey, ylabel)
+            plot_all_runs_1Qty(ax1.twinx(), dfs, dfnames, timekey,
+                               qtykey, ylabel, Color='orange')
             qtykey = 'V/SA [Re]'
             ylabel = 'Volume/SurfaceArea [Re]'
-            plot_all_runs_1Qty(ax3, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax2, dfs, dfnames, timekey,
                                qtykey, ylabel)
+            qtykey = 'X_subsolar [Re]'
+            ylabel = 'Subsolar Distance [Re]'
+            plot_all_runs_1Qty(ax2.twinx(), dfs, dfnames, timekey,
+                               qtykey, ylabel, Color='orange')
             VolArea.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
             #plt.close(VolArea)
