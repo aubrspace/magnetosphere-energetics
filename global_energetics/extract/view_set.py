@@ -339,8 +339,10 @@ def manage_zones(frame, nslice, *, approved_zones=None):
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
-            if (zone.name == 'global_field') or (zone.name == 'subsolar_sphere'):
+            if zone.name == 'global_field':
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = None
+            elif zone.name == 'subsolar_sphere':
+                plt.fieldmap(map_index).show = False
             else:
                 #some assertion that checks that zone is cylindrical
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
