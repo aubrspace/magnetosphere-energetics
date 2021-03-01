@@ -384,29 +384,54 @@ def prepare_figures(dflist, dfnames, outpath):
             figname = 'VolumeSurfaceArea'
             #quick manipulation
             energy_dfs[0].loc[:,'V/SA [Re]'] = energy_dfs[0]['Volume [Re^3]']/energy_dfs[0]['Area [Re^2]']
-            dfs = energy_dfs[0:1]
-            dfnames = energy_dfnames[0:1]
+            energy_dfs[1].loc[:,'V/SA [Re]'] = energy_dfs[1]['Volume [Re^3]']/energy_dfs[1]['Area [Re^2]']
+            energy_dfs[2].loc[:,'V/SA [Re]'] = energy_dfs[2]['Volume [Re^3]']/energy_dfs[2]['Area [Re^2]']
+            energy_dfs[2].loc[:,'Relative error [%]'] = (energy_dfs[2]['X_subsolar [Re]']/3-energy_dfs[2]['V/SA [Re]'])/(energy_dfs[2]['X_subsolar [Re]']/3)
+            dfs = energy_dfs
+            dfnames = energy_dfnames
             #figure settings
-            VolArea, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
+            VolArea, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
                                                sharex=True, figsize=[18,6])
             #axes
             timekey = 'Time [UTC]'
             qtykey = 'Area [Re^2]'
             ylabel = 'Surface Area [Re^2]'
-            plot_all_runs_1Qty(ax1, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax1, dfs[0:1], dfnames[0:1], timekey,
                                qtykey, ylabel)
             qtykey = 'Volume [Re^3]'
             ylabel = 'Volume [Re^3]'
-            plot_all_runs_1Qty(ax1.twinx(), dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax1.twinx(), dfs[0:1], dfnames[0:1], timekey,
                                qtykey, ylabel, Color='orange')
             qtykey = 'V/SA [Re]'
             ylabel = 'Volume/SurfaceArea [Re]'
-            plot_all_runs_1Qty(ax2, dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax2, dfs[0:1], dfnames[0:1], timekey,
                                qtykey, ylabel)
             qtykey = 'X_subsolar [Re]'
             ylabel = 'Subsolar Distance [Re]'
-            plot_all_runs_1Qty(ax2.twinx(), dfs, dfnames, timekey,
+            plot_all_runs_1Qty(ax2.twinx(), dfs[0:1], dfnames[0:1], timekey,
                                qtykey, ylabel, Color='orange')
+            #subsolar sphere and core
+            '''
+            qtykey = 'Area [Re^2]'
+            ylabel = 'Surface Area [Re^2]'
+            plot_all_runs_1Qty(ax3, dfs[2::], dfnames[2::], timekey,
+                               qtykey, ylabel)
+            qtykey = 'Volume [Re^3]'
+            ylabel = 'Volume [Re^3]'
+            plot_all_runs_1Qty(ax4, dfs[2::], dfnames[2::], timekey,
+                               qtykey, ylabel)
+            '''
+            qtykey = 'V/SA [Re]'
+            ylabel = 'Volume/SurfaceArea [Re]'
+            '''
+            plot_all_runs_1Qty(ax3, dfs[2::], dfnames[2::], timekey,
+                               qtykey, ylabel)
+            '''
+            errkey = 'Relative error [%]'
+            df = dfs[2]
+            ax3.errorbar(df[timekey],df[qtykey],yerr=df[errkey])
+            ax3.set_ylabel(ylabel)
+            ax3.set_xlabel(timekey)
             VolArea.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
             #plt.close(VolArea)
@@ -561,6 +586,6 @@ def process_temporal_mp(data_path_list, outputpath):
         prepare_figures(dflist, dfnames, outputpath)
 
 if __name__ == "__main__":
-    datapath = os.getcwd()+'/output/mpdynamics/betastar/'
+    datapath = os.getcwd()+'/output/'
     print(datapath)
     process_temporal_mp([datapath],datapath+'figures/')

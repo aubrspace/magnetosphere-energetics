@@ -44,6 +44,7 @@ def volume_analysis(frame, state_variable_name, *,
         rblank.variable = field_data.variable('r *')
         rblank.comparison_operator = RelOp.LessThan
         rblank.comparison_value = 4
+        rblank.cell_mode = ValueBlankCellMode.AllCorners
         '''
         xblank = frame.plot().value_blanking.constraint(1)
         xblank.active = True
@@ -93,7 +94,7 @@ def volume_analysis(frame, state_variable_name, *,
     if volEth:
         #integrate thermal energy
         eq('{Etherm temp} =IF({'+state_variable_name+'}<1,0,'+
-                                                      '{P [nPa]}*6371**3)')
+                                            '{P [nPa]}*6371**3*1.5)')
         keys.append('Etherm [J]')
         Eth_index = int(field_data.variable('Etherm temp').index)
         Eth = integrate_volume(Eth_index, zone_index)
