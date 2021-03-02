@@ -210,8 +210,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         ################################################################
         if mode == 'iso_betastar':
             zonename = 'mp_'+mode
-            iso_betastar_index = calc_iso_beta_state(x_subsolar, tail_cap,
-                                                     50, 1, include_core,4)
+            if zone_rename != None:
+                zonename = zone_rename
+            iso_betastar_index = calc_iso_beta_state(zonename, x_subsolar,
+                                                     tail_cap, 50, 1,
+                                                     include_core, 4)
             state_var_name = field_data.variable(iso_betastar_index).name
             #remake iso zone using new equation
             iso_betastar_zone = setup_isosurface(1, iso_betastar_index,
