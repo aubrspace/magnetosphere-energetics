@@ -44,7 +44,7 @@ def volume_analysis(frame, state_variable_name, *,
         rblank.variable = field_data.variable('r *')
         rblank.comparison_operator = RelOp.LessThan
         rblank.comparison_value = 4
-        rblank.cell_mode = ValueBlankCellMode.AllCorners
+        rblank.blanking.cell_mode = ValueBlankCellMode.AllCorners
         '''
         xblank = frame.plot().value_blanking.constraint(1)
         xblank.active = True

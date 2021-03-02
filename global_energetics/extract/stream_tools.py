@@ -909,20 +909,25 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
             str(rhomin)+'||({uB [J/Re^3]}>'+str(uBmin)+'), 1, 0), 0)')
     return tp.active_frame().dataset.variable('mp_rho_transition').index
 
-def calc_iso_beta_state(xmax, xmin, hmax, betamax):
+def calc_iso_beta_state(xmax, xmin, hmax, betamax, core, coreradius):
     """Function creates equation in tecplot representing surface
     Inputs
         xmax, xmin, hmax, hmin, rmin- spatial bounds
         rhomax- density bound
+        core- boolean for including the inner boundary in domain, used to
+                isolate effects on outer boundary only
     Outputs
         created variable index
     """
     eq = tp.data.operate.execute_equation
-    eq('{beta_iso} = '+
+    eqstr = ('{beta_iso} = '+
         'IF({X [R]} >'+str(xmin-2)+'&&'+
-        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
-            'IF({beta_star}<'+str(betamax)+',1,'+
+        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax))
+    if core == False:
+        eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
+    eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,'+
                    '0),0)')
+    eq(eqstr)
     return tp.active_frame().dataset.variable('beta_iso').index
 
 def calc_iso_rho_beta_state(xmax, xmin, hmax, rhomax, betamin):

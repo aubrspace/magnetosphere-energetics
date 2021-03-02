@@ -41,7 +41,7 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     write_to_timelog)
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
-                     mode='iso_rho', source='swmf',
+                     mode='iso_betastar', include_core=True, source='swmf',
                      longitude_bounds=10, n_fieldlines=5,rmax=30,rmin=3,
                      dx_probe=-1,
                      sp_x=0, sp_y=0, sp_z=0, sp_r=4,
@@ -59,7 +59,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             field_data- tecplot DataSet object with 3D field data
             datafile- field data filename, assumes .plt file
             outputpath- path for output of .csv of points
-            mode- iso_rho, shue97, or shue98
+            mode- iso_betastar, sphere, box or shue97/shue98
+            include_core- setting to omit the inner boundary of sim domain
+            source- only capable of handling SWMF input
         Streamtracing
             longitude_bounds, nlines- bounds and density of search
             rmax, rmin, itr, tol- parameters for bisection algorithm
@@ -72,7 +74,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
-    approved = ['iso_rho', 'shue97', 'shue98', 'shue', 'box', 'sphere']
+    approved = ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere']
     if not any([mode == match for match in approved]):
         print('Magnetopause mode "{}" not recognized!!'.format(mode))
         print('Please set mode to one of the following:')
@@ -83,6 +85,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\tdatafile: {}\n'.format(datafile)+
                '\toutputpath: {}\n'.format(outputpath)+
                '\tmode: {}\n'.format(mode)+
+               '\tinclude_core: {}\n'.format(include_core)+
                '\tsource: {}\n'.format(source))
     if mode == 'sphere':
         #sphere settings
@@ -102,7 +105,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\t\tymin: {}\n'.format(box_ymin)+
                '\t\tzmax: {}\n'.format(box_zmax)+
                '\t\tzmin: {}\n'.format(box_zmin))
-        field_data.zone('global_field').aux_data['x_subsolar']=0
+        #field_data.zone('global_field').aux_data['x_subsolar']=0
     #field line settings
     display = (display +
                '\tlongitude_bounds: {}\n'.format(longitude_bounds)+
@@ -205,106 +208,17 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                   7, 7, zonename)
             zoneindex = shue_zone.index
         ################################################################
-        if mode == 'iso_rho':
+        if mode == 'iso_betastar':
             zonename = 'mp_'+mode
-            #probe data to find density value for isosurface
-            density_index = field_data.variable('Rho *').index
-            uB_index = field_data.variable('uB *').index
-            uBmin= tp.data.query.probe_at_position(
-                                                     x_subsolar+dx_probe,
-                                                     0,0)[0][uB_index]
-            inner_density= tp.data.query.probe_at_position(
-                                                     x_subsolar+dx_probe,
-                                                     0,0)[0][density_index]
-            solar_wind_density= tp.data.query.probe_at_position(
-                                                     20,
-                                                     0,0)[0][density_index]
-            dayside_density = (inner_density+solar_wind_density)/2
-            inner_density = dayside_density/2
-            print('SW rho: {}\nDayside rho: {}\nInner: {}\nuB: {}'.format(
-                solar_wind_density, dayside_density, inner_density,uBmin))
-            '''
-            #create density contour
-            density_zone = setup_isosurface(surface_density, density_index,
-                                            7, 7, 'iso_rho')
-            global_zone = field_data.zone('global_field')
-            #scrape at the cusps, to id the maximum r between the two,
-            #limited to maximum of x_subsolar
-            xvalues = density_zone.values('X *').as_numpy_array()
-            #yvalues = global_zone.values('Y *').as_numpy_array()
-            zvalues = density_zone.values('Z *').as_numpy_array()
-            rvalues = density_zone.values('r *').as_numpy_array()
-            latvalues = density_zone.values('lat *').as_numpy_array()
-            lonvalues = density_zone.values('lon *').as_numpy_array()
-            surfacedf = pd.DataFrame({'lat':latvalues,'lon':lonvalues,
-                                  'r':rvalues, 'x':xvalues, 'z':zvalues})
-            daydf = surfacedf[surfacedf['x']>1]
-            northsurf = daydf[daydf['z']>0]
-            rinclude_north = (northsurf['r'].max()*0.8+
-                              northsurf['r'].min()*1.2)/2
-            southsurf = daydf[daydf['z']<0]
-            rinclude_south = (southsurf['r'].max()*0.8+
-                              southsurf['r'].min()*1.2)/2
-            dl = 0.5
-            gapradius = 0
-            #identify north gap
-            print('finding north dayside gaps')
-            for lat in linspace(10,90,80):
-                for lon in linspace(-90, 90, 181):
-                    north_hits =northsurf[(northsurf['lat'] < lat+dl) &
-                                          (northsurf['lat'] > lat-dl) &
-                                          (northsurf['lon'] < lon+dl) &
-                                          (northsurf['lon'] > lon-dl)]
-                    if north_hits.empty:
-                        tangents =northsurf[(northsurf['lat']<lat+2*dl)&
-                                            (northsurf['lat']>lat-2*dl)&
-                                            (northsurf['lon']<lon+2*dl)&
-                                            (northsurf['lon']>lon-2*dl)]
-                        if not tangents.empty:
-                            gapradius = min(x_subsolar,
-                                       max(gapradius, tangents['r'].min()))
-                            print('gapradius: {}'.format(gapradius))
-            rinclude_north = gapradius
-            gapradius = 0
-            #identify south gap
-            print('finding south dayside gaps')
-            for lat in linspace(-60,-10,35):
-                for lon in linspace(-60, 60, 61):
-                    south_hits =southsurf[(southsurf['lat'] < lat+dl) &
-                                          (southsurf['lat'] > lat-dl) &
-                                          (southsurf['lon'] < lon+dl) &
-                                          (southsurf['lon'] > lon-dl)]
-                    if south_hits.empty:
-                        tangents =southsurf[(southsurf['lat']<lat+2*dl)&
-                                            (southsurf['lat']>lat-2*dl)&
-                                            (southsurf['lon']<lon+2*dl)&
-                                            (southsurf['lon']>lon-2*dl)]
-                        if not tangents.empty:
-                            gapradius = min(x_subsolar,
-                                       max(gapradius, tangents['r'].min()))
-                            print('gapradius: {}'.format(gapradius))
-            rinclude_south = gapradius
-            #field_data.delete_zones(density_zone)
-            #calculate surface state variable
-            iso_rho_index = calc_iso_rho_state(x_subsolar, tail_cap,
-                                                     50, surface_density,
-                                                     rinclude_north,
-                                                     rinclude_south)
-            '''
-            iso_rho_index = calc_iso_beta_state(x_subsolar, tail_cap,
-                                                  50, 1,)
-            '''
-            iso_rho_index = calc_transition_rho_state(x_subsolar, tail_cap,
-                                                      50, dayside_density,
-                                                      inner_density, uBmin)
-            '''
-            state_var_name = field_data.variable(iso_rho_index).name
+            iso_betastar_index = calc_iso_beta_state(x_subsolar, tail_cap,
+                                                     50, 1, include_core,4)
+            state_var_name = field_data.variable(iso_betastar_index).name
             #remake iso zone using new equation
-            iso_rho_zone = setup_isosurface(1, iso_rho_index,
+            iso_betastar_zone = setup_isosurface(1, iso_betastar_index,
                                                   7, 7, zonename)
-            zoneindex = iso_rho_zone.index
+            zoneindex = iso_betastar_zone.index
             if zone_rename != None:
-                iso_rho_zone.name = zone_rename
+                iso_betastar_zone.name = zone_rename
                 zonename = zone_rename
         ################################################################
         #save mesh to hdf file as key=mode, along with time in key='time'
@@ -329,12 +243,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             print('Zonename is: {}'.format(zonename))
             if zonename == 'sphere':
                 doblank = False
-                print('Noblanking!!')
             else:
                 doblank = True
             mp_energies = volume_analysis(main_frame, state_var_name,
                                           cuttoff=tail_analysis_cap,
-                                          blank=doblank)
+                                          blank=False)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
         if integrate_surface or integrate_surface:

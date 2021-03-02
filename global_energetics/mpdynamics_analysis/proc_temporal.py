@@ -568,7 +568,7 @@ def process_temporal_mp(data_path_list, outputpath):
     if data_path_list == []:
         print('Nothing to do, no data_paths were given!')
     else:
-        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid', 'field', 'iso_rho', 'box', 'sphere']
+        approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid', 'field', 'iso_', 'box', 'sphere']
         dflist, dfnames = [], []
         spin = Spinner('finding available temporal data ')
         for path in data_path_list:
