@@ -552,7 +552,6 @@ def get_surface_variables(field_data, zone_name):
     """
     zone_index = field_data.zone(zone_name).index
     #Get grid dependent variables
-    xvalues = field_data.zone(zone_name).values('X *').as_numpy_array()
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
@@ -561,10 +560,12 @@ def get_surface_variables(field_data, zone_name):
                                       'CALCULATE FUNCTION = '+
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
+    eq = tp.data.operate.execute_equation
+    eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
+    xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
     xnormals = field_data.zone(zone_name).values(
                                   'X GRID K Unit Normal').as_numpy_array()
-    df = pd.DataFrame({'x':xvalues,'normal':xnormals[0:len(xvalues)]})
-    eq = tp.data.operate.execute_equation
+    df = pd.DataFrame({'x':xvalues,'normal':xnormals})
     #Check that surface normals are pointing outward from surface
     if (len(df[(df['x']==df['x'].min())&(df['normal']>0)]) >
         len(df[(df['x']==df['x'].min())&(df['normal']<0)])):
