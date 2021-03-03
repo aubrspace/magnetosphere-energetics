@@ -552,6 +552,7 @@ def get_surface_variables(field_data, zone_name):
     """
     zone_index = field_data.zone(zone_name).index
     #Get grid dependent variables
+    xvalues = field_data.zone(zone_name).values('X *').as_numpy_array()
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'GRIDKUNITNORMAL VALUELOCATION = '+
@@ -560,10 +561,20 @@ def get_surface_variables(field_data, zone_name):
                                       'CALCULATE FUNCTION = '+
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
+    xnormals = field_data.zone(zone_name).values(
+                                  'X GRID K Unit Normal').as_numpy_array()
+    df = pd.DataFrame({'x':xvalues,'normal':xnormals[0:len(xvalues)]})
     eq = tp.data.operate.execute_equation
-    eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
-    eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
-    eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+    #Check that surface normals are pointing outward from surface
+    if (len(df[(df['x']==df['x'].min())&(df['normal']>0)]) >
+        len(df[(df['x']==df['x'].min())&(df['normal']<0)])):
+        eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
+        eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
+        eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+    else:
+        eq('{surface_normal_x} = {X Grid K Unit Normal}')
+        eq('{surface_normal_y} = {Y Grid K Unit Normal}')
+        eq('{surface_normal_z} = {Z Grid K Unit Normal}')
     ######################################################################
     #Component Normal Poynting Flux
     eq('{ExBn_x [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+

@@ -46,6 +46,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile)
+    '''
     magnetopause.get_magnetopause(field_data, datafile, include_core=False,
                                   zone_rename='corecuttout')
     magnetopause.get_magnetopause(field_data, datafile, mode='sphere')
@@ -90,6 +91,7 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
