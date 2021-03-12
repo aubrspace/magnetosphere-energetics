@@ -33,6 +33,7 @@ def plot_all_runs_1Qty(axis, dflist, dflabels, timekey, qtkey, ylabel, *,
         dflabels- labels used for legend
         timekey, qtkey- used to located column with time and the qt to plot
     """
+    legend_loc = 'lower right'
     for data in enumerate(dflist):
         if Color == None:
             axis.plot(data[1][timekey],data[1][qtkey],
@@ -41,7 +42,6 @@ def plot_all_runs_1Qty(axis, dflist, dflabels, timekey, qtkey, ylabel, *,
         else:
             axis.plot(data[1][timekey],data[1][qtkey],
                   label=qtkey+dflabels[data[0]], color=Color)
-            legend_loc = 'lower right'
         '''
         if dflabels[data[0]].find('flow') != -1:
             axis.plot(data[1][timekey],data[1][qtkey],color='orange',
@@ -131,7 +131,6 @@ def get_energy_dataframes(dflist, dfnames):
                         (df[1]['X_subsolar [Re]']/3))
                 use_dflist.append(dflist[df[0]])
                 use_dflabels.append(dfnames[df[0]])
-                from IPython import embed; embed()
     return use_dflist, use_dflabels
 
 def prepare_figures(dflist, dfnames, outpath):
@@ -142,7 +141,7 @@ def prepare_figures(dflist, dfnames, outpath):
     """
     for df in enumerate(dflist):
         dflist[df[0]] = df[1][(df[1]['Time [UTC]'] > dt.datetime(
-                                                          2013,9,19,4,25))]
+                                                          2014,2,18,8,0))]
     energy_dfs, energy_dfnames= get_energy_dataframes(dflist, dfnames)
     mpdfs, mpnames, boxdfs, boxnames, spdfs, spnames = [],[],[],[],[],[]
     for df in enumerate(energy_dfs):
@@ -157,82 +156,70 @@ def prepare_figures(dflist, dfnames, outpath):
             spnames.append(energy_dfnames[df[0]])
     #specific assignments
     coredfs, coredfnames = spdfs[::], spnames[::]
-    #if mpdfs[0]['Volume [Re^3]'].max()>mpdfs[1]['Volume [Re^3]'].max():
-    #    mpshelldfs, mpshellnames = [mpdfs[1]], [mpnames[1]]
-    #    mpdfs, mpnames = [mpdfs[0]], [mpnames[0]]
-    #else:
-    #    mpshelldfs, mpshellnames = [mpdfs[0]], [mpnames[0]]
-    #    mpdfs, mpnames = [mpdfs[1]], [mpnames[1]]
+    if mpdfs[0]['Volume [Re^3]'].max()>mpdfs[1]['Volume [Re^3]'].max():
+        mpshelldfs, mpshellnames = [mpdfs[1]], [mpnames[1]]
+        mpdfs, mpnames = [mpdfs[0]], [mpnames[0]]
+    else:
+        mpshelldfs, mpshellnames = [mpdfs[0]], [mpnames[0]]
+        mpdfs, mpnames = [mpdfs[1]], [mpnames[1]]
     if energy_dfs != []:
-        cumulative_E, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,
-                                           sharex=True, figsize=[18,12])
         ###################################################################
         #Cumulative Energy
         if True:
             figname = 'EnergyAccumulation'
             #figure settings
-            #cumulative_E, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,
-            #                                   sharex=True, figsize=[18,12])
+            cumulative_E, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,12])
             #Time
             timekey = 'Time [UTC]'
             #Energies on Primary Axes
             qtylist = ['Total [J]', 'CumulE_net [J]']
             ylabel = 'Energy [J]'
             for qty in enumerate(qtylist):
-                #plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
-                #                qty[1], ylabel)
-                #plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
-                #                qty[1], ylabel)
-                plot_all_runs_1Qty(ax1, boxdfs[0:1], boxnames[0:1], timekey,
+                plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
                                 qty[1], ylabel)
-                #plot_all_runs_1Qty(ax4, coredfs, coredfnames, timekey,
-                #                qty[1], ylabel)
+                plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
+                                qty[1], ylabel)
+                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                                qty[1], ylabel)
             #Error on twin Axes
             qtylist = ['RelativeE_error [%]']
             ylabel = 'Error [%]'
             for qty in enumerate(qtylist):
-                #plot_all_runs_1Qty(ax1.twinx(), mpdfs, mpnames, timekey,
-                #                   qty[1], ylabel, Color='green')
-                #plot_all_runs_1Qty(ax2.twinx(), mpshelldfs, mpshellnames,
-                #                   timekey, qty[1], ylabel, Color='green')
-                plot_all_runs_1Qty(ax1.twinx(), boxdfs[0:1], boxnames[0:1], timekey,
-                                   qty[1], ylabel, Color='red')
-                #plot_all_runs_1Qty(ax4.twinx(), coredfs, coredfnames,
-                #                   timekey, qty[1], ylabel, Color='green')
-            #cumulative_E.savefig(outpath+'{}.png'.format(figname))
+                plot_all_runs_1Qty(ax1.twinx(), mpdfs, mpnames, timekey,
+                                   qty[1], ylabel, Color='green')
+                plot_all_runs_1Qty(ax2.twinx(), mpshelldfs, mpshellnames,
+                                   timekey, qty[1], ylabel, Color='green')
+                plot_all_runs_1Qty(ax3.twinx(), coredfs, coredfnames,
+                                   timekey, qty[1], ylabel, Color='green')
+            cumulative_E.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
         ###################################################################
         #Power
         if True:
-            #figname = 'Power'
+            figname = 'Power'
             #figure settings
-            #power, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,
-            #                                   sharex=True, figsize=[18,12])
+            power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,12])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
-            #qtylist = ['K_injection [W]', 'K_escape [W]', 'K_net [W]']
-            qtylist = ['Power_derived [W]', 'K_net [W]']
+            qtylist = ['K_injection [W]', 'K_escape [W]', 'K_net [W]']
+            #qtylist = ['Power_derived [W]', 'K_net [W]']
             ylabel = 'Power [W]'
             for qtykey in qtylist:
-                #plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
-                #                qtykey, ylabel)
-                #plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
-                #                qtykey, ylabel)
-                plot_all_runs_1Qty(ax2, boxdfs[0:1], boxnames[0:1], timekey,
+                plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
                                 qtykey, ylabel)
-                #plot_all_runs_1Qty(ax4, coredfs, coredfnames, timekey,
-                #                qtykey, ylabel)
+                plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
+                                qtykey, ylabel)
+                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                                qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            #axislist = [ax1, ax2, ax3, ax4]
-            #dflist = [mpdfs, mpshelldfs, boxdfs, coredfs]
-            axislist = [ax1]
-            dflist = [boxdfs]
-            '''
+            axislist = [ax1, ax2, ax3]
+            dflist = [mpdfs, mpshelldfs, coredfs]
             for ax in enumerate(axislist):
                 df = dflist[ax[0]][0]
                 ax[1].fill_between(df['Time [UTC]'], 0, df['K_net [W]'])
-            '''
             '''
             #Error on twin Axes
             qtylist = ['Power_error [W]']
@@ -242,12 +229,10 @@ def prepare_figures(dflist, dfnames, outpath):
                                    qtykey, ylabel, Color='red')
                 plot_all_runs_1Qty(ax2.twinx(), mpshelldfs, mpshellnames,
                                    timekey, qtykey, ylabel, Color='red')
-                plot_all_runs_1Qty(ax3.twinx(), boxdfs, boxnames, timekey,
-                                   qtykey, ylabel, Color='red')
-                plot_all_runs_1Qty(ax4.twinx(), coredfs, coredfnames,
+                plot_all_runs_1Qty(ax3.twinx(), coredfs, coredfnames,
                                    timekey, qtykey, ylabel, Color='red')
             '''
-            #power.savefig(outpath+'{}.png'.format(figname))
+            power.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
             #plt.close(cumulative_E)
         ###################################################################
@@ -277,75 +262,61 @@ def prepare_figures(dflist, dfnames, outpath):
             #plt.show()
             #plt.close(power)
         ###################################################################
-        #Poynting Power
+        #ExB Power
         if True:
-            #figname = 'PoyntingPower'
-            #quick manipulation
-            dfs = energy_dfs[0:1]
-            dfnames = energy_dfnames[0:1]
+            figname = 'ExBPower'
             #figure settings
-            #power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
-            #                                   sharex=True, figsize=[18,6])
-            #axes
-            timekey = 'Time [UTC]'
-            ylabel = 'Power [W]'
-            #mp
-            qtykey = 'ExB_injection [W]'
-            #plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
-            #                   qtykey, ylabel)
-            qtykey = 'ExB_escape [W]'
-            #plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
-            #                   qtykey, ylabel)
-            qtykey = 'ExB_net [W]'
-            #plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
-            #                   qtykey, ylabel)
-            #sphere
-            qtykey = 'ExB_injection [W]'
-            plot_all_runs_1Qty(ax3, boxdfs, boxnames, timekey,
-                               qtykey, ylabel)
-            qtykey = 'ExB_escape [W]'
-            plot_all_runs_1Qty(ax3, boxdfs, boxnames, timekey,
-                               qtykey, ylabel)
-            qtykey = 'ExB_net [W]'
-            plot_all_runs_1Qty(ax3, boxdfs, boxnames, timekey,
-                               qtykey, ylabel)
-            #core
-            qtykey = 'ExB_injection [W]'
-            #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-            #                   qtykey, ylabel)
-            qtykey = 'ExB_escape [W]'
-            #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-            #                   qtykey, ylabel)
-            qtykey = 'ExB_net [W]'
-            #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-            #                   qtykey, ylabel)
-            #Fill between to distinguish +/- net powers
-            #ax1.fill_between(mpdfs[0]['Time [UTC]'], 0,
-            #                 mpdfs[0]['ExB_net [W]'])
-            #ax2.fill_between(spdfs[0]['Time [UTC]'], 0,
-            #                 spdfs[0]['ExB_net [W]'])
-            #ax3.fill_between(coredfs[0]['Time [UTC]'], 0,
-            #                 coredfs[0]['ExB_net [W]'])
-            #power.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(power)
-        ###################################################################
-        #Flow Power
-        if True:
+            ExBpower, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,12])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
-            qtylist = ['ExB_net [W]', 'P0_net [W]', 'K_net [W]']
+            qtylist = ['ExB_injection [W]', 'ExB_escape [W]', 'ExB_net [W]']
             ylabel = 'Power [W]'
             for qtykey in qtylist:
-                #plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
-                #                qtykey, ylabel)
-                #plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
-                #                qtykey, ylabel)
-                plot_all_runs_1Qty(ax4, boxdfs[0:1], boxnames[0:1], timekey,
+                plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
                                 qtykey, ylabel)
-                #plot_all_runs_1Qty(ax4, coredfs, coredfnames, timekey,
-                #                qtykey, ylabel)
+                plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
+                                qtykey, ylabel)
+                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                                qtykey, ylabel)
+            #Fill between to distinguish +/- net powers
+            axislist = [ax1, ax2, ax3]
+            dflist = [mpdfs, mpshelldfs, coredfs]
+            for ax in enumerate(axislist):
+                df = dflist[ax[0]][0]
+                ax[1].fill_between(df['Time [UTC]'], 0, df['ExB_net [W]'])
+            ExBpower.savefig(outpath+'{}.png'.format(figname))
+            #plt.show()
+            #plt.close(ExBpower)
+        ###################################################################
+        #Flow Power
+        if True:
+            figname = 'P0Power'
+            #figure settings
+            P0power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
+                                               sharex=True, figsize=[18,12])
+            #Time
+            timekey = 'Time [UTC]'
+            #Power terms on Primary Axes
+            qtylist = ['P0_injection [W]', 'P0_escape [W]', 'P0_net [W]']
+            ylabel = 'Power [W]'
+            for qtykey in qtylist:
+                plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
+                                qtykey, ylabel)
+                plot_all_runs_1Qty(ax2, mpshelldfs, mpshellnames, timekey,
+                                qtykey, ylabel)
+                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                                qtykey, ylabel)
+            #Fill between to distinguish +/- net powers
+            axislist = [ax1, ax2, ax3]
+            dflist = [mpdfs, mpshelldfs, coredfs]
+            for ax in enumerate(axislist):
+                df = dflist[ax[0]][0]
+                ax[1].fill_between(df['Time [UTC]'], 0, df['P0_net [W]'])
+            P0power.savefig(outpath+'{}.png'.format(figname))
+            #plt.show()
+            #plt.close(P0power)
         ###################################################################
         #Normalized Power
         if False:
@@ -537,8 +508,6 @@ def prepare_figures(dflist, dfnames, outpath):
             #plt.show()
             #plt.close(Volume_E)
         ###################################################################
-        print('saving to {}'.format(outpath))
-        cumulative_E.savefig(outpath+'{}.png'.format(figname))
     pass
 
 def process_temporal_mp(data_path_list, outputpath):
@@ -555,6 +524,7 @@ def process_temporal_mp(data_path_list, outputpath):
         dflist, dfnames = [], []
         spin = Spinner('finding available temporal data ')
         for path in data_path_list:
+            print(path)
             if path != None:
                 for datafile in glob.glob(path+'/*.h5'):
                     with pd.HDFStore(datafile) as hdf_file:
@@ -567,8 +537,9 @@ def process_temporal_mp(data_path_list, outputpath):
                                 print('key {} not understood!'.format(key))
                             spin.next()
         prepare_figures(dflist, dfnames, outputpath)
+    print('done!')
 
 if __name__ == "__main__":
-    datapath = os.getcwd()+'/testout/'
+    datapath = os.getcwd()+'/output/'
     print(datapath)
     process_temporal_mp([datapath],datapath+'figures/')

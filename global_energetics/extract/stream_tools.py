@@ -636,15 +636,15 @@ def get_global_variables(field_data):
     # km/s  nT  nT  1/mu0   Re^2
     # 1e6   1e-9 1e-9 1e7/4pi 6371^2 1e6
     # 19-18
-    eq('{ExB_x [W/Re^2]} = -1e-5/(4*pi)*6371**2*'+
+    eq('{ExB_x [W/Re^2]} = -1e-2/(4*pi)*6371**2*'+
                             '({E_z [mV/km]}*{B_y [nT]}'+
                             '-{E_y [mV/km]}*{B_z [nT]})',
         value_location=ValueLocation.CellCentered)
-    eq('{ExB_y [W/Re^2]} = -1e-5/(4*pi)*6371**2*'+
+    eq('{ExB_y [W/Re^2]} = -1e-2/(4*pi)*6371**2*'+
                             '({E_x [mV/km]}*{B_z [nT]}'+
                             '-{E_z [mV/km]}*{B_x [nT]})',
         value_location=ValueLocation.CellCentered)
-    eq('{ExB_z [W/Re^2]} = -1e-5/(4*pi)*6371**2*'+
+    eq('{ExB_z [W/Re^2]} = -1e-2/(4*pi)*6371**2*'+
                             '({E_y [mV/km]}*{B_x [nT]}'+
                             '-{E_x [mV/km]}*{B_y [nT]})',
         value_location=ValueLocation.CellCentered)
