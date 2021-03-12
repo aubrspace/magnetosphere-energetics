@@ -40,11 +40,11 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     write_to_timelog)
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
-                     mode='iso_betastar', include_core=True, source='swmf',
+                     mode='iso_betastar', include_core=False, source='swmf',
                      do_trace=False, lon_bounds=10, n_fieldlines=5,
                      rmax=30, rmin=3,
                      dx_probe=-1,
-                     sp_x=0, sp_y=0, sp_z=0, sp_r=4,
+                     sp_x=0, sp_y=0, sp_z=0, sp_r=3,
                      box_xmax=-5, box_xmin=-8,
                      box_ymax=5, box_ymin=-5,
                      box_zmax=5, box_zmin=-5,
@@ -163,6 +163,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #Get x_subsolar if not already there
         if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
             x_subsolar = float(aux['x_subsolar'])
+            closed_index = None
+            closed_zone = None
         else:
             if do_trace:
                 closedzone_index = streamfind_bisection(field_data,
@@ -236,7 +238,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                   7, 7, 'Bclosed')
             iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
                                                      tail_cap, 50, 1,
-                                                     include_core, 4,
+                                                     include_core, sp_r,
                                                      closed_zone)
             state_var_name = field_data.variable(iso_betastar_index).name
             #remake iso zone using new equation
