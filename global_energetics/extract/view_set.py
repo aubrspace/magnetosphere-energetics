@@ -156,7 +156,7 @@ def add_earth_iso(frame, rindex):
     iso = frame.plot().isosurface(0)
     iso.definition_contour_group_index = 5
     iso.contour.flood_contour_group_index = 5
-    frame.plot().contour(5).variable_index = 14
+    frame.plot().contour(5).variable_index = rindex
     iso.isosurface_values[0] = 1
     iso.show = True
     frame.plot().contour(5).colormap_name = 'Sequential - Green/Blue'

@@ -47,11 +47,23 @@ if __name__ == "__main__":
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, datafile)
     '''
-    magnetopause.get_magnetopause(field_data, datafile, include_core=False,
-                                  zone_rename='corecuttout')
-    magnetopause.get_magnetopause(field_data, datafile, mode='sphere')
-    magnetopause.get_magnetopause(field_data, datafile, mode='box')
+    magnetopause.get_magnetopause(field_data, datafile, mode='box',
+                                  box_xmax=21,box_xmin=16.5,
+                                  box_ymax=5,box_ymin=-5,
+                                  box_zmax=55,box_zmin=45,
+                                  zone_rename='box_upstream',
+                                  outputpath=OUTPATH)
+    '''
     #adjust view settings
+    bot_right = [frame for frame in tp.frames('main')][0]
+    view_set.display_single_iso(bot_right,
+                                'K_net *', datafile, show_contour=True,
+                                show_slice=True, show_fieldline=True,
+                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                outputname=OUTPUTNAME,
+                                mode='iso_tail',
+                                show_timestamp=False)
+    '''
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

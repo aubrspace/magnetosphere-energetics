@@ -24,7 +24,8 @@ from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
 
 def create_stream_zone(field_data, x1start, x2start, x3start,
-                       zone_name, *, line_type=None, cart_given=False):
+                       zone_name, *, line_type=None, cart_given=False,
+                       save=False):
     """Function to create a streamline, created in 2 directions from
        starting point
     Inputs
@@ -35,6 +36,8 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
         zone_name
         line_type- day, north or south for determining stream direction
         cart_given- optional input for giving cartesian coord [x,y,z]
+    Outputs
+        streamzone
     """
     if cart_given==False:
         # Get starting position in cartesian coordinates
@@ -292,9 +295,6 @@ def streamfind_bisection(field_data, method,
     """
     #validate method form
     approved_methods = ['dayside', 'tail', 'flow', 'plasmasheet']
-    seedpoints = pd.DataFrame(columns=['X [R]','Y [R]','Z [R]'])
-    seedmin = pd.DataFrame(columns=['X [R]','Y [R]','Z [R]'])
-    seedmax = pd.DataFrame(columns=['X [R]','Y [R]','Z [R]'])
     reverse_if_flow = 0
     if all([test.find(method)==-1 for test in approved_methods]):
         print('WARNING: method for streamfind_bisection not recognized!!'+
@@ -307,19 +307,14 @@ def streamfind_bisection(field_data, method,
         positions = np.linspace(-1*dimmax, dimmax, nstream)
         disp_message = 'Finding Magnetopause Dayside Field Lines'
         lin_type = 'dayside'
-        lineID = 'day_{:.1f}'
-        l_max = 2*pi*15/nstream
     elif (method == 'tail') or (method == 'flow'):
         #set of points 360deg around disc in the tail at x=dimmax
         positions = np.linspace(-180*(1-1/nstream), 180, nstream)
-        l_max = 2*pi*25/nstream
         if method == 'tail':
             disp_message = 'Finding Magnetopause Tail Field Lines'
-            lineID = 'tail_{:.1f}'
         elif method == 'flow':
             disp_message = 'Finding Magnetopause Flow Lines'
             lin_type = 'flowline'
-            lineID = 'flow_{:.1f}'
             reverse_if_flow = 1
     elif method == 'plasmasheet':
         #set of points on r=1Re at different longitudes N and S poles
@@ -327,7 +322,6 @@ def streamfind_bisection(field_data, method,
                               np.linspace(180, dimmax, int(nstream/4)))
         disp_message = 'Finding Plasmasheet Field Lines'
         lin_type = 'inner_mag'
-        lineID = 'plasmasheet_{:.1f}'
 
     #set vector field
     field_key_y = field_key_x.split('x')[0]+'y'+field_key_x.split('x')[-1]
@@ -338,175 +332,100 @@ def streamfind_bisection(field_data, method,
     plot.vector.w_variable = field_data.variable(field_key_z)
 
     bar = Bar(disp_message, max=len(positions))
-    zonelist = []
-    rback, rfwd, nstep = 0, 0, 0
-    aback, afwd = positions[0], positions[0]
-    a_checkback, a_checkfwd = aback, afwd
-    for a_int in positions:
-        #start at intial position
-        a = a_int
-        while True:
-            notfound = True
-            #Set getseed function based only on search variable r
-            if method == 'dayside':
-                #all getseed function return val: dim1, dim2, dim3,
-                #                                 rcheck, lin_type
-                def getseed(r):return r, 0, a, r, lin_type
-                cartesian = False
-            elif method == 'tail':
-                def getseed(r):
-                    x, y, z = dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a))
-                    if tp.data.query.probe_at_position(x, y, z)[0][7] < 0:
-                        lin_type = 'south'
-                    else:
-                        lin_type = 'north'
-                    return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
-                            rcheck, lin_type]
-                cartesian = True
-            elif method == 'flow':
-                def getseed(r):
-                    return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
-                            rcheck, lin_type]
-                cartesian = True
-            elif method == 'plasmasheet':
-                def getseed(r):return (sm2gsm_temp(1, r, a, time), None,
-                                       lin_type)
-                cartesian = True
-            #Create initial max/min to lines
-            x1, x2, x3, rchk, lin_type = getseed(rmax)
-            create_stream_zone(field_data, x1, x2, x3,
-                               'max'+lineID.format(a),
-                                cart_given=cartesian)
-            x1, x2, x3, rchk, lin_type = getseed(rmin)
-            create_stream_zone(field_data, x1, x2, x3,
-                               'min'+lineID.format(a),
-                                cart_given=cartesian)
-            #Check that last closed is bounded, delete min/max
-            max_closed = check_streamline_closed(field_data, 'max*', rchk,
-                                                line_type=lin_type)
-            min_closed = check_streamline_closed(field_data, 'min*', rchk,
-                                                line_type=lin_type)
-            field_data.delete_zones(field_data.zone('min*'),
-                                    field_data.zone('max*'))
-            if max_closed and min_closed:
-                x1, x2, x3, rchk, lin_type = getseed(rmax)
-                create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
-                                cart_given=cartesian)
-                notfound = False
-                rmid = rmax
-            elif not max_closed and not min_closed:
-                x1, x2, x3, rchk, lin_type = getseed(rmin)
-                create_stream_zone(field_data, x1, x2, x3, lineID.format(a),
-                                cart_given=cartesian)
-                notfound = False
-                rmid = rmin
-            else:
-                rmid = (rmax+rmin)/2
-                itr = 0
-                rout = rmax
-                rin = rmin
-                #Enter bisection search algorithm
-                while(notfound and itr < itr_max):
-                    #create mid
-                    x1, x2, x3, rchk, lin_type = getseed(rmid)
-                    create_stream_zone(field_data, x1, x2, x3,
-                                       'mid'+lineID.format(a),
-                                       cart_given=cartesian)
-                    #check midclosed
-                    mid_closed = check_streamline_closed(field_data,
-                                                         'mid*', rchk,
-                                                       line_type=lin_type)
-                    if mid_closed:
-                        rin = rmid
-                    else:
-                        rout = rmid
-                    if abs(rout-rin) < tolerance and (bool(
-                                        int(mid_closed)-reverse_if_flow)):
-                        #keep closed on boundary unless in 'flowline' method
-                        notfound = False
-                        field_data.zone('mid*').name=lineID.format(a)
-                    else:
-                        rmid = (rin+rout)/2
-                        field_data.delete_zones(field_data.zone('mid*'))
-                    itr += 1
-            zonelist.append(field_data.zone(lineID.format(a)).index)
-            newzone = field_data.zone(lineID.format(a))
-            if disp_search:
-                if cartesian == True:
-                    xmin, ymin, zmin, _, _ = getseed(rmin)
-                    xmax, ymax, zmax, _, _ = getseed(rmax)
-                    df = pd.DataFrame([[x1,x2,x3]],columns=['X [R]',
-                                                            'Y [R]',
-                                                            'Z [R]'])
-                    df_min = pd.DataFrame([[xmin,ymin,zmin]],columns=[
-                                                            'X [R]',
-                                                            'Y [R]',
-                                                            'Z [R]'])
-                    df_max = pd.DataFrame([[xmax,ymax,zmax]],columns=[
-                                                            'X [R]',
-                                                            'Y [R]',
-                                                            'Z [R]'])
-                    seedpoints = seedpoints.append(df)
-                    seedmin = seedmin.append(df_min)
-                    seedmax = seedmax.append(df_max)
-            #after adding to the list, check lateral_arc fwd and back
-            l_arc_back,rnew,a_check = get_lateral_arc(newzone, a_checkback,
-                                                      rback, method)
-            l_arc_fwd,rnew,a_check = get_lateral_arc(newzone, a_checkfwd,
-                                                     rfwd, method)
-            if (l_arc_back > l_max) & (a != positions[0]) & (nstep<10):
-                #step a back one half step
-                afwd = a
-                a_checkfwd = a_check
-                rfwd = rnew
-                a = a - (a-aback)/2
-                nstep +=1
-            elif (l_arc_fwd > l_max) & (a != positions[0]) & (nstep<10):
-                #step forward one half step
-                aback = a
-                a_checkback = a_check
-                rback = rnew
-                a = a + (afwd-a)/2
-                nstep += 1
-            else:
-                #set most forward setting as new "back" AND "fwd"
-                if afwd > aback:
-                    aback = afwd
-                    a_checkback = a_check
-                    rbac = rfwd
+    seedlist = []
+    streamtrace = tp.active_frame().plot().streamtraces
+    for a in positions:
+        notfound = True
+        #Set getseed function based only on search variable r
+        #all getseeds return val: dim1, dim2, dim3,rcheck,lin_type
+        if method == 'dayside':
+            def getseed(r):return r, 0, a, r, lin_type
+            cartesian = False
+        elif method == 'tail':
+            def getseed(r):
+                x, y, z = dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a))
+                if tp.data.query.probe_at_position(x, y, z)[0][7] < 0:
+                    lin_type = 'south'
                 else:
-                    aback, afwd = a, a
-                    a_checkback, a_checkfwd = a_check, a_check
-                    rback, rfwd = rnew, rnew
-                nstep = 0
-                break
+                    lin_type = 'north'
+                return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
+                        rcheck, lin_type]
+            cartesian = True
+        elif method == 'flow':
+            def getseed(r):
+                return [dimmax, r*cos(deg2rad(a)), r*sin(deg2rad(a)),
+                        rcheck, lin_type]
+            cartesian = True
+        elif method == 'plasmasheet':
+            def getseed(r):return (sm2gsm_temp(1, r, a, time), None,
+                                    lin_type)
+            cartesian = True
+        #Create initial max/min to lines
+        x1, x2, x3, rchk, lin_type = getseed(rmax)
+        create_stream_zone(field_data, x1, x2, x3,
+                            'max line',
+                            cart_given=cartesian)
+        x1, x2, x3, rchk, lin_type = getseed(rmin)
+        create_stream_zone(field_data, x1, x2, x3,
+                            'min line',
+                            cart_given=cartesian)
+        #Check that last closed is bounded, delete min/max
+        max_closed = check_streamline_closed(field_data, 'max*', rchk,
+                                            line_type=lin_type)
+        min_closed = check_streamline_closed(field_data, 'min*', rchk,
+                                            line_type=lin_type)
+        field_data.delete_zones(field_data.zone('min*'),
+                                field_data.zone('max*'))
+        if max_closed and min_closed:
+            notfound = False
+            print('Warning: line closed at {}'.format(rmax))
+        elif not max_closed and not min_closed:
+            notfound = False
+            print('Warning: line open at {}'.format(rmin))
+        else:
+            rmid = (rmax+rmin)/2
+            itr = 0
+            rout = rmax
+            rin = rmin
+            #Enter bisection search algorithm
+            while(notfound and itr < itr_max):
+                #create mid
+                x1, x2, x3, rchk, lin_type = getseed(rmid)
+                create_stream_zone(field_data, x1, x2, x3,
+                                    'mid line',
+                                    cart_given=cartesian)
+                #check midclosed
+                mid_closed = check_streamline_closed(field_data,
+                                                        'mid*', rchk,
+                                                    line_type=lin_type)
+                if mid_closed:
+                    rin = rmid
+                else:
+                    rout = rmid
+                if abs(rout-rin) < tolerance and (bool(
+                                    int(mid_closed)-reverse_if_flow)):
+                    #keep closed on boundary unless in 'flowline' method
+                    notfound = False
+                    field_data.delete_zones(field_data.zone(-1))
+                else:
+                    rmid = (rin+rout)/2
+                    field_data.delete_zones(field_data.zone(-1))
+                itr += 1
+        seedlist.append([x1,x2,x3])
         bar.next()
-    bar.finish()
-    if disp_search:
-        create_cylinder(field_data, 1, len(seedpoints), 2, dimmax,dimmax,
-                        'seed'+method)
-        load_cylinder(field_data, seedpoints, 'seed'+method, 2,
-                      len(seedpoints), 1)
-        tp.data.operate.interpolate_linear(
-                destination_zone=field_data.zone('seed'+method),
-                source_zones=field_data.zone('global_field'))
-        #min
-        create_cylinder(field_data, 1, len(seedmin), 2, dimmax,dimmax,
-                        'rminseed'+method)
-        load_cylinder(field_data, seedmin, 'rminseed'+method, 2,
-                      len(seedmin), 1)
-        tp.data.operate.interpolate_linear(
-                destination_zone=field_data.zone('rminseed'+method),
-                source_zones=field_data.zone('global_field'))
-        #max
-        create_cylinder(field_data, 1, len(seedmax), 2, dimmax,dimmax,
-                        'rmaxseed'+method)
-        load_cylinder(field_data, seedmax, 'rmaxseed'+method, 2,
-                      len(seedmax), 1)
-        tp.data.operate.interpolate_linear(
-                destination_zone=field_data.zone('rmaxseed'+method),
-                source_zones=field_data.zone('global_field'))
-    return zonelist
+    #Regenerate all best find streamlines and extracting together
+    for seed in seedlist:
+        if cartesian == False:
+            seed = sph_to_cart(seed[0],seed[1],seed[2])
+        print(seed)
+        streamtrace.add(seed_point=seed,
+                       stream_type=Streamtrace.VolumeLine,
+                       direction=StreamDir.Both)
+    streamtrace.extract(concatenate=True)
+    field_data.zone(-1).name = lin_type+'stream'
+    zoneindex = field_data.zone(-1).index
+    streamtrace.delete_all()
+    return zoneindex
 
 def dump_to_pandas(frame, zonelist, varlist, filename):
     """Function to hand zone data to pandas to do processing
@@ -577,134 +496,50 @@ def get_surface_variables(field_data, zone_name):
         eq('{surface_normal_y} = {Y Grid K Unit Normal}')
         eq('{surface_normal_z} = {Z Grid K Unit Normal}')
     ######################################################################
-    #Component Normal Poynting Flux
-    eq('{ExBn_x [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
+    #Normal Total Energy Flux
+    eq('{ExB_net [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
                             '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{ExB_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_x}',
-       zones=[zone_index])
-    eq('{ExBn_y [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{ExB_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_y}',
-        zones=[zone_index])
-    eq('{ExBn_z [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{ExB_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_z}',
-        zones=[zone_index])
-
-    #Magnitude Normal Total Energy Flux
-    eq('{ExB_net [W/Re^2]} = ({ExBn_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{ExBn_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{ExBn_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2 '+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)',
+                            '+{ExB_z [W/Re^2]}*{surface_normal_z})',
+        value_location=ValueLocation.CellCentered,
         zones=[zone_index])
 
     #Split into + and - flux
-    eq('{ExB_escape} = max({ExB_net [W/Re^2]},0)', zones=[zone_index])
-    eq('{ExB_injection} = min({ExB_net [W/Re^2]},0)', zones=[zone_index])
+    eq('{ExB_escape} = max({ExB_net [W/Re^2]},0)',
+        value_location=ValueLocation.CellCentered,
+        zones=[zone_index])
+    eq('{ExB_injection} = min({ExB_net [W/Re^2]},0)',
+        value_location=ValueLocation.CellCentered,
+        zones=[zone_index])
     ######################################################################
-    #Component Normal Total Pressure Flux
-    eq('{P0n_x [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
+    #Normal Total Pressure Flux
+    eq('{P0_net [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
                             '+{P0_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{P0_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_x}',
-       zones=[zone_index])
-    eq('{P0n_y [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{P0_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{P0_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_y}',
-        zones=[zone_index])
-    eq('{P0n_z [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{P0_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{P0_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_z}',
-        zones=[zone_index])
-
-    #Magnitude Normal Total Pressure Flux
-    eq('{P0_net [W/Re^2]} = ({P0n_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{P0n_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{P0n_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2 '+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)',
+                            '+{P0_z [W/Re^2]}*{surface_normal_z})',
+        value_location=ValueLocation.CellCentered,
         zones=[zone_index])
 
     #Split into + and - flux
-    eq('{P0_escape} = max({P0_net [W/Re^2]},0)', zones=[zone_index])
-    eq('{P0_injection} = min({P0_net [W/Re^2]},0)', zones=[zone_index])
+    eq('{P0_escape} = max({P0_net [W/Re^2]},0)',
+        value_location=ValueLocation.CellCentered,
+        zones=[zone_index])
+    eq('{P0_injection} = min({P0_net [W/Re^2]},0)',
+        value_location=ValueLocation.CellCentered,
+        zones=[zone_index])
     ######################################################################
-    #Component Normal Total Energy Flux
-    eq('{Kn_x [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
+    #Normal Total Energy Flux
+    eq('{K_net [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
                             '+{K_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{K_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_x}',
-       zones=[zone_index])
-    eq('{Kn_y [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{K_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{K_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_y}',
-        zones=[zone_index])
-    eq('{Kn_z [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{K_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{K_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2'+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)'+
-                          '* {surface_normal_z}',
-        zones=[zone_index])
-
-    #Magnitude Normal Total Energy Flux
-    eq('{K_net [W/Re^2]} = ({Kn_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{Kn_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{Kn_z [W/Re^2]}*{surface_normal_z})'+
-                          '/ sqrt({surface_normal_x}**2'+
-                                  '+{surface_normal_y}**2 '+
-                                  '+{surface_normal_z}**2'+
-                                  '+1e-25)',
+                            '+{K_z [W/Re^2]}*{surface_normal_z})',
+        value_location=ValueLocation.CellCentered,
         zones=[zone_index])
 
     #Split into + and - flux
-    eq('{K_escape} = max({K_net [W/Re^2]},0)', zones=[zone_index])
-    eq('{K_injection} = min({K_net [W/Re^2]},0)', zones=[zone_index])
+    eq('{K_escape} = max({K_net [W/Re^2]},0)',
+        value_location=ValueLocation.CellCentered,
+        zones=[zone_index])
+    eq('{K_injection} = min({K_net [W/Re^2]},0)',
+        value_location=ValueLocation.CellCentered,
+        zones=[zone_index])
 
 
 def get_global_variables(field_data):
@@ -723,7 +558,8 @@ def get_global_variables(field_data):
                                    '180/pi*atan({Y [R]}/{X [R]})-180))')
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
-              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9')
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
+        value_location=ValueLocation.CellCentered)
     #Plasma Beta
     eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
@@ -736,67 +572,112 @@ def get_global_variables(field_data):
     eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
     eq('{by} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
     eq('{bz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{Bmag [nT]} =sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+        value_location=ValueLocation.CellCentered)
+    '''
+    eq('{divB [nT/Re]} =IF({r [R]}>4,'+
+                     'ddx({B_x [nT]})+ddy({B_y [nT]})+ddz({B_z [nT]}),0)',
+        value_location=ValueLocation.CellCentered)
+    eq('{bdotu}= ({B_x [nT]}*{U_x [km/s]}+'+
+                 '{B_y [nT]}*{U_y [km/s]}+'+
+                 '{B_z [nT]}*{U_z [km/s]}*(4*pi*1e2))',
+        value_location=ValueLocation.CellCentered)
+        variable_data_type=FieldDataType.Double)
+    eq('{S [W]} = {divB [nT/Re]}*{bdotu}*6371**2',
+        value_location=ValueLocation.CellCentered)
+    #eq('{F2 [W/Re^3]} = ({B_x [nT]}*ddx({bdotu})+'+
+                        '{B_y [nT]}*ddy({bdotu})+'+
+                        '{B_z [nT]}*ddz({bdotu}))*6371**2')
+    '''
 
     #Magnetic Energy per volume
     eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3')
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
 
     #Ram pressure energy per volume
     eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                                     '(({U_x [km/s]}*{bx})**2+'+
                                     '({U_y [km/s]}*{by})**2+'+
                                     '({U_z [km/s]}*{bz})**2) *'+
-                                    '1e6*1.6605e-27*1e6*1e9*6371**3')
+                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
     eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                           '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
                            '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
                            '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
-                                       '*1e6*1.6605e-27*1e6*1e9*6371**3')
+                                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
 
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
-                          '-{U_y [km/s]}*{B_z [nT]})')
+                          '-{U_y [km/s]}*{B_z [nT]})',
+        value_location=ValueLocation.CellCentered)
     eq('{E_y [mV/km]} = ({U_x [km/s]}*{B_z [nT]}'+
-                         '-{U_z [km/s]}*{B_x [nT]})')
+                         '-{U_z [km/s]}*{B_x [nT]})',
+        value_location=ValueLocation.CellCentered)
     eq('{E_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
-                         '-{U_x [km/s]}*{B_y [nT]})')
+                         '-{U_x [km/s]}*{B_y [nT]})',
+        value_location=ValueLocation.CellCentered)
 
     #Electric Energy per volume
     eq('{uE [J/Re^3]} = ({E_x [mV/km]}**2+{E_y [mV/km]}**2+'+
                         '{E_z [mV/km]}**2)*'+
-                        '1e-6/(2*4*pi*1e-7*(3e8)**2)*1e9*6371**3')
+                        '1e-6/(2*4*pi*1e-7*(3e8)**2)*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
 
     #Poynting Flux
-    eq('{ExB_x [W/Re^2]} = -3.22901e4*({E_z [mV/km]}*{B_y [nT]}'+
-                                       '-{E_y [mV/km]}*{B_z [nT]})')
-    eq('{ExB_y [W/Re^2]} = -3.22901e4*({E_x [mV/km]}*{B_z [nT]}'+
-                                       '-{E_z [mV/km]}*{B_x [nT]})')
+    # E (m⋅kg⋅s−3⋅A−1)*1e-6 * B ( 1 kg⋅s−2⋅A−1)*1e-9 * 1/mu0 (A2/N)*4pie7
+    # (kg2 m)/(s5 N)
+    # (kg m/s2) (kg)/ (s3 N)
+    # (kg) / (s3)
+    # (kg m/s2) / (s m)
+    # (W / m)
+    # km/s  nT  nT  1/mu0   Re^2
+    # 1e6   1e-9 1e-9 1e7/4pi 6371^2 1e6
+    # 19-18
+    eq('{ExB_x [W/Re^2]} = -1e-5/(4*pi)*6371**2*'+
+                            '({E_z [mV/km]}*{B_y [nT]}'+
+                            '-{E_y [mV/km]}*{B_z [nT]})',
+        value_location=ValueLocation.CellCentered)
+    eq('{ExB_y [W/Re^2]} = -1e-5/(4*pi)*6371**2*'+
+                            '({E_x [mV/km]}*{B_z [nT]}'+
+                            '-{E_z [mV/km]}*{B_x [nT]})',
+        value_location=ValueLocation.CellCentered)
+    eq('{ExB_z [W/Re^2]} = -1e-5/(4*pi)*6371**2*'+
+                            '({E_y [mV/km]}*{B_x [nT]}'+
+                            '-{E_x [mV/km]}*{B_y [nT]})',
+        value_location=ValueLocation.CellCentered)
+    '''
     eq('{ExB_z [W/Re^2]} = -3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
                                        '-{E_x [mV/km]}*{B_y [nT]})')
+    '''
 
     #Total pressure Flux
-    eq('{P0_x [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
-                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
-                                                    '({U_x [km/s]}**2'+
-                                                    '+{U_y [km/s]}**2'+
-                                                    '+{U_z [km/s]}**2))'+
-                          '*1.5696123057605e-4*{U_x [km/s]}')
-    eq('{P0_y [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
-                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
-                                                    '({U_x [km/s]}**2'+
-                                                    '+{U_y [km/s]}**2'+
-                                                    '+{U_z [km/s]}**2))'+
-                          '*1.5696123057605e-4*{U_y [km/s]}')
+    eq('{P0_x [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]})*6371**2'+
+                          '*{U_x [km/s]}',
+        value_location=ValueLocation.CellCentered)
+    eq('{P0_y [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]})*6371**2'+
+                          '*{U_y [km/s]}',
+        value_location=ValueLocation.CellCentered)
+    eq('{P0_z [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]})*6371**2'+
+                          '*{U_z [km/s]}',
+        value_location=ValueLocation.CellCentered)
+    '''
     eq('{P0_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
                                         '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
                           '*1.5696123057605e-4*{U_z [km/s]}')
+    '''
     #Total Energy Flux
-    eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}')
-    eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}')
-    eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}')
+    eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
+        value_location=ValueLocation.CellCentered)
+    eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
+        value_location=ValueLocation.CellCentered)
+    eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
+        value_location=ValueLocation.CellCentered)
 
 def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
@@ -921,8 +802,8 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
             str(rhomin)+'||({uB [J/Re^3]}>'+str(uBmin)+'), 1, 0), 0)')
     return tp.active_frame().dataset.variable('mp_rho_transition').index
 
-def calc_iso_beta_state(zonename, xmax, xmin, hmax, betamax, core,
-                        coreradius):
+def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
+                        coreradius, closed_zone):
     """Function creates equation in tecplot representing surface
     Inputs
         zonename
@@ -930,6 +811,7 @@ def calc_iso_beta_state(zonename, xmax, xmin, hmax, betamax, core,
         rhomax- density bound
         core- boolean for including the inner boundary in domain, used to
                 isolate effects on outer boundary only
+        closed_zone- zone object, None to omit closed zone in equation
     Outputs
         created variable index
     """
@@ -939,44 +821,15 @@ def calc_iso_beta_state(zonename, xmax, xmin, hmax, betamax, core,
         '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax))
     if core == False:
         eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
-    eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,'+
-                   '0),0)')
+    eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,')
+    if closed_zone != None:
+        print(closed_zone)
+        eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
+    else:
+        eqstr =(eqstr+'0)')
+    eqstr =(eqstr+',0)')
     eq(eqstr)
     return tp.active_frame().dataset.variable(zonename).index
-
-def calc_iso_rho_beta_state(xmax, xmin, hmax, rhomax, betamin):
-    """Function creates equation in tecplot representing surface
-    Inputs
-        xmax, xmin, hmax, hmin, rmin- spatial bounds
-        rhomax- density bound
-    Outputs
-        created variable index
-    """
-    eq = tp.data.operate.execute_equation
-    eq('{rho_beta_iso} = '+
-        'IF({X [R]} >'+str(xmin-2)+'&&'+
-        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
-            'IF({Rho [amu/cm^3]}<'+str(rhomax)+', 1,'+
-                'IF({beta_star}<'+str(betamin)+',1,'+
-                   '0)),0)')
-    return tp.active_frame().dataset.variable('rho_beta_iso').index
-
-def calc_iso_rho_uB_state(xmax, xmin, hmax, rhomax, uBmin):
-    """Function creates equation in tecplot representing surface
-    Inputs
-        xmax, xmin, hmax, hmin, rmin- spatial bounds
-        rhomax- density bound
-    Outputs
-        created variable index
-    """
-    eq = tp.data.operate.execute_equation
-    eq('{rho_uB_iso} = '+
-        'IF({X [R]} >'+str(xmin-2)+'&&'+
-        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax)+','+
-            'IF({Rho [amu/cm^3]}<'+str(rhomax)+', 1,'+
-                'IF({uB [J/Re^3]}>'+str(uBmin)+',1,'+
-                   '0)),0)')
-    return tp.active_frame().dataset.variable('rho_uB_iso').index
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
     """Function creates equation in tecplot representing surface
@@ -1036,6 +889,17 @@ def calc_sphere_state(mode, xc, yc, zc, rmin):
                             '({Z [R]} -'+str(zc)+')**2) <'+
                              str(rmin)+', 1, 0)')
     return tp.active_frame().dataset.variable(mode).index
+
+def calc_closed_state(status_key, status_val):
+    """Function creates state variable for the closed fieldline region
+    Inputs
+        status_key/val-string key and value used to denote closed fldlin
+    Outputs
+        state_var_index- index to find state variable in tecplot
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{Bclosed} = IF({'+status_key+'}=='+str(status_val)+',1,0)')
+    return tp.active_frame().dataset.variable('Bclosed').index
 
 def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
     """Function creates state variable for a simple box

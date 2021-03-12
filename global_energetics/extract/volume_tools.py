@@ -18,7 +18,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
 
 def volume_analysis(frame, state_variable_name, *,
                     voluB=True, voluE=True, volKEpar=True, volKEperp=True,
-                    volEth=True, volume=True,
+                    volEth=True, volume=True, findS=True,
                     cuttoff=-20, blank=True):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
@@ -112,6 +112,14 @@ def volume_analysis(frame, state_variable_name, *,
         Vol = integrate_volume(Vol_index, zone_index)
         print('{} Volume integration done'.format(volume_name))
         data.append(Vol)
+    if False:
+        #integrate B dot grad(bdotu) aka F2
+        eq('{F2 temp} =IF({'+state_variable_name+'}<1,0,{F2 [W/Re^3]})')
+        keys.append('F2 [W]')
+        F2_index = int(field_data.variable('F2 temp').index)
+        F2 = integrate_volume(F2_index, zone_index)
+        print('{} F2 integration done'.format(volume_name))
+        data.append(F2)
     #Energy density
     keys.append('Energy Density [J/Re^3]')
     energy_density = total/Vol

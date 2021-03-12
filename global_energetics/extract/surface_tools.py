@@ -18,7 +18,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
 
 def surface_analysis(frame, zone_name, *,
                      calc_K=True, calc_ExB=True, calc_P0=True,
-                     surface_area=True, cuttoff=-20):
+                     surface_area=True, test=False,cuttoff=-20):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
@@ -44,6 +44,60 @@ def surface_analysis(frame, zone_name, *,
     '''
     keys = []
     data = []
+    ######################################################################
+    #test integration
+    if test:
+        #write test flowfield conditions
+        u_advected = '({Dp [nPa]}+2.5*{P [nPa]}+{Bmag [nT]}/(4*pi*1e2))'
+        #u_advected = '{Rho [amu/cm^3]}'
+        bdotu = ('{B_x [nT]}*{U_x [km/s]}+'+
+                 '{B_y [nT]}*{U_y [km/s]}+'+
+                 '{B_z [nT]}*{U_z [km/s]}')
+        bdotu_Bx = ('('+bdotu+')*({B_x [nT]}/(4*pi*1e2))')
+        bdotu_By = ('('+bdotu+')*({B_y [nT]}/(4*pi*1e2))')
+        bdotu_Bz = ('('+bdotu+')*({B_z [nT]}/(4*pi*1e2))')
+        k_x = '('+u_advected+'*{U_x [km/s]})'
+        k_y = '('+u_advected+'*{U_y [km/s]})'
+        k_z = '('+u_advected+'*{U_z [km/s]})'
+        '''
+        k_x = '{K_x [W/Re^2]}'
+        k_y = '{K_y [W/Re^2]}'
+        k_z = '{K_z [W/Re^2]}'
+        '''
+        flowvec1 = [bdotu_Bx+'*6371**2', bdotu_By+'*6371**2',
+                    bdotu_Bz+'*6371**2']
+        flowvec2 = [k_x+'*6371**2', k_y+'*6371**2', k_z+'*6371**2']
+        flowvec3 = ['{B_x [nT]}', '{B_y [nT]}', '{B_z [nT]}']
+        eq = tp.data.operate.execute_equation
+        eq('{bdotu} = '+bdotu+'/(4*pi*1e2)')
+        #TEST1
+        eq('{test1}=('+str(flowvec1[0])+'*{surface_normal_x}+'+
+                       str(flowvec1[1])+'*{surface_normal_y}+'+
+                       str(flowvec1[2])+'*{surface_normal_z})',
+                value_location=ValueLocation.CellCentered)
+        keys.append('test '+str(flowvec1))
+        test1_index = int(field_data.variable('test1').index)
+        test1 = integrate_surface(test1_index, zone_index)
+        data.append(test1)
+        #TEST2
+        eq('{test2}=('+str(flowvec2[0])+'*{surface_normal_x}+'+
+                       str(flowvec2[1])+'*{surface_normal_y}+'+
+                       str(flowvec2[2])+'*{surface_normal_z})',
+                value_location=ValueLocation.CellCentered)
+        keys.append('test '+str(flowvec2))
+        test2_index = int(field_data.variable('test2').index)
+        test2 = integrate_surface(test2_index, zone_index)
+        data.append(test2)
+        #TEST3
+        eq('{test3}=('+str(flowvec3[0])+'*{surface_normal_x}+'+
+                       str(flowvec3[1])+'*{surface_normal_y}+'+
+                       str(flowvec3[2])+'*{surface_normal_z})',
+                value_location=ValueLocation.CellCentered)
+        keys.append('test '+str(flowvec3))
+        test3_index = int(field_data.variable('test3').index)
+        test3 = integrate_surface(test3_index, zone_index)
+        data.append(test3)
+        print('{} test integrations done'.format(zone_name))
     ######################################################################
     #integrate Poynting flux
     if calc_ExB:

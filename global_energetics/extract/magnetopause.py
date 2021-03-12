@@ -30,9 +30,8 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     dump_to_pandas,
                                                     setup_isosurface,
                                                     calc_iso_rho_state,
-                                                    calc_iso_rho_uB_state,
-                                                    calc_iso_rho_beta_state,
-                                                    calc_iso_beta_state,
+                                                    calc_betastar_state,
+                                                    calc_closed_state,
                                                  calc_transition_rho_state,
                                                     calc_shue_state,
                                                     calc_sphere_state,
@@ -42,7 +41,8 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      mode='iso_betastar', include_core=True, source='swmf',
-                     longitude_bounds=10, n_fieldlines=5,rmax=30,rmin=3,
+                     do_trace=False, lon_bounds=10, n_fieldlines=5,
+                     rmax=30, rmin=3,
                      dx_probe=-1,
                      sp_x=0, sp_y=0, sp_z=0, sp_r=4,
                      box_xmax=-5, box_xmin=-8,
@@ -63,7 +63,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             include_core- setting to omit the inner boundary of sim domain
             source- only capable of handling SWMF input
         Streamtracing
-            longitude_bounds, nlines- bounds and density of search
+            do_trace- boolean turns on fieldline tracing to find x_subsolar
+            lon_bounds, nlines- bounds and density of search
             rmax, rmin, itr, tol- parameters for bisection algorithm
         Isosurface selection
             dx_probe- how far from x_subsolar to probe for iso creation
@@ -81,12 +82,20 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         for choice in approved:
             print('\t{}'.format(choice))
         return
+    if field_data.variable_names.count('Status') ==0:
+        has_status = False
+        do_trace = True
+        print('Status variable not included in dataset!'+
+                'do_trace -> True')
+    else:
+        has_status = True
     display = ('Analyzing Magnetopause with the following settings:\n'+
                '\tdatafile: {}\n'.format(datafile)+
                '\toutputpath: {}\n'.format(outputpath)+
                '\tmode: {}\n'.format(mode)+
                '\tinclude_core: {}\n'.format(include_core)+
-               '\tsource: {}\n'.format(source))
+               '\tsource: {}\n'.format(source)+
+               '\tdo_trace: {}\n'.format(do_trace))
     if mode == 'sphere':
         #sphere settings
         display = (display +
@@ -106,9 +115,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\t\tzmax: {}\n'.format(box_zmax)+
                '\t\tzmin: {}\n'.format(box_zmin))
         #field_data.zone('global_field').aux_data['x_subsolar']=0
-    #field line settings
-    display = (display +
-               '\tlongitude_bounds: {}\n'.format(longitude_bounds)+
+    if do_trace == True:
+        #field line settings
+        display = (display +
+               '\tlon_bounds: {}\n'.format(lon_bounds)+
                '\tn_fieldlines: {}\n'.format(n_fieldlines)+
                '\trmax: {}\n'.format(rmax)+
                '\trmin: {}\n'.format(rmin)+
@@ -154,18 +164,26 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
             x_subsolar = float(aux['x_subsolar'])
         else:
-            frontzoneindicies = streamfind_bisection(field_data,'dayside',
-                                            longitude_bounds, n_fieldlines,
-                                            rmax, rmin, itr_max, tol)
+            if do_trace:
+                closedzone_index = streamfind_bisection(field_data,
+                                                         'dayside',
+                                                  lon_bounds, n_fieldlines,
+                                                  rmax, rmin, itr_max, tol)
+            else:
+                closed_index = calc_closed_state('Status', 3)
+                closed_zone = setup_isosurface(1, closed_index,
+                                                  7, 7, 'Bclosed')
+                closedzone_index = closed_zone.index
             x_subsolar = 1
-            for index in frontzoneindicies:
-                x_subsolar = max(x_subsolar,
-                                field_data.zone(index).values('X *').max())
+            x_subsolar = max(x_subsolar,
+                    field_data.zone(closedzone_index).values('X *').max())
             print('x_subsolar found at {}'.format(x_subsolar))
             aux['x_subsolar'] = x_subsolar
-            #delete streamzones
-            for zone_index in reversed(frontzoneindicies):
-                field_data.delete_zones(field_data.zone(zone_index))
+            if do_trace:
+                #delete streamzone
+                field_data.delete_zones(closedzone_index)
+                closed_index = None
+                closed_zone = None
         #Create isosurface zone depending on mode setting
         ################################################################
         if mode == 'sphere':
@@ -212,9 +230,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = 'mp_'+mode
             if zone_rename != None:
                 zonename = zone_rename
-            iso_betastar_index = calc_iso_beta_state(zonename, x_subsolar,
+            if closed_index == None and has_status == True:
+                closed_index = calc_closed_state('Status', 3)
+                closed_zone = setup_isosurface(1, closed_index,
+                                                  7, 7, 'Bclosed')
+            iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
                                                      tail_cap, 50, 1,
-                                                     include_core, 4)
+                                                     include_core, 4,
+                                                     closed_zone)
             state_var_name = field_data.variable(iso_betastar_index).name
             #remake iso zone using new equation
             iso_betastar_zone = setup_isosurface(1, iso_betastar_index,
