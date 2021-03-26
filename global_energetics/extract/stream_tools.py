@@ -12,7 +12,7 @@ import datetime as dt
 from progress.bar import Bar
 from progress.spinner import Spinner
 import spacepy
-#from spacepy import coordinates as coord
+from spacepy import coordinates as coord
 from spacepy import time as spacetime
 import tecplot as tp
 from tecplot.constant import *
@@ -135,23 +135,24 @@ def sph_to_cart(radius, lat, lon):
     y_pos = (radius * cos(deg2rad(lat)) * sin(deg2rad(lon)))
     z_pos = (radius * sin(deg2rad(lat)))
     return [x_pos, y_pos, z_pos]
-'''
-def mag2gsm(radius, latitude, longitude, time):
+def mag2gsm(x1, x2, x3, time, *, inputtype='sph'):
     """Function converts magnetic spherical coordinates to cartesian
         coordinates in GSM
     Inputs
-        radius
-        latitude- relative to magnetic dipole axis
-        longitude- relative to magnetic dipole axis
+        if inputtype='sph':
+            x1,x2,x3- radius, latitue and longitude
+        if inputtype='car':
+            x1,x2,x3- x,y,z
         time- spacepy Ticktock object with time information
     Output
         xgsm, ygsm, zgsm- in form of 3 element np array
     """
-    coordinates = coord.Coords([radius, latitude, longitude], 'SM', 'sph')
+    coordinates = coord.Coords([radius, latitude, longitude], 'SM',
+                               inputtype)
     coordinates.ticks = time
     return coordinates.convert('GSM', 'car').data[0][0:3]
-'''
 
+'''
 def sm2gsm_temp(radius, latitude, longitude, time):
     """Function converts solar magnetic spherical coordinates to cartesian
         coordinates in GSM
@@ -177,6 +178,7 @@ def sm2gsm_temp(radius, latitude, longitude, time):
     #Tmat = getTmat(time)
     xgsm, ygsm, zgsm = np.matmul(Tmat, [[xsm], [ysm], [zsm]])
     return xgsm[0], ygsm[0], zgsm[0]
+'''
 
 def getTmat(time):
     """Function takes spacepy ticktock object and returns trans matrix
@@ -781,8 +783,9 @@ def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
         if i != keep_index:
             frame.dataset.delete_zones(i)
         else:
-            newzone = frame.dataset.zone(i)
-            newzone.name = zonename
+            newzone_key = frame.dataset.zone(i).name
+    newzone = frame.dataset.zone(newzone_key)
+    newzone.name = zonename
     return newzone
 
 def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
@@ -822,7 +825,7 @@ def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
     if core == False:
         eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
     eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,')
-    if closed_zone != None:
+    if type(closed_zone) != type(None):
         print(closed_zone)
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
     else:

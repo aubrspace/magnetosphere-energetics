@@ -31,27 +31,30 @@ from global_energetics.extract.stream_tools import (calc_dayside_mp,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
 '''
-def load_ionosphere_tecplot(field_data, ndf, sdf, *, integrate=True):
-    """Function loads ionosphere shell data into tecplot
-    Input
-        field_data- tecplot DataSet object with 3D field data
-        ndf, sdf- north and south data in pandas DataFrame
-    Output
-        izone- tecplot zone object
-    """
-    if integrate:
-        from global_energetics.extract.surface_tools import surface_analysis
-
-def calc_components(df, *, comp1=True, comp2=True, comp3=True):
-    """Function takes hemipheric IE data and appends component values
+def get_ionosphere_zone(eventdt, datapath):
+    """Function to find the correct ionosphere datafile and append the data
+        to the current tecplot session
     Inputs
-        df- pandas datframe object of ionosphere shell
-        comp1, comp2- boolean for which comp to include
-    Returns
-        df_mod- pandas dataframe with component values appended
+        eventdt- datetime object of event time
+        datapath- str path to ionosphere data
     """
-    if comp1:
-        comp1df = df
+    eventstring = str(eventdt)
+    #parse event string (will update later)
+    yr = eventstring.split('-')[0][-2::]
+    mn = eventstring.split('-')[1]
+    dy = eventstring.split('-')[2].split(' ')[0]
+    hr = eventstring.split(' ')[1].split(':')[0]
+    minute = eventstring.split(':')[1]
+    datafile = 'it'+yr+mn+dy+'_'+hr+minute+'00_000.tec'
+    #load file matching description
+    if os.path.exists(datapath+datafile):
+        ie_data = tp.data.load_tecplot(datapath+datafile)
+        north_iezone = ie_data.zone('IonN *')
+        south_iezone = ie_data.zone('IonS *')
+        return north_iezone, south_iezone
+    else:
+        print('no ionosphere data found!')
+        return None, None
 
 def get_ionosphere(field_data, ndatafile, sdatafile, *, show=False,
                    comp1=True, comp2=True, comp3=True,

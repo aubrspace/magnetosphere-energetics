@@ -2,7 +2,10 @@
 #Batch file for running extract_mpsurface.py on all .plt files
 
 #create output folders
-PLTDIR=plt/
+RUNDIR=Energetics1
+MHDDIR=$RUNDIR/GM/IO2/
+IEDIR=$RUNDIR/IE/ionosphere/
+IMDIR=$RUNDIR/IM/plots/
 SCRIPTDIR=./
 mkdir output
 mkdir output/plt
@@ -21,9 +24,9 @@ eval `$TECPATH-env`
 echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #execute script on .plt files
-for file in $PLTDIR*.plt
+for file in $MHDDIR\3d*.plt
 do
-    python main.py $file $OUT $PNGOUT $PLTOUT >> $OUT/outlog.log
+    python main.py $file $IEDIR $IMDIR $OUT $PNGOUT>> $OUT/outlog.log
 done
 
 #create video from png file

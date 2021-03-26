@@ -27,28 +27,68 @@ if __name__ == "__main__":
     start_time = time.time()
     if '-c' in sys.argv:
         tp.session.connect()
+        tp.new_layout()
 
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
-    tp.new_layout()
     #pass in arguments
-    datafile = sys.argv[1].split('/')[-1]
-    OUTPATH = sys.argv[2]
-    PNGPATH = sys.argv[3]
-    PLTPATH = sys.argv[4]
-    OUTPUTNAME = datafile.split('e')[1].split('-000.')[0]+'-a'
+    mhddatafile = sys.argv[1].split('/')[-1]
+    IEPATH = sys.argv[2]
+    IMPATH = sys.argv[3]
+    OUTPATH = sys.argv[4]
+    PNGPATH = sys.argv[5]
+    OUTPUTNAME = mhddatafile.split('e')[1].split('.plt')[0]
+
+    #python objects
+    field_data = tp.data.load_tecplot(sys.argv[1])
+    field_data.zone(0).name = 'global_field'
     main = tp.active_frame()
     main.name = 'main'
 
-    #python objects
-    field_data=tp.data.load_tecplot(sys.argv[1])
-    field_data.zone(0).name = 'global_field'
+    '''
+    #get supporting module data for this timestamp
+    eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
+    startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
+    eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
+    startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
+    deltadt = eventdt-startdt
+    north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
+    im_zone = get_innermag_zone(deltadt, IMPATH)
+    '''
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, datafile)
-    magnetopause.get_magnetopause(field_data, datafile, include_core=True,
-                                  zone_rename='mp_outer')
-    magnetopause.get_magnetopause(field_data, datafile, mode='sphere')
+    magnetopause.get_magnetopause(field_data, mhddatafile)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=15, box_xmin=5,
+                                  box_ymax=40, box_ymin=30,
+                                  zone_rename='box_sw_pos_y')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=15, box_xmin=5,
+                                  box_zmax=40, box_zmin=30,
+                                  zone_rename='box_sw_pos_z')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=-30, box_xmin=-40,
+                                  zone_rename='box_tail_outsideIM')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=-5, box_xmin=-10,
+                                  zone_rename='box_tail_insideIM')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=10, box_xmin=5,
+                                  zone_rename='box_day_insideIM')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=30, box_xmin=20,
+                                  zone_rename='box_sw_pos_x')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=-30, box_xmin=-60,
+                                  box_ymax=30, box_ymin=-30,
+                                  box_zmax=30, box_zmin=-30,
+                                  zone_rename='box_tail_big')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=30, box_xmin=10,
+                                  box_ymax=30, box_ymin=-30,
+                                  box_zmax=30, box_zmin=-30,
+                                  zone_rename='box_sw_big')
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='sphere')
     #adjust view settings
     #tile
     proc = 'Multi Frame Manager'
@@ -61,31 +101,31 @@ if __name__ == "__main__":
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', datafile, show_contour=True,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=False, show_fieldline=False,
-                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                pngpath=PNGPATH,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='inside_from_tail')
     frame1.activate()
     view_set.display_single_iso(frame1,
-                                'K_net *', datafile, show_contour=True,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_fieldline=True,
-                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                pngpath=PNGPATH,
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False)
     frame2.activate()
     view_set.display_single_iso(frame2,
-                                'K_net *', datafile, show_contour=True,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_fieldline=True,
-                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                pngpath=PNGPATH,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
                                 show_timestamp=False)
     frame3.activate()
     view_set.display_single_iso(frame3,
-                                'K_net *', datafile, show_contour=True,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_fieldline=True,
-                                pngpath=PNGPATH, pltpath=PLTPATH,
+                                pngpath=PNGPATH,
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)

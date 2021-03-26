@@ -38,6 +38,8 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     calc_box_state,
                                                     abs_to_timestamp,
                                                     write_to_timelog)
+from global_energetics.write_disp import (write_mesh, write_to_hdf,
+                                          display_progress)
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      mode='iso_betastar', include_core=False, source='swmf',
@@ -51,7 +53,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
-                     xyzvar=[1,2,3], zone_rename=None):
+                     xyzvar=[1,2,3], zone_rename=None,
+                     write_data=True, disp_result=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
     Inputs
@@ -252,13 +255,6 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #save mesh to hdf file as key=mode, along with time in key='time'
         mp_mesh, _ = dump_to_pandas(main_frame, [zoneindex], xyzvar,
                                     'temp.csv')
-        path_to_mesh = outputpath+'meshdata'
-        if not os.path.exists(outputpath+'meshdata'):
-            os.system('mkdir '+outputpath+'meshdata')
-        meshfile = datestring+'_mesh.h5'
-        mp_mesh.to_hdf(path_to_mesh+'/'+meshfile, key=zonename)
-        pd.Series(eventtime).to_hdf(path_to_mesh+'/'+meshfile, 'time')
-
         #perform integration for surface and volume quantities
         mp_powers = pd.DataFrame()
         mp_energies = pd.DataFrame()
@@ -278,36 +274,18 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                           blank=False)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
-        if integrate_surface or integrate_surface:
-            integralfile = outputpath+'mp_integral_log.h5'
-            cols = mp_powers.keys().append(mp_energies.keys())
-            mp_energetics = pd.DataFrame(columns=cols, data=[np.append(
-                                     mp_powers.values,mp_energies.values)])
-            #Add time and x_subsolar column
-            mp_energetics.loc[:,'Time [UTC]'] = eventtime
-            mp_energetics.loc[:,'X_subsolar [Re]'] = x_subsolar
-            with pd.HDFStore(integralfile) as store:
-                if any([key == '/'+zonename for key in store.keys()]):
-                    mp_energetics = store[zonename].append(mp_energetics,
-                                                         ignore_index=True)
-                store[zonename] = mp_energetics
-    #Display result from this step
-    result = ('Result\n'+
-               '\tmeshdatafile: {}\n'.format(path_to_mesh+'/'+meshfile))
-    if integrate_volume or integrate_surface:
-        result = (result+
-               '\tintegralfile: {}\n'.format(integralfile)+
-               '\tzonename_added: {}\n'.format(zonename))
-        with pd.HDFStore(integralfile) as store:
-            result = result+'\tmp_energetics:\n'
-            for key in store.keys():
-                result = (result+
-                '\t\tkey={}\n'.format(key)+
-                '\t\t\tn_values: {}\n'.format(len(store[key])))
-    print('**************************************************************')
-    print(result)
-    print('**************************************************************')
-
+        #Add time and x_subsolar column
+        mp_powers.loc[:,'Time [UTC]'] = eventtime
+        mp_powers.loc[:,'X_subsolar [Re]'] = x_subsolar
+        if write_data:
+            write_mesh(outputpath+'meshdata/mesh_'+datestring+'.h5',
+                       zonename, pd.Series(eventtime), mp_mesh)
+            write_to_hdf(outputpath+'energetics.h5', zonename,
+                         mp_energies=mp_energies, mp_powers=mp_powers)
+        if disp_result:
+            display_progress(outputpath+'meshdata/mesh_'+datestring+'.h5',
+                             outputpath+'energetics.h5', zonename)
+        return mp_mesh, mp_powers, mp_energies
 
 
 # Must list .plt that script is applied for proper execution
