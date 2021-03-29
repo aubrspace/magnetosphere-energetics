@@ -98,7 +98,6 @@ def check_streamline_closed(field_data, zone_name, r_seed, line_type):
         bounds = [[-220,-126,-126],
                   [31.5, 126, 126]]
         isclosed = True
-        #from IPython import embed; embed()
         for minmax in enumerate(extrema):
             for value in enumerate(minmax[1]):
                 if abs(value[1])>0.9*abs(bounds[minmax[0]][value[0]]):
@@ -206,7 +205,6 @@ def getTmat(time):
     zg = sin(deg2rad(287.45))
     T = np.matmul(T2, np.transpose(T1))
     xe, ye, ze = np.matmul(T, [[xg], [yg], [zg]])
-    #from IPython import embed; embed()
     mu = np.arctan2(-xe,np.sqrt(ye**2+ze**2))
     T4_t = np.transpose(rotation(-mu[0], 'y'))
     return T4_t
