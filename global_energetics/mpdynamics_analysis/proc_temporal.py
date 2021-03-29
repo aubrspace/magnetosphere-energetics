@@ -155,7 +155,7 @@ def prepare_figures(dflist, dfnames, outpath):
     """
     for df in enumerate(dflist):
         dflist[df[0]] = df[1][(df[1]['Time [UTC]'] > dt.datetime(
-                                                          2013,9,19,5,0))]
+                                                          2014,2,18,7,0))]
     energy_dfs, energy_dfnames= get_energy_dataframes(dflist, dfnames)
     mpdfs, mpnames, boxdfs, boxnames, spdfs, spnames = [],[],[],[],[],[]
     for df in enumerate(energy_dfs):
@@ -669,14 +669,14 @@ def prepare_figures(dflist, dfnames, outpath):
                     if count == 8:
                         axis[row][col].hist(mpdfs[0][qtylist[0]]/
                                             mpdfs[0]['Volume [Re^3]'],
-                                            bins=100, range=(-3.5e8,1e8),
+                                            bins=100, range=(-3.5e8,3e8),
                                             density=True)
                         name = mpnames[0]
                         axis[row][col].set_xlabel(name)
                     else:
                         axis[row][col].hist(boxdfs[count][qtylist[0]]/
                                         boxdfs[count]['Volume [Re^3]'],
-                                        bins=100, range=(-3.5e8,1e8),
+                                        bins=100, range=(-3.5e8,3e8),
                                         density=True)
                         name = boxnames[count]
                         axis[row][col].set_xlabel(name)
@@ -724,6 +724,6 @@ def process_temporal_mp(data_path_list, outputpath):
     print('done!')
 
 if __name__ == "__main__":
-    datapath = os.getcwd()+'/output/mpdynamics/substorm_boxes/'
+    datapath = os.getcwd()+'/output/mpdynamics/hires/'
     print(datapath)
     process_temporal_mp([datapath],datapath+'figures/')
