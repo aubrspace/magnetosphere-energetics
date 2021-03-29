@@ -1,6 +1,7 @@
 from . import ionosphere
 from . import magnetopause
 from . import plasmasheet
+from . import satellites
 from . import shue
 from . import stream_tools
 from . import surface_construct

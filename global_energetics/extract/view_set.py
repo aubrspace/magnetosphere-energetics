@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Controls view settings in tecplot for primary output
 """
+import os
 import tecplot as tp
 from tecplot.constant import *
 import numpy as np
@@ -336,15 +337,15 @@ def manage_zones(frame, nslice, *, approved_zones=None):
     """
     plt = frame.plot()
     show_list = []
+    hide_keys = ['sphere', 'box', 'closed']
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
             if zone.name == 'global_field':
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = None
-            elif zone.name == 'subsolar_sphere':
+            elif any([zone.name.find(key)!=-1 for key in hide_keys]):
                 plt.fieldmap(map_index).show = False
             else:
-                #some assertion that checks that zone is cylindrical
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
                                                    SurfacesToPlot.IKPlanes)
                 plt.fieldmap(map_index).show = True
@@ -374,13 +375,12 @@ def manage_zones(frame, nslice, *, approved_zones=None):
                 plt.fieldmap(map_index).shade.color = Color.Custom8
     return show_list
 
-
 def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        save_img=True, pngpath='./', save_plt=False,
-                       pltpath='./', outputname='output',
+                       pltpath='./', outputname='output', mhddir='./',
                        show_contour=True, show_slice=True,
                        show_fieldline=True, do_blanking=True, tile=False,
-                       show_timestamp=True, mode='iso_day',
+                       show_timestamp=True, mode='iso_day', satzones=[],
                        mpslice=60, cpsslice=20, zone_rename=None):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
@@ -451,11 +451,24 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     else:
         add_shade_legend(frame, zones_shown, shade_legend_pos,
                          shade_markersize)
+    if plot_satellites:
+        if satzones == []:
+            print('No satellite zones to plot')
+        else:
+            pass
     if show_timestamp:
         add_timestamp(frame, filename, timestamp_pos)
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
     if save_img:
+        #multiframe image (default)
         tp.export.save_png(pngpath+outputname+'.png', width=3200)
+        #each frame in a separate directory
+        for fr in tp.frames():
+            #make sure the directory for each frame image is there
+            if not os.path.exists(pngpath+fr):
+                os.system('mkdir '+pngpath+fr)
+            tp.export.save_png(pngpath+fr+'/'+outputname+'.png',
+                               region=fr, width=3200)
     if save_plt:
         tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
                                  include_data_share_linkage=True,
