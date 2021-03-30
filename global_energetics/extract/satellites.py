@@ -33,23 +33,40 @@ def add_units(var):
     else:
         return var
 
-def load_swmf_sat(filename):
+def load_swmf_sat(filename, field_variables):
     """Function loads satellite file based on SWMF PARAM.in settings
     Inputs
         filename
+        field_variables
     """
     with open(filename,'r') as satfile:
         header = satfile.readline()
         satname = header.split('/')[-1].split('.')[0]
         variables = satfile.readline().split('\n')[0].split(' ')[1::]
     varstring = ''
+    u_variables = []
     for var in enumerate(variables):
         w_units = add_units(var[1])
-        #variables[var[0]] = w_units
+        u_variables.append(w_units)
         varstring = varstring+w_units+','
     varstring = varstring.rstrip(',')
     #varnamelist = '\"'+'\" \"'.join(variables)+'\"'
-    varnamelist = '\"X [R]\";\"X\" \"Y [R]\";\"Y\" \"Z [R]\";\"Z\" \"Rho [amu/cm^3]\";\"Rho\" \"U_x [km/s]\";\"Ux\" \"U_y [km/s]\";\"Uy\" \"U_z [km/s]\";\"Uz\" \"B_x [nT]\";\"Bx\" \"B_y [nT]\";\"By\" \"B_z [nT]\";\"Bz\" \"P [nPa]\";\"P\" \"J_x [`mA/m^2]\";\"jx\" \"J_y [`mA/m^2]\";\"jy\" \"J_z [`mA/m^2]\";\"jz\" \"Status\" \"year\" \"mo\" \"dy\" \"hr\" \"mn\" \"sc\" \"msc\" \"t\" \"theta1\" \"phi1\" \"theta2\" \"phi2\"'
+    varnamelist = ''
+    for field_var in enumerate(field_variables):
+        for var in variables:
+            if field_var[1] == add_units(var):
+                varnamelist = (varnamelist +
+                               '\"{}\";\"{}\" '.format(field_var[1], var))
+                found = True
+        if not found:
+            varnamelist = (varnamelist + '\"{}\" '.format(field_var[1]))
+        found = False
+    for var in variables:
+        if not any([varname == add_units(var)
+                    for varname in field_variables]):
+            varnamelist = (varnamelist + '\"{}\" '.format(var))
+    #varnamelist2 = '\"X [R]\";\"X\" \"Y [R]\";\"Y\" \"Z [R]\";\"Z\" \"Rho [amu/cm^3]\";\"Rho\" \"U_x [km/s]\";\"Ux\" \"U_y [km/s]\";\"Uy\" \"U_z [km/s]\";\"Uz\" \"B_x [nT]\";\"Bx\" \"B_y [nT]\";\"By\" \"B_z [nT]\";\"Bz\" \"P [nPa]\";\"P\" \"J_x [`mA/m^2]\";\"jx\" \"J_y [`mA/m^2]\";\"jy\" \"J_z [`mA/m^2]\";\"jz\" \"Status\" \"year\" \"mo\" \"dy\" \"hr\" \"mn\" \"sc\" \"msc\" \"t\" \"theta1\" \"phi1\" \"theta2\" \"phi2\"'
+    print(varnamelist)
 
     readDataCmd = ("'"+'\"'+os.getcwd()+'/'+filename+'\" '+
     '\"VERSION=100 FILEEXT=\\\"*.txt\\\" '+
@@ -88,10 +105,11 @@ def load_swmf_sat(filename):
                    InitialPlotFirstZoneOnly = No
                    AddZonesToExistingStrands = No
                    VarLoadMode = ByName""")
-    print(readDataCmd)
     tp.macro.execute_command(readDataCmd)
+    tp.active_frame().dataset.zone('Zone 1').name = satname
+    return satname
 
-def get_satellite_zones(eventdt, datapath, *, coordsys='GSM'):
+def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
     """Function to find satellite trace data (if avail) and append the data
         to the current tecplot session
     Inputs
@@ -106,9 +124,16 @@ def get_satellite_zones(eventdt, datapath, *, coordsys='GSM'):
         print('No satellite data at {}!'.format(datapath))
         return []
     else:
+        variables = []
+        for var in field_data.variables():
+            variables.append(var.name)
         for satfile in satfiles[0:1]:
             print('reading: {}'.format(satfile))
-            load_swmf_sat(satfile)
+            satzonename = load_swmf_sat(satfile, variables)
+            satzones.append(satzonename)
+    #reset variable names
+    for var in field_data.variables('*\n*'):
+        var.name = var.name.split('\n')[0]
     return satzones
 
 if __name__ == "__main__":

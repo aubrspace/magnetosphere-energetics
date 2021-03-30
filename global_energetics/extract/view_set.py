@@ -97,27 +97,71 @@ def add_jy_slice(frame, jyindex):
         frame
         jyindex
     """
-    frame.plot().show_slices = True
+    print('enter the slice')
+    from IPython import embed; embed()
+    #frame.plot().show_slices = True
+    print('1')
+    from IPython import embed; embed()
     yslice = frame.plot().slice(0)
+    print('2')
+    from IPython import embed; embed()
     yslice.show=True
+    print('3')
+    from IPython import embed; embed()
     yslice.orientation = SliceSurface.YPlanes
+    print('4')
+    from IPython import embed; embed()
     yslice.origin[1] = -.10
+    print('5')
+    from IPython import embed; embed()
     yslice.contour.flood_contour_group_index = 1
+    print('6')
+    from IPython import embed; embed()
     yslice.effects.use_translucency = True
+    print('7')
+    from IPython import embed; embed()
     yslice.effects.surface_translucency = 40
+    print('8')
+    from IPython import embed; embed()
     jycontour = frame.plot().contour(1)
+    print('9')
+    from IPython import embed; embed()
     jycontour.variable_index=jyindex
+    print('10')
+    from IPython import embed; embed()
     jycontour.colormap_name = 'Diverging - Brown/Green'
+    print('11')
+    from IPython import embed; embed()
     jycontour.legend.vertical = True
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.legend.position[1] = 72
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.legend.position[0] = 98
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.legend.box.box_type = TextBox.Filled
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.labels.step = 2
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.colormap_filter.continuous_max = 0.003
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.colormap_filter.continuous_min = -0.003
+    print('enter the slice')
+    from IPython import embed; embed()
     jycontour.colormap_filter.reversed = True
+    print('finished the slice')
+    from IPython import embed; embed()
 
 def add_jz_slice(frame, jzindex):
     """adds iso contour for earth at r=1Re
@@ -381,6 +425,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        show_contour=True, show_slice=True,
                        show_fieldline=True, do_blanking=True, tile=False,
                        show_timestamp=True, mode='iso_day', satzones=[],
+                       plot_satellites=False,
                        mpslice=60, cpsslice=20, zone_rename=None):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
@@ -455,20 +500,22 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
         if satzones == []:
             print('No satellite zones to plot')
         else:
-            pass
+            print('TBD view settings for {}'.format(satzones))
     if show_timestamp:
         add_timestamp(frame, filename, timestamp_pos)
+        print('timestamp ok')
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
+    print('boudingBoxMacro ok')
     if save_img:
         #multiframe image (default)
-        tp.export.save_png(pngpath+outputname+'.png', width=3200)
+        #tp.export.save_png(pngpath+outputname+'.png', width=3200)
         #each frame in a separate directory
         for fr in tp.frames():
             #make sure the directory for each frame image is there
-            if not os.path.exists(pngpath+fr):
-                os.system('mkdir '+pngpath+fr)
-            tp.export.save_png(pngpath+fr+'/'+outputname+'.png',
-                               region=fr, width=3200)
+            if not os.path.exists(pngpath+fr.name):
+                os.system('mkdir '+pngpath+fr.name)
+            #tp.export.save_png(pngpath+fr.name+'/'+outputname+'.png',
+            #                   region=fr, width=3200)
     if save_plt:
         tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
                                  include_data_share_linkage=True,

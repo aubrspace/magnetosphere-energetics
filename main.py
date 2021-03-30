@@ -57,19 +57,23 @@ if __name__ == "__main__":
     eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
-    satzones = satellites.get_satellite_zones(eventdt, MHDPATH)
+    tp.export.save_png(PNGPATH+OUTPUTNAME+'.png', width=3200)
+    print('saved an image!\n')
+    satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
+    print('\nmade past call return!\n')
+    #satzones = []
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
     #adjust view settings
-    '''
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_fieldline=True,
+                                show_slice=False, show_fieldline=True,
                                 pngpath=PNGPATH,
-                                outputname=OUTPUTNAME, save_img=False)
+                                plot_satellites=True, satzones=satzones,
+                                outputname=OUTPUTNAME, save_img=True)
     '''
     #tile
     proc = 'Multi Frame Manager'
@@ -113,6 +117,7 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
