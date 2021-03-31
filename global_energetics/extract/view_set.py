@@ -5,6 +5,7 @@ import os
 import tecplot as tp
 from tecplot.constant import *
 import numpy as np
+import datetime as dt
 from progress.bar import Bar
 from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
@@ -97,71 +98,27 @@ def add_jy_slice(frame, jyindex):
         frame
         jyindex
     """
-    print('enter the slice')
-    from IPython import embed; embed()
-    #frame.plot().show_slices = True
-    print('1')
-    from IPython import embed; embed()
+    frame.plot().show_slices = True
     yslice = frame.plot().slice(0)
-    print('2')
-    from IPython import embed; embed()
     yslice.show=True
-    print('3')
-    from IPython import embed; embed()
     yslice.orientation = SliceSurface.YPlanes
-    print('4')
-    from IPython import embed; embed()
     yslice.origin[1] = -.10
-    print('5')
-    from IPython import embed; embed()
     yslice.contour.flood_contour_group_index = 1
-    print('6')
-    from IPython import embed; embed()
     yslice.effects.use_translucency = True
-    print('7')
-    from IPython import embed; embed()
     yslice.effects.surface_translucency = 40
-    print('8')
-    from IPython import embed; embed()
     jycontour = frame.plot().contour(1)
-    print('9')
-    from IPython import embed; embed()
     jycontour.variable_index=jyindex
-    print('10')
-    from IPython import embed; embed()
     jycontour.colormap_name = 'Diverging - Brown/Green'
-    print('11')
-    from IPython import embed; embed()
     jycontour.legend.vertical = True
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.legend.position[1] = 72
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.legend.position[0] = 98
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.legend.box.box_type = TextBox.Filled
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.labels.step = 2
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.colormap_filter.continuous_max = 0.003
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.colormap_filter.continuous_min = -0.003
-    print('enter the slice')
-    from IPython import embed; embed()
     jycontour.colormap_filter.reversed = True
-    print('finished the slice')
-    from IPython import embed; embed()
 
 def add_jz_slice(frame, jzindex):
     """adds iso contour for earth at r=1Re
@@ -419,6 +376,74 @@ def manage_zones(frame, nslice, *, approved_zones=None):
                 plt.fieldmap(map_index).shade.color = Color.Custom8
     return show_list
 
+def set_satellites(satnames, frame):
+    """Function sets view settings for 3D satellite data
+    Inputs
+        satnames- list of satellite names
+    """
+    dataset = frame.dataset
+    plot = frame.plot()
+    plot.show_mesh = True
+    plot.show_scatter = True
+    #Get corresponding satellite fieldmap variable indices
+    satindices, loc_satindices = [], []
+    for name in satnames:
+        satindices.append(int(dataset.zone(name).index))
+        #create local sat zone with sat current position
+        loc_satzone =  dataset.add_ordered_zone('loc_'+name, [1,1,1])
+        #get the current position of the satellite based on aux data
+        eventstring =dataset.zone('global_field').aux_data['TIMEEVENT']
+        startstring=dataset.zone('global_field').aux_data['TIMEEVENTSTART']
+        eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
+        startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
+        deltadt = eventdt-startdt
+        tvals = dataset.zone(name).values('t').as_numpy_array()
+        xvals = dataset.zone(name).values('X *').as_numpy_array()
+        yvals = dataset.zone(name).values('Y *').as_numpy_array()
+        zvals = dataset.zone(name).values('Z *').as_numpy_array()
+        svals = dataset.zone(name).values('Status').as_numpy_array()
+        xpos = xvals[np.where(tvals==deltadt.seconds)][0]
+        ypos = yvals[np.where(tvals==deltadt.seconds)][0]
+        zpos = zvals[np.where(tvals==deltadt.seconds)][0]
+        status = svals[np.where(tvals==deltadt.seconds)][0]
+        loc_satzone.values('X *')[0] = xpos
+        loc_satzone.values('Y *')[0] = ypos
+        loc_satzone.values('Z *')[0] = zpos
+        loc_satzone.values('Status')[0] = status
+        #add new zone index
+        loc_satindices.append(int(loc_satzone.index))
+    #Turn off mesh  and scatter for all maps that arent satellites
+    for index in range(0, dataset.num_zones):
+        if not any([ind == index for ind in satindices]):
+            plot.fieldmap(index).mesh.show = False
+        if not any([ind == index for ind in loc_satindices]):
+            plot.fieldmap(index).scatter.show = False
+    #setup colors that dont look terrible
+    colorwheel = [Color.Custom3, Color.Custom5, Color.Custom6,
+                  Color.Custom7, Color.Custom8, Color.Custom11,
+                  Color.Custom40, Color.Custom34, Color.Custom42,
+                  Color.Custom50, Color.Custom51, Color.Custom19,
+                  Color.Custom27, Color.Custom35]
+    #setup Status variable contour map
+    plot.contour(2).variable_index = int(dataset.variable('Status').index)
+    plot.contour(2).colormap_name = 'Large Rainbow'
+    plot.contour(2).levels.reset_levels([-1,0,1,2,3])
+    #Set color, linestyle, marker and sizes for satellite
+    for sat in enumerate(satindices):
+        #mesh
+        plot.fieldmap(sat[1]).mesh.show = True
+        plot.fieldmap(sat[1]).mesh.color = colorwheel[sat[0]]
+        plot.fieldmap(sat[1]).mesh.line_thickness = 1
+        plot.fieldmap(sat[1]).mesh.line_pattern = LinePattern.Solid
+        #scatter
+        index = loc_satindices[sat[0]]
+        plot.fieldmap(index).show = True
+        plot.fieldmap(index).scatter.show = True
+        plot.fieldmap(index).scatter.color = plot.contour(2)
+        plot.fieldmap(index).scatter.symbol().shape = GeomShape.Octahedron
+        plot.fieldmap(index).scatter.size = 2.5
+
+
 def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        save_img=True, pngpath='./', save_plt=False,
                        pltpath='./', outputname='output', mhddir='./',
@@ -500,6 +525,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
         if satzones == []:
             print('No satellite zones to plot')
         else:
+            set_satellites(satzones, frame)
             print('TBD view settings for {}'.format(satzones))
     if show_timestamp:
         add_timestamp(frame, filename, timestamp_pos)
@@ -508,14 +534,14 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     print('boudingBoxMacro ok')
     if save_img:
         #multiframe image (default)
-        #tp.export.save_png(pngpath+outputname+'.png', width=3200)
+        tp.export.save_png(pngpath+outputname+'.png', width=3200)
         #each frame in a separate directory
         for fr in tp.frames():
             #make sure the directory for each frame image is there
             if not os.path.exists(pngpath+fr.name):
                 os.system('mkdir '+pngpath+fr.name)
-            #tp.export.save_png(pngpath+fr.name+'/'+outputname+'.png',
-            #                   region=fr, width=3200)
+            tp.export.save_png(pngpath+fr.name+'/'+outputname+'.png',
+                               region=fr, width=3200)
     if save_plt:
         tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
                                  include_data_share_linkage=True,

@@ -57,8 +57,6 @@ if __name__ == "__main__":
     eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
-    tp.export.save_png(PNGPATH+OUTPUTNAME+'.png', width=3200)
-    print('saved an image!\n')
     satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
     print('\nmade past call return!\n')
     #satzones = []

@@ -127,7 +127,7 @@ def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
         variables = []
         for var in field_data.variables():
             variables.append(var.name)
-        for satfile in satfiles[0:1]:
+        for satfile in satfiles[0::]:
             print('reading: {}'.format(satfile))
             satzonename = load_swmf_sat(satfile, variables)
             satzones.append(satzonename)
