@@ -49,8 +49,6 @@ def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
             cols = cols.append(df.keys())
             energetics = pd.DataFrame(columns=cols, data=[np.append(
                                       energetics.values, df.values)])
-    print('\ndfs should be combined into "energetics"\n')
-    from IPython import embed; embed()
     #Remove duplicate time columns
     #TBD
     if not energetics.empty:
