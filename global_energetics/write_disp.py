@@ -29,6 +29,7 @@ def write_mesh(filename, zonename, timedata, mesh):
         store['Time_UTC'] = timedata
 
 def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
+                                        mp_inner_powers=None,
                                         ie_energies=None, ie_powers=None,
                                         im_energies=None, im_powers=None):
     """Function writes pandas data to hdf5 file
@@ -41,12 +42,15 @@ def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
     energetics = pd.DataFrame()
     cols = energetics.keys()
     #Combine all dataframes that are passed
-    for df in [mp_energies, mp_powers, ie_energies, ie_powers,
+    for df in [mp_energies, mp_powers, mp_inner_powers,
+               ie_energies, ie_powers,
                im_energies, im_powers]:
         if type(df) != type(None):
             cols = cols.append(df.keys())
             energetics = pd.DataFrame(columns=cols, data=[np.append(
                                       energetics.values, df.values)])
+    print('\ndfs should be combined into "energetics"\n')
+    from IPython import embed; embed()
     #Remove duplicate time columns
     #TBD
     if not energetics.empty:

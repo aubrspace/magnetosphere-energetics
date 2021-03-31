@@ -749,14 +749,19 @@ def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
     os.system('rm Out.txt')
     return integral
 
-def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
+def setup_isosurface(iso_value, varindex, zonename, *,
+                     contindex=7, isoindex=7, keep_condition=None,
+                                              keep_cond_value=0):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
         iso_value
         varindex, contindex, isoindex- storage locations on tecplot side
         zonename
+        keep_condition- will keep connected region w/ max element & this
+        keep_cond_value- value used for above condition
     Outputs
-        newzone
+        newzone- primary zone created (w/ max elements)
+        newzone2- secondary zone that meets keep condition
     """
     frame = tp.active_frame()
     frame.plot().show_isosurfaces = True
@@ -773,20 +778,36 @@ def setup_isosurface(iso_value, varindex, contindex, isoindex, zonename):
                                                               isoindex+1)+
                              'ExtractMode = OneZonePerConnectedRegion')
     iso.show = False
-    #only keep zone with the highest number of elements
+    #only keep zone with the highest number of elements, or meet condition
     nelements = 0
     for i in range(orig_nzones, frame.dataset.num_zones):
         if len(frame.dataset.zone(i).values('X *')) > nelements:
             nelements = len(frame.dataset.zone(i).values('X *'))
             keep_index = i
+        if keep_condition == 'sphere':
+            element_total = len(frame.dataset.zone(i).values('r *'))
+            rvals = frame.dataset.zone(i).values('r *').as_numpy_array()
+            elements_onsphere = len(np.where(
+                                    abs(rvals-keep_cond_value)<0.5)[0])
+            if (elements_onsphere/element_total > 0.9 and
+                element_total >20):
+                newzone2_key = frame.dataset.zone(i).name
+                keep_alt = i
+        else:
+            keep_alt = None
     for i in reversed(range(orig_nzones, frame.dataset.num_zones)):
-        if i != keep_index:
+        if i != keep_index and i != keep_alt:
             frame.dataset.delete_zones(i)
         else:
             newzone_key = frame.dataset.zone(i).name
     newzone = frame.dataset.zone(newzone_key)
     newzone.name = zonename
-    return newzone
+    if keep_condition == None:
+        return newzone, newzone
+    else:
+        newzone2 = frame.dataset.zone(newzone2_key)
+        newzone2.name = zonename+'innerbound'
+        return newzone, newzone2
 
 def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
     """Function creates equation in tecplot representing surface

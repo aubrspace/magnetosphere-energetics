@@ -176,8 +176,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                   rmax, rmin, itr_max, tol)
             else:
                 closed_index = calc_closed_state('Status', 3)
-                closed_zone = setup_isosurface(1, closed_index,
-                                                  7, 7, 'Bclosed')
+                closed_zone, _ = setup_isosurface(1,closed_index,'Bclosed')
                 closedzone_index = closed_zone.index
             x_subsolar = 1
             x_subsolar = max(x_subsolar,
@@ -200,8 +199,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                sp_r)
             state_var_name = field_data.variable(sp_state_index).name
             #make iso zone
-            sp_zone = setup_isosurface(1, sp_state_index,
-                                        7, 7, zonename)
+            sp_zone, _ = setup_isosurface(1, sp_state_index, zonename)
             zoneindex = sp_zone.index
         ################################################################
         if mode == 'box':
@@ -214,8 +212,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                   box_zmax, box_zmin)
             state_var_name = field_data.variable(box_state_index).name
             #make iso zone
-            box_zone = setup_isosurface(1, box_state_index,
-                                        7, 7, zonename)
+            box_zone, _ = setup_isosurface(1, box_state_index, zonename)
             zoneindex = box_zone.index
         ################################################################
         if mode.find('shue') != -1:
@@ -227,8 +224,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                               x_subsolar, tail_cap)
             state_var_name = field_data.variable(shue_state_index).name
             #make iso zone
-            shue_zone = setup_isosurface(1, shue_state_index,
-                                                  7, 7, zonename)
+            shue_zone, _ = setup_isosurface(1, shue_state_index, zonename)
             zoneindex = shue_zone.index
         ################################################################
         if mode == 'iso_betastar':
@@ -237,16 +233,22 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 zonename = zone_rename
             if closed_index == None and has_status == True:
                 closed_index = calc_closed_state('Status', 3)
-                closed_zone = setup_isosurface(1, closed_index,
-                                                  7, 7, 'Bclosed')
+                closed_zone, _ = setup_isosurface(1,closed_index,'Bclosed')
             iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
                                                      tail_cap, 50, 1,
                                                      include_core, sp_r,
                                                      closed_zone)
             state_var_name = field_data.variable(iso_betastar_index).name
             #remake iso zone using new equation
-            iso_betastar_zone = setup_isosurface(1, iso_betastar_index,
-                                                  7, 7, zonename)
+            if not include_core:
+                cond = 'sphere'
+            else:
+                cond = None
+            iso_betastar_zone, innerbound_zone = setup_isosurface(1,
+                                                 iso_betastar_index,
+                                                 zonename,
+                                                 keep_condition=cond,
+                                                 keep_cond_value=sp_r)
             zoneindex = iso_betastar_zone.index
             if zone_rename != None:
                 iso_betastar_zone.name = zone_rename
@@ -261,6 +263,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         if integrate_surface:
             mp_powers = surface_analysis(main_frame, zonename,
                                     cuttoff=tail_analysis_cap)
+            if not include_core and mode == 'iso_betastar':
+                innerbound_powers = surface_analysis(main_frame,
+                                                     zonename+'innerbound',
+                                                cuttoff=tail_analysis_cap)
+                innerbound_powers = innerbound_powers.add_prefix('inner')
+                print('\nInnerbound surface power calculated')
+            else:
+                innerbound_powers = None
             print('\nMagnetopause Power Terms')
             print(mp_powers)
         if integrate_volume:
@@ -281,7 +291,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             write_mesh(outputpath+'meshdata/mesh_'+datestring+'.h5',
                        zonename, pd.Series(eventtime), mp_mesh)
             write_to_hdf(outputpath+'energetics.h5', zonename,
-                         mp_energies=mp_energies, mp_powers=mp_powers)
+                         mp_energies=mp_energies, mp_powers=mp_powers,
+                         mp_inner_powers=innerbound_powers)
         if disp_result:
             display_progress(outputpath+'meshdata/mesh_'+datestring+'.h5',
                              outputpath+'energetics.h5', zonename)
