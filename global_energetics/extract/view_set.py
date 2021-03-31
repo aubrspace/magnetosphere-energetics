@@ -402,10 +402,10 @@ def set_satellites(satnames, frame):
         yvals = dataset.zone(name).values('Y *').as_numpy_array()
         zvals = dataset.zone(name).values('Z *').as_numpy_array()
         svals = dataset.zone(name).values('Status').as_numpy_array()
-        xpos = xvals[np.where(tvals==deltadt.seconds)][0]
-        ypos = yvals[np.where(tvals==deltadt.seconds)][0]
-        zpos = zvals[np.where(tvals==deltadt.seconds)][0]
-        status = svals[np.where(tvals==deltadt.seconds)][0]
+        xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+        ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+        zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+        status = svals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
         loc_satzone.values('X *')[0] = xpos
         loc_satzone.values('Y *')[0] = ypos
         loc_satzone.values('Z *')[0] = zpos
