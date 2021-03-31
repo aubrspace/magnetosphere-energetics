@@ -551,11 +551,13 @@ def get_global_variables(field_data):
     #Useful spatial variables
     eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
     eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
+    '''
     eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
     eq('{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
     eq('{lon [deg]} = if({X [R]}>0, 180/pi*atan({Y [R]} / {X [R]}),'+
                      'if({Y [R]}>0, 180/pi*atan({Y [R]}/{X [R]})+180,'+
                                    '180/pi*atan({Y [R]}/{X [R]})-180))')
+    '''
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
@@ -569,9 +571,9 @@ def get_global_variables(field_data):
                 '*(2*4*pi*1e-7)*1e9')
 
     #Magnetic field unit vectors
-    eq('{bx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{by} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{bz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{unitbx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{unitby} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{unitbz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
     eq('{Bmag [nT]} =sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
         value_location=ValueLocation.CellCentered)
     '''
@@ -597,15 +599,15 @@ def get_global_variables(field_data):
 
     #Ram pressure energy per volume
     eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                                    '(({U_x [km/s]}*{bx})**2+'+
-                                    '({U_y [km/s]}*{by})**2+'+
-                                    '({U_z [km/s]}*{bz})**2) *'+
+                                    '(({U_x [km/s]}*{unitbx})**2+'+
+                                    '({U_y [km/s]}*{unitby})**2+'+
+                                    '({U_z [km/s]}*{unitbz})**2) *'+
                                     '1e6*1.6605e-27*1e6*1e9*6371**3',
         value_location=ValueLocation.CellCentered)
     eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                          '(({U_y [km/s]}*{bz} - {U_z [km/s]}*{by})**2+'+
-                           '({U_z [km/s]}*{bx} - {U_x [km/s]}*{bz})**2+'+
-                           '({U_x [km/s]}*{by} - {U_y [km/s]}*{bx})**2)'+
+                          '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
+                           '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
+                           '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
                                        '*1e6*1.6605e-27*1e6*1e9*6371**3',
         value_location=ValueLocation.CellCentered)
 
@@ -824,11 +826,11 @@ def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
         eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
     eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,')
     if type(closed_zone) != type(None):
-        print(closed_zone)
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
     else:
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
+    print(eqstr)
     eq(eqstr)
     return tp.active_frame().dataset.variable(zonename).index
 

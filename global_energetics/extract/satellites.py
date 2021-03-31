@@ -50,7 +50,6 @@ def load_swmf_sat(filename, field_variables):
         u_variables.append(w_units)
         varstring = varstring+w_units+','
     varstring = varstring.rstrip(',')
-    #varnamelist = '\"'+'\" \"'.join(variables)+'\"'
     varnamelist = ''
     for field_var in enumerate(field_variables):
         for var in variables:
@@ -65,8 +64,6 @@ def load_swmf_sat(filename, field_variables):
         if not any([varname == add_units(var)
                     for varname in field_variables]):
             varnamelist = (varnamelist + '\"{}\" '.format(var))
-    #varnamelist2 = '\"X [R]\";\"X\" \"Y [R]\";\"Y\" \"Z [R]\";\"Z\" \"Rho [amu/cm^3]\";\"Rho\" \"U_x [km/s]\";\"Ux\" \"U_y [km/s]\";\"Uy\" \"U_z [km/s]\";\"Uz\" \"B_x [nT]\";\"Bx\" \"B_y [nT]\";\"By\" \"B_z [nT]\";\"Bz\" \"P [nPa]\";\"P\" \"J_x [`mA/m^2]\";\"jx\" \"J_y [`mA/m^2]\";\"jy\" \"J_z [`mA/m^2]\";\"jz\" \"Status\" \"year\" \"mo\" \"dy\" \"hr\" \"mn\" \"sc\" \"msc\" \"t\" \"theta1\" \"phi1\" \"theta2\" \"phi2\"'
-    print(varnamelist)
 
     readDataCmd = ("'"+'\"'+os.getcwd()+'/'+filename+'\" '+
     '\"VERSION=100 FILEEXT=\\\"*.txt\\\" '+

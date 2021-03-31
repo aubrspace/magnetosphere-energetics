@@ -58,13 +58,12 @@ if __name__ == "__main__":
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
     satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
-    print('\nmade past call return!\n')
-    #satzones = []
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
     #adjust view settings
+    '''
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
@@ -87,6 +86,7 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=False, show_fieldline=False,
                                 pngpath=PNGPATH,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='inside_from_tail')
     frame1.activate()
@@ -95,6 +95,7 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_fieldline=True,
                                 pngpath=PNGPATH,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False)
     frame2.activate()
@@ -103,6 +104,7 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_fieldline=True,
                                 pngpath=PNGPATH,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
                                 show_timestamp=False)
@@ -112,10 +114,10 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_fieldline=True,
                                 pngpath=PNGPATH,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
-    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),

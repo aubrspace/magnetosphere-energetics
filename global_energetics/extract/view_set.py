@@ -426,8 +426,11 @@ def set_satellites(satnames, frame):
                   Color.Custom27, Color.Custom35]
     #setup Status variable contour map
     plot.contour(2).variable_index = int(dataset.variable('Status').index)
-    plot.contour(2).colormap_name = 'Large Rainbow'
+    plot.contour(2).colormap_name = 'Diverging - Orange/Purple'
     plot.contour(2).levels.reset_levels([-1,0,1,2,3])
+    plot.contour(2).legend.position[1] = 46
+    plot.contour(2).legend.position[0] = 98
+    plot.contour(2).legend.box.box_type = TextBox.Filled
     #Set color, linestyle, marker and sizes for satellite
     for sat in enumerate(satindices):
         #mesh
@@ -441,7 +444,7 @@ def set_satellites(satnames, frame):
         plot.fieldmap(index).scatter.show = True
         plot.fieldmap(index).scatter.color = plot.contour(2)
         plot.fieldmap(index).scatter.symbol().shape = GeomShape.Octahedron
-        plot.fieldmap(index).scatter.size = 2.5
+        plot.fieldmap(index).scatter.size = 2
 
 
 def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
@@ -526,12 +529,9 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
             print('No satellite zones to plot')
         else:
             set_satellites(satzones, frame)
-            print('TBD view settings for {}'.format(satzones))
     if show_timestamp:
         add_timestamp(frame, filename, timestamp_pos)
-        print('timestamp ok')
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
-    print('boudingBoxMacro ok')
     if save_img:
         #multiframe image (default)
         tp.export.save_png(pngpath+outputname+'.png', width=3200)
