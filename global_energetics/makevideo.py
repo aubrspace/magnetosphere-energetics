@@ -87,24 +87,29 @@ def vid_compile(folder, framerate, title):
         framerate
         title
     """
+    #########################################################
+    #Notes on ffmpeg command:
+    #   vcodec libx264 is h.264 format video
+    #   pix_fmt fixes pixel format so that quicktime works
+    #########################################################
     if glob.glob(folder+'/'+title+'.avi') != []:
         os.system('rm '+folder+'/'+title+'.avi')
     print(glob.glob(folder+'/img-???.png'))
     if glob.glob(folder+'/img-???.png') != []:
-        make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%03d.png '+folder+'/'+title+'.avi'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%03d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
     elif glob.glob(folder+'/img-??.png') != []:
-        make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%02d.png '+folder+'/'+title+'.avi'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%02d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
     elif glob.glob(folder+'/img-?.png') != []:
-        make_vid_cmd = 'ffmpeg -framerate '+str(framerate)+' -i '+folder+'/img-%01d.png '+folder+'/'+title+'.avi'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
     os.system(make_vid_cmd)
     print('\nopening video: '+folder+'/'+title+'.avi\n')
-    os.system('open '+folder+'/'+title+'.avi')
+    os.system('open '+folder+'/'+title+'.mp4')
 
 #Main program
 if __name__ == '__main__':
     #Video settings
     RES = 400
-    FRAMERATE = 2
+    FRAMERATE = 6
     FOLDER = sys.argv[1]
 
     #determine if already in img-??.png form
