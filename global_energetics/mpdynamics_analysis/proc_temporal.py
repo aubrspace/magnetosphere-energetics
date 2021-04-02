@@ -169,7 +169,7 @@ def prepare_figures(dflist, dfnames, outpath):
             spdfs.append(energy_dfs[df[0]])
             spnames.append(energy_dfnames[df[0]])
     #specific assignments
-    coredfs, coredfnames = spdfs[::], spnames[::]
+    #coredfs, coredfnames = spdfs[::], spnames[::]
     if len(mpdfs)>1:
         if mpdfs[0]['Volume [Re^3]'].max()>mpdfs[1]['Volume [Re^3]'].max():
             mpshelldfs, mpshellnames = [mpdfs[1]], [mpnames[1]]
@@ -378,8 +378,8 @@ def prepare_figures(dflist, dfnames, outpath):
                                 qtykey[1], ylabel)
                 plot_all_runs_1Qty(ax2, boxdfs, boxnames, timekey,
                                 qtykey[1], ylabel)
-                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-                                qtykey[1], ylabel)
+                #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                #                qtykey[1], ylabel)
             plot_all_runs_1Qty(ax1, mpdfs, mpnames, timekey,
                                'K_net [W]', ylabel, Size=8)
             power_compare1.savefig(outpath+'{}.png'.format(figname))
@@ -438,11 +438,11 @@ def prepare_figures(dflist, dfnames, outpath):
                                 qtykey, ylabel)
                 plot_all_runs_1Qty(ax2, boxdfs, boxnames, timekey,
                                 qtykey, ylabel)
-                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-                                qtykey, ylabel)
+                #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                                #qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            axislist = [ax1, ax2, ax3]
-            dflist = [mpdfs, boxdfs, coredfs]
+            axislist = [ax1, ax2]
+            dflist = [mpdfs, boxdfs]
             for ax in enumerate(axislist):
                 df = dflist[ax[0]][0]
                 ax[1].fill_between(df['Time [UTC]'], 0, df['ExB_net [W]'])
@@ -466,11 +466,11 @@ def prepare_figures(dflist, dfnames, outpath):
                                 qtykey, ylabel)
                 plot_all_runs_1Qty(ax2, boxdfs, boxnames, timekey,
                                 qtykey, ylabel)
-                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-                                qtykey, ylabel)
+                #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                #                qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            axislist = [ax1, ax2, ax3]
-            dflist = [mpdfs, boxdfs, coredfs]
+            axislist = [ax1, ax2]
+            dflist = [mpdfs, boxdfs]
             for ax in enumerate(axislist):
                 df = dflist[ax[0]][0]
                 ax[1].fill_between(df['Time [UTC]'], 0, df['P0_net [W]'])
@@ -496,11 +496,11 @@ def prepare_figures(dflist, dfnames, outpath):
                                 qtykey, ylabel)
                 plot_all_runs_1Qty(ax2, boxdfs, boxnames, timekey,
                                 qtykey, ylabel)
-                plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
-                                qtykey, ylabel)
+                #plot_all_runs_1Qty(ax3, coredfs, coredfnames, timekey,
+                #                qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            axislist = [ax1, ax2, ax3]
-            dflist = [mpdfs, boxdfs, coredfs]
+            axislist = [ax1, ax2]
+            dflist = [mpdfs, boxdfs]
             for ax in enumerate(axislist):
                 df = dflist[ax[0]][0]
                 ax[1].fill_between(df['Time [UTC]'], 0,
@@ -724,6 +724,6 @@ def process_temporal_mp(data_path_list, outputpath):
     print('done!')
 
 if __name__ == "__main__":
-    datapath = os.getcwd()+'/output/mpdynamics/hires/'
+    datapath = sys.argv[1]
     print(datapath)
     process_temporal_mp([datapath],datapath+'figures/')
