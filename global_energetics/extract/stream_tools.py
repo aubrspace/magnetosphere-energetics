@@ -146,7 +146,7 @@ def mag2gsm(x1, x2, x3, time, *, inputtype='sph'):
     Output
         xgsm, ygsm, zgsm- in form of 3 element np array
     """
-    coordinates = coord.Coords([radius, latitude, longitude], 'SM',
+    coordinates = coord.Coords([x1, x2, x3], 'SM',
                                inputtype)
     coordinates.ticks = time
     return coordinates.convert('GSM', 'car').data[0][0:3]

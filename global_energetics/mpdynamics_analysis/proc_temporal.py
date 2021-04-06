@@ -219,7 +219,7 @@ def prepare_figures(dflist, outpath):
             figname = 'Power'
             #figure settings
             power, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
-                                               sharex=True, figsize=[18,12])
+                                               sharex=True, figsize=[9,12])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes

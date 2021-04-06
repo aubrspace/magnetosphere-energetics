@@ -18,7 +18,7 @@ from progress.bar import Bar
 from progress.spinner import Spinner
 import swmfpy
 import spacepy
-#from spacepy import coordinates as coord
+from spacepy import coordinates as coord
 from spacepy import time as spacetime
 import tecplot as tp
 from tecplot.constant import *
@@ -41,9 +41,54 @@ except ModuleNotFoundError:
 else:
     EXIT=False
 
+#enable latex format
+plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.size": 18,
+    "font.sans-serif": ["Helvetica"]})
 
+def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
+    """Function converts coordinates from given columns from dataframe
+    Inputs
+        df- pandas dataframe
+        timekey- key to access time data, assuming datetime format
+        keylist- list of keys to transform, !!MUST BY XYZ equiv IN ORDER!!
+        sys_pair- tuple ('CoordinateSys', 'Type') eg: ('GSM','car')
+        to_sys_pair- tuple for what to transform into
+    Outputs
+        df- dataframe containing transformed keylist vars+[yr,mo,dy...]
+    """
+    #break datetime into components (weird way to getaround a type issue)
+    df['yr'] = [entry.year for entry in df[timekey]]
+    df['mn'] = [entry.month for entry in df[timekey]]
+    df['dy'] = [entry.day for entry in df[timekey]]
+    df['hr'] = [entry.hour for entry in df[timekey]]
+    df['min'] = [entry.minute for entry in df[timekey]]
+    df['sec'] = [entry.second for entry in df[timekey]]
+    #reconstruct list of datetimes from various df columns
+    datetimes = []
+    for index in df.index:
+        if not np.isnan(df['yr'][index]):
+            datetimes.append(dt.datetime(int(df['yr'][index]),
+                                         int(df['mn'][index]),
+                                         int(df['dy'][index]),
+                                         int(df['hr'][index]),
+                                         int(df['min'][index]),
+                                         int(df['sec'][index])))
+    #get dataframe with just keylist variables
+    coord_df = pd.DataFrame()
+    for key in keylist:
+        coord_df[key] = df[key][0:-1]
+    #Make coordinates object, then add ticks, then convert
+    points = coord.Coords(coord_df.values,sys_pair[0],sys_pair[1])
+    points.ticks = spacetime.Ticktock(datetimes, 'UTC')
+    trans_points = points.convert(to_sys_pair[0], to_sys_pair[1])
+    for dim in enumerate([trans_points.x, trans_points.y, trans_points.z]):
+        df[keylist[dim[0]]+to_sys_pair[0]] = np.append(dim[1], np.nan)
+    #return df with fancy new columns
+    return df
 
-def plot_dst(axis, dflist, dflabels, timekey, ylabel, *,
+def plot_dst(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots dst (or equivalent index) with given data frames
     Inputs
@@ -54,18 +99,19 @@ def plot_dst(axis, dflist, dflabels, timekey, ylabel, *,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in enumerate(dflist):
-        if dflabels[data[0]] == 'supermag':
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
             qtkey = 'SMR (nT)'
-        elif dflabels[data[0]] == 'swmf_log':
+        elif name == 'swmf_log':
             qtkey = 'dst_sm'
-        elif dflabels[data[0]] == 'omni':
+        elif name == 'omni':
             qtkey = 'sym_h'
         else:
             qtkey = None
         if qtkey != None:
-            axis.plot(data[1][timekey],data[1][qtkey],
-                      label=qtkey+'_'+dflabels[data[0]],
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
                       linewidth=Size, linestyle=ls)
     if xlim!=None:
         axis.set_xlim(xlim)
@@ -75,7 +121,7 @@ def plot_dst(axis, dflist, dflabels, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_AL(axis, dflist, dflabels, timekey, ylabel, *,
+def plot_AL(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots AL (or equivalent index) with given data frames
     Inputs
@@ -86,18 +132,19 @@ def plot_AL(axis, dflist, dflabels, timekey, ylabel, *,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in enumerate(dflist):
-        if dflabels[data[0]] == 'supermag':
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
             qtkey = 'SML (nT)'
-        elif dflabels[data[0]] == 'swmf_index':
+        elif name == 'swmf_index':
             qtkey = 'AL'
-        elif dflabels[data[0]] == 'omni':
+        elif name == 'omni':
             qtkey = 'al'
         else:
             qtkey = None
         if qtkey != None:
-            axis.plot(data[1][timekey],data[1][qtkey],
-                      label=qtkey+'_'+dflabels[data[0]],
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
                       linewidth=Size, linestyle=ls)
     if xlim!=None:
         axis.set_xlim(xlim)
@@ -107,7 +154,7 @@ def plot_AL(axis, dflist, dflabels, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_cpcp(axis, dflist, dflabels, timekey, ylabel, *,south=False,
+def plot_cpcp(axis, dflist, timekey, ylabel, *,south=False,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots cross polar cap potential with given data frames
     Inputs
@@ -118,8 +165,9 @@ def plot_cpcp(axis, dflist, dflabels, timekey, ylabel, *,south=False,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in enumerate(dflist):
-        if dflabels[data[0]] == 'swmf_log':
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'swmf_log':
             if south:
                 qtkey = 'cpcps'
             else:
@@ -127,8 +175,8 @@ def plot_cpcp(axis, dflist, dflabels, timekey, ylabel, *,south=False,
         else:
             qtkey = None
         if qtkey != None:
-            axis.plot(data[1][timekey],data[1][qtkey],
-                      label=qtkey+'_'+dflabels[data[0]],
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
                       linewidth=Size, linestyle=ls)
     if xlim!=None:
         axis.set_xlim(xlim)
@@ -138,7 +186,7 @@ def plot_cpcp(axis, dflist, dflabels, timekey, ylabel, *,south=False,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_newell(axis, dflist, dflabels, timekey, ylabel, *,
+def plot_newell(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots cross polar cap potential with given data frames
     Inputs
@@ -149,14 +197,15 @@ def plot_newell(axis, dflist, dflabels, timekey, ylabel, *,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in enumerate(dflist):
-        if dflabels[data[0]] == 'supermag':
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
             qtkey = 'Newell CF (Wb/s)'
         else:
             qtkey = None
         if qtkey != None:
-            axis.plot(data[1][timekey],data[1][qtkey],
-                      label=qtkey+'_'+dflabels[data[0]],
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
                       linewidth=Size, linestyle=ls)
     if xlim!=None:
         axis.set_xlim(xlim)
@@ -166,26 +215,109 @@ def plot_newell(axis, dflist, dflabels, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_swdensity(axis, dflist, dflabels, timekey, ylabel, *,
+def plot_swdensity(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots solar wind density with given data frames
     Inputs
         axis- object plotted on
         dflist- datasets
-        dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in enumerate(dflist):
-        if dflabels[data[0]] == 'supermag':
-            qtkey = 'Newell CF (Wb/s)'
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
+            qtkey = 'Density (#/cm^3)'
+        elif name == 'swmf_sw':
+            qtkey = 'dens'
+        elif name == 'omni':
+            qtkey = 'density'
         else:
             qtkey = None
         if qtkey != None:
-            axis.plot(data[1][timekey],data[1][qtkey],
-                      label=qtkey+'_'+dflabels[data[0]],
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
                       linewidth=Size, linestyle=ls)
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(timekey)
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc)
+
+def plot_swclock(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+    """Function plots solar wind clock angle with given data frames
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'lower right'
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
+            qtkey = 'Clock Angle GSM (deg.)'
+        elif name == 'swmf_sw':
+            data = df_coord_transform(data, 'times', ['bx','by','bz'],
+                                      ('GSE','car'), ('GSM','car'))
+            data['clock'] = np.rad2deg(np.arctan2(data['bzGSM'],
+                                                  data['byGSM']))
+            qtkey = 'clock'
+        elif name == 'omni':
+            data['clock'] = np.rad2deg(np.arctan2(data['bz'],
+                                                  data['by']))
+            qtkey = 'clock'
+        else:
+            qtkey = None
+        if qtkey != None:
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
+                      linewidth=Size, linestyle=ls)
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(timekey)
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc)
+
+def plot_swbybz(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+    """Function plots solar wind clock angle with given data frames
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'lower right'
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
+            qtkey1 = 'ByGSM (nT)'
+            qtkey2 = 'BzGSM (nT)'
+        elif name == 'swmf_sw':
+            data = df_coord_transform(data, 'times', ['bx','by','bz'],
+                                      ('GSE','car'), ('GSM','car'))
+            qtkey1 = 'byGSM'
+            qtkey2 = 'bzGSM'
+        elif name == 'omni':
+            qtkey1 = 'by'
+            qtkey2 = 'bz'
+        else:
+            qtkey1 = None
+            qtkey2 = None
+        if qtkey1 != None or qtkey2 !=None:
+            axis.plot(data[timekey],data[qtkey1],
+                      label=qtkey1+'_'+name,
+                      linewidth=Size, linestyle=ls)
+            axis.plot(data[timekey],data[qtkey2],
+                      label=qtkey2+'_'+name,
+                      linewidth=Size, linestyle='--')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -202,7 +334,8 @@ def get_supermag_data(start, end, datapath):
     """
     supermag.DIR = SUPERMAGDATAPATH
     print('obtaining supermag data')
-    return pd.DataFrame(supermag.supermag(start,end))
+    return pd.DataFrame(supermag.supermag(start,end)).append(
+            pd.Series({'name':'supermag'}),ignore_index=True)
 
 def get_swmf_data(datapath):
     """Function reads in swmf geoindex log and log
@@ -214,7 +347,12 @@ def get_swmf_data(datapath):
     #read files
     geoindex = glob.glob(datapath+'*geo*.log')[0]
     swmflog = glob.glob(datapath+'*log_*.log')[0]
-    print('reading: \n\t{}\n\t{}'.format(geoindex,swmflog))
+    solarwind = glob.glob(datapath+'*IMF.dat*')[0]
+    #get dataset names
+    geoindexname = geoindex.split('/')[-1].split('.log')[0]
+    swmflogname = swmflog.split('/')[-1].split('.log')[0]
+    solarwindname = solarwind.split('/')[-1].split('.dat')[0]
+    print('reading: \n\t{}\n\t{}\n\t{}'.format(geoindex,swmflog,solarwind))
     def datetimeparser(datetimestring):
         #maybe move this somewhere to call a diff parser depending on file
         return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S %f')
@@ -226,27 +364,36 @@ def get_swmf_data(datapath):
             parse_dates={'times':['year','mo','dy','hr','mn','sc','msc']},
             date_parser=datetimeparser,
             infer_datetime_format=True, keep_date_col=True)
-    return geoindexdata, swmflogdata
+    swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[1,2,3,4],
+            parse_dates={'times':['yr','mn','dy','hr','min','sec','msec']},
+            date_parser=datetimeparser,
+            infer_datetime_format=True, keep_date_col=True)
+    swdata = swdata[swdata['times']<geoindexdata['times'].iloc[-1]]
+    swdata = swdata[swdata['times']>geoindexdata['times'].iloc[0]]
+    #attach names to each dataset
+    geoindexdata = geoindexdata.append(pd.Series({'name':'swmf_index'}),
+                                       ignore_index=True)
+    swmflogdata = swmflogdata.append(pd.Series({'name':'swmf_log'}),
+                                       ignore_index=True)
+    swdata = swdata.append(pd.Series({'name':'swmf_sw'}),
+                                       ignore_index=True)
+    return geoindexdata, swmflogdata, swdata
 
-def prepare_figures(swmf_index, swmf_log, supermag, omni, outputpath):
+def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
+                    outputpath):
     """Function creates figure and axis objects to fill with plots and
         saves them
     Inputs
         swmf_index, swmf_log, supermag- DataFrame objects to pull from
         outputpath
     """
-    #print data
-    print('swmf_index:\n{}\nswmf_log:\n{}\nsupermag:\n{}\nomni:{}'.format(
-                                                              swmf_index,
-                                                              swmf_log,
-                                                              supermag,
-                                                              omni))
-    data_names = ['swmf_index', 'swmf_log', 'supermag', 'omni']
-    dflist, dfnames = [], []
-    for df in enumerate([swmf_index, swmf_log, supermag, omni]):
+    #make list of all data and print keys in available datasets
+    print('Data available:')
+    dflist = []
+    for df in enumerate([swmf_index, swmf_log, swmf_sw, supermag, omni]):
         if not df[1].empty:
             dflist.append(df[1])
-            dfnames.append(data_names[df[0]])
+            print(df[1]['name'].iloc[-1]+':\n{}'.format(df[1].keys()))
     ######################################################################
     #SMR and SML index comparison
     if True:
@@ -256,21 +403,21 @@ def prepare_figures(swmf_index, swmf_log, supermag, omni, outputpath):
         #Time
         timekey = 'times'
         ylabel = 'SMR [nT]'
-        plot_dst(ax1, dflist, dfnames, timekey, ylabel)
+        plot_dst(ax1, dflist, timekey, ylabel)
         ylabel = 'SML [nT]'
-        plot_AL(ax2, dflist, dfnames, timekey, ylabel)
+        plot_AL(ax2, dflist, timekey, ylabel)
         smr.savefig(outputpath+'{}.png'.format(figname))
     ######################################################################
     #CPCP
-    if True:
+    if False:
         figname = 'CPCP'
         cpcp, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True,
                                                           figsize=[18,8])
         #Time
         timekey = 'times'
         ylabel = 'CPCP [V]'
-        plot_cpcp(ax1, dflist, dfnames, timekey, ylabel)
-        plot_cpcp(ax2, dflist, dfnames, timekey, ylabel, south=True)
+        plot_cpcp(ax1, dflist, timekey, ylabel)
+        plot_cpcp(ax2, dflist, timekey, ylabel, south=True)
         cpcp.savefig(outputpath+'{}.png'.format(figname))
     ######################################################################
     #Newell
@@ -281,18 +428,22 @@ def prepare_figures(swmf_index, swmf_log, supermag, omni, outputpath):
         #Time
         timekey = 'times'
         ylabel = 'Newell [Wb/s]'
-        plot_newell(ax1, dflist, dfnames, timekey, ylabel)
+        plot_newell(ax1, dflist, timekey, ylabel)
         newell.savefig(outputpath+'{}.png'.format(figname))
     ######################################################################
     #SolarWind
-    if False:
+    if True:
         figname = 'SolarWind'
-        sw, (ax1) = plt.subplots(nrows=1, ncols=1, sharex=True,
-                                                          figsize=[18,8])
+        sw, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, sharex=True,
+                                                          figsize=[18,12])
         #Time
         timekey = 'times'
         ylabel = 'SW Density [#/cm^3]'
-        plot_swdensity(ax1, dflist, dfnames, timekey, ylabel)
+        plot_swdensity(ax1, dflist, timekey, ylabel)
+        ylabel = 'SW By,Bz [nT]'
+        plot_swbybz(ax2, dflist, timekey, ylabel)
+        ylabel = 'SW Clock Angle [deg]'
+        plot_swclock(ax3, dflist, timekey, ylabel)
         sw.savefig(outputpath+'{}.png'.format(figname))
     ######################################################################
 
@@ -303,12 +454,27 @@ def process_indices(data_path, outputpath):
         data_path- path to the data
         outputpaht
     """
-    swmf_index, swmf_log = get_swmf_data(data_path)
+    swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path)
+    if False:
+        #cuttoff data past a certain time
+        swmf_datalist = [swmf_index, swmf_log, swmf_sw]
+        cuttofftime = dt.datetime(2014,2,18,12,0)
+        for df in enumerate(swmf_datalist):
+            name = pd.Series({'name':df[1]['name'].iloc[-1]})
+            cutdf = df[1][df[1]['times']<cuttofftime].append(name,
+                                                ignore_index=True)
+            swmf_datalist[df[0]] = cutdf
+        [swmf_index, swmf_log, swmf_sw] = swmf_datalist
+    #find new start/end times
     start = swmf_index['times'][0]
-    end = swmf_index['times'].iloc[-1]
+    end = swmf_index['times'].iloc[-2]
+    #get supermag and omni
     supermag = get_supermag_data(start, end, SUPERMAGDATAPATH)
-    omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end))
-    prepare_figures(swmf_index, swmf_log, supermag, omni, outputpath)
+    omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end)).append(
+            pd.Series({'name':'omni'}), ignore_index=True)
+    #make plots
+    prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
+                    outputpath)
 
 if __name__ == "__main__":
     if not EXIT:
