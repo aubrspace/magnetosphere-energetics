@@ -162,7 +162,7 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'EnergyAccumulation'
             #figure settings
-            cumulative_E, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,
+            cumulative_E, (ax1) = plt.subplots(nrows=1,
                                                                 ncols=1,
                                                sharex=True, figsize=[18,12])
             #Time
@@ -176,7 +176,7 @@ def prepare_figures(dflist, outpath):
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                        qty[1], ylabel,ylim=[
                                        0,mpdfs[0]['Total [J]'].max()*1.05])
-                if boxdfs !=[]:
+                if False:
                     plot_all_runs_1Qty(ax2, boxdfs[0:1],
                                    timekey, qty[1], ylabel, Color='blue',
                                    ls=linestyle)
@@ -209,8 +209,8 @@ def prepare_figures(dflist, outpath):
             for qty in enumerate(qtylist):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1.twinx(), mpdfs, timekey,
-                                   qty[1], ylabel, Color='green',
-                                   ylim=errlim)
+                                   qty[1], ylabel, Color='green')
+                                   #ylim=errlim)
             cumulative_E.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
         ###################################################################
@@ -218,8 +218,8 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'Power'
             #figure settings
-            power, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
-                                               sharex=True, figsize=[9,12])
+            power, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,12])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
@@ -229,7 +229,7 @@ def prepare_figures(dflist, outpath):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                 qtykey, ylabel)
-                if boxdfs != []:
+                if False:
                     plot_all_runs_1Qty(ax2, boxdfs[0:2],
                                 timekey,
                                 qtykey, ylabel)
@@ -257,8 +257,8 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'Power_vs_derived'
             #figure settings
-            dpower, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
-                                               sharex=True, figsize=[18,12])
+            dpower, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,8])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
@@ -269,7 +269,7 @@ def prepare_figures(dflist, outpath):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                     qtykey, ylabel)
-                if boxdfs != []:
+                if False:
                     plot_all_runs_1Qty(ax2, boxdfs[0:2],
                                 timekey,
                                 qtykey, ylabel)
@@ -290,8 +290,8 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'Power_type_compare'
             #figure settings
-            power_compare1, (ax1,ax2) = plt.subplots(nrows=2,ncols=1,
-                                               sharex=True, figsize=[18,12])
+            power_compare1, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,8])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
@@ -299,13 +299,13 @@ def prepare_figures(dflist, outpath):
             qtylist = ['ExB_injection [W]', 'P0_injection [W]',
                        'K_injection [W]',
                        'ExB_escape [W]', 'P0_escape [W]', 'K_escape [W]']
-            axislist = [ax1, ax2, ax1, ax2]
+            axislist = [ax1]
             ylabel = 'Power [W]'
             for qtykey in enumerate(qtylist):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                 qtykey[1], ylabel)
-                if boxdfs != []:
+                if False:
                     plot_all_runs_1Qty(ax2, boxdfs, timekey,
                                 qtykey[1], ylabel)
             power_compare1.savefig(outpath+'{}.png'.format(figname))
@@ -359,8 +359,8 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'ExBPower'
             #figure settings
-            ExBpower, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
-                                               sharex=True, figsize=[18,12])
+            ExBpower, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,8])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
@@ -370,11 +370,11 @@ def prepare_figures(dflist, outpath):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                 qtykey, ylabel)
-                if boxdfs != []:
+                if False:
                     plot_all_runs_1Qty(ax2, boxdfs, timekey,
                                 qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            axislist = [ax1, ax2]
+            axislist = [ax1]
             dflist = []
             if mpdfs != []:
                 dflist.append(mpdfs)
@@ -391,8 +391,8 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'P0Power'
             #figure settings
-            P0power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
-                                               sharex=True, figsize=[18,12])
+            P0power, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,8])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
@@ -402,11 +402,11 @@ def prepare_figures(dflist, outpath):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                 qtykey, ylabel)
-                if boxdfs != []:
+                if False:
                     plot_all_runs_1Qty(ax2, boxdfs, timekey,
                                 qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            axislist = [ax1, ax2]
+            axislist = [ax1]
             dflist = []
             if mpdfs != []:
                 dflist.append(mpdfs)
@@ -423,8 +423,8 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'AveragePower'
             #figure settings
-            power, (ax1,ax2,ax3) = plt.subplots(nrows=3,ncols=1,
-                                               sharex=True, figsize=[18,12])
+            power, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,8])
             #Time
             timekey = 'Time [UTC]'
             #Power terms on Primary Axes
@@ -435,11 +435,11 @@ def prepare_figures(dflist, outpath):
             for qtykey in qtylist:
                 plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                 qtykey, ylabel)
-                plot_all_runs_1Qty(ax2, boxdfs, timekey,
-                                qtykey, ylabel)
+                #plot_all_runs_1Qty(ax2, boxdfs, timekey,
+                #                qtykey, ylabel)
             #Fill between to distinguish +/- net powers
-            axislist = [ax1, ax2]
-            dflist = [mpdfs, boxdfs]
+            axislist = [ax1]
+            dflist = [mpdfs]
             for ax in enumerate(axislist):
                 df = dflist[ax[0]][0]
                 ax[1].fill_between(df['Time [UTC]'], 0,
@@ -452,22 +452,39 @@ def prepare_figures(dflist, outpath):
         if True:
             figname = 'VolumeSurfaceArea'
             #figure settings
-            VolArea, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,
-                                               sharex=True, figsize=[18,12])
+            VolArea, (ax1) = plt.subplots(nrows=1,ncols=1,
+                                               sharex=True, figsize=[18,8])
             #Time
             timekey = 'Time [UTC]'
             #Volume, Surface Area, Vol/SA on primary axes
             qtylist = ['Volume [Re^3]', 'Area [Re^2]', 'X_subsolar [Re]']
             axislist = [ax1, ax2, ax3]
+            '''
             for qtykey in enumerate(qtylist):
                 axis = axislist[qtykey[0]]
                 plot_all_runs_1Qty(axis, mpdfs, timekey,
                                 qtykey[1], qtykey[1])
-            qtylist = ['nVolume', 'nArea', 'nX_ss']
+            '''
+            qtylist = ['X_subsolar [Re]', 'V/SA [Re]']
             for qtykey in enumerate(qtylist):
-                plot_all_runs_1Qty(ax4, mpdfs, timekey,
+                plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                 qtykey[1], qtykey[1])
+            plot_all_runs_1Qty(ax1.twinx(), mpdfs, timekey, 'V/(SA*X_ss)',
+                               'V/(SA*X_ss)',ylim=[0,1], Color='green')
             VolArea.savefig(outpath+'{}.png'.format(figname))
+            '''
+                ###Add volume/surface area and estimated error
+                dflist[df[0]].loc[:,'V/SA [Re]'] = (df[1]['Volume [Re^3]']/
+                                                    df[1]['Area [Re^2]'])
+                dflist[df[0]].loc[:,'V/(SA*X_ss)'] = (df[1]['V/SA [Re]']/
+                                                  df[1]['X_subsolar [Re]'])
+                dflist[df[0]].loc[:,'nVolume'] = (df[1]['Volume [Re^3]']/
+                                              df[1]['Volume [Re^3]'].max())
+                dflist[df[0]].loc[:,'nArea'] = (df[1]['Area [Re^2]']/
+                                              df[1]['Area [Re^2]'].max())
+                dflist[df[0]].loc[:,'nX_ss'] = (df[1]['X_subsolar [Re]']/
+                                            df[1]['X_subsolar [Re]'].max())
+            '''
             #plt.show()
             #plt.close(VolArea)
         ###################################################################

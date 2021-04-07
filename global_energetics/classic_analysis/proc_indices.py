@@ -436,7 +436,7 @@ def process_indices(data_path, outputpath):
     if False:
         #cuttoff data past a certain time
         swmf_datalist = [swmf_index, swmf_log, swmf_sw]
-        cuttofftime = dt.datetime(2014,2,18,12,0)
+        cuttofftime = dt.datetime(2014,2,18,22,0)
         for df in enumerate(swmf_datalist):
             name = pd.Series({'name':df[1]['name'].iloc[-1]})
             cutdf = df[1][df[1]['times']<cuttofftime].append(name,
