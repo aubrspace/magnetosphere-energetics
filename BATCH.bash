@@ -12,6 +12,7 @@ mkdir output/plt
 mkdir output/lay
 mkdir output/png
 mkdir output/figures
+mkdir output/indices
 OUT=output/
 PLTOUT=output/plt/
 LAYOUT=output/lay/
@@ -31,7 +32,8 @@ done
 
 #create video from png file
 python global_energetics/makevideo.py $PNGOUT
-mv $PNGOUT/frames/video.avi $OUT
+mv $PNGOUT/frames/video.mp4 $OUT
 
 #create figures of integrated quantities over time
-python global_energetics/mpdynamics_analysis/proc_temporal.py
+python global_energetics/mpdynamics_analysis/proc_temporal.py $OUT/
+python global_energetics/classic_analysis/proc_indices.py $MHDDIR/
