@@ -217,15 +217,16 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         ################################################################
         if mode.find('shue') != -1:
             zonename = 'mp_'+mode
-            if zone_rename != None:
-                zonename = zone_rename
             #calculate surface state variable
-            shue_state_index = calc_shue_state(field_data, zonename,
+            shue_state_index = calc_shue_state(field_data, mode,
                                               x_subsolar, tail_cap)
             state_var_name = field_data.variable(shue_state_index).name
             #make iso zone
             shue_zone, _ = setup_isosurface(1, shue_state_index, zonename)
             zoneindex = shue_zone.index
+            if zone_rename != None:
+                shue_zone.name = zone_rename
+                zonename = zone_rename
         ################################################################
         if mode == 'iso_betastar':
             zonename = 'mp_'+mode

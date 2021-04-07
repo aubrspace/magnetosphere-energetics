@@ -551,8 +551,8 @@ def get_global_variables(field_data):
     #Useful spatial variables
     eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
     eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
-    '''
     eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
+    '''
     eq('{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
     eq('{lon [deg]} = if({X [R]}>0, 180/pi*atan({Y [R]} / {X [R]}),'+
                      'if({Y [R]}>0, 180/pi*atan({Y [R]}/{X [R]})+180,'+

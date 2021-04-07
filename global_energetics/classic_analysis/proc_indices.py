@@ -23,29 +23,7 @@ from spacepy import time as spacetime
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
-#Interpackage imports
-if os.path.exists('../supermag-data'):
-    os.system('ln -s ../supermag-data/supermag.py')
-    print('soft link to supermag.py created')
-    SUPERMAGDATAPATH = '../supermag-data/data'
-else:
-    try:
-        import supermag
-    except ModuleNotFoundError:
-        print('Cant find supermag.py!')
-try:
-    import supermag
-except ModuleNotFoundError:
-    print('supermag.py module not linked!')
-    EXIT=True
-else:
-    EXIT=False
 
-#enable latex format
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.size": 18,
-    "font.sans-serif": ["Helvetica"]})
 
 def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
     """Function converts coordinates from given columns from dataframe
@@ -477,7 +455,29 @@ def process_indices(data_path, outputpath):
                     outputpath)
 
 if __name__ == "__main__":
+    #Interpackage imports
+    if os.path.exists('../supermag-data'):
+        os.system('ln -s ../supermag-data/supermag.py')
+        print('soft link to supermag.py created')
+        SUPERMAGDATAPATH = '../supermag-data/data'
+    else:
+        try:
+            import supermag
+        except ModuleNotFoundError:
+            print('Cant find supermag.py!')
+    try:
+        import supermag
+    except ModuleNotFoundError:
+        print('supermag.py module not linked!')
+        EXIT=True
+    else:
+        EXIT=False
     if not EXIT:
+        #enable latex format
+        plt.rcParams.update({
+        "font.family": "sans-serif",
+        "font.size": 18,
+        "font.sans-serif": ["Helvetica"]})
         datapath = sys.argv[1]
         print('processing indices output at {}'.format(datapath))
         process_indices(datapath,datapath+'indices/')
