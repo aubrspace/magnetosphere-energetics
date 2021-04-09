@@ -242,12 +242,12 @@ def plot_swclock(axis, dflist, timekey, ylabel, *,
         elif name == 'swmf_sw':
             data = df_coord_transform(data, 'times', ['bx','by','bz'],
                                       ('GSE','car'), ('GSM','car'))
-            data['clock'] = np.rad2deg(np.arctan2(data['bzGSM'],
-                                                  data['byGSM']))
+            data['clock'] = np.rad2deg(np.arctan2(data['byGSM'],
+                                                  data['bzGSM']))
             qtkey = 'clock'
         elif name == 'omni':
-            data['clock'] = np.rad2deg(np.arctan2(data['bz'],
-                                                  data['by']))
+            data['clock'] = np.rad2deg(np.arctan2(data['by'],
+                                                  data['bz']))
             qtkey = 'clock'
         else:
             qtkey = None
@@ -322,17 +322,17 @@ def plot_swpdyn(axis, dflist, timekey, ylabel, *,
             qtkey = 'Dyn. Pres. (nPa)'
             data['v'] = np.sqrt(data['VxGSE (nT)']**2+data['VyGSE (nT)']**2+
                                 data['VzGSM (nT)']**2)
-            data['Pdyn'] = 0.5*data['Density (#/cm^3)']*data['v']**2*convert
+            data['Pdyn'] = data['Density (#/cm^3)']*data['v']**2*convert
             qtkey_alt = 'Pdyn'
         elif name == 'swmf_sw':
             convert = 1.6726e-27*1e6*(1e3)**2*1e9
             data['v'] = np.sqrt(data['vx']**2+data['vy']**2+
                                 data['vz']**2)
-            data['Pdyn'] = 0.5*data['dens']*data['v']**2*convert
+            data['Pdyn'] = data['dens']*data['v']**2*convert
             qtkey = 'Pdyn'
         elif name == 'omni':
             convert = 1.6726e-27*1e6*(1e3)**2*1e9
-            data['Pdyn'] = 0.5*data['density']*data['v']**2*convert
+            data['Pdyn'] = data['density']*data['v']**2*convert
             qtkey = 'Pdyn'
         else:
             qtkey = None

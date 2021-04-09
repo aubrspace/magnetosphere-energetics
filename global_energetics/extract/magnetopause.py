@@ -166,6 +166,12 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             get_global_variables(field_data)
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
+        #Add imfclock angle if not there already
+        if not any([key.find('imf_clock_deg')!=-1 for key in aux.keys()]):
+            IMFby, IMFbz = tp.data.query.probe_at_position(
+                                                      31.5, 0, 0)[0][8:10]
+            clockangle = np.rad2deg(np.arctan2(IMFby, IMFbz))
+            aux['imf_clock_deg'] = clockangle
         #Get x_subsolar if not already there
         if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
             x_subsolar = float(aux['x_subsolar'])

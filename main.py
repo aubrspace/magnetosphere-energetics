@@ -115,7 +115,7 @@ if __name__ == "__main__":
     view_set.display_single_iso(frame2,
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True,
-                                pngpath=PNGPATH,
+                                pngpath=PNGPATH, add_clock=True,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso', show_timestamp=False,

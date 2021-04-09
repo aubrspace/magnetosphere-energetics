@@ -6,10 +6,53 @@ import tecplot as tp
 from tecplot.constant import *
 import numpy as np
 import datetime as dt
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 from progress.bar import Bar
 from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
+
+def add_IMF_clock(frame, clockangle, coordsys, position, size):
+    """Adds a clock with current IMF orientation
+    Inputs
+        frame- tecplot frame to add clock to
+        clockangle- IMF angle, angle from +Y towards +Z
+        cor
+        outputpath- where to save image (will be deleted)
+        position, size- image settings
+    """
+    #Create a clock plot in python
+    plt.rc('xtick', labelsize=30, color='white')
+    plt.rc('ytick', labelsize=30, color='white')
+
+    # force square figure and square axes looks better for polar, IMO
+    arrowsize = 4
+    # make a square figure
+    fig = plt.figure(figsize=(arrowsize, arrowsize*1.2), facecolor='gray')
+    ax = fig.add_axes([0.2, 0.1, 0.6, 0.6], polar=True, facecolor='gray',
+                      frame_on=False)
+    ax.set_theta_zero_location('E')
+    ax.set_thetagrids([0,90,180,270], ['+Y','+Z','-Y','-Z'])
+    ax.set_rticks([])
+
+    r = np.arange(0, 3.0, 0.01)
+    ax.set_rmax(2.0)
+    # arrow at 45 degree
+    arrfwd = plt.arrow(clockangle/180.*np.pi, 0, 0, 1, alpha=0.5,
+                       width=0.15, edgecolor='black', facecolor='cyan',
+                       lw=6, zorder=5)
+    arrback = plt.arrow((clockangle+180)/180.*np.pi, 0, 0, 1, alpha=0.5,
+                        width = 0.15, edgecolor='black', facecolor='cyan',
+                        lw=6, zorder=5, head_width=0)
+    ax.set_title('\nIMF ({})\n'.format(coordsys),fontsize=40,color='white')
+    #Save plot
+    fig.savefig(os.getcwd()+'/temp_imfclock.png', facecolor='gray',
+                                                  edgecolor='gray')
+    #Load plot onto current frame
+    img = frame.add_image(os.getcwd()+'/temp_imfclock.png', position, size)
+    #Delete plot image file
+    #os.system('rm '+os.getcwd()+'/temp_imfclock.png')
 
 def add_shade_legend(frame, entries, location, markersize):
     """Adds box with colored squares and text for legend of shaded surfaces
@@ -476,7 +519,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        show_timestamp=True, mode='iso_day', satzones=[],
                        plot_satellites=False, energy_contourmap=0,
                        mpslice=60, cpsslice=20, zone_rename=None,
-                       show_legend=True,
+                       show_legend=True, add_clock=False,
                        zone_hidekeys=['sphere','box','lcb']):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
@@ -575,6 +618,13 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                 os.system('mkdir '+pngpath+fr.name)
             tp.export.save_png(pngpath+fr.name+'/'+outputname+'.png',
                                region=fr, width=3200)
+    if add_clock:
+        #get clock angle from probing data at x=xmax
+        clock = float(frame.dataset.zone('global_field').aux_data[
+                                                          'imf_clock_deg'])
+        coordsys = frame.dataset.zone('global_field').aux_data[
+                                                            'COORDSYSTEM']
+        add_IMF_clock(frame, clock, coordsys, (0,0), 30)
     if save_plt:
         tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
                                  include_data_share_linkage=True,
