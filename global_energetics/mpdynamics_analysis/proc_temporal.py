@@ -52,13 +52,37 @@ def plot_all_runs_1Qty(axis, dflist, timekey, qtkey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def get_energy_dataframes(dflist):
-    """Function adds cumulative energy columns based on power columns
-        assuming a constant dt
+def plot_simple(dflist, timekey, outpath):
+    """Function plots each column of each dataframe vs time
     Inputs
-        dflist, dfnames- list and corresponding names of dataframes
+        dflist
+        timekey
+    """
+    npanels = len(dflist)
+    for col in dflist[-1].keys():
+        #col = ''.join(col.split('/'))
+        print('making basic plot of column: {}'.format(col))
+        validname = ''.join(x for x in col if (x.isalnum() or x in "._- "))
+        figname = 'simple_'+'_'.join(validname.split(' '))
+        #figure settings
+        fig, axes = plt.subplots(nrows=npanels, ncols=1, sharex=True,
+                                 figsize=[18,4*npanels])
+        ylabel = col
+        for df in enumerate(dflist):
+            if any([key==col and key!='name' for key in df[1].keys()]):
+                plot_all_runs_1Qty(axes[df[0]], [df[1]], timekey,
+                                   col, ylabel)
+                axes[df[0]].set_title(col)
+        fig.savefig(outpath+'/simple_plots/{}.png'.format(figname))
+        plt.close()
+        #plt.show()
+
+def add_derived_variables(dflist):
+    """Function adds variables based on existing columns
+    Inputs
+        dflist - list of dataframes
     Outputs
-        use_dflist
+        dflist
     """
     use_dflist = []
     for df in enumerate(dflist):
@@ -80,11 +104,11 @@ def get_energy_dataframes(dflist):
                 E_net_error = cumu_E_net - totalE
                 E_net_rel_error = E_net_error/totalE*100
                 #Add column to dataframe
-                dflist[df[0]].loc[:,'CumulE_net [J]'] = cumu_E_net
-                dflist[df[0]].loc[:,'CumulE_injection [J]'] = cumu_E_in
-                dflist[df[0]].loc[:,'CumulE_escape [J]'] = cumu_E_out
-                dflist[df[0]].loc[:,'Energy_error [J]'] = E_net_error
-                dflist[df[0]].loc[:,'RelativeE_error [%]'] =E_net_rel_error
+                dflist[df[0]]['CumulE_net [J]'] = cumu_E_net
+                dflist[df[0]]['CumulE_injection [J]'] = cumu_E_in
+                dflist[df[0]]['CumulE_escape [J]'] = cumu_E_out
+                dflist[df[0]]['Energy_error [J]'] = E_net_error
+                dflist[df[0]]['RelativeE_error [%]'] =E_net_rel_error
                 ###Add derivative power terms
                 Power_dens = df[1]['K_net [W]']/df[1]['Volume [Re^3]']
                 #Compute derivative of energy total using central diff
@@ -100,40 +124,36 @@ def get_energy_dataframes(dflist):
                 power_error_rel = (df[1]['K_net [W]']-derived_Power)/(
                                    rms_Power/100)
                 power_error_dens = power_error/df[1]['Volume [Re^3]']
-                dflist[df[0]].loc[:,'Power_density [W/Re^3]'] = Power_dens
-                dflist[df[0]].loc[:,'Power_derived [W]'] = derived_Power
-                dflist[df[0]].loc[:,'Power_derived_density [W/Re^3]'] = (
+                dflist[df[0]]['Power_density [W/Re^3]'] = Power_dens
+                dflist[df[0]]['Power_derived [W]'] = derived_Power
+                dflist[df[0]]['Power_derived_density [W/Re^3]'] = (
                                                         derived_Power_dens)
-                dflist[df[0]].loc[:,'Power_error [W]'] = power_error
-                dflist[df[0]].loc[:,'Power_error [%]'] = power_error_rel
-                dflist[df[0]].loc[:,'Power_error_density [W/Re^3]'] = (
+                dflist[df[0]]['Power_error [W]'] = power_error
+                dflist[df[0]]['Power_error [%]'] = power_error_rel
+                dflist[df[0]]['Power_error_density [W/Re^3]'] = (
                                                           power_error_dens)
                 ###Add 1step energy terms
                 predicted_energy = total_behind+df[1]['K_net [W]']*delta_t
                 predicted_error = predicted_energy-totalE
                 predicted_error_rel = (predicted_energy-totalE)/totalE*100
-                dflist[df[0]].loc[:,'1step_Predict_E [J]'] = (
+                dflist[df[0]]['1step_Predict_E [J]'] = (
                                                           predicted_energy)
-                dflist[df[0]].loc[:,'1step_Predict_E_error [J]'] = (
+                dflist[df[0]]['1step_Predict_E_error [J]'] = (
                                                            predicted_error)
-                dflist[df[0]].loc[:,'1step_Predict_E_error [%]'] = (
+                dflist[df[0]]['1step_Predict_E_error [%]'] = (
                                                        predicted_error_rel)
                 ###Add volume/surface area and estimated error
-                dflist[df[0]].loc[:,'V/SA [Re]'] = (df[1]['Volume [Re^3]']/
+                dflist[df[0]]['V/SA [Re]'] = (df[1]['Volume [Re^3]']/
                                                     df[1]['Area [Re^2]'])
-                dflist[df[0]].loc[:,'V/(SA*X_ss)'] = (df[1]['V/SA [Re]']/
+                dflist[df[0]]['V/(SA*X_ss)'] = (df[1]['V/SA [Re]']/
                                                   df[1]['X_subsolar [Re]'])
-                dflist[df[0]].loc[:,'nVolume'] = (df[1]['Volume [Re^3]']/
+                dflist[df[0]]['nVolume'] = (df[1]['Volume [Re^3]']/
                                               df[1]['Volume [Re^3]'].max())
-                dflist[df[0]].loc[:,'nArea'] = (df[1]['Area [Re^2]']/
+                dflist[df[0]]['nArea'] = (df[1]['Area [Re^2]']/
                                               df[1]['Area [Re^2]'].max())
-                dflist[df[0]].loc[:,'nX_ss'] = (df[1]['X_subsolar [Re]']/
+                dflist[df[0]]['nX_ss'] = (df[1]['X_subsolar [Re]']/
                                             df[1]['X_subsolar [Re]'].max())
-                dflist[df[0]].loc[:,'Relative error [%]'] = ((
-                        df[1]['X_subsolar [Re]']/3-df[1]['V/SA [Re]'])/
-                        (df[1]['X_subsolar [Re]']/3))
-                use_dflist.append(dflist[df[0]])
-    return use_dflist
+    return dflist
 
 def prepare_figures(dflist, outpath):
     """Function calls which figures to be plotted
@@ -149,14 +169,17 @@ def prepare_figures(dflist, outpath):
                                                  ignore_index=True)
         dflist[df[0]] = cutdf
     #identify magnetopause dfs from box dfs
-    energy_dfs = get_energy_dataframes(dflist)
+    dflist = add_derived_variables(dflist)
+    plot_simple(dflist, 'Time [UTC]', outpath)
+    '''
     mpdfs, boxdfs = [],[]
-    for df in energy_dfs:
+    for df in dflist:
         if df['name'].iloc[-1].find('mp') != -1:
             mpdfs.append(df)
         if df['name'].iloc[-1].find('box') != -1:
             boxdfs.append(df)
-    if energy_dfs != []:
+    '''
+    if False:
         ###################################################################
         #Cumulative Energy
         if True:
@@ -214,363 +237,6 @@ def prepare_figures(dflist, outpath):
             cumulative_E.savefig(outpath+'{}.png'.format(figname))
             #plt.show()
         ###################################################################
-        #Power
-        if True:
-            figname = 'Power'
-            #figure settings
-            power, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,12])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            qtylist = ['K_injection [W]', 'K_escape [W]', 'K_net [W]']
-            ylabel = 'Power [W]'
-            for qtykey in qtylist:
-                if mpdfs != []:
-                    plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                qtykey, ylabel)
-                if False:
-                    plot_all_runs_1Qty(ax2, boxdfs[0:2],
-                                timekey,
-                                qtykey, ylabel)
-                    plot_all_runs_1Qty(ax3, boxdfs[2:4],
-                                timekey,
-                                qtykey, ylabel)
-                    plot_all_runs_1Qty(ax4, boxdfs[4:6],
-                                timekey,
-                                qtykey, ylabel)
-                    plot_all_runs_1Qty(ax5, boxdfs[6::],
-                                timekey,
-                                qtykey, ylabel)
-            #Fill between to distinguish +/- net powers
-            axislist = [ax1]
-            dflist = [mpdfs]
-            for ax in enumerate(axislist):
-                if mpdfs != []:
-                    ax[1].fill_between(mpdfs[0]['Time [UTC]'],
-                                       mpdfs[0]['K_net [W]'])
-            power.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(cumulative_E)
-        ###################################################################
-        #Power vs derivedPower
-        if True:
-            figname = 'Power_vs_derived'
-            #figure settings
-            dpower, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,8])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            qtylist = ['Power_density [W/Re^3]',
-                       'Power_derived_density [W/Re^3]']
-            ylabel = 'Power Density [W/Re^3]'
-            for qtykey in qtylist:
-                if mpdfs != []:
-                    plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                    qtykey, ylabel)
-                if False:
-                    plot_all_runs_1Qty(ax2, boxdfs[0:2],
-                                timekey,
-                                qtykey, ylabel)
-                    plot_all_runs_1Qty(ax3, boxdfs[2:4],
-                                timekey,
-                                qtykey, ylabel)
-                    plot_all_runs_1Qty(ax4, boxdfs[4:6],
-                                timekey,
-                                qtykey, ylabel)
-                    plot_all_runs_1Qty(ax5, boxdfs[6::],
-                                timekey,
-                                qtykey, ylabel)
-            dpower.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(cumulative_E)
-        ###################################################################
-        #Power- type compare
-        if True:
-            figname = 'Power_type_compare'
-            #figure settings
-            power_compare1, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,8])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            #qtylist = ['ExB_net [W]', 'P0_net [W]', 'K_net [W]',
-            qtylist = ['ExB_injection [W]', 'P0_injection [W]',
-                       'K_injection [W]',
-                       'ExB_escape [W]', 'P0_escape [W]', 'K_escape [W]']
-            axislist = [ax1]
-            ylabel = 'Power [W]'
-            for qtykey in enumerate(qtylist):
-                if mpdfs != []:
-                    plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                qtykey[1], ylabel)
-                if False:
-                    plot_all_runs_1Qty(ax2, boxdfs, timekey,
-                                qtykey[1], ylabel)
-            power_compare1.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(power)
-        ###################################################################
-        #Power- surface compare
-        if True:
-            figname = 'Power_surface_compare'
-            #figure settings
-            power_compare, (ax1,ax2,ax3,ax4) =plt.subplots(nrows=4,ncols=1,
-                                               sharex=True, figsize=[18,12])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            qtylist1 = ['Power_error [%]', 'RelativeE_error [%]']
-            qtylist2 = ['Power_error [W]', 'Energy_error [J]']
-            axislist1 = [ax1, ax2]
-            axislist2 = [ax3, ax4]
-            ylabel1 = 'Error [%]'
-            ylabel2 = 'Error [W] (surface-volume)'
-            ylabel3 = 'Error [J] (surface-volume)'
-            errlim = [-20,20]
-            for qtykey in enumerate(qtylist1):
-                axis = axislist1[qtykey[0]]
-                if mpdfs != []:
-                    plot_all_runs_1Qty(axis, mpdfs, timekey,
-                                qtykey[1], ylabel1, ylim=errlim)
-                if boxdfs != []:
-                    plot_all_runs_1Qty(axis, boxdfs, timekey,
-                                qtykey[1], ylabel1, ylim=errlim)
-            ylabel = ylabel2
-            for qtykey in enumerate(qtylist2):
-                axis = axislist2[qtykey[0]]
-                if mpdfs != []:
-                    plot_all_runs_1Qty(axis, mpdfs, timekey,
-                                qtykey[1], ylabel2)
-                if boxdfs != []:
-                    plot_all_runs_1Qty(axis, boxdfs[0:1],
-                                   timekey, qtykey[1], ylabel)
-                    plot_all_runs_1Qty(axis, boxdfs[2:5],
-                                   timekey, qtykey[1], ylabel)
-                    plot_all_runs_1Qty(axis, boxdfs[6:7],
-                                   timekey, qtykey[1], ylabel)
-                ylabel = ylabel3
-            power_compare.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(power)
-        ###################################################################
-        #ExB Power
-        if True:
-            figname = 'ExBPower'
-            #figure settings
-            ExBpower, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,8])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            qtylist = ['ExB_injection [W]', 'ExB_escape [W]', 'ExB_net [W]']
-            ylabel = 'Power [W]'
-            for qtykey in qtylist:
-                if mpdfs != []:
-                    plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                qtykey, ylabel)
-                if False:
-                    plot_all_runs_1Qty(ax2, boxdfs, timekey,
-                                qtykey, ylabel)
-            #Fill between to distinguish +/- net powers
-            axislist = [ax1]
-            dflist = []
-            if mpdfs != []:
-                dflist.append(mpdfs)
-            if boxdfs != []:
-                dflist.append(boxdfs)
-            for ax in enumerate(axislist):
-                df = dflist[ax[0]][0]
-                ax[1].fill_between(df['Time [UTC]'], 0, df['ExB_net [W]'])
-            ExBpower.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(ExBpower)
-        ###################################################################
-        #Flow Power
-        if True:
-            figname = 'P0Power'
-            #figure settings
-            P0power, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,8])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            qtylist = ['P0_injection [W]', 'P0_escape [W]', 'P0_net [W]']
-            ylabel = 'Power [W]'
-            for qtykey in qtylist:
-                if mpdfs != []:
-                    plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                qtykey, ylabel)
-                if False:
-                    plot_all_runs_1Qty(ax2, boxdfs, timekey,
-                                qtykey, ylabel)
-            #Fill between to distinguish +/- net powers
-            axislist = [ax1]
-            dflist = []
-            if mpdfs != []:
-                dflist.append(mpdfs)
-            if boxdfs != []:
-                dflist.append(boxdfs)
-            for ax in enumerate(axislist):
-                df = dflist[ax[0]][0]
-                ax[1].fill_between(df['Time [UTC]'], 0, df['P0_net [W]'])
-            P0power.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(P0power)
-        ###################################################################
-        #Normalized Power
-        if True:
-            figname = 'AveragePower'
-            #figure settings
-            power, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,8])
-            #Time
-            timekey = 'Time [UTC]'
-            #Power terms on Primary Axes
-            qtylist = ['Average K_injection [W/Re^2]',
-                       'Average K_escape [W/Re^2]',
-                       'Average K_net [W/Re^2]']
-            ylabel = 'Power [W]'
-            for qtykey in qtylist:
-                plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                qtykey, ylabel)
-                #plot_all_runs_1Qty(ax2, boxdfs, timekey,
-                #                qtykey, ylabel)
-            #Fill between to distinguish +/- net powers
-            axislist = [ax1]
-            dflist = [mpdfs]
-            for ax in enumerate(axislist):
-                df = dflist[ax[0]][0]
-                ax[1].fill_between(df['Time [UTC]'], 0,
-                                   df['Average K_net [W/Re^2]'])
-            power.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(power)
-        ###################################################################
-        #Volume and Surface Area
-        if True:
-            figname = 'VolumeSurfaceArea'
-            #figure settings
-            VolArea, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[18,8])
-            #Time
-            timekey = 'Time [UTC]'
-            #Volume, Surface Area, Vol/SA on primary axes
-            qtylist = ['Volume [Re^3]', 'Area [Re^2]', 'X_subsolar [Re]']
-            axislist = [ax1, ax2, ax3]
-            '''
-            for qtykey in enumerate(qtylist):
-                axis = axislist[qtykey[0]]
-                plot_all_runs_1Qty(axis, mpdfs, timekey,
-                                qtykey[1], qtykey[1])
-            '''
-            qtylist = ['X_subsolar [Re]', 'V/SA [Re]']
-            for qtykey in enumerate(qtylist):
-                plot_all_runs_1Qty(ax1, mpdfs, timekey,
-                                qtykey[1], qtykey[1])
-            plot_all_runs_1Qty(ax1.twinx(), mpdfs, timekey, 'V/(SA*X_ss)',
-                               'V/(SA*X_ss)',ylim=[0,1], Color='green')
-            VolArea.savefig(outpath+'{}.png'.format(figname))
-            '''
-                ###Add volume/surface area and estimated error
-                dflist[df[0]].loc[:,'V/SA [Re]'] = (df[1]['Volume [Re^3]']/
-                                                    df[1]['Area [Re^2]'])
-                dflist[df[0]].loc[:,'V/(SA*X_ss)'] = (df[1]['V/SA [Re]']/
-                                                  df[1]['X_subsolar [Re]'])
-                dflist[df[0]].loc[:,'nVolume'] = (df[1]['Volume [Re^3]']/
-                                              df[1]['Volume [Re^3]'].max())
-                dflist[df[0]].loc[:,'nArea'] = (df[1]['Area [Re^2]']/
-                                              df[1]['Area [Re^2]'].max())
-                dflist[df[0]].loc[:,'nX_ss'] = (df[1]['X_subsolar [Re]']/
-                                            df[1]['X_subsolar [Re]'].max())
-            '''
-            #plt.show()
-            #plt.close(VolArea)
-        ###################################################################
-        #Other Energies
-        if False:
-            figname = 'VolumeEnergies'
-            #quick manipulations
-            dfs = energy_dfs[0:1]
-            #figure settings
-            Volume_E, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5,ncols=1,
-                                               sharex=True, figsize=[20,10])
-            #axes
-            timekey = 'Time [UTC]'
-            qtykey = 'uB [J]'
-            ylabel = 'Magnetic Energy [J]'
-            plot_all_runs_1Qty(ax1, dfs, timekey,
-                               qtykey, ylabel)
-            timekey = 'Time [UTC]'
-            qtykey = 'uE [J]'
-            ylabel = 'Electric Energy [J]'
-            plot_all_runs_1Qty(ax5, dfs, timekey,
-                               qtykey, ylabel)
-            qtykey = 'KEpar [J]'
-            ylabel = 'Parallel Kinetic Energy [J]'
-            plot_all_runs_1Qty(ax2, dfs, timekey,
-                               qtykey, ylabel)
-            qtykey = 'KEperp [J]'
-            ylabel = 'Perpendicular Kinetic Energy [J]'
-            plot_all_runs_1Qty(ax3, dfs, timekey,
-                               qtykey, ylabel)
-            qtykey = 'Etherm [J]'
-            ylabel = 'Thermal Energy [J]'
-            plot_all_runs_1Qty(ax4, dfs, timekey,
-                               qtykey, ylabel)
-            Volume_E.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(Volume_E)
-        ###################################################################
-        #Energy split
-        if False:
-            figname = 'VolumeEnergyBreakdown'
-            #quick manipulation
-            data = energy_dfs[0]
-            uB = data['uB [J]']
-            uE = data['uE [J]']
-            Etherm = data['Etherm [J]']
-            KEpar = data['KEpar [J]']
-            KEperp = data['KEperp [J]']
-            total = uE+uB+Etherm+KEpar+KEperp
-            energy_dfs[0].loc[:,'total energy'] = total.values
-            energy_dfs[0].loc[:,'uB partition'] = uB/total*100
-            energy_dfs[0].loc[:,'uE partition'] = uE/total*100
-            energy_dfs[0].loc[:,'Etherm partition'] = Etherm/total*100
-            energy_dfs[0].loc[:,'KEpar partition'] = KEpar/total*100
-            energy_dfs[0].loc[:,'KEperp partition'] = KEperp/total*100
-            dfs = energy_dfs[0:1]
-            #figure settings
-            Volume_Ebreakdown, (ax1) = plt.subplots(nrows=1,ncols=1,
-                                               sharex=True, figsize=[20,10])
-            #axes
-            timekey = 'Time [UTC]'
-            qtykey = 'uB partition'
-            ylabel = 'Magnetic Energy [J]'
-            plot_all_runs_1Qty(ax1, dfs, timekey,
-                               qtykey, ylabel)
-            timekey = 'Time [UTC]'
-            qtykey = 'uE partition'
-            ylabel = 'Electric Energy [J]'
-            plot_all_runs_1Qty(ax1, dfs, timekey,
-                               qtykey, ylabel)
-            qtykey = 'Etherm partition'
-            ylabel = 'Parallel Kinetic Energy [J]'
-            plot_all_runs_1Qty(ax1, dfs, timekey,
-                               qtykey, ylabel)
-            qtykey = 'KEpar partition'
-            ylabel = 'Perpendicular Kinetic Energy [J]'
-            plot_all_runs_1Qty(ax1, dfs, timekey,
-                               qtykey, ylabel)
-            qtykey = 'KEperp partition'
-            ylabel = 'Energy fraction [%]'
-            plot_all_runs_1Qty(ax1, dfs, timekey,
-                               qtykey, ylabel, ylim=[0,5])
-            Volume_Ebreakdown.savefig(outpath+'{}.png'.format(figname))
-            #plt.show()
-            #plt.close(Volume_E)
-        ###################################################################
         #Power Error histograms
         if boxdfs != [] and mpdfs != []:
             figname = 'PowerErrorHistograms'
@@ -611,7 +277,6 @@ def prepare_figures(dflist, outpath):
             #plt.show()
             #plt.close(power)
         ###################################################################
-    pass
 
 def process_temporal_mp(data_path_list, outputpath):
     """Top level function handles time varying magnetopause data and

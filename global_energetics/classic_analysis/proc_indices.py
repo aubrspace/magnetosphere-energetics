@@ -304,6 +304,103 @@ def plot_swbybz(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
+def plot_swpdyn(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+    """Function plots solarwind dynamic pressure w given data frames
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'upper left'
+    for data in dflist:
+        qtkey_alt = None
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
+            convert = 1.6726e-27*1e6*(1e3)**2*1e9
+            qtkey = 'Dyn. Pres. (nPa)'
+            data['v'] = np.sqrt(data['VxGSE (nT)']**2+data['VyGSE (nT)']**2+
+                                data['VzGSM (nT)']**2)
+            data['Pdyn'] = 0.5*data['Density (#/cm^3)']*data['v']**2*convert
+            qtkey_alt = 'Pdyn'
+        elif name == 'swmf_sw':
+            convert = 1.6726e-27*1e6*(1e3)**2*1e9
+            data['v'] = np.sqrt(data['vx']**2+data['vy']**2+
+                                data['vz']**2)
+            data['Pdyn'] = 0.5*data['dens']*data['v']**2*convert
+            qtkey = 'Pdyn'
+        elif name == 'omni':
+            convert = 1.6726e-27*1e6*(1e3)**2*1e9
+            data['Pdyn'] = 0.5*data['density']*data['v']**2*convert
+            qtkey = 'Pdyn'
+        else:
+            qtkey = None
+        if qtkey != None:
+            axis.plot(data[timekey],data[qtkey],
+                      label=qtkey+'_'+name,
+                      linewidth=Size, linestyle=ls)
+        if qtkey_alt != None:
+            axis.plot(data[timekey],data[qtkey_alt],
+                      label=qtkey_alt+'_'+name,
+                      linewidth=Size, linestyle=ls)
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(timekey)
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc)
+
+def plot_swvxvyvz(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+    """Function plots solarwind dynamic pressure w given data frames
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'upper left'
+    for data in dflist:
+        qtkey1 = None
+        qtkey2 = None
+        qtkey3 = None
+        name = data['name'].iloc[-1]
+        if name == 'supermag':
+            qtkey1 = 'VxGSE (nT)'
+            qtkey2 = 'VyGSE (nT)'
+            qtkey3 = 'VzGSM (nT)'
+        elif name == 'swmf_sw':
+            qtkey1 = 'vx'
+            qtkey2 = 'vy'
+            data = df_coord_transform(data, 'times', ['vx','vy','vz'],
+                                      ('GSE','car'), ('GSM','car'))
+            qtkey3 = 'vzGSM'
+        elif name == 'omni':
+            qtkey1 = 'vx_gse'
+            qtkey2 = 'vy_gse'
+            qtkey3 = 'vz_gse'
+        if False:
+            axis.plot(data[timekey],data[qtkey1],
+                      label=qtkey1+'_'+name,
+                      linewidth=Size, linestyle=ls)
+        if qtkey2 != None:
+            axis.plot(data[timekey],data[qtkey2],
+                      label=qtkey2+'_'+name,
+                      linewidth=Size, linestyle='-')
+        if False:
+            axis.plot(data[timekey],data[qtkey3],
+                      label=qtkey3+'_'+name,
+                      linewidth=Size, linestyle='-.')
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(timekey)
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc)
+
 def get_supermag_data(start, end, datapath):
     """function gathers supermag data for comparison
         (supermag.py INTERNAL USE ONLY!!!)
@@ -412,8 +509,8 @@ def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
     #SolarWind
     if True:
         figname = 'SolarWind'
-        sw, (ax1, ax2, ax3) = plt.subplots(nrows=3, ncols=1, sharex=True,
-                                                          figsize=[18,12])
+        sw, (ax1, ax2, ax3, ax4,ax5) = plt.subplots(nrows=5, ncols=1, sharex=True,
+                                                          figsize=[18,20])
         #Time
         timekey = 'times'
         ylabel = 'SW Density [#/cm^3]'
@@ -422,6 +519,10 @@ def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
         plot_swbybz(ax2, dflist, timekey, ylabel)
         ylabel = 'SW Clock Angle [deg]'
         plot_swclock(ax3, dflist, timekey, ylabel)
+        ylabel = 'SW Dynamic Pressure [nPa]'
+        plot_swpdyn(ax4, dflist, timekey, ylabel)
+        ylabel = 'SW Velocity [km/s]'
+        plot_swvxvyvz(ax5, dflist, timekey, ylabel)
         sw.savefig(outputpath+'{}.png'.format(figname))
     ######################################################################
 
@@ -436,7 +537,7 @@ def process_indices(data_path, outputpath):
     if False:
         #cuttoff data past a certain time
         swmf_datalist = [swmf_index, swmf_log, swmf_sw]
-        cuttofftime = dt.datetime(2014,2,18,22,0)
+        cuttofftime = dt.datetime(2014,2,19,0,0)
         for df in enumerate(swmf_datalist):
             name = pd.Series({'name':df[1]['name'].iloc[-1]})
             cutdf = df[1][df[1]['times']<cuttofftime].append(name,

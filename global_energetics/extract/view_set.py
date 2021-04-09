@@ -92,7 +92,7 @@ def add_fieldlines(frame):
     plt.streamtraces.color = Color.Custom41
     plt.streamtraces.line_thickness = 0.2
 
-def add_jy_slice(frame, jyindex):
+def add_jy_slice(frame, jyindex, showleg):
     """adds iso contour for earth at r=1Re
     Inputs
         frame
@@ -108,19 +108,20 @@ def add_jy_slice(frame, jyindex):
     yslice.effects.surface_translucency = 40
     jycontour = frame.plot().contour(1)
     jycontour.variable_index=jyindex
-    jycontour.colormap_name = 'Diverging - Brown/Green'
+    jycontour.colormap_name = 'orange-green-blue-gray'
     jycontour.legend.vertical = True
     jycontour.legend.position[1] = 72
     jycontour.legend.position[0] = 98
     jycontour.legend.box.box_type = TextBox.Filled
-    jycontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+    jycontour.legend.box.fill_color = Color.Custom2
+    jycontour.legend.show = showleg
+    jycontour.levels.reset_levels(np.linspace(-0.003,0.003,11))
     jycontour.labels.step = 2
     jycontour.colormap_filter.distribution=ColorMapDistribution.Continuous
     jycontour.colormap_filter.continuous_max = 0.003
     jycontour.colormap_filter.continuous_min = -0.003
-    jycontour.colormap_filter.reversed = True
 
-def add_jz_slice(frame, jzindex):
+def add_jz_slice(frame, jzindex, showleg):
     """adds iso contour for earth at r=1Re
     Inputs
         frame
@@ -136,17 +137,18 @@ def add_jz_slice(frame, jzindex):
     zslice.effects.surface_translucency = 40
     jzcontour = frame.plot().contour(2)
     jzcontour.variable_index=jzindex
-    jzcontour.colormap_name = 'Diverging - Brown/Green'
+    jzcontour.colormap_name = 'orange-green-blue-gray'
     jzcontour.legend.vertical = True
     jzcontour.legend.position[1] = 72
     jzcontour.legend.position[0] = 98
     jzcontour.legend.box.box_type = TextBox.Filled
-    jzcontour.levels.reset_levels(np.linspace(-0.005,0.005,11))
+    jzcontour.legend.box.fill_color = Color.Custom2
+    jzcontour.legend.show = showleg
+    jzcontour.levels.reset_levels(np.linspace(-0.003,0.003,11))
     jzcontour.labels.step = 2
     jzcontour.colormap_filter.distribution=ColorMapDistribution.Continuous
     jzcontour.colormap_filter.continuous_max = 0.003
     jzcontour.colormap_filter.continuous_min = -0.003
-    jzcontour.colormap_filter.reversed = True
 
 def add_earth_iso(frame, rindex):
     """adds iso contour for earth at r=1Re
@@ -203,8 +205,8 @@ def add_timestamp(frame, filename, position):
     timebox.font.typeface = 'Helvetica'
     timebox.color = Color.White
 
-def add_energy_contour(frame, powermax, contour_key, *,
-                          colormap='Diverging - Blue/Red'):
+def add_energy_contour(frame, powermax, contour_key, mapnumber, showleg, *,
+                          colormap='Doppler modified (1)'):
     """Function sets contour settings for energy input
     Inputs
         frame- object to set contour on
@@ -213,18 +215,21 @@ def add_energy_contour(frame, powermax, contour_key, *,
     """
     colorbar = np.linspace(-1*powermax, powermax, 11)
     contourvar = frame.dataset.variable(contour_key).index
-    contour = frame.plot().contour(0)
+    contour = frame.plot().contour(mapnumber)
     contour.variable_index = contourvar
     contour.colormap_name = colormap
     contour.legend.vertical = True
     contour.legend.position[1] = 98
     contour.legend.position[0] = 98
     contour.legend.box.box_type = TextBox.Filled
+    contour.legend.box.fill_color = Color.Custom2
+    contour.legend.show = showleg
     contour.levels.reset_levels(colorbar)
     contour.labels.step = 2
     contour.colormap_filter.distribution=ColorMapDistribution.Continuous
     contour.colormap_filter.continuous_max = colorbar[-1]
     contour.colormap_filter.continuous_min = colorbar[0]
+    contour.colormap_filter.reversed = True
 
 def set_camera(frame, *, setting='iso_day'):
     """Function sets camera angle based on setting
@@ -232,7 +237,8 @@ def set_camera(frame, *, setting='iso_day'):
         frame- frame on which to change camera
         setting- iso_day, iso_tail, xy, xz, yz
     """
-    view = frame.plot().view
+    plot = frame.plot()
+    view = plot.view
     if setting == 'iso_day':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0, 240, 64)
@@ -255,9 +261,15 @@ def set_camera(frame, *, setting='iso_day'):
         view.magnification = 15.30
     else:
         print('Camera setting {} not developed!'.format(setting))
+    #light source settings
+    plot.light_source.specular_shininess=0
+    plot.light_source.specular_intensity=0
+    plot.light_source.background_light=100
+    plot.light_source.intensity=100
+    plot.light_source.direction=(0,0,0)
 
 def set_3Daxes(frame, *,
-                  xmax=15, xmin=-45, ymax=40, ymin=-40, zmax=40, zmin=-40,
+                  xmax=20, xmin=-45, ymax=40, ymin=-40, zmax=40, zmin=-40,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
     Inputs
@@ -272,24 +284,29 @@ def set_3Daxes(frame, *,
     axes.x_axis.min = xmin
     axes.x_axis.scale_factor = 1
     axes.x_axis.title.position = 30
-    axes.x_axis.title.color = Color.White
-    axes.x_axis.tick_labels.color = Color.White
+    axes.x_axis.title.color = Color.Custom2
+    axes.x_axis.tick_labels.color = Color.Custom2
+    axes.x_axis.line.color = Color.Custom2
+    axes.x_axis.grid_lines.color = Color.Custom2
     axes.y_axis.show = True
     axes.y_axis.max = ymax
     axes.y_axis.min = ymin
     axes.y_axis.scale_factor = 1
     axes.y_axis.title.position = 30
-    axes.y_axis.title.color = Color.White
-    axes.y_axis.tick_labels.color = Color.White
+    axes.y_axis.title.color = Color.Custom2
+    axes.y_axis.tick_labels.color = Color.Custom2
+    axes.y_axis.line.color = Color.Custom2
+    axes.y_axis.grid_lines.color = Color.Custom2
     axes.z_axis.show = True
     axes.z_axis.max = zmax
     axes.z_axis.min = zmin
     axes.z_axis.scale_factor = 1
     axes.z_axis.title.offset = -8
-    axes.z_axis.title.color = Color.White
-    axes.z_axis.tick_labels.color = Color.White
-    axes.grid_area.fill_color = Color.Custom1
-    frame.background_color = Color.Black
+    axes.z_axis.title.color = Color.Custom2
+    axes.z_axis.tick_labels.color = Color.Custom2
+    axes.z_axis.line.color = Color.Custom2
+    axes.z_axis.grid_lines.color = Color.Custom2
+    axes.grid_area.filled = False
     if do_blanking:
         #blanking outside 3D axes
         frame.plot().value_blanking.active = True
@@ -327,7 +344,8 @@ def set_3Daxes(frame, *,
         zblank.comparison_operator = RelOp.GreaterThan
         zblank.comparison_value = zmax
 
-def manage_zones(frame, nslice, *, approved_zones=None):
+def manage_zones(frame, nslice, translucency, cont_num, *,
+                 approved_zones=None):
     """Function shows/hides zones, sets shading and translucency
     Inputs
         frame- frame object to manage zones on
@@ -352,13 +370,16 @@ def manage_zones(frame, nslice, *, approved_zones=None):
                 plt.fieldmap(map_index).show = True
                 plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
                 plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
+                plt.fieldmap(map_index).contour.flood_contour_group_index=(
+                                                                cont_num)
                 show_list.append(zone.name)
     #Transluceny and shade settings
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
             plt.fieldmap(map_index).effects.use_translucency=True
-            plt.fieldmap(map_index).effects.surface_translucency=50
+            plt.fieldmap(map_index).effects.surface_translucency=(
+                                                              translucency)
             if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
             if zone.name.find('fieldline') != -1:
@@ -450,11 +471,12 @@ def set_satellites(satnames, frame):
 def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        save_img=True, pngpath='./', save_plt=False,
                        pltpath='./', outputname='output', mhddir='./',
-                       show_contour=True, show_slice=True,
-                       show_fieldline=True, do_blanking=True, tile=False,
+                       show_contour=True, show_slice=True, transluc=1,
+                       show_fieldline=False, do_blanking=True, tile=False,
                        show_timestamp=True, mode='iso_day', satzones=[],
-                       plot_satellites=False,
-                       mpslice=60, cpsslice=20, zone_rename=None):
+                       plot_satellites=False, energy_contourmap=0,
+                       mpslice=60, cpsslice=20, zone_rename=None,
+                       show_legend=True):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
         frame- object for the tecplot frame
@@ -472,21 +494,30 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
         cpsslice- number of x slices in cps surface
         zone_rename- optional rename of zone
     """
-    #Always included
-    zones_shown = manage_zones(frame, mpslice)
+    ###Always included
+    #Add colormaps
+    path = os.getcwd()+'/energetics.map'
+    tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
+    #set background color
+    frame.background_color = Color.Custom17
+    #zones
+    zones_shown = manage_zones(frame, mpslice, transluc, energy_contourmap)
     if mode == 'inside_from_tail':
         xtail = -15
     else:
         xtail = -45
     set_3Daxes(frame, xmin=xtail)
     set_camera(frame, setting=mode)
-    add_energy_contour(frame, energyrange, contour_key)
+    add_energy_contour(frame, energyrange, contour_key, energy_contourmap,
+                       show_legend)
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     set_orientation_axis(frame)
     #Optional items
     if show_slice:
-        add_jy_slice(frame, jyindex=frame.dataset.variable('J_y *').index)
-        #add_jz_slice(frame, jzindex=frame.dataset.variable('J_z *').index)
+        add_jy_slice(frame, frame.dataset.variable('J_y *').index,
+                     show_legend)
+        #add_jz_slice(frame, jzindex=frame.dataset.variable('J_z *').index,
+                     #showleg=show_legend)
     if show_fieldline:
         add_fieldlines(frame)
     if tile:

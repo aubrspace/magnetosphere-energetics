@@ -50,6 +50,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile)
+    '''
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
                                   box_xmax=15, box_xmin=5,
                                   box_ymax=40, box_ymin=30,
@@ -80,6 +81,7 @@ if __name__ == "__main__":
                                   box_ymax=30, box_ymin=-30,
                                   box_zmax=30, box_zmin=-30,
                                   zone_rename='box_sw_big')
+    '''
 
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
@@ -113,9 +115,9 @@ if __name__ == "__main__":
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=False, show_fieldline=False,
-                                pngpath=PNGPATH,
+                                'ExB_net *', mhddatafile, show_contour=True,
+                                show_slice=False, energyrange=9e10,
+                                pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='inside_from_tail')
@@ -123,7 +125,7 @@ if __name__ == "__main__":
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_fieldline=True,
+                                show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
@@ -132,7 +134,7 @@ if __name__ == "__main__":
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_fieldline=True,
+                                show_slice=True,
                                 pngpath=PNGPATH,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
@@ -142,8 +144,8 @@ if __name__ == "__main__":
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_fieldline=True,
-                                pngpath=PNGPATH,
+                                show_slice=True, show_legend=False,
+                                pngpath=PNGPATH, transluc=60,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
