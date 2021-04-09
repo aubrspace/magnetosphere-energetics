@@ -922,8 +922,8 @@ def calc_closed_state(status_key, status_val):
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
-    eq('{Bclosed} = IF({'+status_key+'}=='+str(status_val)+',1,0)')
-    return tp.active_frame().dataset.variable('Bclosed').index
+    eq('{lcb} = IF({'+status_key+'}=='+str(status_val)+',1,0)')
+    return tp.active_frame().dataset.variable('lcb').index
 
 def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
     """Function creates state variable for a simple box

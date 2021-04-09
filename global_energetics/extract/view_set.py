@@ -344,7 +344,7 @@ def set_3Daxes(frame, *,
         zblank.comparison_operator = RelOp.GreaterThan
         zblank.comparison_value = zmax
 
-def manage_zones(frame, nslice, translucency, cont_num, *,
+def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
                  approved_zones=None):
     """Function shows/hides zones, sets shading and translucency
     Inputs
@@ -356,7 +356,7 @@ def manage_zones(frame, nslice, translucency, cont_num, *,
     """
     plt = frame.plot()
     show_list = []
-    hide_keys = ['sphere', 'box', 'closed']
+    hide_keys = zone_hidekeys
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
@@ -476,7 +476,8 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        show_timestamp=True, mode='iso_day', satzones=[],
                        plot_satellites=False, energy_contourmap=0,
                        mpslice=60, cpsslice=20, zone_rename=None,
-                       show_legend=True):
+                       show_legend=True,
+                       zone_hidekeys=['sphere','box','lcb']):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
         frame- object for the tecplot frame
@@ -501,7 +502,8 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     #set background color
     frame.background_color = Color.Custom17
     #zones
-    zones_shown = manage_zones(frame, mpslice, transluc, energy_contourmap)
+    zones_shown = manage_zones(frame, mpslice, transluc, energy_contourmap,
+                               zone_hidekeys)
     if mode == 'inside_from_tail':
         xtail = -15
     else:

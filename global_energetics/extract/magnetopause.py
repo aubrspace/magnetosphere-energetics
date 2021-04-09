@@ -78,7 +78,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
-    approved = ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere']
+    approved= ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere',                'lcb']
     if not any([mode == match for match in approved]):
         print('Magnetopause mode "{}" not recognized!!'.format(mode))
         print('Please set mode to one of the following:')
@@ -92,6 +92,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 'do_trace -> True')
     else:
         has_status = True
+    if do_trace and mode == 'lcb':
+        print('last_closed boundary not setup with trace mode!')
+        return
     display = ('Analyzing Magnetopause with the following settings:\n'+
                '\tdatafile: {}\n'.format(datafile)+
                '\toutputpath: {}\n'.format(outputpath)+
@@ -168,6 +171,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             x_subsolar = float(aux['x_subsolar'])
             closed_index = None
             closed_zone = None
+            #Assign closed zone info if already exists
+            if len([zn for zn in field_data.zones('*lcb*')]) > 0:
+                closed_index = field_data.variable('lcb').index
+                closed_zone = field_data.zone('*lcb*')
+            elif has_status == True:
+                closed_index = calc_closed_state('Status', 3)
+                closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
         else:
             if do_trace:
                 closedzone_index = streamfind_bisection(field_data,
@@ -176,7 +186,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                   rmax, rmin, itr_max, tol)
             else:
                 closed_index = calc_closed_state('Status', 3)
-                closed_zone, _ = setup_isosurface(1,closed_index,'Bclosed')
+                closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
                 closedzone_index = closed_zone.index
             x_subsolar = 1
             x_subsolar = max(x_subsolar,
@@ -232,9 +242,6 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = 'mp_'+mode
             if zone_rename != None:
                 zonename = zone_rename
-            if closed_index == None and has_status == True:
-                closed_index = calc_closed_state('Status', 3)
-                closed_zone, _ = setup_isosurface(1,closed_index,'Bclosed')
             iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
                                                      tail_cap, 50, 1,
                                                      include_core, sp_r,
@@ -253,6 +260,18 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zoneindex = iso_betastar_zone.index
             if zone_rename != None:
                 iso_betastar_zone.name = zone_rename
+                zonename = zone_rename
+        ################################################################
+        if mode.find('lcb') != -1:
+            assert do_trace == False, (
+                               "lcb mode only works with do_trace==False!")
+            assert closed_index != None, (
+                                     'No closed_zone present! Cant do lcb')
+            state_var_name = 'lcb'
+            zonename = closed_zone.name
+            zoneindex = closed_zone.index
+            if zone_rename != None:
+                closed_zone.name = zone_rename
                 zonename = zone_rename
         ################################################################
         #save mesh to hdf file as key=mode, along with time in key='time'
