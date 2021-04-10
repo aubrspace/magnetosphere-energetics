@@ -76,7 +76,7 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'lower right'
+    legend_loc = 'lower left'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name == 'supermag':
