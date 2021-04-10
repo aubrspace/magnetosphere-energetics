@@ -52,7 +52,7 @@ def add_IMF_clock(frame, clockangle, coordsys, position, size):
     #Load plot onto current frame
     img = frame.add_image(os.getcwd()+'/temp_imfclock.png', position, size)
     #Delete plot image file
-    #os.system('rm '+os.getcwd()+'/temp_imfclock.png')
+    os.system('rm '+os.getcwd()+'/temp_imfclock.png')
 
 def add_shade_legend(frame, entries, location, markersize):
     """Adds box with colored squares and text for legend of shaded surfaces
