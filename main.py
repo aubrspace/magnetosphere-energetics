@@ -84,8 +84,9 @@ if __name__ == "__main__":
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'ExB_net *', mhddatafile, show_contour=True,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=False, energyrange=9e10,
+                                show_legend=False,
                                 pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
@@ -126,7 +127,7 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH, transluc=60,
-                                plot_satellites=True, satzones=satzones,
+                                plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)

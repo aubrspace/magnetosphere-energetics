@@ -486,15 +486,27 @@ def get_surface_variables(field_data, zone_name):
                                   'X GRID K Unit Normal').as_numpy_array()
     df = pd.DataFrame({'x':xvalues,'normal':xnormals})
     #Check that surface normals are pointing outward from surface
-    if (len(df[(df['x']==df['x'].min())&(df['normal']>0)]) >
-        len(df[(df['x']==df['x'].min())&(df['normal']<0)])):
-        eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
-        eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
-        eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+    #Spherical inner boundary surface case (want them to point inwards)
+    if zone_name.find('innerbound') != -1:
+        if df[df['x']==df['x'].min()]['normal'].mean() < 0:
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+        else:
+            eq('{surface_normal_x} = {X Grid K Unit Normal}')
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}')
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}')
     else:
-        eq('{surface_normal_x} = {X Grid K Unit Normal}')
-        eq('{surface_normal_y} = {Y Grid K Unit Normal}')
-        eq('{surface_normal_z} = {Z Grid K Unit Normal}')
+        #Look at tail cuttoff plane for other cases
+        if (len(df[(df['x']==df['x'].min())&(df['normal']>0)]) >
+            len(df[(df['x']==df['x'].min())&(df['normal']<0)])):
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+        else:
+            eq('{surface_normal_x} = {X Grid K Unit Normal}')
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}')
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}')
     ######################################################################
     #Normal Total Energy Flux
     eq('{ExB_net [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
@@ -914,15 +926,19 @@ def calc_sphere_state(mode, xc, yc, zc, rmin):
                              str(rmin)+', 1, 0)')
     return tp.active_frame().dataset.variable(mode).index
 
-def calc_closed_state(status_key, status_val):
+def calc_closed_state(status_key, status_val, xmin):
     """Function creates state variable for the closed fieldline region
     Inputs
         status_key/val-string key and value used to denote closed fldlin
+        xmin- minimum cuttoff value
     Outputs
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
-    eq('{lcb} = IF({'+status_key+'}=='+str(status_val)+',1,0)')
+    print('{lcb} = IF({X [R]} > '+str(xmin)+','+
+                    'IF({'+status_key+'}=='+str(status_val)+',1,0), 0)')
+    eq('{lcb} = IF({X [R]} > '+str(xmin)+','+
+                    'IF({'+status_key+'}=='+str(status_val)+',1,0), 0)')
     return tp.active_frame().dataset.variable('lcb').index
 
 def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):

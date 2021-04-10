@@ -287,21 +287,25 @@ def set_camera(frame, *, setting='iso_day'):
         view.alpha, view.theta, view.psi = (0, 240, 64)
         view.position = (1960, 1140, 1100)
         view.magnification = 4.7
+        oa_position = [91,7]
     elif setting == 'iso_tail':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,137,64)
         view.position = (-490,519,328)
         view.magnification = 6.470
+        oa_position = [95,7]
     elif setting == 'other_iso':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,17,116)
         view.position = (-680,-2172,-1120)
         view.magnification = 5.56
+        oa_position = [91,7]
     elif setting == 'inside_from_tail':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,83,84)
         view.position = (-2514.8,-310.4,264.5)
         view.magnification = 15.30
+        oa_position = [95,7]
     else:
         print('Camera setting {} not developed!'.format(setting))
     #light source settings
@@ -310,9 +314,11 @@ def set_camera(frame, *, setting='iso_day'):
     plot.light_source.background_light=100
     plot.light_source.intensity=100
     plot.light_source.direction=(0,0,0)
+    #orientation axis
+    set_orientation_axis(frame, position=oa_position)
 
 def set_3Daxes(frame, *,
-                  xmax=20, xmin=-45, ymax=40, ymin=-40, zmax=40, zmin=-40,
+                  xmax=20, xmin=-45, ymax=35, ymin=-35, zmax=35, zmin=-35,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
     Inputs
@@ -453,27 +459,33 @@ def set_satellites(satnames, frame):
     satindices, loc_satindices = [], []
     for name in satnames:
         satindices.append(int(dataset.zone(name).index))
-        #create local sat zone with sat current position
-        loc_satzone =  dataset.add_ordered_zone('loc_'+name, [1,1,1])
-        #get the current position of the satellite based on aux data
-        eventstring =dataset.zone('global_field').aux_data['TIMEEVENT']
-        startstring=dataset.zone('global_field').aux_data['TIMEEVENTSTART']
-        eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
-        startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
-        deltadt = eventdt-startdt
-        tvals = dataset.zone(name).values('t').as_numpy_array()
-        xvals = dataset.zone(name).values('X *').as_numpy_array()
-        yvals = dataset.zone(name).values('Y *').as_numpy_array()
-        zvals = dataset.zone(name).values('Z *').as_numpy_array()
-        svals = dataset.zone(name).values('Status').as_numpy_array()
-        xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-        ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-        zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-        status = svals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-        loc_satzone.values('X *')[0] = xpos
-        loc_satzone.values('Y *')[0] = ypos
-        loc_satzone.values('Z *')[0] = zpos
-        loc_satzone.values('Status')[0] = status
+        if len([zn for zn in dataset.zones('loc_'+name)]) > 0:
+            loc_satzone = dataset.zone('loc_'+name)
+        else:
+            #create local sat zone with sat current position
+            loc_satzone =  dataset.add_ordered_zone('loc_'+name, [1,1,1])
+            #get the current position of the satellite based on aux data
+            eventstring =dataset.zone('global_field').aux_data['TIMEEVENT']
+            startstring=dataset.zone('global_field').aux_data[
+                                                          'TIMEEVENTSTART']
+            eventdt = dt.datetime.strptime(eventstring,
+                                                    '%Y/%m/%d %H:%M:%S.%f')
+            startdt = dt.datetime.strptime(startstring,
+                                                    '%Y/%m/%d %H:%M:%S.%f')
+            deltadt = eventdt-startdt
+            tvals = dataset.zone(name).values('t').as_numpy_array()
+            xvals = dataset.zone(name).values('X *').as_numpy_array()
+            yvals = dataset.zone(name).values('Y *').as_numpy_array()
+            zvals = dataset.zone(name).values('Z *').as_numpy_array()
+            svals = dataset.zone(name).values('Status').as_numpy_array()
+            xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            status = svals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            loc_satzone.values('X *')[0] = xpos
+            loc_satzone.values('Y *')[0] = ypos
+            loc_satzone.values('Z *')[0] = zpos
+            loc_satzone.values('Status')[0] = status
         #add new zone index
         loc_satindices.append(int(loc_satzone.index))
     #Turn off mesh  and scatter for all maps that arent satellites
@@ -497,18 +509,31 @@ def set_satellites(satnames, frame):
     plot.contour(2).legend.box.box_type = TextBox.Filled
     #Set color, linestyle, marker and sizes for satellite
     for sat in enumerate(satindices):
+        index = loc_satindices[sat[0]]
+        #getstatus
+        status = dataset.zone(index).values('Status')[0]
+        if status == 0:
+            inside = False
+        else:
+            inside = True
         #mesh
         plot.fieldmap(sat[1]).mesh.show = True
-        plot.fieldmap(sat[1]).mesh.color = colorwheel[sat[0]]
+        #plot.fieldmap(sat[1]).mesh.color = colorwheel[sat[0]]
+        plot.fieldmap(sat[1]).mesh.color = Color.White
         plot.fieldmap(sat[1]).mesh.line_thickness = 1
         plot.fieldmap(sat[1]).mesh.line_pattern = LinePattern.Solid
         #scatter
-        index = loc_satindices[sat[0]]
         plot.fieldmap(index).show = True
         plot.fieldmap(index).scatter.show = True
-        plot.fieldmap(index).scatter.color = plot.contour(2)
-        plot.fieldmap(index).scatter.symbol().shape = GeomShape.Octahedron
-        plot.fieldmap(index).scatter.size = 2
+        if inside:
+            plot.fieldmap(index).scatter.symbol().shape = GeomShape.Octahedron
+            plot.fieldmap(index).scatter.color = Color.Yellow
+            plot.fieldmap(index).scatter.size = 2
+        else:
+            plot.fieldmap(index).scatter.symbol().shape = GeomShape.Cube
+            plot.fieldmap(index).scatter.color = Color.Purple
+            plot.fieldmap(index).scatter.size = 1.5
+
 
 
 def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
@@ -556,7 +581,6 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     add_energy_contour(frame, energyrange, contour_key, energy_contourmap,
                        show_legend)
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
-    set_orientation_axis(frame)
     #Optional items
     if show_slice:
         add_jy_slice(frame, frame.dataset.variable('J_y *').index,

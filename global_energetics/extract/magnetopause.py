@@ -182,7 +182,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 closed_index = field_data.variable('lcb').index
                 closed_zone = field_data.zone('*lcb*')
             elif has_status == True:
-                closed_index = calc_closed_state('Status', 3)
+                closed_index = calc_closed_state('Status', 3, tail_cap)
                 closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
         else:
             if do_trace:
@@ -191,7 +191,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                   lon_bounds, n_fieldlines,
                                                   rmax, rmin, itr_max, tol)
             else:
-                closed_index = calc_closed_state('Status', 3)
+                closed_index = calc_closed_state('Status', 3, tail_cap)
                 closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
                 closedzone_index = closed_zone.index
             x_subsolar = 1
