@@ -37,12 +37,14 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     calc_sphere_state,
                                                     calc_box_state,
                                                     abs_to_timestamp,
+                                                    get_1D_sw_variables,
                                                     write_to_timelog)
 from global_energetics.write_disp import (write_mesh, write_to_hdf,
                                           display_progress)
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      mode='iso_betastar', include_core=False, source='swmf',
+                     do_1Dsw=True, oneDmx=30, oneDmn=-30, n_oneD=121,
                      do_trace=False, lon_bounds=10, n_fieldlines=5,
                      rmax=30, rmin=3,
                      dx_probe=-1,
@@ -65,6 +67,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             mode- iso_betastar, sphere, box or shue97/shue98
             include_core- setting to omit the inner boundary of sim domain
             source- only capable of handling SWMF input
+        1DSolarWind
+            do_1Dsw- boolean for projecting a 1D "pristine" sw solution
+            oneDmx, oneDmn, n_oneD- parameters for 1D curve (probe points)
         Streamtracing
             do_trace- boolean turns on fieldline tracing to find x_subsolar
             lon_bounds, nlines- bounds and density of search
@@ -102,6 +107,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\tinclude_core: {}\n'.format(include_core)+
                '\tsource: {}\n'.format(source)+
                '\tdo_trace: {}\n'.format(do_trace))
+    if do_1Dsw:
+        #1D solar wind settings
+        display = (display +
+               '\t1Dsw settings:\n'+
+               '\t\toneDmx: {}\n'.format(oneDmx)+
+               '\t\toneDmn: {}\n'.format(oneDmn)+
+               '\t\tn_oneD: {}\n'.format(n_oneD))
     if mode == 'sphere':
         #sphere settings
         display = (display +
@@ -164,6 +176,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             print('Calculating global energetic variables')
             main_frame.name = 'main'
             get_global_variables(field_data)
+            print('Calculating 1D "pristine" Solar Wind variables')
+            get_1D_sw_variables(field_data, 30, -30, 121)
         else:
             main_frame = [fr for fr in tp.frames('main')][0]
         #Add imfclock angle if not there already
@@ -287,11 +301,12 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         mp_powers = pd.DataFrame()
         mp_energies = pd.DataFrame()
         if integrate_surface:
-            mp_powers = surface_analysis(main_frame, zonename,
+            mp_powers = surface_analysis(main_frame, zonename, do_1Dsw,
                                     cuttoff=tail_analysis_cap)
             if not include_core and mode == 'iso_betastar':
                 innerbound_powers = surface_analysis(main_frame,
                                                      zonename+'innerbound',
+                                                     do_1Dsw,
                                                 cuttoff=tail_analysis_cap)
                 innerbound_powers = innerbound_powers.add_prefix('inner')
                 print('\nInnerbound surface power calculated')
@@ -306,6 +321,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             else:
                 doblank = True
             mp_energies = volume_analysis(main_frame, state_var_name,
+                                          do_1Dsw, sp_r,
                                           cuttoff=tail_analysis_cap,
                                           blank=False)
             print('\nMagnetopause Energy Terms')

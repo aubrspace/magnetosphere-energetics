@@ -20,8 +20,6 @@ from global_energetics.extract import stream_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
-from global_energetics.mpdynamics_analysis import proc_spatial
-from global_energetics.mpdynamics_analysis import proc_temporal
 
 if __name__ == "__main__":
     #print('\nProcessing {pltfile}\n'.format(pltfile=sys.argv[1]))
@@ -50,7 +48,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile)
-    magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb')
+    #magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb')
 
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
@@ -64,15 +62,14 @@ if __name__ == "__main__":
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
     #adjust view settings
-    '''
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=False, show_fieldline=True,
-                                pngpath=PNGPATH,
-                                plot_satellites=True, satzones=satzones,
+                                show_slice=True,show_fieldline=True,
+                                pngpath=PNGPATH,add_clock=True,
+                                plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=True)
-    '''
+    """
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
@@ -131,6 +128,7 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
+    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),

@@ -2,27 +2,18 @@
 """Functions for handling and processing time varying magnetopause surface
     data that is spatially averaged, reduced, etc
 """
-import logging as log
 import os
 import sys
 import glob
 import time
-from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
-import scipy as sp
-from scipy import integrate
 import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
-from progress.bar import Bar
-from progress.spinner import Spinner
 import spacepy
-#from spacepy import coordinates as coord
+from spacepy import coordinates as coord
 from spacepy import time as spacetime
-import tecplot as tp
-from tecplot.constant import *
-from tecplot.exception import *
 
 def plot_all_runs_1Qty(axis, dflist, timekey, qtkey, ylabel, *,
                        xlim=None, ylim=None, Color=None, Size=4, ls=None):
@@ -84,7 +75,6 @@ def add_derived_variables(dflist):
     Outputs
         dflist
     """
-    use_dflist = []
     for df in enumerate(dflist):
         if not df[1].empty:
             if len(df[1]) > 1:
@@ -278,20 +268,20 @@ def prepare_figures(dflist, outpath):
             #plt.close(power)
         ###################################################################
 
-def process_temporal_mp(data_path_list, outputpath):
+def read_energetics(data_path_list, *, add_variables=True):
     """Top level function handles time varying magnetopause data and
         generates figures according to settings set by inputs
     Inputs
-        data_path_list- paths to the data, default will skip
-        outputpaht
+        data_path_list- paths to the data
+    Outputs
+        dflist- list object full of pandas dataframes, 1 per 3Dvolume
     """
     if data_path_list == []:
         print('Nothing to do, no data_paths were given!')
     else:
         approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid',
-                    'field', 'mp_', 'box', 'sphere']
+                    'field', 'mp_', 'box', 'sphere', 'lcb']
         dflist = []
-        spin = Spinner('finding available temporal data ')
         for path in data_path_list:
             print(path)
             if path != None:
@@ -308,9 +298,10 @@ def process_temporal_mp(data_path_list, outputpath):
                                 dflist.append(df)
                             else:
                                 print('key {} not understood!'.format(key))
-                            spin.next()
-        prepare_figures(dflist, outputpath)
+        if add_variables:
+            dflist = add_derived_variables(dflist)
     print('done!')
+    return dflist
 
 if __name__ == "__main__":
     datapath = sys.argv[1]

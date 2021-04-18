@@ -32,8 +32,8 @@ def add_IMF_clock(frame, clockangle, coordsys, position, size):
     fig = plt.figure(figsize=(arrowsize, arrowsize*1.2), facecolor='gray')
     ax = fig.add_axes([0.2, 0.1, 0.6, 0.6], polar=True, facecolor='gray',
                       frame_on=False)
-    ax.set_theta_zero_location('E')
-    ax.set_thetagrids([0,90,180,270], ['+Y','+Z','-Y','-Z'])
+    ax.set_theta_zero_location('N')
+    ax.set_thetagrids([0,90,180,270], ['+Z','+Y','-Z','-Y'])
     ax.set_rticks([])
 
     r = np.arange(0, 3.0, 0.01)

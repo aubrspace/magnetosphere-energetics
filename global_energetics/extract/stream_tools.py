@@ -464,7 +464,7 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     return loc_data, x_max
 
 
-def get_surface_variables(field_data, zone_name):
+def get_surface_variables(field_data, zone_name, do_1Dsw):
     """Function calculated variables for a specific 3D surface
     Inputs
         field_data, zone_name
@@ -507,51 +507,95 @@ def get_surface_variables(field_data, zone_name):
             eq('{surface_normal_x} = {X Grid K Unit Normal}')
             eq('{surface_normal_y} = {Y Grid K Unit Normal}')
             eq('{surface_normal_z} = {Z Grid K Unit Normal}')
-    ######################################################################
-    #Normal Total Energy Flux
-    eq('{ExB_net [W/Re^2]} = ({ExB_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{ExB_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{ExB_z [W/Re^2]}*{surface_normal_z})',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
+    ##Different prefixes allow for calculation of surface fluxes using 
+    #   multiple sets of flowfield variables (denoted by the prefix)
+    prefixlist = ['']
+    if do_1Dsw:
+        prefixlist.append('1D')
+    for add in prefixlist:
+        ##################################################################
+        #Normal Total Energy Flux
+        eq('{'+add+'ExB_net [W/Re^2]} = ('+
+                            '{'+add+'ExB_x [W/Re^2]}*{surface_normal_x}'+
+                           '+{'+add+'ExB_y [W/Re^2]}*{surface_normal_y}'+
+                           '+{'+add+'ExB_z [W/Re^2]}*{surface_normal_z})',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
 
-    #Split into + and - flux
-    eq('{ExB_escape} = max({ExB_net [W/Re^2]},0)',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
-    eq('{ExB_injection} = min({ExB_net [W/Re^2]},0)',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
-    ######################################################################
-    #Normal Total Pressure Flux
-    eq('{P0_net [W/Re^2]} = ({P0_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{P0_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{P0_z [W/Re^2]}*{surface_normal_z})',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
+        #Split into + and - flux
+        eq('{'+add+'ExB_escape} = max({'+add+'ExB_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        eq('{'+add+'ExB_injection} = min({'+add+'ExB_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        ##################################################################
+        #Normal Total Pressure Flux
+        eq('{'+add+'P0_net [W/Re^2]} = ('+
+                             '{'+add+'P0_x [W/Re^2]}*{surface_normal_x}'+
+                            '+{'+add+'P0_y [W/Re^2]}*{surface_normal_y}'+
+                            '+{'+add+'P0_z [W/Re^2]}*{surface_normal_z})',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
 
-    #Split into + and - flux
-    eq('{P0_escape} = max({P0_net [W/Re^2]},0)',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
-    eq('{P0_injection} = min({P0_net [W/Re^2]},0)',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
-    ######################################################################
-    #Normal Total Energy Flux
-    eq('{K_net [W/Re^2]} = ({K_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{K_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{K_z [W/Re^2]}*{surface_normal_z})',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
+        #Split into + and - flux
+        eq('{'+add+'P0_escape} = max({'+add+'P0_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        eq('{'+add+'P0_injection} = min({'+add+'P0_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        ##################################################################
+        #Normal Total Energy Flux
+        eq('{'+add+'K_net [W/Re^2]} = ('+
+                              '{'+add+'K_x [W/Re^2]}*{surface_normal_x}'+
+                             '+{'+add+'K_y [W/Re^2]}*{surface_normal_y}'+
+                             '+{'+add+'K_z [W/Re^2]}*{surface_normal_z})',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
 
-    #Split into + and - flux
-    eq('{K_escape} = max({K_net [W/Re^2]},0)',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
-    eq('{K_injection} = min({K_net [W/Re^2]},0)',
-        value_location=ValueLocation.CellCentered,
-        zones=[zone_index])
+        #Split into + and - flux
+        eq('{'+add+'K_escape} = max({'+add+'K_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+
+
+def get_1D_sw_variables(field_data, xmax, xmin, nx):
+    """Function calculates values for energetics of 1D pristine solar wind
+    Inputs
+        field_data- tecplot Dataset class containing 3D field data
+        xmax, xmin, nx- discretization for 1D extraction of variables
+    """
+    eq = tp.data.operate.execute_equation
+    #extract data in 1D line at the edge of the simulation domain
+    #Assumption is that this is 'unpreterbed'
+    yvalue = 120; zvalue = 120
+    xvalues, dx = np.linspace(xmax, xmin, nx, retstep=True)
+    dx = abs(dx)
+    oneD_data = pd.DataFrame(columns=field_data.variable_names)
+    #Extract 1D line of field data
+    for x in xvalues:
+        #probe data at x,y,z to get all energetic field variables
+        data = tp.data.query.probe_at_position(x,yvalue,zvalue)[0]
+        oneD_data = oneD_data.append(pd.DataFrame([data],
+                                     columns=field_data.variable_names),
+                                     ignore_index=False)
+    #Create new global variables
+    for var in field_data.variable_names:
+        #Make polynomial fit bc tec equation length is very limited
+        p = np.polyfit(oneD_data['X [R]'], oneD_data[var],3)
+        fx = xvalues**3*p[0]+xvalues**2*p[1]+xvalues*p[2]+p[3]
+        eqstr = ('{1D'+str(var)+'} = IF({X [R]}<'+str(xmax)+'&&'+
+                                      '{X [R]}>'+str(xmin)+','+
+                                     str(p[0])+'*{X [R]}**3+'+
+                                     str(p[1])+'*{X [R]}**2+'+
+                                     str(p[2])+'*{X [R]}+'+
+                                     str(p[3])+
+                                     ', 0)')
+        eq(eqstr, value_location=ValueLocation.CellCentered)
 
 
 def get_global_variables(field_data):

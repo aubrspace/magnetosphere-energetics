@@ -1,28 +1,19 @@
 #!/usr/bin/env python3
 """Functions for handling and plotting time magnetic indices data
 """
-import logging as log
 import os
 import sys
 import glob
 import time
-from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
-import scipy as sp
-from scipy import integrate
 import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
-from progress.bar import Bar
-from progress.spinner import Spinner
 import swmfpy
 import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
-import tecplot as tp
-from tecplot.constant import *
-from tecplot.exception import *
 
 
 def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
@@ -109,7 +100,7 @@ def plot_AL(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'lower right'
+    legend_loc = 'lower left'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name == 'supermag':
@@ -407,10 +398,31 @@ def get_supermag_data(start, end, datapath):
     Inputs
         start, end- datatime objects used for supermag.py
     """
-    supermag.DIR = SUPERMAGDATAPATH
-    print('obtaining supermag data')
-    return pd.DataFrame(supermag.supermag(start,end)).append(
-            pd.Series({'name':'supermag'}),ignore_index=True)
+    #Interpackage imports
+    if os.path.exists('../supermag-data'):
+        os.system('ln -s ../supermag-data/supermag.py')
+        print('soft link to supermag.py created')
+        SUPERMAGDATAPATH = '../supermag-data/data'
+    else:
+        try:
+            import supermag
+        except ModuleNotFoundError:
+            print('Cant find supermag.py!')
+    try:
+        import supermag
+    except ModuleNotFoundError:
+        print('supermag.py module not linked!')
+        EXIT=True
+    else:
+        EXIT=False
+    if not EXIT:
+        supermag.DIR = SUPERMAGDATAPATH
+        print('obtaining supermag data')
+        return pd.DataFrame(supermag.supermag(start,end)).append(
+                pd.Series({'name':'supermag'}),ignore_index=True)
+    else:
+        return pd.DataFrame().append(
+                pd.Series({'name':'supermag'}),ignore_index=True)
 
 def get_swmf_data(datapath):
     """Function reads in swmf geoindex log and log
@@ -432,19 +444,19 @@ def get_swmf_data(datapath):
         #maybe move this somewhere to call a diff parser depending on file
         return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S %f')
     geoindexdata = pd.read_csv(geoindex, sep='\s+', skiprows=1,
-            parse_dates={'times':['year','mo','dy','hr','mn','sc','msc']},
+            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
             date_parser=datetimeparser,
             infer_datetime_format=True, keep_date_col=True)
     swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
-            parse_dates={'times':['year','mo','dy','hr','mn','sc','msc']},
+            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
             date_parser=datetimeparser,
             infer_datetime_format=True, keep_date_col=True)
     swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[1,2,3,4],
-            parse_dates={'times':['yr','mn','dy','hr','min','sec','msec']},
+            parse_dates={'Time [UTC]':['yr','mn','dy','hr','min','sec','msec']},
             date_parser=datetimeparser,
             infer_datetime_format=True, keep_date_col=True)
-    swdata = swdata[swdata['times']<geoindexdata['times'].iloc[-1]]
-    swdata = swdata[swdata['times']>geoindexdata['times'].iloc[0]]
+    swdata = swdata[swdata['Time [UTC]']<geoindexdata['Time [UTC]'].iloc[-1]]
+    swdata = swdata[swdata['Time [UTC]']>geoindexdata['Time [UTC]'].iloc[0]]
     #attach names to each dataset
     geoindexdata = geoindexdata.append(pd.Series({'name':'swmf_index'}),
                                        ignore_index=True)
@@ -525,35 +537,44 @@ def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
         plot_swvxvyvz(ax5, dflist, timekey, ylabel)
         sw.savefig(outputpath+'{}.png'.format(figname))
     ######################################################################
+#def add_calculated_terms(dflist, 
 
-def process_indices(data_path, outputpath):
+def get_expanded_sw(start, end, data_path):
+    """Function gets only supermag and omni solar wind data for period
+    Inputs
+        start, end
+    Outputs
+        supermag
+        omni
+    """
+    #get supermag and omni
+    supermag = get_supermag_data(start, end, data_path)
+    supermag['Time [UTC]'] = supermag['times']
+    omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end)).append(
+            pd.Series({'name':'omni'}), ignore_index=True)
+    omni['Time [UTC]'] = omni['times']
+    return supermag, omni
+
+def read_indices(data_path):
     """Top level function handles time varying magnetopause data and
         generates figures according to settings set by inputs
     Inputs
         data_path- path to the data
-        outputpaht
+    Outputs
+        swmf_indices, swmf_log, swmf_sw, supermag, omni
     """
     swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path)
-    if False:
-        #cuttoff data past a certain time
-        swmf_datalist = [swmf_index, swmf_log, swmf_sw]
-        cuttofftime = dt.datetime(2014,2,19,0,0)
-        for df in enumerate(swmf_datalist):
-            name = pd.Series({'name':df[1]['name'].iloc[-1]})
-            cutdf = df[1][df[1]['times']<cuttofftime].append(name,
-                                                ignore_index=True)
-            swmf_datalist[df[0]] = cutdf
-        [swmf_index, swmf_log, swmf_sw] = swmf_datalist
     #find new start/end times
-    start = swmf_index['times'][0]
-    end = swmf_index['times'].iloc[-2]
+    start = swmf_index['Time [UTC]'][0]
+    end = swmf_index['Time [UTC]'].iloc[-2]
     #get supermag and omni
-    supermag = get_supermag_data(start, end, SUPERMAGDATAPATH)
+    supermag = get_supermag_data(start, end, data_path)
+    supermag['Time [UTC]'] = supermag['times']
     omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end)).append(
             pd.Series({'name':'omni'}), ignore_index=True)
+    omni['Time [UTC]'] = omni['times']
     #make plots
-    prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
-                    outputpath)
+    return [swmf_index, swmf_log, swmf_sw, supermag, omni]
 
 if __name__ == "__main__":
     #Interpackage imports
