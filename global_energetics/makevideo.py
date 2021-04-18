@@ -109,7 +109,7 @@ def vid_compile(folder, framerate, title):
 if __name__ == '__main__':
     #Video settings
     RES = 400
-    FRAMERATE = 6
+    FRAMERATE = 12
     FOLDER = sys.argv[1]
 
     #determine if already in img-??.png form

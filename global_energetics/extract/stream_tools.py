@@ -452,7 +452,7 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
                                                   int(varlist[-1]))+
                     'ValSep=",":'+
                     'FNAME="'+os.getcwd()+'/'+filename+'"')
-    loc_data = pd.read_csv(filename)
+    loc_data = pd.read_csv('./'+filename)
     if any(col == 'X [R]' for col in loc_data.columns):
         loc_data = loc_data.drop(columns=['Unnamed: 3'])
         loc_data = loc_data.sort_values(by=['X [R]'])
@@ -762,10 +762,10 @@ def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
     #access data via file write out then delete file
-    filename = os.getcwd()+'/Out.txt'
+    filename = os.getcwd()+'/Out'+str(np.random.rand()).split('.')[-1]+'.txt'
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
         command='SaveIntegrationResults FileName="'+filename+'"')
-    result = pd.read_table('./Out.txt', sep=':',index_col=0)
+    result = pd.read_table(filename, sep=':',index_col=0)
     os.system('rm {}'.format(filename))
     return result.iloc[-1].values[0]
 
@@ -795,14 +795,14 @@ def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
     #Perform integration and extract resultant value
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
-    filename = os.getcwd()+'/Out.txt'
+    filename = os.getcwd()+'/Out'+str(np.random.rand()).split('.')[-1]+'.txt'
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
         command='SaveIntegrationResults FileName="'+filename+'"')
-    result = pd.read_table('./Out.txt', sep=':',index_col=0)
+    result = pd.read_table(filename, sep=':',index_col=0)
     integral = result.iloc[-1].values[0]
 
     #Delete created file and turn off blanking
-    os.system('rm Out.txt')
+    os.system('rm {}'.format(filename))
     return integral
 
 def setup_isosurface(iso_value, varindex, zonename, *,
@@ -898,7 +898,7 @@ def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
     eq = tp.data.operate.execute_equation
     eqstr = ('{'+zonename+'} = '+
         'IF({X [R]} >'+str(xmin-2)+'&&'+
-        '{X [R]} <'+str(xmax)+'&& {h} < '+str(hmax))
+        '{X [R]} <'+str(xmax))
     if core == False:
         eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
     eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,')

@@ -263,7 +263,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             if zone_rename != None:
                 zonename = zone_rename
             iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
-                                                     tail_cap, 50, 1,
+                                                     tail_cap, 50, 0.7,
                                                      include_core, sp_r,
                                                      closed_zone)
             state_var_name = field_data.variable(iso_betastar_index).name
@@ -296,7 +296,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         ################################################################
         #save mesh to hdf file as key=mode, along with time in key='time'
         mp_mesh, _ = dump_to_pandas(main_frame, [zoneindex], xyzvar,
-                                    'temp.csv')
+                                    outputpath+'temp.csv')
         #perform integration for surface and volume quantities
         mp_powers = pd.DataFrame()
         mp_energies = pd.DataFrame()

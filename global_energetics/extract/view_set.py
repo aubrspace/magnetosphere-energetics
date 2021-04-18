@@ -47,12 +47,14 @@ def add_IMF_clock(frame, clockangle, coordsys, position, size):
                         lw=6, zorder=5, head_width=0)
     ax.set_title('\nIMF ({})\n'.format(coordsys),fontsize=40,color='white')
     #Save plot
-    fig.savefig(os.getcwd()+'/temp_imfclock.png', facecolor='gray',
+    figname = (os.getcwd()+'/temp_imfclock'+
+                str(np.random.rand()).split('.')[-1]+'.png')
+    fig.savefig(figname, facecolor='gray',
                                                   edgecolor='gray')
     #Load plot onto current frame
-    img = frame.add_image(os.getcwd()+'/temp_imfclock.png', position, size)
+    img = frame.add_image(figname, position, size)
     #Delete plot image file
-    os.system('rm '+os.getcwd()+'/temp_imfclock.png')
+    os.system('rm '+figname)
 
 def add_shade_legend(frame, entries, location, markersize):
     """Adds box with colored squares and text for legend of shaded surfaces

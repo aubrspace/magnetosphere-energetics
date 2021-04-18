@@ -47,8 +47,50 @@ if __name__ == "__main__":
 
 
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, mhddatafile)
-    #magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb')
+    magnetopause.get_magnetopause(field_data, mhddatafile,
+                                  outputpath=OUTPATH)
+    '''
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=15, box_xmin=5,
+                                  box_ymax=40, box_ymin=30,
+                                  zone_rename='box_sw_pos_y',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=15, box_xmin=5,
+                                  box_zmax=40, box_zmin=30,
+                                  zone_rename='box_sw_pos_z',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=-30, box_xmin=-40,
+                                  zone_rename='box_tail_outsideIM',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=-5, box_xmin=-10,
+                                  zone_rename='box_tail_insideIM',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=10, box_xmin=5,
+                                  zone_rename='box_day_insideIM',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=30, box_xmin=20,
+                                  zone_rename='box_sw_pos_x',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=-30, box_xmin=-60,
+                                  box_ymax=30, box_ymin=-30,
+                                  box_zmax=30, box_zmin=-30,
+                                  zone_rename='box_tail_big',
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  box_xmax=30, box_xmin=10,
+                                  box_ymax=30, box_ymin=-30,
+                                  box_zmax=30, box_zmin=-30,
+                                  zone_rename='box_sw_big',
+                                  outputpath=OUTPATH)
+    '''
 
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
@@ -98,12 +140,11 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False)
     frame2.activate()
-    '''
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True,
-                                pngpath=PNGPATH,
+                                pngpath=PNGPATH, add_clock=True,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
@@ -118,6 +159,7 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso', show_timestamp=False,
                                 zone_hidekeys=['mp','sphere','box'])
+    '''
     frame3.activate()
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
