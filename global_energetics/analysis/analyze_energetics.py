@@ -127,7 +127,7 @@ def plot_Power_al(axis, dflist, timekey, ylabel, *,
 
 def plot_Power(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False):
+             use_inner=False, use_shield=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -139,41 +139,49 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
     legend_loc = 'upper right'
     for data in dflist:
         name = data['name'].iloc[-1]
-        powerin = 'K_injection [W]'
-        powerout = 'K_escape [W]'
-        powernet = 'K_net [W]'
+        powerin_str = 'K_injection [W]'
+        powerout_str = 'K_escape [W]'
+        powernet_str = 'K_net [W]'
         if use_inner:
-            powerin = 'inner'+powerin
-            powerout = 'inner'+powerout
-            powernet = 'inner'+powernet
+            powerin_str = 'inner'+powerin_str
+            powerout_str = 'inner'+powerout_str
+            powernet_str = 'inner'+powernet_str
         if name.find('mp')!=-1:
+            if use_shield:
+                powerin = data[powerin_str]/abs(
+                                            data['1D'+powerin_str])*100
+                powerout = data[powerout_str]/abs(
+                                            data['1D'+powerout_str])*100
+                powernet = data[powernet_str]/abs(
+                                            data['1D'+powernet_str])*100
+                axis.set_ylim([-300, 300])
+            else:
+                powerin = data[powerin_str]
+                powerout = data[powerout_str]
+                powernet = data[powernet_str]
+                axis.set_ylim([-3e13, 3e13])
             #INJECTION
-            axis.plot(data[timekey],data[powerin],
-                            label=powerin.split(' ')[0],
+            axis.plot(data[timekey],powerin,
+                            label=powerin_str.split(' ')[0],
                         linewidth=Size, linestyle=ls,
                         color='gold')
-            axis.fill_between(data[timekey],data[powerin],
+            axis.fill_between(data[timekey],powerin,
                               color='wheat')
             #ESCAPE
-            axis.plot(data[timekey],data[powerout],
-                            label=powerout.split(' ')[0],
+            axis.plot(data[timekey],powerout,
+                            label=powerout_str.split(' ')[0],
                         linewidth=Size, linestyle=ls,
                         color='deepskyblue')
-            axis.fill_between(data[timekey],data[powerout],
+            axis.fill_between(data[timekey],powerout,
                               color='lightsteelblue')
             #NET
-            axis.plot(data[timekey],data[powernet],
-                            label=powernet.split(' ')[0],
-                        linewidth=Size, linestyle=ls,
-                        color='maroon')
-            axis.fill_between(data[timekey],data[powernet],
-                              color='coral')
-        else:
-            axis.plot(data[timekey],-1*data[qtkey],
-                            label=name,
-                        linewidth=Size, linestyle=ls,
-                        color='plum')
-    axis.set_ylim([-3e13, 3e13])
+            if not use_shield:
+                axis.plot(data[timekey],powernet,
+                                label=powernet_str.split(' ')[0],
+                            linewidth=Size, linestyle=ls,
+                            color='maroon')
+                axis.fill_between(data[timekey],powernet,
+                                color='coral')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -184,7 +192,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
 
 def plot_P0Power(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False):
+             use_inner=False, use_shield=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -196,41 +204,49 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
     legend_loc = 'upper right'
     for data in dflist:
         name = data['name'].iloc[-1]
-        powerin = 'P0_injection [W]'
-        powerout = 'P0_escape [W]'
-        powernet = 'P0_net [W]'
+        powerin_str = 'P0_injection [W]'
+        powerout_str = 'P0_escape [W]'
+        powernet_str = 'P0_net [W]'
         if use_inner:
-            powerin = 'inner'+powerin
-            powerout = 'inner'+powerout
-            powernet = 'inner'+powernet
+            powerin_str = 'inner'+powerin_str
+            powerout_str = 'inner'+powerout_str
+            powernet_str = 'inner'+powernet_str
         if name.find('mp')!=-1:
+            if use_shield:
+                powerin = data[powerin_str]/abs(
+                                            data['1D'+powerin_str])*100
+                powerout = data[powerout_str]/abs(
+                                            data['1D'+powerout_str])*100
+                powernet = data[powernet_str]/abs(
+                                            data['1D'+powernet_str])*100
+                axis.set_ylim([-300, 300])
+            else:
+                powerin = data[powerin_str]
+                powerout = data[powerout_str]
+                powernet = data[powernet_str]
+                axis.set_ylim([-3e13, 3e13])
             #INJECTION
-            axis.plot(data[timekey],data[powerin],
-                            label=powerin.split(' ')[0],
+            axis.plot(data[timekey],powerin,
+                            label=powerin_str.split(' ')[0],
                         linewidth=Size, linestyle=ls,
                         color='gold')
-            axis.fill_between(data[timekey],data[powerin],
+            axis.fill_between(data[timekey],powerin,
                               color='wheat')
             #ESCAPE
-            axis.plot(data[timekey],data[powerout],
-                            label=powerout.split(' ')[0],
+            axis.plot(data[timekey],powerout,
+                            label=powerout_str.split(' ')[0],
                         linewidth=Size, linestyle=ls,
                         color='peru')
-            axis.fill_between(data[timekey],data[powerout],
+            axis.fill_between(data[timekey],powerout,
                               color='peachpuff')
             #NET
-            axis.plot(data[timekey],data[powernet],
-                            label=powernet.split(' ')[0],
-                        linewidth=Size, linestyle=ls,
-                        color='maroon')
-            axis.fill_between(data[timekey],data[powernet],
-                              color='coral')
-        else:
-            axis.plot(data[timekey],-1*data[qtkey],
-                            label=name,
-                        linewidth=Size, linestyle=ls,
-                        color='plum')
-    axis.set_ylim([-3e13, 3e13])
+            if not use_shield:
+                axis.plot(data[timekey],powernet,
+                                label=powernet_str.split(' ')[0],
+                            linewidth=Size, linestyle=ls,
+                            color='maroon')
+                axis.fill_between(data[timekey],powernet,
+                                color='coral')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -241,7 +257,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
 
 def plot_ExBPower(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False):
+             use_inner=False, use_shield=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -253,41 +269,49 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
     legend_loc = 'upper right'
     for data in dflist:
         name = data['name'].iloc[-1]
-        powerin = 'ExB_injection [W]'
-        powerout = 'ExB_escape [W]'
-        powernet = 'ExB_net [W]'
+        powerin_str = 'ExB_injection [W]'
+        powerout_str = 'ExB_escape [W]'
+        powernet_str = 'ExB_net [W]'
         if use_inner:
-            powerin = 'inner'+powerin
-            powerout = 'inner'+powerout
-            powernet = 'inner'+powernet
+            powerin_str = 'inner'+powerin_str
+            powerout_str = 'inner'+powerout_str
+            powernet_str = 'inner'+powernet_str
         if name.find('mp')!=-1:
+            if use_shield:
+                powerin = data[powerin_str]/abs(
+                                            data['1D'+powerin_str])*100
+                powerout = data[powerout_str]/abs(
+                                            data['1D'+powerout_str])*100
+                powernet = data[powernet_str]/abs(
+                                            data['1D'+powernet_str])*100
+                axis.set_ylim([-300, 300])
+            else:
+                powerin = data[powerin_str]
+                powerout = data[powerout_str]
+                powernet = data[powernet_str]
+                axis.set_ylim([-3e13, 3e13])
             #INJECTION
-            axis.plot(data[timekey],data[powerin],
-                            label=powerin.split(' ')[0],
+            axis.plot(data[timekey],powerin,
+                            label=powerin_str.split(' ')[0],
                         linewidth=Size, linestyle=ls,
                         color='mediumvioletred')
-            axis.fill_between(data[timekey],data[powerin],
+            axis.fill_between(data[timekey],powerin,
                               color='palevioletred')
             #ESCAPE
-            axis.plot(data[timekey],data[powerout],
-                            label=powerout.split(' ')[0],
+            axis.plot(data[timekey],powerout,
+                            label=powerout_str.split(' ')[0],
                         linewidth=Size, linestyle=ls,
                         color='deepskyblue')
-            axis.fill_between(data[timekey],data[powerout],
+            axis.fill_between(data[timekey],powerout,
                               color='lightsteelblue')
             #NET
-            axis.plot(data[timekey],data[powernet],
-                            label=powernet.split(' ')[0],
-                        linewidth=Size, linestyle=ls,
-                        color='midnightblue')
-            axis.fill_between(data[timekey],data[powernet],
-                              color='blue')
-        else:
-            axis.plot(data[timekey],-1*data[qtkey],
-                            label=name,
-                        linewidth=Size, linestyle=ls,
-                        color='plum')
-    axis.set_ylim([-3e13, 3e13])
+            if not use_shield:
+                axis.plot(data[timekey],powernet,
+                                label=powernet_str.split(' ')[0],
+                            linewidth=Size, linestyle=ls,
+                            color='midnightblue')
+                axis.fill_between(data[timekey],powernet,
+                                color='blue')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -802,10 +826,33 @@ def plot_swPower(axis, dflist, mp, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'lower right'
+    legend_loc = 'upper right'
     for data in dflist:
         name = data['name'].iloc[-1]
-        if name == 'supermag':
+        powerin_str = '1DK_injection [W]'
+        powerout_str = '1DK_escape [W]'
+        powernet_str = '1DK_net [W]'
+        if name.find('mp')!=-1:
+            powerin = data[powerin_str]
+            powerout = data[powerout_str]
+            powernet = data[powernet_str]
+            axis.set_ylim([-3e14, 3e14])
+            #INJECTION
+            axis.plot(data[timekey],powerin,
+                            label=powerin_str.split(' ')[0],
+                        linewidth=Size, linestyle='--',
+                        color='gold')
+            #ESCAPE
+            axis.plot(data[timekey],powerout,
+                            label=powerout_str.split(' ')[0],
+                        linewidth=Size, linestyle='--',
+                        color='deepskyblue')
+            #NET
+            axis.plot(data[timekey],powernet,
+                            label=powernet_str.split(' ')[0],
+                        linewidth=Size, linestyle='--',
+                        color='maroon')
+        elif name == 'supermag':
             pass
         elif name == 'swmf_sw':
             #constants/conversions
@@ -845,8 +892,6 @@ def plot_swPower(axis, dflist, mp, timekey, ylabel, *,
                       color='lightsteelblue')
         elif name == 'omni':
             pass
-        else:
-            qtkey = None
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -981,7 +1026,7 @@ if __name__ == "__main__":
                                           facecolor='gainsboro')
         timekey = 'Time [UTC]'
         y1label = 'Power [W]'
-        plot_swPower(ax1, [swmf_sw], mp,timekey, y1label)
+        plot_swPower(ax1, [mp], mp,timekey, y1label)
         plot_Power(ax1, [mp], timekey, y1label)
         ax1.set_ylim([-12e13,12e13])
         shade_plot(ax1)
@@ -1052,7 +1097,7 @@ if __name__ == "__main__":
         innerP0power.savefig(figureout+'{}_inner.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
-    #3panel Power and power_inner
+    #3panel Power, power_inner, and shielding
     if True:
         figname = '3panelPower'
         panel3power, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
@@ -1062,24 +1107,36 @@ if __name__ == "__main__":
                                             nrows=3,ncols=1, sharex=True,
                                           figsize=[18,24],
                                           facecolor='gainsboro')
+        sh3panelpower,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[18,24],
+                                          facecolor='gainsboro')
         #Time
         timekey = 'Time [UTC]'
         y1label = 'Power [W]'
+        y2label = 'Power [%]'
         plot_Power(ax1, [mp], timekey, y1label)
         plot_Power(in_ax1, [mp], timekey, y1label, use_inner=True)
+        plot_Power(sh_ax1, [mp], timekey, y2label, use_shield=True)
         plot_ExBPower(ax2, [mp], timekey, y1label)
         plot_ExBPower(in_ax2, [mp], timekey, y1label, use_inner=True)
+        plot_ExBPower(sh_ax2, [mp], timekey, y2label, use_shield=True)
         plot_P0Power(ax3, [mp], timekey, y1label)
         plot_P0Power(in_ax3, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
-        shade_plot(ax2), shade_plot(in_ax2)
-        shade_plot(ax3), shade_plot(in_ax3)
+        plot_P0Power(sh_ax3, [mp], timekey, y2label, use_shield=True)
+        shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         ax2.set_facecolor('olive'), in_ax2.set_facecolor('olive')
         ax3.set_facecolor('olive'), in_ax3.set_facecolor('olive')
+        sh_ax1.set_facecolor('olive'), sh_ax2.set_facecolor('olive')
+        sh_ax3.set_facecolor('olive')
         panel3power.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
         in3panelpower.savefig(figureout+'{}_inner.png'.format(figname),
+                      facecolor='gainsboro')
+        sh3panelpower.savefig(figureout+'{}_shield.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
     #Solarwind, regular sized
