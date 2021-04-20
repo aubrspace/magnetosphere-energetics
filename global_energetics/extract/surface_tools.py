@@ -17,7 +17,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                     dump_to_pandas)
 
 def surface_analysis(frame, zone_name, do_1Dsw, *,
-                     calc_K=True, calc_ExB=True, calc_P0=True,
+                     calc_K=True, calc_ExB=True, calc_P0=True,virial=True,
                      surface_area=True, test=False,cuttoff=-20):
     """Function to calculate energy flux at magnetopause surface
     Inputs
@@ -178,6 +178,15 @@ def surface_analysis(frame, zone_name, do_1Dsw, *,
             keys.append(add+'Average K_injection [W/Re^2]')
             kinj_average = kinj/SA
             data.append(kinj_average)
+        ###################################################################
+        #Virial boundary total pressure integral
+        if virial:
+            keys.append('Pt_virial [J]')
+            virial_index = int(
+                            field_data.variable(add+'Ptot_virial *').index)
+            ptvirial = integrate_surface(area_index, zone_index)
+            data.append(ptvirial)
+            print('{} Pt_virial integration done'.format(zone_name))
         ###################################################################
     #Collect and report surface integrated quantities
     surface_power = pd.DataFrame([data],columns=keys)

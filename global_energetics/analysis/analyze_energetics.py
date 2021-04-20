@@ -557,6 +557,69 @@ def plot_swdensity(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
+def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+    """Function plots solar wind clock angle with given data frames
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    for simdata in dflist:
+        simname = simdata['name'].iloc[-1]
+        if simname.find('mp')!=-1:
+            total = simdata['Total [J]']
+            uB = simdata['uB [J]']
+            uE = simdata['uE [J]']
+            uKperp = simdata['KEperp [J]']
+            uKpar = simdata['KEpar [J]']
+            axis.plot(simdata[timekey], (uB-uB[0]), label=simname+'_duB',
+                      linewidth=Size, linestyle=ls,
+                      color='lightsteelblue')
+            axis.plot(simdata[timekey], (total-total[0]), label=simname+'_dtotal',
+                      linewidth=Size, linestyle='--',
+                      color='lightsteelblue')
+            '''
+            axis.plot(simdata[timekey], uE, label=simname+'_uE',
+                      linewidth=Size, linestyle=ls,
+                      color='violet')
+            axis.plot(simdata[timekey], uKperp, label=simname+'_uKperp',
+                      linewidth=Size, linestyle=ls,
+                      color='green')
+            axis.plot(simdata[timekey], uKpar, label=simname+'_uKpar',
+                      linewidth=Size, linestyle='--',
+                      color='green')
+            '''
+    for data in dflist:
+        qtkey = None
+        name = data['name'].iloc[-1]
+        #Get DSP energy from magnetic perturbation
+        if name == 'supermag':
+            qtkey = 'SMR (nT)'
+            Color = 'black'
+        elif name == 'swmf_log':
+            qtkey = 'dst_sm'
+            Color = 'gainsboro'
+        elif name == 'omni':
+            qtkey = 'sym_h'
+            Color = 'coral'
+        if qtkey != None:
+            deltaB = data[qtkey]
+            B_e = 31e3
+            W_mag = 4*np.pi/3/(4*np.pi*1e-7)*B_e**2*(6371e3)**3 *(1e-18)
+            Wtotal = -3*W_mag/B_e * deltaB
+            axis.plot(data[timekey],Wtotal,label=name+'_Wtotal',
+                    linewidth=Size, linestyle=ls,
+                    color=Color)
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(timekey)
+    axis.set_ylabel(ylabel)
+    axis.legend(loc='upper left', facecolor='gray')
+
 def plot_akasofu(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots solar wind clock angle with given data frames
@@ -1089,4 +1152,19 @@ if __name__ == "__main__":
         panel3prox.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
-
+    #Dessler-Parker-Sckopke
+    if True:
+        figname = 'DesslerParkerSckopke'
+        DPS, (ax1)=plt.subplots(nrows=1, ncols=1,
+                                          sharex=True, figsize=[18,8],
+                                          facecolor='gainsboro')
+        #Time
+        timekey = 'Time [UTC]'
+        ylabel = 'Energy [J]'
+        plot_DesslerParkerSckopke(ax1, [swmf_log, supermag, omni, mp],
+                                  timekey, ylabel)
+        shade_plot(ax1)
+        ax1.set_facecolor('olive')
+        DPS.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################

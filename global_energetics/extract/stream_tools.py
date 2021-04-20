@@ -514,6 +514,16 @@ def get_surface_variables(field_data, zone_name, do_1Dsw):
         prefixlist.append('1D')
     for add in prefixlist:
         ##################################################################
+        #Virial boundary total pressure term
+        eq('{Ptot_virial [J/Re^2]} = ('+
+                       '{P [nPa]}+{Dp [nPa]}+{Bmag [nT]}/(8*pi*1e7)) * ('+
+                                          '{X [R]}*{surface_normal_x}'+
+                                        '+ {Y [R]}*{surface_normal_y}'+
+                                        '+ {Z [R]}*{surface_normal_z})*('+
+                                        '(6371*1000)**3*1e-9)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        ##################################################################
         #Normal Total Energy Flux
         eq('{'+add+'ExB_net [W/Re^2]} = ('+
                             '{'+add+'ExB_x [W/Re^2]}*{surface_normal_x}'+
