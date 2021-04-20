@@ -48,7 +48,17 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  outputpath=OUTPATH)
+                                  outputpath=OUTPATH, tail_cap=-30,
+                                  oneDmn=-40, n_oneD=141,
+                                  zone_rename='mp_30Re')
+    magnetopause.get_magnetopause(field_data, mhddatafile,
+                                  outputpath=OUTPATH, tail_cap=-40,
+                                  oneDmn=-50, n_oneD=161,
+                                  zone_rename='mp_40Re')
+    magnetopause.get_magnetopause(field_data, mhddatafile,
+                                  outputpath=OUTPATH, tail_cap=-50,
+                                  oneDmn=-60, n_oneD=181,
+                                  zone_rename='mp_50Re')
     '''
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb',
                                   outputpath=OUTPATH)

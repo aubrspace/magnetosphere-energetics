@@ -320,7 +320,7 @@ def set_camera(frame, *, setting='iso_day'):
     set_orientation_axis(frame, position=oa_position)
 
 def set_3Daxes(frame, *,
-                  xmax=20, xmin=-45, ymax=35, ymin=-35, zmax=35, zmin=-35,
+                  xmax=20, xmin=-65, ymax=35, ymin=-35, zmax=35, zmin=-35,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
     Inputs
