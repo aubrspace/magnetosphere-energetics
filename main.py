@@ -48,60 +48,59 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  outputpath=OUTPATH, tail_cap=-30,
-                                  oneDmn=-40, n_oneD=141,
-                                  zone_rename='mp_30Re')
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  outputpath=OUTPATH, tail_cap=-40,
-                                  oneDmn=-50, n_oneD=161,
-                                  zone_rename='mp_40Re')
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  outputpath=OUTPATH, tail_cap=-50,
-                                  oneDmn=-60, n_oneD=181,
-                                  zone_rename='mp_50Re')
-    '''
+                                  do_1Dsw=False,
+                                  outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb',
+                                  do_1Dsw=False,
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=15, box_xmin=5,
                                   box_ymax=40, box_ymin=30,
                                   zone_rename='box_sw_pos_y',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=15, box_xmin=5,
                                   box_zmax=40, box_zmin=30,
                                   zone_rename='box_sw_pos_z',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=-30, box_xmin=-40,
                                   zone_rename='box_tail_outsideIM',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=-5, box_xmin=-10,
                                   zone_rename='box_tail_insideIM',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=10, box_xmin=5,
                                   zone_rename='box_day_insideIM',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=30, box_xmin=20,
                                   zone_rename='box_sw_pos_x',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=-30, box_xmin=-60,
                                   box_ymax=30, box_ymin=-30,
                                   box_zmax=30, box_zmin=-30,
                                   zone_rename='box_tail_big',
                                   outputpath=OUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
+                                  do_1Dsw=False,
                                   box_xmax=30, box_xmin=10,
                                   box_ymax=30, box_ymin=-30,
                                   box_zmax=30, box_zmin=-30,
                                   zone_rename='box_sw_big',
                                   outputpath=OUTPATH)
-    '''
 
+    '''
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
     startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
@@ -110,8 +109,10 @@ if __name__ == "__main__":
     deltadt = eventdt-startdt
     satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
     '''
+    '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
+    '''
     '''
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
@@ -121,6 +122,7 @@ if __name__ == "__main__":
                                 pngpath=PNGPATH,add_clock=True,
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=True)
+    '''
     """
     #tile
     proc = 'Multi Frame Manager'

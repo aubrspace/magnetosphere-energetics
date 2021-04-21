@@ -180,11 +180,11 @@ def surface_analysis(frame, zone_name, do_1Dsw, *,
             data.append(kinj_average)
         ###################################################################
         #Virial boundary total pressure integral
-        if virial:
+        if virial and len(data)<14:
             keys.append('Pt_virial [J]')
             virial_index = int(
                             field_data.variable(add+'Ptot_virial *').index)
-            ptvirial = integrate_surface(area_index, zone_index)
+            ptvirial = integrate_surface(virial_index, zone_index)
             data.append(ptvirial)
             print('{} Pt_virial integration done'.format(zone_name))
         ###################################################################
