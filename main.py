@@ -48,11 +48,8 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  do_1Dsw=False,
                                   outputpath=OUTPATH)
-    magnetopause.get_magnetopause(field_data, mhddatafile, mode='lcb',
-                                  do_1Dsw=False,
-                                  outputpath=OUTPATH)
+    '''
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
                                   do_1Dsw=False,
                                   box_xmax=15, box_xmin=5,
@@ -99,8 +96,8 @@ if __name__ == "__main__":
                                   box_zmax=30, box_zmin=-30,
                                   zone_rename='box_sw_big',
                                   outputpath=OUTPATH)
-
     '''
+
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
     startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
@@ -108,7 +105,6 @@ if __name__ == "__main__":
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
     satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
-    '''
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
@@ -123,7 +119,6 @@ if __name__ == "__main__":
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=True)
     '''
-    """
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
@@ -182,7 +177,6 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
-    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
