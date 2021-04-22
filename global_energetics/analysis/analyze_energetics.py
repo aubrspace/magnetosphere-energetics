@@ -927,11 +927,18 @@ if __name__ == "__main__":
     fullstart = dt.datetime(2014, 2, 15, 0)
     fullend = dt.datetime(2014, 2, 23, 0)
     energetics_list = read_energetics([datapath])
+    mplist = []
     for df in energetics_list:
         if df['name'].iloc[-1].find('mp_')!=-1:
-            mp = df
+            mplist.append(df)
         if df['name'].iloc[-1].find('lcb')!=-1:
             lcb = df
+    if len(mplist) > 1:
+        do_mpcomparisons = True
+        mp = mplist[0]
+    else:
+        do_mpcomparisons = False
+        mp = mplist[0]
     [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(datapath)
     [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
                                                          fullend, datapath)
@@ -1223,5 +1230,22 @@ if __name__ == "__main__":
         shade_plot(ax1)
         ax1.set_facecolor('olive')
         DPS.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Total Power injection, escape and net
+    if do_mpcomparisons:
+        figname = 'ComparativePower'
+        power_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
+                                          figsize=[18,8],
+                                          facecolor='gainsboro')
+        #Time
+        timekey = 'Time [UTC]'
+        y1label = 'Power [W]'
+        plot_Power(ax1, [mplist[0]], timekey, y1label, ls=None)
+        plot_Power(ax1, [mplist[1]], timekey, y1label, ls='--')
+        plot_Power(ax1, [mplist[2]], timekey, y1label, ls='-.')
+        shade_plot(ax1)
+        ax1.set_facecolor('olive')
+        power_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
