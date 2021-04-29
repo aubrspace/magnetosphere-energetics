@@ -547,7 +547,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        plot_satellites=False, energy_contourmap=0,
                        mpslice=60, cpsslice=20, zone_rename=None,
                        show_legend=True, add_clock=False,
-                       zone_hidekeys=['sphere','box','lcb']):
+                       zone_hidekeys=['sphere','box','lcb', 'shue']):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
         frame- object for the tecplot frame
@@ -624,8 +624,9 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     if show_contour:
         frame.plot().show_contour = show_contour
     else:
-        add_shade_legend(frame, zones_shown, shade_legend_pos,
-                         shade_markersize)
+        pass
+        #add_shade_legend(frame, zones_shown, shade_legend_pos,
+        #                 shade_markersize)
     if plot_satellites:
         if satzones == []:
             print('No satellite zones to plot')
