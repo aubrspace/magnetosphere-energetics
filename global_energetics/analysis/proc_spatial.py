@@ -97,7 +97,6 @@ def make_spatial_plots(day, flank, tail):
                                                     figsize=[16,16])
         ax1 = dial9power.add_subplot(111,projection='polar')
         dial9power.tight_layout(pad=1)
-        from IPython import embed; embed()
         #total
         plot_power_dial(dial9power, ax1, day, 'K_net [W/Re^2]')
         plot_power_dial(dial9power, ax2, flank, 'K_net [W/Re^2]')
@@ -176,6 +175,7 @@ def add_derived_variables(dflist):
             dflist[df[0]]['alpha [rad]'] = (arctan2(df[1]['z_cc'],
                                                            df[1]['y_cc']))
     return dflist
+
 
 
 if __name__ == "__main__":

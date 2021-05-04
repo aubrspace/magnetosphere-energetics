@@ -14,7 +14,6 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
-from progress.bar import Bar
 #interpackage modules
 from global_energetics.makevideo import get_time
 from global_energetics.extract import surface_construct

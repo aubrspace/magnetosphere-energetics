@@ -22,12 +22,14 @@ echo "Created output directory"
 #ensure batch mode is ready for tecpot LINUX SPECIFIC
 TECPATH=$(which tec360)
 eval `$TECPATH-env`
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib64
 echo LD_LIBRARY_PATH: $LD_LIBRARY_PATH
 
 #execute script on .plt files
-for file in $MHDDIR\3d*.plt
+for file in $MHDDIR\3d*064*.plt
 do
-    python main.py $file $IEDIR $IMDIR $OUT $PNGOUT>> $OUT/outlog.log
+    python main.py $file $IEDIR $IMDIR $OUT $PNGOUT
+    #>> $OUT/outlog.log
 done
 
 #create video from png file
@@ -35,5 +37,3 @@ python global_energetics/makevideo.py $PNGOUT
 mv $PNGOUT/frames/video.mp4 $OUT
 
 #create figures of integrated quantities over time
-python global_energetics/mpdynamics_analysis/proc_temporal.py $OUT/
-python global_energetics/classic_analysis/proc_indices.py $MHDDIR/

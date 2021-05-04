@@ -9,8 +9,6 @@ from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
-from progress.bar import Bar
-from progress.spinner import Spinner
 import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
@@ -331,7 +329,6 @@ def streamfind_bisection(field_data, method,
     plot.vector.v_variable = field_data.variable(field_key_y)
     plot.vector.w_variable = field_data.variable(field_key_z)
 
-    bar = Bar(disp_message, max=len(positions))
     seedlist = []
     streamtrace = tp.active_frame().plot().streamtraces
     for a in positions:
@@ -412,7 +409,6 @@ def streamfind_bisection(field_data, method,
                     field_data.delete_zones(field_data.zone(-1))
                 itr += 1
         seedlist.append([x1,x2,x3])
-        bar.next()
     #Regenerate all best find streamlines and extracting together
     for seed in seedlist:
         if cartesian == False:

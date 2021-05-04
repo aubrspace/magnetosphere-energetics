@@ -8,7 +8,6 @@ import numpy as np
 import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from progress.bar import Bar
 from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp

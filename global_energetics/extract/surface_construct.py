@@ -13,7 +13,6 @@ import matplotlib.pyplot as plot
 import scipy
 from scipy import interpolate as interp
 import pandas as pd
-from progress.bar import Bar
 import tecplot as tp
 
 START = time.time()
@@ -245,7 +244,6 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                                     'y0', 'z0'])
     y0, z0 = [], []
     xlist, dx = linspace(x_min, x_max, nX, retstep=True)
-    bar = Bar('getting x-wise data statistics', max=len(xlist))
     for x in xlist:
         #at each x bin calculate y0,z0 based on average
         zone_xbin = zone[(zone['X [R]']<x+dx/2) & (zone['X [R]']>x-dx/2)]
@@ -281,13 +279,10 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                                                'z0'],fill_value=z0[-1])
         #append xbin set to total dataset
         newzone = newzone.append(zone_xbin, ignore_index=True)
-        bar.next()
-    bar.finish()
 
     #for each alpha slice 
     k = 0
     alist, da = linspace(-pi, pi, n_slice, retstep=True)
-    bar = Bar('identifying cylindrical mesh points', max=len(alist))
     for a in alist:
         zone_abin = newzone[(newzone['alpha'] < a+da/2) &
                             (newzone['alpha'] > a-da/2)]
@@ -379,8 +374,6 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                 filename = 'slice_log2/img-{:.0f}.png'.format(10*k)
             plot.savefig(filename)
             k = k+.1
-        bar.next()
-    bar.finish()
     #Sort mesh by X then alpha, then drop alpha column
     mesh = mesh.sort_values(by=['X [R]', 'alpha']).drop(columns='alpha')
     return mesh
