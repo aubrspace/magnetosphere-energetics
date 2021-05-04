@@ -55,7 +55,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
-                     xyzvar=[1,2,3], zone_rename=None,
+                     xyzvar=[0,1,2], zone_rename=None,
                      write_data=True, disp_result=True):
     """Function that finds, plots and calculates energetics on the
         magnetopause surface.
@@ -294,22 +294,38 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                 closed_zone.name = zone_rename
                 zonename = zone_rename
         ################################################################
-        #save mesh to hdf file as key=mode, along with time in key='time'
-        mp_mesh, _ = dump_to_pandas(main_frame, [zoneindex], xyzvar,
-                                    outputpath+'temp.csv')
         #perform integration for surface and volume quantities
         mp_powers = pd.DataFrame()
         mp_energies = pd.DataFrame()
+        mp_mesh = pd.DataFrame()
+        zonelist = [zoneindex.real]
         if integrate_surface:
+            #integrate power on main surface
             mp_powers = surface_analysis(main_frame, zonename, do_1Dsw,
                                     cuttoff=tail_analysis_cap)
+            #variables to be saved in meshfile
+            varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
+                        'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
+                        'Cell Volume']
+            if do_1Dsw:
+                for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
+                             '1DExB_net [W/Re^2]']:
+                    varnames.append(name)
             if not include_core and mode == 'iso_betastar':
+                inner_mesh = pd.DataFrame()
+                #integrate power on innerboundary surface
                 innerbound_powers = surface_analysis(main_frame,
                                                      zonename+'innerbound',
                                                      do_1Dsw,
                                                 cuttoff=tail_analysis_cap)
                 innerbound_powers = innerbound_powers.add_prefix('inner')
                 print('\nInnerbound surface power calculated')
+                #save innerboundary mesh data
+                inner_index =(
+                         field_data.zone(zonename+'innerbound').index.real)
+                for var in varnames:
+                    inner_mesh[var] = field_data.zone(inner_index
+                        ).values(var.split(' ')[0]+'*').as_numpy_array()
             else:
                 innerbound_powers = None
             print('\nMagnetopause Power Terms')
@@ -326,6 +342,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                           blank=False)
             print('\nMagnetopause Energy Terms')
             print(mp_energies)
+        #save mesh to hdf file
+        for var in varnames:
+            mp_mesh[var] = field_data.zone(zoneindex.real
+                          ).values(var.split(' ')[0]+'*').as_numpy_array()
         #Add time and x_subsolar column
         mp_powers.loc[:,'Time [UTC]'] = eventtime
         mp_powers.loc[:,'X_subsolar [Re]'] = x_subsolar

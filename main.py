@@ -104,21 +104,22 @@ if __name__ == "__main__":
     eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
-    satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
+    #satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
+    satzones = []
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
-    '''
     '''
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True,show_fieldline=True,
-                                pngpath=PNGPATH,add_clock=True,
+                                show_slice=True,show_fieldline=False,
+                                pngpath=PNGPATH,
                                 plot_satellites=False, satzones=satzones,
+                                mode='iso_tail', transluc=60,
                                 outputname=OUTPUTNAME, save_img=True)
-    '''
+    """
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
@@ -130,20 +131,21 @@ if __name__ == "__main__":
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=True,
+                                'K_net *', mhddatafile, show_contour=False,
                                 show_slice=False, energyrange=9e10,
                                 show_legend=False,
                                 pngpath=PNGPATH, energy_contourmap=4,
-                                plot_satellites=True, satzones=satzones,
+                                plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
-                                mode='inside_from_tail')
+                                zone_hidekeys=['sphere', 'box', 'lcb',
+                                               'betastar'])
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
-                                plot_satellites=True, satzones=satzones,
+                                plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False)
     frame2.activate()
@@ -152,7 +154,7 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True,
                                 pngpath=PNGPATH, add_clock=True,
-                                plot_satellites=True, satzones=satzones,
+                                plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
                                 show_timestamp=False)
@@ -177,6 +179,7 @@ if __name__ == "__main__":
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False)
+    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),

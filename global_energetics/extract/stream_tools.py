@@ -441,23 +441,30 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     frame.activate()
     os.system('touch '+filename)
     #Export 3D point data to csv file
-    tp.macro.execute_extended_command(command_processor_id='excsv',
-            command='VarNames:'+
+    export_command=('VarNames:'+
                     'FrOp=1:'+
                     'ZnCount={:d}:'.format(len(zonelist))+
-                    'ZnList=[{:d}-{:d}]:'.format(int(zonelist[0]+1),
-                                                 int(zonelist[-1])+1)+
-                    'VarCount={:d}:'.format(len(varlist))+
-                    'VarList=[{:d}-{:d}]:'.format(int(varlist[0]),
-                                                  int(varlist[-1]))+
-                    'ValSep=",":'+
+                    'ZnList=[')
+    for zone in zonelist:
+        export_command = (export_command+str(zone+1)+',')
+    export_command = ','.join(export_command.split(',')[:-1])
+    export_command = (export_command+
+                    ']:VarCount={:d}:'.format(len(varlist))+
+                    'VarList=[')
+    for var in varlist:
+        export_command = (export_command+str(var+1)+',')
+    export_command = ','.join(export_command.split(',')[:-1])
+    export_command = (export_command + ']:ValSep=",":'+
                     'FNAME="'+os.getcwd()+'/'+filename+'"')
+    tp.macro.execute_extended_command(command_processor_id='excsv',
+                                      command=export_command)
     loc_data = pd.read_csv('./'+filename)
-    if any(col == 'X [R]' for col in loc_data.columns):
-        loc_data = loc_data.drop(columns=['Unnamed: 3'])
-        loc_data = loc_data.sort_values(by=['X [R]'])
+    if any(col == 'x_cc' for col in loc_data.columns):
+        loc_data = loc_data.drop(
+                           columns=['Unnamed: {:d}'.format(len(varlist))])
+        loc_data = loc_data.sort_values(by=['x_cc'])
         loc_data = loc_data.reset_index(drop=True)
-        x_max = loc_data['X [R]'].max()
+        x_max = loc_data['x_cc'].max()
     else: x_max = []
     #Delete csv file
     os.system('rm '+os.getcwd()+'/'+filename)
@@ -481,6 +488,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw):
                                       'CELLCENTERED')
     eq = tp.data.operate.execute_equation
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
+    eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
+    eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
     xnormals = field_data.zone(zone_name).values(
                                   'X GRID K Unit Normal').as_numpy_array()

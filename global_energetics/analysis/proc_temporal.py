@@ -287,6 +287,12 @@ def read_energetics(data_path_list, *, add_variables=True):
             if path != None:
                 for datafile in glob.glob(path+'/*.h5'):
                     with pd.HDFStore(datafile) as hdf_file:
+                        include_timetag = False
+                        for key in hdf_file.keys():
+                            if key.find('Time')!=-1:
+                                timetag = pd.Series(
+                                        {'Time [UTC]':hdf_file[key][0]})
+                                include_timetag = True
                         for key in hdf_file.keys():
                             print(key)
                             if any([key.find(match)!=-1
@@ -294,6 +300,9 @@ def read_energetics(data_path_list, *, add_variables=True):
                                 nametag = pd.Series({'name':key})
                                 df = hdf_file[key].append(nametag,
                                                 ignore_index=True)
+                                if include_timetag:
+                                    df = df.append(timetag,
+                                            ignore_index=True)
                                 print(df['name'])
                                 dflist.append(df)
                             else:
