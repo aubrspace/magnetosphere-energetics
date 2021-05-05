@@ -46,6 +46,7 @@ def work(mhddatafile):
     magnetopause.get_magnetopause(field_data, mhddatafile,
                       tail_cap=-30, tail_analysis_cap=-30,
                                   zone_rename='mp_30Re',
+                                  do_1Dsw=False,
                                   outputpath=OUTPUTPATH)
     magnetopause.get_magnetopause(field_data, mhddatafile,
                       tail_cap=-40, tail_analysis_cap=-40,
@@ -127,16 +128,13 @@ if __name__ == '__main__':
         raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    #global RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH, PNGPATH
     RUNDIR = 'Energetics1'
     MHDDIR = os.path.join(RUNDIR,'GM','IO2','partB')
-    #MHDDIR = os.path.join('pltdbug', '15minute')
     IEDIR = os.path.join(RUNDIR,'IE','ionosphere')
     IMDIR = os.path.join(RUNDIR,'IM','plots')
     SCRIPTDIR = './'
     OUTPUTPATH = os.path.join(SCRIPTDIR, 'output')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
-    print('inside main function: MHDDIR={}'.format(MHDDIR))
     ########################################
     #make directories for output
     os.system('mkdir '+OUTPUTPATH)
@@ -144,55 +142,34 @@ if __name__ == '__main__':
     os.system('mkdir '+OUTPUTPATH+'/indices')
     os.system('mkdir '+OUTPUTPATH+'/png')
 
-    # !!! IMPORTANT !!!
-    # On Linux systems, Python's multiprocessing start method
-    # defaults to "fork" which is incompatible with PyTecplot
-    # and must be set to "spawn"
+    ########################################
+    ########### MULTIPROCESSING ###########
+    #Pytecplot requires spawn method
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt')
-    numproc = multiprocessing.cpu_count()-1
+    solution_times = glob.glob(MHDDIR+'/*.plt')[349::]
+    numproc = multiprocessing.cpu_count()
     print(solution_times)
-    solutionbatches = np.resize(solution_times, [int(len(solution_times)/numproc), int(numproc)])
 
     # Set up the pool with initializing function and associated arguments
-    num_workers = min(multiprocessing.cpu_count()-1, len(solution_times))
+    num_workers = min(multiprocessing.cpu_count(), len(solution_times))
     pool = multiprocessing.Pool(num_workers, initializer=init,
             initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
                       PNGPATH))
 
-    '''
     try:
         # Map the work function to each of the job arguments
         pool.map(work, solution_times)
     finally:
-        # !!! IMPORTANT !!!
-        # Must join the process pool before parent script exits
-        # to ensure Tecplot cleans up all temporary files
-        # and does not create a core dump
+        # Join the process pool before exit so Tec cleans up & no core dump
         pool.close()
         pool.join()
-    '''
-    for batch in solutionbatches:
-        # Set up the pool with initializing function and associated arguments
-        num_workers = min(multiprocessing.cpu_count(), len(batch))
-        pool = multiprocessing.Pool(num_workers, initializer=init,
-            initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
-                      PNGPATH))
+    ########################################
 
-        try:
-            # Map the work function to each of the job arguments
-            pool.map(work, batch)
-        finally:
-            # !!! IMPORTANT !!!
-            # Must join the process pool before parent script exits
-            # to ensure Tecplot cleans up all temporary files
-            # and does not create a core dump
-            pool.close()
-            pool.join()
     #Combine and delete individual energetics files
-    write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'))
+    write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
+                            OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
     #timestamp
     ltime = time.time()-start_time

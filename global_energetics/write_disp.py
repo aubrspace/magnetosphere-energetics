@@ -81,13 +81,17 @@ def display_progress(meshfile, integralfile, zonename):
                                         len(glob.glob(meshpath+'*.h5'))))
     result = (result+
                '\tintegralfile: {}\n'.format(integralfile)+
-               '\tzonename_added: {}\n'.format(zonename))
+               '\tzonename_added: {}\n'.format(zonename)+
+               '\tintegralfilecount: {}\n'.format(
+                                        len(glob.glob(meshpath+'*.h5'))))
+    '''
     with pd.HDFStore(integralfile) as store:
         result = result+'\tmp_energetics:\n'
         for key in store.keys():
             result = (result+
             '\t\tkey={}\n'.format(key)+
             '\t\t\tn_values: {}\n'.format(len(store[key])))
+    '''
     print('**************************************************************')
     print(result)
     print('**************************************************************')
