@@ -636,14 +636,17 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
     if save_img:
         #multiframe image (default)
-        tp.export.save_png(pngpath+outputname+'.png', width=3200)
+        tp.export.save_png(os.getcwd()+'/'+pngpath+'/'+outputname+'.png',
+                                                          width=1600)
+        '''
         #each frame in a separate directory
         for fr in tp.frames():
             #make sure the directory for each frame image is there
             if not os.path.exists(pngpath+fr.name):
                 os.system('mkdir '+pngpath+fr.name)
-            tp.export.save_png(pngpath+fr.name+'/'+outputname+'.png',
-                               region=fr, width=3200)
+            tp.export.save_png(os.getcwd()+'/'+pngpath+fr.name+'/'+outputname+'.png',
+                               region=fr, width=1600)
+        '''
     if add_clock:
         #get clock angle from probing data at x=xmax
         clock = float(frame.dataset.zone('global_field').aux_data[

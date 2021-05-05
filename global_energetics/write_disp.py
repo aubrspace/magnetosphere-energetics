@@ -39,6 +39,11 @@ def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
         {}_energies- volume integrated energy quantities, pandas DataFrame
         {}_powers- surface integrated power quantities, pandas DataFrame
     """
+    pathstring = ''
+    for lvl in filename.split('/')[0:-1]:
+        pathstring = pathstring+lvl+'/'
+    if not os.path.exists(pathstring):
+            os.system('mkdir '+pathstring)
     energetics = pd.DataFrame()
     cols = energetics.keys()
     #Combine all dataframes that are passed
@@ -87,5 +92,31 @@ def display_progress(meshfile, integralfile, zonename):
     print(result)
     print('**************************************************************')
 
+def combine_hdfs(datapath, outputpath):
+    """Function combines all .h5 files at the given datapath, cleans and
+        sorts data
+    Inputs
+        datapath
+    """
+    filelist = glob.glob(datapath+'/*.h5')
+    with pd.HDFStore(filelist[0]) as store:
+        anykey = store.keys()[0]
+        blank = pd.DataFrame(columns=store[anykey].keys())
+        keylist = store.keys()
+    for key in keylist:
+        energetics = blank
+        for hdffile in filelist:
+            print(hdffile)
+            with pd.HDFStore(hdffile) as store:
+                energetics = energetics.append(store[key],
+                                                ignore_index=True)
+        energetics = energetics.sort_values(by=['Time [UTC]'])
+        energetics = energetics.reset_index(drop=True)
+        print(energetics)
+        with pd.HDFStore(outputpath+'/energetics.h5') as store:
+            store[key] = energetics
+    display_progress(outputpath+'/meshdata/*.h5',
+                     outputpath+'/energetics.h5', 'Combined_zones')
+
 if __name__ == "__main__":
-    pass
+    combine_hdfs('output/energeticsdata', 'output')

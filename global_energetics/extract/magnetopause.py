@@ -349,14 +349,16 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         mp_powers.loc[:,'Time [UTC]'] = eventtime
         mp_powers.loc[:,'X_subsolar [Re]'] = x_subsolar
         if write_data:
-            write_mesh(outputpath+'meshdata/mesh_'+datestring+'.h5',
+            write_mesh(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                        zonename, pd.Series(eventtime), mp_mesh)
-            write_to_hdf(outputpath+'energetics.h5', zonename,
+            write_to_hdf(outputpath+'/energeticsdata/energetics_'+
+                         datestring+'.h5', zonename,
                          mp_energies=mp_energies, mp_powers=mp_powers,
                          mp_inner_powers=innerbound_powers)
         if disp_result:
-            display_progress(outputpath+'meshdata/mesh_'+datestring+'.h5',
-                             outputpath+'energetics.h5', zonename)
+            display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
+                             outputpath+'/energeticsdata/energetics_'+
+                             datestring+'.h5', zonename)
         return mp_mesh, mp_powers, mp_energies
 
 

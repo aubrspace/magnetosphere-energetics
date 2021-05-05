@@ -115,7 +115,7 @@ def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
         coordsys- coordinate system of the field data
     """
     eventstring = str(eventdt)
-    satfiles = glob.glob(datapath+'*.sat')
+    satfiles = glob.glob(datapath+'/*.sat')
     satzones = []
     if satfiles == []:
         print('No satellite data at {}!'.format(datapath))

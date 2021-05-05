@@ -4,6 +4,7 @@
 import sys
 import os
 import time
+import logging
 import numpy as np
 from numpy import pi
 import datetime as dt
@@ -22,7 +23,6 @@ from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
 
 if __name__ == "__main__":
-    #print('\nProcessing {pltfile}\n'.format(pltfile=sys.argv[1]))
     start_time = time.time()
     if '-c' in sys.argv:
         tp.session.connect()
@@ -39,6 +39,11 @@ if __name__ == "__main__":
     PNGPATH = sys.argv[5]
     OUTPUTNAME = mhddatafile.split('e')[1].split('.plt')[0]
 
+    #setup log
+    logging.basicConfig(filename=OUTPATH+'properlog.log', level=logging.INFO)
+    logging.info('Analyzing {}'.format(mhddatafile))
+
+
     #python objects
     field_data = tp.data.load_tecplot(sys.argv[1])
     field_data.zone(0).name = 'global_field'
@@ -48,7 +53,17 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
+                      tail_cap=-30, tail_analysis_cap=-30,
+                                  zone_rename='mp_30Re',
                                   outputpath=OUTPATH)
+    #magnetopause.get_magnetopause(field_data, mhddatafile,
+    #                  tail_cap=-40, tail_analysis_cap=-40,
+    #                              zone_rename='mp_40Re',
+    #                              outputpath=OUTPATH)
+    #magnetopause.get_magnetopause(field_data, mhddatafile,
+    #                  tail_cap=-50, tail_analysis_cap=-50,
+    #                              zone_rename='mp_50Re',
+    #                              outputpath=OUTPATH)
     '''
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
                                   do_1Dsw=False,
@@ -104,13 +119,14 @@ if __name__ == "__main__":
     eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
-    #satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
-    satzones = []
+    satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
+    #satzones = []
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
     #adjust view settings
+    """
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
@@ -137,27 +153,28 @@ if __name__ == "__main__":
                                 pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
-                                zone_hidekeys=['sphere', 'box', 'lcb',
-                                               'betastar'])
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
-                                show_timestamp=False)
+                                show_timestamp=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True,
                                 pngpath=PNGPATH, add_clock=True,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
-                                show_timestamp=False)
+                                show_timestamp=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
     '''
     frame2.name = 'lcb'
     view_set.display_single_iso(frame2,
@@ -175,12 +192,12 @@ if __name__ == "__main__":
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH, transluc=60,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
-                                show_timestamp=False)
-    """
+                                show_timestamp=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
     #timestamp
     ltime = time.time()-start_time
-    print('--- {:d}min {:.2f}s ---'.format(np.int(ltime/60),
+    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
                                            np.mod(ltime,60)))
