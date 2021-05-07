@@ -48,8 +48,7 @@ def add_IMF_clock(frame, clockangle, coordsys, position, size):
     #Save plot
     figname = (os.getcwd()+'/temp_imfclock'+
                 str(np.random.rand()).split('.')[-1]+'.png')
-    fig.savefig(figname, facecolor='gray',
-                                                  edgecolor='gray')
+    fig.savefig(figname, facecolor='gray', edgecolor='gray')
     #Load plot onto current frame
     img = frame.add_image(figname, position, size)
     #Delete plot image file

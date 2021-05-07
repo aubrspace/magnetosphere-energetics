@@ -44,10 +44,8 @@ def work(mhddatafile):
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                      tail_cap=-30, tail_analysis_cap=-30,
-                                  zone_rename='mp_30Re',
-                                  do_1Dsw=False,
                                   outputpath=OUTPUTPATH)
+    '''
     magnetopause.get_magnetopause(field_data, mhddatafile,
                       tail_cap=-40, tail_analysis_cap=-40,
                                   zone_rename='mp_40Re',
@@ -56,14 +54,15 @@ def work(mhddatafile):
                       tail_cap=-50, tail_analysis_cap=-50,
                                   zone_rename='mp_50Re',
                                   outputpath=OUTPUTPATH)
+    '''
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
     startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
     eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
-    #satzones = satellites.get_satellite_zones(eventdt, MHDDIR, field_data)
-    satzones = []
+    satzones = satellites.get_satellite_zones(eventdt, MHDDIR, field_data)
+    #satzones = []
     # adjust view settings
     # tile
     proc = 'Multi Frame Manager'
@@ -80,7 +79,7 @@ def work(mhddatafile):
                                 show_slice=False, energyrange=9e10,
                                 show_legend=False,
                                 pngpath=PNGPATH, energy_contourmap=4,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='inside_from_tail',
                                 zone_hidekeys=['box', 'lcb', '30', '40'])
@@ -90,7 +89,7 @@ def work(mhddatafile):
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False,
                                 zone_hidekeys=['box', 'lcb', '30', '40'])
@@ -100,7 +99,7 @@ def work(mhddatafile):
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True,
                                 pngpath=PNGPATH, add_clock=True,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
                                 show_timestamp=False,
@@ -148,7 +147,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt')[349::]
+    solution_times = glob.glob(MHDDIR+'/*.plt')
     numproc = multiprocessing.cpu_count()
     print(solution_times)
 
