@@ -776,13 +776,9 @@ def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
     #integrate
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
-    #access data via file write out then delete file
-    filename = os.getcwd()+'/Out'+str(np.random.rand()).split('.')[-1]+'.txt'
-    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-        command='SaveIntegrationResults FileName="'+filename+'"')
-    result = pd.read_table(filename, sep=':',index_col=0)
-    os.system('rm {}'.format(filename))
-    return result.iloc[-1].values[0]
+    #access data via aux data variable that saves last total integr qty
+    result = float(tp.active_frame().aux_data['CFDA.INTEGRATION_TOTAL'])
+    return result
 
 def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
     """Function to calculate integral of variable within a 3D volume
@@ -810,15 +806,9 @@ def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
     #Perform integration and extract resultant value
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
-    filename = os.getcwd()+'/Out'+str(np.random.rand()).split('.')[-1]+'.txt'
-    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-        command='SaveIntegrationResults FileName="'+filename+'"')
-    result = pd.read_table(filename, sep=':',index_col=0)
-    integral = result.iloc[-1].values[0]
-
-    #Delete created file and turn off blanking
-    os.system('rm {}'.format(filename))
-    return integral
+    #access data via aux data variable that saves last total integr qty
+    result = float(tp.active_frame().aux_data['CFDA.INTEGRATION_TOTAL'])
+    return result
 
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, keep_condition=None,
