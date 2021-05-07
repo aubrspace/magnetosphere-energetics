@@ -136,6 +136,10 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
+    if Color != None:
+        override_color = True
+    else:
+        override_color = False
     legend_loc = 'upper right'
     for data in dflist:
         name = data['name'].iloc[-1]
@@ -161,25 +165,31 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                 powernet = data[powernet_str]
                 axis.set_ylim([-3e13, 3e13])
             #INJECTION
+            if not override_color:
+                Color = 'gold'
             axis.plot(data[timekey],powerin,
                             label=r'$\displaystyle K_{injection}$',
                         linewidth=Size, linestyle=ls,
-                        color='gold')
+                        color=Color)
             axis.fill_between(data[timekey],powerin,
                               color='wheat')
             #ESCAPE
+            if not override_color:
+                Color = 'deepskyblue'
             axis.plot(data[timekey],powerout,
                             label=r'$\displaystyle K_{escape}$',
                         linewidth=Size, linestyle=ls,
-                        color='deepskyblue')
+                        color=Color)
             axis.fill_between(data[timekey],powerout,
                               color='lightsteelblue')
             #NET
             if not use_shield:
+                if not override_color:
+                    Color = 'maroon'
                 axis.plot(data[timekey],powernet,
                             label=r'$\displaystyle K_{net}$',
                             linewidth=Size, linestyle=ls,
-                            color='maroon')
+                            color=Color)
                 axis.fill_between(data[timekey],powernet,
                                 color='coral')
     if xlim!=None:
@@ -1402,9 +1412,10 @@ if __name__ == "__main__":
         #Time
         timekey = 'Time [UTC]'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        #plot_Power(ax1, [mplist[0]], timekey, y1label, ls=None)
-        plot_Power(ax1, [mplist[1]], timekey, y1label, ls='--')
-        plot_Power(ax1, [mplist[2]], timekey, y1label, ls='-.')
+        plot_Power(ax1, [mp], timekey, y1label, Color='midnightblue')
+        plot_Power(ax1, [mplist[0]], timekey, y1label, Color='coral')
+        plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
         shade_plot(ax1)
         ax1.set_facecolor('olive')
         power_comp.savefig(figureout+'{}.png'.format(figname),
@@ -1416,15 +1427,35 @@ if __name__ == "__main__":
         volume_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy],
                                           facecolor='gainsboro')
-        volume_comp.tight_layout(pad=padsize)
+        volume_comp.tight_layout(pad=padsize*2)
         #Time
         timekey = 'Time [UTC]'
         y1label = r'\textit{Volume} $\displaystyle \left( R_e^3\right)$'
+        plot_Volume(ax1, [mp], timekey, y1label, Color='midnightblue')
         plot_Volume(ax1, [mplist[0]], timekey, y1label, Color='coral')
         plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
         plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
         shade_plot(ax1)
         ax1.set_facecolor('olive')
         volume_comp.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of mulitple magnetopause surfaces volumes
+    if do_mpcomparisons:
+        figname = 'ComparativeSurfaceArea'
+        surf_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
+                                          figsize=[figx,figy],
+                                          facecolor='gainsboro')
+        surf_comp.tight_layout(pad=padsize*2)
+        #Time
+        timekey = 'Time [UTC]'
+        y1label = r'\textit{Area} $\displaystyle \left( R_e^2\right)$'
+        plot_SA(ax1, [mp], timekey, y1label, Color='midnightblue')
+        plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
+        plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
+        shade_plot(ax1)
+        ax1.set_facecolor('olive')
+        surf_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################

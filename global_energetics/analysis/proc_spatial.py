@@ -39,6 +39,15 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
     x = df[~ df['x_cc'].isna()]['x_cc']
     h = df[~ df['h [R]'].isna()]['h [R]']
     power = df[~ df[powerkey].isna()][powerkey]
+    #labels
+    polarlabels = ['+Y',r'$\displaystyle I$','+Z',
+                  r'$\displaystyle II$','-Y',
+                  r'$\displaystyle III$','-Z',
+                  r'$\displaystyle IV$']
+    rectlabels = ['-Y',r'$\displaystyle III$','-Z',
+                  r'$\displaystyle IV$','+Y',
+                  r'$\displaystyle I$','+Z',
+                  r'$\displaystyle II$', '-Y']
     #construct axes
     if sector.find('day') != -1:
         thi = linspace(-pi,pi,1441)
@@ -48,14 +57,22 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
         ax.set(rlim=(15, -4))
         ax.set_title('Dayside', pad=12)
         ax.set_theta_zero_location('E')
+        ax.set_thetagrids([0,45,90,135,180,225,270,315],
+                          polarlabels)
     if sector.find('flank') != -1:
-        thi = linspace(-pi,pi,1441)
-        xi = linspace(-2,-22, 361)
-        zi = griddata((alpha,x),power,(thi[None,:],xi[:,None]),
+        xi = linspace(-pi,pi,1441)
+        thi = linspace(-2,-22, 361)
+        zi = griddata((x,alpha),power,(thi[None,:],xi[:,None]),
                        method='linear')
-        ax.set(rlim=(-2, -22))
+        ax.set(xlim=(-2, -22))
         ax.set_title('Flank', pad=12)
-        ax.set_theta_zero_location('E')
+        ax.set_yticks([-pi,-0.75*pi,-0.5*pi,-0.25*pi,0,
+                       0.25*pi,0.5*pi,0.75*pi,pi])
+        ax.set_yticklabels(rectlabels)
+        twin = ax.twinx()
+        twin.set_yticks([-pi,-0.75*pi,-0.5*pi,-0.25*pi,0,
+                       0.25*pi,0.5*pi,0.75*pi,pi])
+        twin.set_yticklabels(rectlabels)
     if sector.find('tail') != -1:
         thi = linspace(-pi,pi,1441)
         xi = linspace(0,30, 161)
@@ -65,6 +82,8 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
         ax.set_title('Tail', pad=12)
         ax.set_theta_zero_location('W')
         ax.set_theta_direction(-1)
+        ax.set_thetagrids([0,45,90,135,180,225,270,315],
+                          polarlabels)
     #plot contour
     if powerkey == 'K_net [W/Re^2]':
         colors = 'coolwarm_r'
@@ -77,8 +96,6 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
         axes = fig.get_axes()[6:9]
     cont_lvl = linspace(-1e9, 1e9, 11)
     cntr = ax.contourf(thi, xi, zi, cont_lvl, cmap=colors)
-    ax.set_thetagrids([0,45,90,135,180,225,270,315],
-                      ['+Y','+45','+Z','+135','-Y','-135','-Z','-45'])
     if show_colorbar:
         fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
 
@@ -87,16 +104,26 @@ def make_spatial_plots(day, flank, tail):
     Inputs
         day, flank, tail- subsets of datframe for single timestep
     """
+    timestamp = str(df[~ df['Time [UTC]'].isna()]['Time [UTC]'].values[0])
+    strtime = ''.join(''.join(timestamp.split(':')).split(' '))
     ######################################################################
     #3panel Power, power_inner, and shielding
     if True:
         figname = '9dialPower'
-        dial9power,([ax1,ax2,ax3],[ax4,ax5,ax6],[ax7,ax8,ax9])=plt.subplots(
-                                                         nrows=3, ncols=3,
-                                       subplot_kw=dict(projection='polar'),
-                                                    figsize=[16,16])
-        ax1 = dial9power.add_subplot(111,projection='polar')
-        dial9power.tight_layout(pad=1)
+        dial9power = plt.figure(figsize=[16,16])
+        #toprow
+        ax1 = dial9power.add_subplot(331,projection='polar')
+        ax2 = dial9power.add_subplot(332,projection='rectilinear')
+        ax3 = dial9power.add_subplot(333,projection='polar')
+        #middlerow
+        ax4 = dial9power.add_subplot(334,projection='polar')
+        ax5 = dial9power.add_subplot(335,projection='rectilinear')
+        ax6 = dial9power.add_subplot(336,projection='polar')
+        #bottomrow
+        ax7 = dial9power.add_subplot(337,projection='polar')
+        ax8 = dial9power.add_subplot(338,projection='rectilinear')
+        ax9 = dial9power.add_subplot(339,projection='polar')
+        dial9power.tight_layout(pad=2)
         #total
         plot_power_dial(dial9power, ax1, day, 'K_net [W/Re^2]')
         plot_power_dial(dial9power, ax2, flank, 'K_net [W/Re^2]')
@@ -112,13 +139,14 @@ def make_spatial_plots(day, flank, tail):
         plot_power_dial(dial9power, ax8, flank, 'P0_net [W/Re^2]')
         plot_power_dial(dial9power, ax9, tail, 'P0_net [W/Re^2]',
                                                 show_colorbar=True)
+        dial9power.suptitle(timestamp,  x=0.8, y=0.02, ha='left', va='top')
 
-        #ax1.legend(loc='upper left', facecolor='gray')
-
-        dial9power.savefig(figureout+'{}.png'.format(figname))
+        dial9power.savefig(figureout+'{}'.format(figname)+strtime+'.png')
+        plt.cla()
     ######################################################################
+    plt.close('all')
 
-def split_day_flank_tail(df, *, xdaymin=-2, flank_min_h_buff=10):
+def split_day_flank_tail(df, *, xdaymin=0, flank_min_h_buff=10):
     """Function splits dataframe into dayside, flank and tail portions
     Inputs
         df- single dataframe, must have some derived varaiables!!
@@ -145,11 +173,13 @@ def split_day_flank_tail(df, *, xdaymin=-2, flank_min_h_buff=10):
     tail = df[tailcond]
     #Flank is everything else
     flank = df[(~ daycond) & (~ tailcond)]
+    '''
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     ax.scatter(day['x_cc'], day['y_cc'], day['z_cc'], color='orange')
     ax.scatter(flank['x_cc'], flank['y_cc'], flank['z_cc'], color='cyan')
     ax.scatter(tail['x_cc'], tail['y_cc'], tail['z_cc'], color='red')
+    '''
     #append name and time and sector
     day = day.append(name,ignore_index=True).append(
                    time,ignore_index=True).append(daytag,ignore_index=True)
@@ -184,13 +214,14 @@ if __name__ == "__main__":
     NALPHA = 36
     NSLICE = 60
     figureout = OPATH+'figures/'
-    dflist = proc_temporal.read_energetics(PATH, add_variables=False)
-    dflist = add_derived_variables(dflist)
-    day, flank, tail = split_day_flank_tail(dflist[0])
     #set text settings
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "sans-serif",
         "font.size": 18,
         "font.sans-serif": ["Helvetica"]})
-    make_spatial_plots(day, flank, tail)
+    dflist = proc_temporal.read_energetics(PATH, add_variables=False)
+    dflist = add_derived_variables(dflist)
+    for df in dflist:
+        day, flank, tail = split_day_flank_tail(df)
+        make_spatial_plots(day, flank, tail)
