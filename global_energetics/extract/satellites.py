@@ -106,6 +106,39 @@ def load_swmf_sat(filename, field_variables):
     tp.active_frame().dataset.zone('Zone 1').name = satname
     return satname
 
+def add_currentlocation(zonenames, field_data):
+    #Get corresponding satellite fieldmap variable indices
+    satindices = []
+    for name in zonenames:
+        satindices.append(int(field_data.zone(name).index))
+        if len([zn for zn in field_data.zones('loc_'+name)]) > 0:
+            loc_satzone = field_data.zone('loc_'+name)
+        else:
+            #create local sat zone with sat current position
+            loc_satzone =  field_data.add_ordered_zone('loc_'+name, [1,1,1])
+            #get the current position of the satellite based on aux data
+            eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
+            startstring=field_data.zone('global_field').aux_data[
+                                                          'TIMEEVENTSTART']
+            eventdt = dt.datetime.strptime(eventstring,
+                                                    '%Y/%m/%d %H:%M:%S.%f')
+            startdt = dt.datetime.strptime(startstring,
+                                                    '%Y/%m/%d %H:%M:%S.%f')
+            deltadt = eventdt-startdt
+            tvals = field_data.zone(name).values('t').as_numpy_array()
+            xvals = field_data.zone(name).values('X *').as_numpy_array()
+            yvals = field_data.zone(name).values('Y *').as_numpy_array()
+            zvals = field_data.zone(name).values('Z *').as_numpy_array()
+            svals = field_data.zone(name).values('Status').as_numpy_array()
+            xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            status = svals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            loc_satzone.values('X *')[0] = xpos
+            loc_satzone.values('Y *')[0] = ypos
+            loc_satzone.values('Z *')[0] = zpos
+            loc_satzone.values('Status')[0] = status
+
 def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
     """Function to find satellite trace data (if avail) and append the data
         to the current tecplot session
@@ -131,6 +164,8 @@ def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
     #reset variable names
     for var in field_data.variables('*\n*'):
         var.name = var.name.split('\n')[0]
+    #add specific location data
+    add_currentlocation(satzones, field_data)
     return satzones
 
 if __name__ == "__main__":

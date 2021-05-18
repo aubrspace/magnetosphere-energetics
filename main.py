@@ -39,9 +39,11 @@ if __name__ == "__main__":
     PNGPATH = sys.argv[5]
     OUTPUTNAME = mhddatafile.split('e')[1].split('.plt')[0]
 
+    '''
     #setup log
     logging.basicConfig(filename=OUTPATH+'properlog.log', level=logging.INFO)
     logging.info('Analyzing {}'.format(mhddatafile))
+    '''
 
 
     #python objects
@@ -112,7 +114,6 @@ if __name__ == "__main__":
                                   zone_rename='box_sw_big',
                                   outputpath=OUTPATH)
     '''
-
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
     startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
@@ -121,20 +122,20 @@ if __name__ == "__main__":
     deltadt = eventdt-startdt
     satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
     #satzones = []
+
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
     #adjust view settings
-    """
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
                                 show_slice=True,show_fieldline=False,
                                 pngpath=PNGPATH,
-                                plot_satellites=False, satzones=satzones,
+                                plot_satellites=True, satzones=satzones,
                                 mode='iso_tail', transluc=60,
-                                outputname=OUTPUTNAME, save_img=True)
+                                outputname=OUTPUTNAME, save_img=False)
     """
     #tile
     proc = 'Multi Frame Manager'
@@ -197,6 +198,7 @@ if __name__ == "__main__":
                                 mode='iso_tail',
                                 show_timestamp=False,
                                 zone_hidekeys=['box', 'lcb', '30', '40'])
+    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

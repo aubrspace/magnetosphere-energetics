@@ -455,8 +455,15 @@ def set_satellites(satnames, frame):
     plot = frame.plot()
     plot.show_mesh = True
     plot.show_scatter = True
+    #Get the name of magnetosphere variable, if it exists
+    for zone in dataset.zones('*innerBound'):
+        mp_surface_var = zone.name.split('innerbound')[0]
     #Get corresponding satellite fieldmap variable indices
-    satindices, loc_satindices = [], []
+    satindices,loc_satindices = [], []
+    for sat in satnames:
+        satindices.append(dataset.zone(sat).index)
+        loc_satindices.append(int(dataset.zone('loc_'+sat).index))
+    '''
     for name in satnames:
         satindices.append(int(dataset.zone(name).index))
         if len([zn for zn in dataset.zones('loc_'+name)]) > 0:
@@ -477,7 +484,7 @@ def set_satellites(satnames, frame):
             xvals = dataset.zone(name).values('X *').as_numpy_array()
             yvals = dataset.zone(name).values('Y *').as_numpy_array()
             zvals = dataset.zone(name).values('Z *').as_numpy_array()
-            svals = dataset.zone(name).values('Status').as_numpy_array()
+            svals = dataset.zone(name).values(mp_surface_var).as_numpy_array()
             xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
             ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
             zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
@@ -485,9 +492,10 @@ def set_satellites(satnames, frame):
             loc_satzone.values('X *')[0] = xpos
             loc_satzone.values('Y *')[0] = ypos
             loc_satzone.values('Z *')[0] = zpos
-            loc_satzone.values('Status')[0] = status
+            loc_satzone.values(mp_surface_var)[0] = state
         #add new zone index
         loc_satindices.append(int(loc_satzone.index))
+    '''
     #Turn off mesh  and scatter for all maps that arent satellites
     for index in range(0, dataset.num_zones):
         if not any([ind == index for ind in satindices]):
@@ -501,7 +509,7 @@ def set_satellites(satnames, frame):
                   Color.Custom50, Color.Custom51, Color.Custom19,
                   Color.Custom27, Color.Custom35]
     #setup Status variable contour map
-    plot.contour(2).variable_index = int(dataset.variable('Status').index)
+    plot.contour(2).variable_index = int(dataset.variable(mp_surface_var).index)
     plot.contour(2).colormap_name = 'Diverging - Orange/Purple'
     plot.contour(2).levels.reset_levels([-1,0,1,2,3])
     plot.contour(2).legend.position[1] = 46
@@ -510,7 +518,7 @@ def set_satellites(satnames, frame):
     #Set color, linestyle, marker and sizes for satellite
     for sat in enumerate(satindices):
         index = loc_satindices[sat[0]]
-        #getstatus
+        #getstate
         status = dataset.zone(index).values('Status')[0]
         if status == 0:
             inside = False

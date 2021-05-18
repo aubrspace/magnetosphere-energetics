@@ -15,6 +15,15 @@ import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
 
+def datetimeparser(datetimestring):
+    #maybe move this somewhere to call a diff parser depending on file
+    return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S %f')
+def datetimeparser2(datetimestring):
+    #maybe move this somewhere to call a diff parser depending on file
+    return dt.datetime.strptime(datetimestring,'%d-%m-%Y %H:%M:%S.%f')
+def datetimeparser3(datetimestring):
+    #maybe move this somewhere to call a diff parser depending on file
+    return dt.datetime.strptime(datetimestring,'%Y-%m-%dT%H:%M:%SZ')
 
 def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
     """Function converts coordinates from given columns from dataframe
@@ -440,23 +449,20 @@ def get_swmf_data(datapath):
     swmflogname = swmflog.split('/')[-1].split('.log')[0]
     solarwindname = solarwind.split('/')[-1].split('.dat')[0]
     print('reading: \n\t{}\n\t{}\n\t{}'.format(geoindex,swmflog,solarwind))
-    def datetimeparser(datetimestring):
-        #maybe move this somewhere to call a diff parser depending on file
-        return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S %f')
     geoindexdata = pd.read_csv(geoindex, sep='\s+', skiprows=1,
-            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
+        parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+        date_parser=datetimeparser,
+        infer_datetime_format=True, keep_date_col=True)
     swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
-            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
+        parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+        date_parser=datetimeparser,
+        infer_datetime_format=True, keep_date_col=True)
     swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[1,2,3,4],
-            parse_dates={'Time [UTC]':['yr','mn','dy','hr','min','sec','msec']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
-    swdata = swdata[swdata['Time [UTC]']<geoindexdata['Time [UTC]'].iloc[-1]]
-    swdata = swdata[swdata['Time [UTC]']>geoindexdata['Time [UTC]'].iloc[0]]
+        parse_dates={'Time [UTC]':['yr','mn','dy','hr','min','sec','msec']},
+        date_parser=datetimeparser,
+        infer_datetime_format=True, keep_date_col=True)
+    swdata=swdata[swdata['Time [UTC]']<geoindexdata['Time [UTC]'].iloc[-1]]
+    swdata =swdata[swdata['Time [UTC]']>geoindexdata['Time [UTC]'].iloc[0]]
     #attach names to each dataset
     geoindexdata = geoindexdata.append(pd.Series({'name':'swmf_index'}),
                                        ignore_index=True)

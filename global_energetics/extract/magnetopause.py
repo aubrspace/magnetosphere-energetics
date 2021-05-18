@@ -346,9 +346,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         for var in varnames:
             mp_mesh[var] = field_data.zone(zoneindex.real
                           ).values(var.split(' ')[0]+'*').as_numpy_array()
-        #Add time and x_subsolar column
-        mp_powers.loc[:,'Time [UTC]'] = eventtime
-        mp_powers.loc[:,'X_subsolar [Re]'] = x_subsolar
+        #Add time and x_subsolar
+        mp_powers['Time [UTC]'] = eventtime
+        mp_powers['X_subsolar [Re]'] = x_subsolar
         if write_data:
             write_mesh(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                        zonename, pd.Series(eventtime), mp_mesh)
