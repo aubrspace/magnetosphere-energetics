@@ -126,4 +126,4 @@ def combine_hdfs(datapath, outputpath):
                      outputpath+'/energetics.h5', 'Combined_zones')
 
 if __name__ == "__main__":
-    combine_hdfs('output/energeticsdata', 'output')
+    combine_hdfs('output/testoutput/energeticsdata', 'output/testoutput')

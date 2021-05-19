@@ -94,10 +94,46 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
     elif powerkey == 'P0_net [W/Re^2]':
         colors = 'RdYlGn'
         axes = fig.get_axes()[6:9]
-    cont_lvl = linspace(-1e9, 1e9, 11)
-    cntr = ax.contourf(thi, xi, zi, cont_lvl, cmap=colors)
+    cont_lvl = linspace(-3e9, 3e9, 11)
+    cntr = ax.contourf(thi, xi, zi, cont_lvl, cmap=colors, extend='both')
     if show_colorbar:
         fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
+
+def make_timeseries_plots(daylist, flanklist, taillist):
+    """Function makes 1D timeseries of quanties
+    Inputs
+        daylist, flanklist, taillist- subsets of dataframe for single timestep
+    """
+    ######################################################################
+    #Fix locations
+    if True:
+        fix_locs = [+5, -5, -10]
+        figname = 'Fixed_locs'
+        fixed = plt.figure(figsize=[16,16])
+        locdata = []
+        for loc in enumerate(fix_locs):
+            locdata.append(pd.DataFrame())
+            for day in daylist:
+                target = day[abs(day['x_cc']-loc[1])<0.25]
+                if not target.empty():
+                    timestamp = day[~ day['Time [UTC]'].isna()][
+                                                    'Time [UTC]'].values[0]
+                    #ADD timestamp into target here!!
+                locdata[loc[0]] = locdata[loc[0]].append(target,
+                                                         ignore_index=True)
+            for flank in flanklist:
+                target = flank[abs(flank['x_cc']-loc[1])<0.25],
+                if not target.empty():
+                    timestamp = flank[~ flank['Time [UTC]'].isna()][
+                                                    'Time [UTC]'].values[0]
+                    #ADD timestamp into target here!!
+                locdata[loc[0]] = locdata[loc[0]].append(target,
+                                                         ignore_index=True)
+        from IPython import embed; embed()
+        fixed.savefig(figureout+'{}'.format(figname)+'.png')
+        plt.cla()
+    ######################################################################
+    plt.close('all')
 
 def make_spatial_plots(day, flank, tail):
     """Function makes 2D plots of spatial distributions of varialbes
@@ -209,11 +245,9 @@ def add_derived_variables(dflist):
 
 
 if __name__ == "__main__":
-    PATH = ['temp/meshdata']
-    OPATH = 'temp/'
-    NALPHA = 36
-    NSLICE = 60
-    figureout = OPATH+'figures/'
+    PATH = [sys.argv[1]]
+    OPATH = sys.argv[2]
+    figureout = os.path.join(OPATH,'figures/')
     #set text settings
     plt.rcParams.update({
         "text.usetex": True,
@@ -222,6 +256,11 @@ if __name__ == "__main__":
         "font.sans-serif": ["Helvetica"]})
     dflist = proc_temporal.read_energetics(PATH, add_variables=False)
     dflist = add_derived_variables(dflist)
-    for df in dflist:
+    daylist, flanklist, taillist = [], [], []
+    for df in dflist[::5]:
         day, flank, tail = split_day_flank_tail(df)
-        make_spatial_plots(day, flank, tail)
+        daylist.append(day)
+        flanklist.append(flank)
+        taillist.append(tail)
+        #make_spatial_plots(day, flank, tail)
+    make_timeseries_plots(daylist,flanklist,taillist)
