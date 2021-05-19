@@ -71,9 +71,11 @@ def display_progress(meshfile, integralfile, zonename):
         integralfile- full path to integral file
         zonename- zonename of current addition
     """
-    meshpath = ''
+    meshpath, integralpath = '', ''
     for lvl in meshfile.split('/')[0:-1]:
         meshpath = meshpath+lvl+'/'
+    for lvl in integralfile.split('/')[0:-1]:
+        integralpath = integralpath+lvl+'/'
     #Display result from this step
     result = ('Result\n'+
                '\tmeshdatafile: {}\n'.format(meshfile)+
@@ -83,7 +85,7 @@ def display_progress(meshfile, integralfile, zonename):
                '\tintegralfile: {}\n'.format(integralfile)+
                '\tzonename_added: {}\n'.format(zonename)+
                '\tintegralfilecount: {}\n'.format(
-                                        len(glob.glob(meshpath+'*.h5'))))
+                                      len(glob.glob(integralpath+'*.h5'))))
     '''
     with pd.HDFStore(integralfile) as store:
         result = result+'\tmp_energetics:\n'

@@ -167,201 +167,199 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
               "to consider dipole orientation!!!")
         datestring = 'Date & Time Unknown'
 
-    with tp.session.suspend():
-        main_frame = tp.active_frame()
-        aux = field_data.zone('global_field').aux_data
-        #set frame name and calculate global variables
-        if field_data.variable_names.count('r [R]') ==0:
-            print('Calculating global energetic variables')
-            main_frame.name = 'main'
-            get_global_variables(field_data)
-            if do_1Dsw:
-                print('Calculating 1D "pristine" Solar Wind variables')
-                get_1D_sw_variables(field_data, 30, -30, 121)
+    main_frame = tp.active_frame()
+    aux = field_data.zone('global_field').aux_data
+    #set frame name and calculate global variables
+    if field_data.variable_names.count('r [R]') ==0:
+        print('Calculating global energetic variables')
+        main_frame.name = 'main'
+        get_global_variables(field_data)
+        if do_1Dsw:
+            print('Calculating 1D "pristine" Solar Wind variables')
+            get_1D_sw_variables(field_data, 30, -30, 121)
+    else:
+        main_frame = [fr for fr in tp.frames('main')][0]
+    #Add imfclock angle if not there already
+    if not any([key.find('imf_clock_deg')!=-1 for key in aux.keys()]):
+        IMFby, IMFbz = tp.data.query.probe_at_position(
+                                                    31.5, 0, 0)[0][8:10]
+        clockangle = np.rad2deg(np.arctan2(IMFby, IMFbz))
+        aux['imf_clock_deg'] = clockangle
+    #Get x_subsolar if not already there
+    if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
+        x_subsolar = float(aux['x_subsolar'])
+        closed_index = None
+        closed_zone = None
+        #Assign closed zone info if already exists
+        if len([zn for zn in field_data.zones('*lcb*')]) > 0:
+            closed_index = field_data.variable('lcb').index
+            closed_zone = field_data.zone('*lcb*')
+        elif has_status == True:
+            closed_index = calc_closed_state('Status', 3, tail_cap)
+            closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
+    else:
+        if do_trace:
+            closedzone_index = streamfind_bisection(field_data,
+                                                        'dayside',
+                                                lon_bounds, n_fieldlines,
+                                                rmax, rmin, itr_max, tol)
         else:
-            main_frame = [fr for fr in tp.frames('main')][0]
-        #Add imfclock angle if not there already
-        if not any([key.find('imf_clock_deg')!=-1 for key in aux.keys()]):
-            IMFby, IMFbz = tp.data.query.probe_at_position(
-                                                      31.5, 0, 0)[0][8:10]
-            clockangle = np.rad2deg(np.arctan2(IMFby, IMFbz))
-            aux['imf_clock_deg'] = clockangle
-        #Get x_subsolar if not already there
-        if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
-            x_subsolar = float(aux['x_subsolar'])
+            closed_index = calc_closed_state('Status', 3, tail_cap)
+            closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
+            closedzone_index = closed_zone.index
+        x_subsolar = 1
+        x_subsolar = max(x_subsolar,
+                field_data.zone(closedzone_index).values('X *').max())
+        print('x_subsolar found at {}'.format(x_subsolar))
+        aux['x_subsolar'] = x_subsolar
+        if do_trace:
+            #delete streamzone
+            field_data.delete_zones(closedzone_index)
             closed_index = None
             closed_zone = None
-            #Assign closed zone info if already exists
-            if len([zn for zn in field_data.zones('*lcb*')]) > 0:
-                closed_index = field_data.variable('lcb').index
-                closed_zone = field_data.zone('*lcb*')
-            elif has_status == True:
-                closed_index = calc_closed_state('Status', 3, tail_cap)
-                closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
+    #Create isosurface zone depending on mode setting
+    ################################################################
+    if mode == 'sphere':
+        zonename = mode
+        if zone_rename != None:
+            zonename = zone_rename
+        #calculate surface state variable
+        sp_state_index = calc_sphere_state(zonename,sp_x, sp_y, sp_z,
+                                            sp_r)
+        state_var_name = field_data.variable(sp_state_index).name
+        #make iso zone
+        sp_zone, _ = setup_isosurface(1, sp_state_index, zonename)
+        zoneindex = sp_zone.index
+    ################################################################
+    if mode == 'box':
+        zonename = mode
+        if zone_rename != None:
+            zonename = zone_rename
+        #calculate surface state variable
+        box_state_index = calc_box_state(zonename,box_xmax, box_xmin,
+                                                box_ymax, box_ymin,
+                                                box_zmax, box_zmin)
+        state_var_name = field_data.variable(box_state_index).name
+        #make iso zone
+        box_zone, _ = setup_isosurface(1, box_state_index, zonename)
+        zoneindex = box_zone.index
+    ################################################################
+    if mode.find('shue') != -1:
+        zonename = 'mp_'+mode
+        #calculate surface state variable
+        shue_state_index = calc_shue_state(field_data, mode,
+                                            x_subsolar, tail_cap)
+        state_var_name = field_data.variable(shue_state_index).name
+        #make iso zone
+        shue_zone, _ = setup_isosurface(1, shue_state_index, zonename)
+        zoneindex = shue_zone.index
+        if zone_rename != None:
+            shue_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
+    if mode == 'iso_betastar':
+        zonename = 'mp_'+mode
+        if zone_rename != None:
+            zonename = zone_rename
+        iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
+                                                    tail_cap, 50, 0.7,
+                                                    include_core, sp_r,
+                                                    closed_zone)
+        state_var_name = field_data.variable(iso_betastar_index).name
+        #remake iso zone using new equation
+        if not include_core:
+            cond = 'sphere'
         else:
-            if do_trace:
-                closedzone_index = streamfind_bisection(field_data,
-                                                         'dayside',
-                                                  lon_bounds, n_fieldlines,
-                                                  rmax, rmin, itr_max, tol)
-            else:
-                closed_index = calc_closed_state('Status', 3, tail_cap)
-                closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
-                closedzone_index = closed_zone.index
-            x_subsolar = 1
-            x_subsolar = max(x_subsolar,
-                    field_data.zone(closedzone_index).values('X *').max())
-            print('x_subsolar found at {}'.format(x_subsolar))
-            aux['x_subsolar'] = x_subsolar
-            if do_trace:
-                #delete streamzone
-                field_data.delete_zones(closedzone_index)
-                closed_index = None
-                closed_zone = None
-        #Create isosurface zone depending on mode setting
-        ################################################################
-        if mode == 'sphere':
-            zonename = mode
-            if zone_rename != None:
-                zonename = zone_rename
-            #calculate surface state variable
-            sp_state_index = calc_sphere_state(zonename,sp_x, sp_y, sp_z,
-                                               sp_r)
-            state_var_name = field_data.variable(sp_state_index).name
-            #make iso zone
-            sp_zone, _ = setup_isosurface(1, sp_state_index, zonename)
-            zoneindex = sp_zone.index
-        ################################################################
-        if mode == 'box':
-            zonename = mode
-            if zone_rename != None:
-                zonename = zone_rename
-            #calculate surface state variable
-            box_state_index = calc_box_state(zonename,box_xmax, box_xmin,
-                                                  box_ymax, box_ymin,
-                                                  box_zmax, box_zmin)
-            state_var_name = field_data.variable(box_state_index).name
-            #make iso zone
-            box_zone, _ = setup_isosurface(1, box_state_index, zonename)
-            zoneindex = box_zone.index
-        ################################################################
-        if mode.find('shue') != -1:
-            zonename = 'mp_'+mode
-            #calculate surface state variable
-            shue_state_index = calc_shue_state(field_data, mode,
-                                              x_subsolar, tail_cap)
-            state_var_name = field_data.variable(shue_state_index).name
-            #make iso zone
-            shue_zone, _ = setup_isosurface(1, shue_state_index, zonename)
-            zoneindex = shue_zone.index
-            if zone_rename != None:
-                shue_zone.name = zone_rename
-                zonename = zone_rename
-        ################################################################
-        if mode == 'iso_betastar':
-            zonename = 'mp_'+mode
-            if zone_rename != None:
-                zonename = zone_rename
-            iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
-                                                     tail_cap, 50, 0.7,
-                                                     include_core, sp_r,
-                                                     closed_zone)
-            state_var_name = field_data.variable(iso_betastar_index).name
-            #remake iso zone using new equation
-            if not include_core:
-                cond = 'sphere'
-            else:
-                cond = None
-            iso_betastar_zone, innerbound_zone = setup_isosurface(1,
-                                                 iso_betastar_index,
-                                                 zonename,
-                                                 keep_condition=cond,
-                                                 keep_cond_value=sp_r)
-            zoneindex = iso_betastar_zone.index
-            if zone_rename != None:
-                iso_betastar_zone.name = zone_rename
-                zonename = zone_rename
-        ################################################################
-        if mode.find('lcb') != -1:
-            assert do_trace == False, (
-                               "lcb mode only works with do_trace==False!")
-            assert closed_index != None, (
-                                     'No closed_zone present! Cant do lcb')
-            state_var_name = 'lcb'
-            zonename = closed_zone.name
-            zoneindex = closed_zone.index
-            if zone_rename != None:
-                closed_zone.name = zone_rename
-                zonename = zone_rename
-        ################################################################
-        #perform integration for surface and volume quantities
-        mp_powers = pd.DataFrame()
-        mp_energies = pd.DataFrame()
-        mp_mesh = pd.DataFrame()
-        zonelist = [zoneindex.real]
-        if integrate_surface:
-            #integrate power on main surface
-            mp_powers = surface_analysis(main_frame, zonename, do_1Dsw,
-                                    cuttoff=tail_analysis_cap)
-            #variables to be saved in meshfile
-            varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
-                        'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
-                        'Cell Volume']
-            if do_1Dsw:
-                for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
-                             '1DExB_net [W/Re^2]']:
-                    varnames.append(name)
-            if not include_core and mode == 'iso_betastar':
-                inner_mesh = pd.DataFrame()
-                #integrate power on innerboundary surface
-                innerbound_powers = surface_analysis(main_frame,
-                                                     zonename+'innerbound',
-                                                     do_1Dsw,
-                                                cuttoff=tail_analysis_cap)
-                innerbound_powers = innerbound_powers.add_prefix('inner')
-                print('\nInnerbound surface power calculated')
-                #save innerboundary mesh data
-                inner_index =(
-                         field_data.zone(zonename+'innerbound').index.real)
-                for var in varnames:
-                    inner_mesh[var] = field_data.zone(inner_index
+            cond = None
+        iso_betastar_zone, innerbound_zone = setup_isosurface(1,
+                                                iso_betastar_index,
+                                                zonename,
+                                                keep_condition=cond,
+                                                keep_cond_value=sp_r)
+        zoneindex = iso_betastar_zone.index
+        if zone_rename != None:
+            iso_betastar_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
+    if mode.find('lcb') != -1:
+        assert do_trace == False, (
+                            "lcb mode only works with do_trace==False!")
+        assert closed_index != None, (
+                                    'No closed_zone present! Cant do lcb')
+        state_var_name = 'lcb'
+        zonename = closed_zone.name
+        zoneindex = closed_zone.index
+        if zone_rename != None:
+            closed_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
+    #perform integration for surface and volume quantities
+    mp_powers = pd.DataFrame()
+    mp_energies = pd.DataFrame()
+    mp_mesh = pd.DataFrame()
+    zonelist = [zoneindex.real]
+    if integrate_surface:
+        #integrate power on main surface
+        mp_powers = surface_analysis(main_frame, zonename, do_1Dsw,
+                                cuttoff=tail_analysis_cap)
+        #variables to be saved in meshfile
+        varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
+                    'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
+                    'Cell Volume']
+        if do_1Dsw:
+            for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
+                            '1DExB_net [W/Re^2]']:
+                varnames.append(name)
+        if not include_core and mode == 'iso_betastar':
+            inner_mesh = pd.DataFrame()
+            #integrate power on innerboundary surface
+            innerbound_powers = surface_analysis(main_frame,
+                                                    zonename+'innerbound',
+                                                    do_1Dsw,
+                                            cuttoff=tail_analysis_cap)
+            innerbound_powers = innerbound_powers.add_prefix('inner')
+            print('\nInnerbound surface power calculated')
+            #save innerboundary mesh data
+            inner_index =(
+                        field_data.zone(zonename+'innerbound').index.real)
+            for var in varnames:
+                inner_mesh[var] = field_data.zone(inner_index
+                    ).values(var.split(' ')[0]+'*').as_numpy_array()
+        else:
+            innerbound_powers = None
+        print('\nMagnetopause Power Terms')
+        print(mp_powers)
+    if integrate_volume:
+        print('Zonename is: {}'.format(zonename))
+        if zonename == 'sphere':
+            doblank = False
+        else:
+            doblank = True
+        mp_energies = volume_analysis(main_frame, state_var_name,
+                                        do_1Dsw, sp_r,
+                                        cuttoff=tail_analysis_cap,
+                                        blank=False)
+        print('\nMagnetopause Energy Terms')
+        print(mp_energies)
+    #save mesh to hdf file
+    for var in varnames:
+        mp_mesh[var] = field_data.zone(zoneindex.real
                         ).values(var.split(' ')[0]+'*').as_numpy_array()
-            else:
-                innerbound_powers = None
-            print('\nMagnetopause Power Terms')
-            print(mp_powers)
-        if integrate_volume:
-            print('Zonename is: {}'.format(zonename))
-            if zonename == 'sphere':
-                doblank = False
-            else:
-                doblank = True
-            mp_energies = volume_analysis(main_frame, state_var_name,
-                                          do_1Dsw, sp_r,
-                                          cuttoff=tail_analysis_cap,
-                                          blank=False)
-            print('\nMagnetopause Energy Terms')
-            print(mp_energies)
-        #save mesh to hdf file
-        for var in varnames:
-            mp_mesh[var] = field_data.zone(zoneindex.real
-                          ).values(var.split(' ')[0]+'*').as_numpy_array()
-        #Add time and x_subsolar
-        mp_powers['Time [UTC]'] = eventtime
-        mp_powers['X_subsolar [Re]'] = x_subsolar
-        if write_data:
-            write_mesh(outputpath+'/meshdata/mesh_'+datestring+'.h5',
-                       zonename, pd.Series(eventtime), mp_mesh)
-            write_to_hdf(outputpath+'/energeticsdata/energetics_'+
-                         datestring+'.h5', zonename,
-                         mp_energies=mp_energies, mp_powers=mp_powers,
-                         mp_inner_powers=innerbound_powers)
-        if disp_result:
-            display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
-                             outputpath+'/energeticsdata/energetics_'+
-                             datestring+'.h5', zonename)
-        return mp_mesh, mp_powers, mp_energies
-
+    #Add time and x_subsolar
+    mp_powers['Time [UTC]'] = eventtime
+    mp_powers['X_subsolar [Re]'] = x_subsolar
+    if write_data:
+        write_mesh(outputpath+'/meshdata/mesh_'+datestring+'.h5',
+                    zonename, pd.Series(eventtime), mp_mesh)
+        write_to_hdf(outputpath+'/energeticsdata/energetics_'+
+                        datestring+'.h5', zonename,
+                        mp_energies=mp_energies, mp_powers=mp_powers,
+                        mp_inner_powers=innerbound_powers)
+    if disp_result:
+        display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
+                            outputpath+'/energeticsdata/energetics_'+
+                            datestring+'.h5', zonename)
+    return mp_mesh, mp_powers, mp_energies
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

@@ -39,85 +39,14 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath):
 
 def work(mhddatafile):
     # Load data and change zone name
+    print(mhddatafile)
+    tp.new_layout()
     field_data = tp.data.load_tecplot(mhddatafile)
     field_data.zone(0).name = 'global_field'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
                                   outputpath=OUTPUTPATH)
-    '''
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                      tail_cap=-40, tail_analysis_cap=-40,
-                                  zone_rename='mp_40Re',
-                                  outputpath=OUTPUTPATH)
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                      tail_cap=-50, tail_analysis_cap=-50,
-                                  zone_rename='mp_50Re',
-                                  outputpath=OUTPUTPATH)
-    '''
-    #get supporting module data for this timestamp
-    eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
-    startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
-    eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
-    startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
-    deltadt = eventdt-startdt
-    satzones = satellites.get_satellite_zones(eventdt, MHDDIR, field_data)
-    #satzones = []
-    # adjust view settings
-    # tile
-    proc = 'Multi Frame Manager'
-    cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-    tp.macro.execute_extended_command(command_processor_id=proc,
-                                          command=cmd)
-    bot_right = [frame for frame in tp.frames('main')][0]
-    bot_right.name = 'inside_from_tail'
-    frame1 = [frame for frame in tp.frames('Frame 001')][0]
-    frame2 = [frame for frame in tp.frames('Frame 002')][0]
-    frame3 = [frame for frame in tp.frames('Frame 003')][0]
-    view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=False, energyrange=9e10,
-                                show_legend=False,
-                                pngpath=PNGPATH, energy_contourmap=4,
-                                plot_satellites=True, satzones=satzones,
-                                outputname=OUTPUTNAME, save_img=False,
-                                mode='inside_from_tail',
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
-    frame1.activate()
-    frame1.name = 'isodefault'
-    view_set.display_single_iso(frame1,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_legend=False,
-                                pngpath=PNGPATH,
-                                plot_satellites=True, satzones=satzones,
-                                outputname=OUTPUTNAME, save_img=False,
-                                show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
-    frame2.activate()
-    frame2.name = 'alternate_iso'
-    view_set.display_single_iso(frame2,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True,
-                                pngpath=PNGPATH, add_clock=True,
-                                plot_satellites=True, satzones=satzones,
-                                outputname=OUTPUTNAME, save_img=False,
-                                mode='other_iso',
-                                show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
-    frame3.activate()
-    frame3.name = 'tail_iso'
-    view_set.display_single_iso(frame3,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_legend=False,
-                                pngpath=PNGPATH, transluc=60,
-                                plot_satellites=False, satzones=satzones,
-                                outputname=OUTPUTNAME,
-                                mode='iso_tail',
-                                show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
-    tp.new_layout()
-    return
-
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -148,15 +77,14 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     solution_times = glob.glob(MHDDIR+'/*.plt')
-    numproc = multiprocessing.cpu_count()
+    numproc = multiprocessing.cpu_count()-1
     print(solution_times)
 
     # Set up the pool with initializing function and associated arguments
-    num_workers = min(multiprocessing.cpu_count(), len(solution_times))
+    num_workers = min(numproc, len(solution_times))
     pool = multiprocessing.Pool(num_workers, initializer=init,
             initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
                       PNGPATH))
-
     try:
         # Map the work function to each of the job arguments
         pool.map(work, solution_times)
