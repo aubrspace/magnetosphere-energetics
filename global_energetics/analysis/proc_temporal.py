@@ -291,7 +291,7 @@ def read_energetics(data_path_list, *, add_variables=True):
                         for key in hdf_file.keys():
                             if key.find('Time')!=-1:
                                 timetag = pd.Series(
-                                        {'Time [UTC]':hdf_file[key][0]})
+                                        {'Time_UTC':hdf_file[key][0]})
                                 include_timetag = True
                         for key in hdf_file.keys():
                             print(key)

@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                      tail_cap=-30, tail_analysis_cap=-30,
+                      tail_cap=-50, tail_analysis_cap=-20,
                                   zone_rename='mp_30Re',
                                   outputpath=OUTPATH)
     #magnetopause.get_magnetopause(field_data, mhddatafile,
@@ -120,8 +120,8 @@ if __name__ == "__main__":
     eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
     startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
     deltadt = eventdt-startdt
-    satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
-    #satzones = []
+    #satzones = satellites.get_satellite_zones(eventdt, MHDPATH, field_data)
+    satzones = []
 
     '''
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True,show_fieldline=False,
+                                show_slice=True,show_fieldline=True,
                                 pngpath=PNGPATH,
                                 plot_satellites=True, satzones=satzones,
                                 mode='iso_tail', transluc=60,

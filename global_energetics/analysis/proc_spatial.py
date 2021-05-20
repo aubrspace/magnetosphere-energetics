@@ -23,6 +23,57 @@ from spacepy import time as spacetime
 #interpackage
 from global_energetics.analysis import proc_temporal
 
+def plot_fixed_loc(fig, ax, df,  powerkey, *,
+                    contourlim=None, rlim=None, show_colorbar=False):
+    """Function plots polar contour plot of power
+    Inputs
+        ax- axis for the plot
+        df- dataframe containing data
+    """
+    #set variables
+    alpha = df[~ df['alpha_rad'].isna()]['alpha_rad']
+    power = df[~ df[powerkey].isna()][powerkey]
+    timedata = df[~ df['Time_UTC'].isna()]['Time_UTC']
+    timedata=pd.to_timedelta(timedata[0]-timedata).values.astype('float64')
+    print(timedata)
+    start = timedata[0]
+    end = timedata[-1]
+    #labels
+    rectlabels = ['-Y',r'$\displaystyle III$','-Z',
+                  r'$\displaystyle IV$','+Y',
+                  r'$\displaystyle I$','+Z',
+                  r'$\displaystyle II$', '-Y']
+    #construct axes
+    xi = linspace(start,end, 100)
+    yi = linspace(-pi,pi,1441)
+    zi = griddata((timedata,alpha),power,(xi[None,:],yi[:,None]),
+                    method='linear')
+    ax.set(xlim=(start, end))
+    ax.set_title(str(df['x_cc'].mean()), pad=12)
+    ax.set_yticks([-pi,-0.75*pi,-0.5*pi,-0.25*pi,0,
+                    0.25*pi,0.5*pi,0.75*pi,pi])
+    ax.set_yticklabels(rectlabels)
+    twin = ax.twinx()
+    twin.set_yticks([-pi,-0.75*pi,-0.5*pi,-0.25*pi,0,
+                    0.25*pi,0.5*pi,0.75*pi,pi])
+    twin.set_yticklabels(rectlabels)
+    #plot contour
+    if powerkey == 'K_net [W/Re^2]':
+        colors = 'coolwarm_r'
+        axes = fig.get_axes()[0:3]
+    elif powerkey == 'ExB_net [W/Re^2]':
+        colors = 'BrBG'
+        axes = fig.get_axes()[3:6]
+    elif powerkey == 'P0_net [W/Re^2]':
+        colors = 'RdYlGn'
+        axes = fig.get_axes()[6:9]
+    cont_lvl = linspace(-3e9, 3e9, 11)
+    #xi = xi.astype('timedelta64')+df['Time_UTC'].iloc[0]
+    #ax.set(xlim=(df['Time_UTC'].iloc[0], df['Time_UTC'].iloc[-1]))
+    cntr = ax.contourf(xi, yi, zi, cont_lvl, cmap=colors, extend='both')
+    if show_colorbar:
+        fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
+
 def plot_power_dial(fig, ax, df,  powerkey, *,
                     contourlim=None, rlim=None, show_colorbar=False):
     """Function plots polar contour plot of power
@@ -32,12 +83,12 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
     """
     #get header info
     name = df[~ df['name'].isna()]['name'].values[0]
-    timestamp = df[~ df['Time [UTC]'].isna()]['Time [UTC]'].values[0]
+    timestamp = df[~ df['Time_UTC'].isna()]['Time_UTC'].values[0]
     sector = df[~ df['sector'].isna()]['sector'].values[0]
     #set variables
-    alpha = df[~ df['alpha [rad]'].isna()]['alpha [rad]']
+    alpha = df[~ df['alpha_rad'].isna()]['alpha_rad']
     x = df[~ df['x_cc'].isna()]['x_cc']
-    h = df[~ df['h [R]'].isna()]['h [R]']
+    h = df[~ df['h_R'].isna()]['h_R']
     power = df[~ df[powerkey].isna()][powerkey]
     #labels
     polarlabels = ['+Y',r'$\displaystyle I$','+Z',
@@ -111,25 +162,56 @@ def make_timeseries_plots(daylist, flanklist, taillist):
         figname = 'Fixed_locs'
         fixed = plt.figure(figsize=[16,16])
         locdata = []
+        #Restructure data
         for loc in enumerate(fix_locs):
             locdata.append(pd.DataFrame())
             for day in daylist:
                 target = day[abs(day['x_cc']-loc[1])<0.25]
-                if not target.empty():
-                    timestamp = day[~ day['Time [UTC]'].isna()][
-                                                    'Time [UTC]'].values[0]
-                    #ADD timestamp into target here!!
+                if not target.empty:
+                    timestamp = day[~ day['Time_UTC'].isna()][
+                                                    'Time_UTC'].values[0]
+                    target = target.assign(Time_UTC=timestamp)
                 locdata[loc[0]] = locdata[loc[0]].append(target,
                                                          ignore_index=True)
             for flank in flanklist:
-                target = flank[abs(flank['x_cc']-loc[1])<0.25],
-                if not target.empty():
-                    timestamp = flank[~ flank['Time [UTC]'].isna()][
-                                                    'Time [UTC]'].values[0]
-                    #ADD timestamp into target here!!
+                target = flank[abs(flank['x_cc']-loc[1])<0.25]
+                if not target.empty:
+                    timestamp = flank[~ flank['Time_UTC'].isna()][
+                                                    'Time_UTC'].values[0]
+                    target = target.assign(Time_UTC=timestamp)
                 locdata[loc[0]] = locdata[loc[0]].append(target,
                                                          ignore_index=True)
-        from IPython import embed; embed()
+                locdata[loc[0]].sort_values(by=['Time_UTC'])
+                locdata[loc[0]] = locdata[loc[0]].reset_index(drop=True)
+        #toprow
+        ax1 = fixed.add_subplot(331,projection='rectilinear')
+        ax2 = fixed.add_subplot(332,projection='rectilinear')
+        ax3 = fixed.add_subplot(333,projection='rectilinear')
+        #middlerow
+        ax4 = fixed.add_subplot(334,projection='rectilinear')
+        ax5 = fixed.add_subplot(335,projection='rectilinear')
+        ax6 = fixed.add_subplot(336,projection='rectilinear')
+        #bottomrow
+        ax7 = fixed.add_subplot(337,projection='rectilinear')
+        ax8 = fixed.add_subplot(338,projection='rectilinear')
+        ax9 = fixed.add_subplot(339,projection='rectilinear')
+        fixed.tight_layout(pad=2)
+        #total
+        plot_fixed_loc(fixed, ax1, locdata[0], 'K_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax2, locdata[1], 'K_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax3, locdata[2], 'K_net [W/Re^2]',
+                                              show_colorbar=True)
+        #ExB
+        plot_fixed_loc(fixed, ax4, locdata[0], 'ExB_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax5, locdata[1], 'ExB_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax6, locdata[2], 'ExB_net [W/Re^2]',
+                                                show_colorbar=True)
+        #P0
+        plot_fixed_loc(fixed, ax7, locdata[0], 'P0_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax8, locdata[1], 'P0_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax9, locdata[2], 'P0_net [W/Re^2]',
+                                                show_colorbar=True)
+        #fixed.suptitle(timestamp,  x=0.8, y=0.02, ha='left', va='top')
         fixed.savefig(figureout+'{}'.format(figname)+'.png')
         plt.cla()
     ######################################################################
@@ -140,7 +222,7 @@ def make_spatial_plots(day, flank, tail):
     Inputs
         day, flank, tail- subsets of datframe for single timestep
     """
-    timestamp = str(df[~ df['Time [UTC]'].isna()]['Time [UTC]'].values[0])
+    timestamp = str(df[~ df['Time_UTC'].isna()]['Time_UTC'].values[0])
     strtime = ''.join(''.join(timestamp.split(':')).split(' '))
     ######################################################################
     #3panel Power, power_inner, and shielding
@@ -193,7 +275,7 @@ def split_day_flank_tail(df, *, xdaymin=0, flank_min_h_buff=10):
     """
     #cut the name and time to save for later
     name = pd.Series({'name':df['name'].iloc[-2]})
-    time = pd.Series({'Time [UTC]':df['Time [UTC]'].iloc[-1]})
+    time = pd.Series({'Time_UTC':df['Time_UTC'].iloc[-1]})
     daytag = pd.Series({'sector':'day'})
     flanktag = pd.Series({'sector':'flank'})
     tailtag = pd.Series({'sector':'tail'})
@@ -203,9 +285,9 @@ def split_day_flank_tail(df, *, xdaymin=0, flank_min_h_buff=10):
     #Identify tail based on xmax and inner h values (near rxn site)
     flank_min_h = df[(df['x_cc']<xdaymin) &
                      (df['x_cc']>df['x_cc'].min()+
-                                         flank_min_h_buff)]['h [R]'].min()
+                                         flank_min_h_buff)]['h_R'].min()
     tailcond = (df['x_cc']==df['x_cc'].min()) | (
-            (df['x_cc']<xdaymin-1) & (df['h [R]']< flank_min_h))
+            (df['x_cc']<xdaymin-1) & (df['h_R']< flank_min_h))
     tail = df[tailcond]
     #Flank is everything else
     flank = df[(~ daycond) & (~ tailcond)]
@@ -235,10 +317,10 @@ def add_derived_variables(dflist):
     for df in enumerate(dflist):
         if not df[1].empty:
             ###Spatial variables
-            dflist[df[0]]['r [R]'] =sqrt(df[1]['x_cc']**2+
+            dflist[df[0]]['r_R'] =sqrt(df[1]['x_cc']**2+
                                          df[1]['y_cc']**2+df[1]['z_cc']**2)
-            dflist[df[0]]['h [R]'] =sqrt(df[1]['y_cc']**2+df[1]['z_cc']**2)
-            dflist[df[0]]['alpha [rad]'] = (arctan2(df[1]['z_cc'],
+            dflist[df[0]]['h_R'] =sqrt(df[1]['y_cc']**2+df[1]['z_cc']**2)
+            dflist[df[0]]['alpha_rad'] = (arctan2(df[1]['z_cc'],
                                                            df[1]['y_cc']))
     return dflist
 
@@ -257,7 +339,7 @@ if __name__ == "__main__":
     dflist = proc_temporal.read_energetics(PATH, add_variables=False)
     dflist = add_derived_variables(dflist)
     daylist, flanklist, taillist = [], [], []
-    for df in dflist[::5]:
+    for df in dflist[::]:
         day, flank, tail = split_day_flank_tail(df)
         daylist.append(day)
         flanklist.append(flank)

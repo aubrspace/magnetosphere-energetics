@@ -637,7 +637,7 @@ def get_global_variables(field_data):
     eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
     #Plasma Beta* using total pressure
-    eq('{beta_star}=({P [nPa]}+0.5*{Dp [nPa]})/'+
+    eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
                           '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
 
