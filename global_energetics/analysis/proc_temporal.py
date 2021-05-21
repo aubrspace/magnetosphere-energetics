@@ -285,7 +285,7 @@ def read_energetics(data_path_list, *, add_variables=True):
         for path in data_path_list:
             print(path)
             if path != None:
-                for datafile in glob.glob(path+'/*.h5'):
+                for datafile in glob.glob(path+'/*.h5')[::100]:
                     with pd.HDFStore(datafile) as hdf_file:
                         include_timetag = False
                         for key in hdf_file.keys():

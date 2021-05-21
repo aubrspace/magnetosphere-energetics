@@ -1053,9 +1053,9 @@ def chopends_time(dflist, start, end, timekey):
     return dflist
 
 if __name__ == "__main__":
-    datapath = sys.argv[1]
+    datapath = sys.argv[1::]
     print('processing indices output at {}'.format(datapath))
-    figureout = datapath+'figures/'
+    figureout = datapath[-1]+'figures/'
     #set text settings
     plt.rcParams.update({
         "text.usetex": True,
@@ -1067,7 +1067,7 @@ if __name__ == "__main__":
     #Read in data
     fullstart = dt.datetime(2014, 2, 15, 0)
     fullend = dt.datetime(2014, 2, 23, 0)
-    energetics_list = read_energetics([datapath])
+    energetics_list = read_energetics(datapath)
     mplist = []
     for df in energetics_list:
         if df['name'].iloc[-1].find('mp_')!=-1:
@@ -1082,9 +1082,9 @@ if __name__ == "__main__":
     else:
         do_mpcomparisons = False
         mp = mplist[0]
-    [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(datapath)
+    [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(datapath[-1])
     [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
-                                                         fullend, datapath)
+                                                         fullend, datapath[-1])
     #Chop based on time
     cuttoffstart = dt.datetime(2014,2,18,7,0)
     #cuttoffend = dt.datetime(2014,2,18,12,0)
@@ -1414,8 +1414,8 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_Power(ax1, [mp], timekey, y1label, Color='midnightblue')
         plot_Power(ax1, [mplist[0]], timekey, y1label, Color='coral')
-        plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
-        plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
+        #plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        #plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
         shade_plot(ax1)
         ax1.set_facecolor('olive')
         power_comp.savefig(figureout+'{}.png'.format(figname),
@@ -1433,8 +1433,8 @@ if __name__ == "__main__":
         y1label = r'\textit{Volume} $\displaystyle \left( R_e^3\right)$'
         plot_Volume(ax1, [mp], timekey, y1label, Color='midnightblue')
         plot_Volume(ax1, [mplist[0]], timekey, y1label, Color='coral')
-        plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
-        plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
+        #plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        #plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
         shade_plot(ax1)
         ax1.set_facecolor('olive')
         volume_comp.savefig(figureout+'{}.png'.format(figname),
@@ -1452,8 +1452,8 @@ if __name__ == "__main__":
         y1label = r'\textit{Area} $\displaystyle \left( R_e^2\right)$'
         plot_SA(ax1, [mp], timekey, y1label, Color='midnightblue')
         plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
-        plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
-        plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
+        #plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
         shade_plot(ax1)
         ax1.set_facecolor('olive')
         surf_comp.savefig(figureout+'{}.png'.format(figname),

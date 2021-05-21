@@ -22,6 +22,7 @@ from spacepy import coordinates as coord
 from spacepy import time as spacetime
 #interpackage
 from global_energetics.analysis import proc_temporal
+from global_energetics import write_disp
 
 def plot_fixed_loc(fig, ax, df,  powerkey, *,
                     contourlim=None, rlim=None, show_colorbar=False):
@@ -150,6 +151,43 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
     if show_colorbar:
         fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
 
+def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
+    """Function makes 1D timeseries of quanties
+    Inputs
+        daylist, flanklist, taillist- subsets of dataframe for single timestep
+    """
+    locdata = []
+    ######################################################################
+    #Fix locations
+    if True:
+        #Restructure data
+        for loc in enumerate(fix_locs):
+            locdata.append(pd.DataFrame())
+            for day in daylist:
+                target = day[abs(day['x_cc']-loc[1])<0.25]
+                if not target.empty:
+                    timestamp = day[~ day['Time_UTC'].isna()][
+                                                    'Time_UTC'].values[0]
+                    target = target.assign(Time_UTC=timestamp)
+                locdata[loc[0]] = locdata[loc[0]].append(target,
+                                                         ignore_index=True)
+            for flank in flanklist:
+                target = flank[abs(flank['x_cc']-loc[1])<0.25]
+                if not target.empty:
+                    timestamp = flank[~ flank['Time_UTC'].isna()][
+                                                    'Time_UTC'].values[0]
+                    target = target.assign(Time_UTC=timestamp)
+                locdata[loc[0]] = locdata[loc[0]].append(target,
+                                                         ignore_index=True)
+                locdata[loc[0]].sort_values(by=['Time_UTC'])
+                locdata[loc[0]] = locdata[loc[0]].reset_index(drop=True)
+        for df in enumerate(locdata):
+            write_disp.write_to_hdf(OPATH+'/temp_energetics.h5',
+                                  'mp_spatial_fixed_'+str(fix_locs[df[0]]),
+                                    mp_powers=df[1])
+    ######################################################################
+    return locdata
+
 def make_timeseries_plots(daylist, flanklist, taillist):
     """Function makes 1D timeseries of quanties
     Inputs
@@ -161,6 +199,7 @@ def make_timeseries_plots(daylist, flanklist, taillist):
         fix_locs = [+5, -5, -10]
         figname = 'Fixed_locs'
         fixed = plt.figure(figsize=[16,16])
+        """
         locdata = []
         #Restructure data
         for loc in enumerate(fix_locs):
@@ -183,6 +222,10 @@ def make_timeseries_plots(daylist, flanklist, taillist):
                                                          ignore_index=True)
                 locdata[loc[0]].sort_values(by=['Time_UTC'])
                 locdata[loc[0]] = locdata[loc[0]].reset_index(drop=True)
+        """
+        locdata = make_timeseries_data(daylist, flanklist, taillist,
+                                       fix_locs)
+        """
         #toprow
         ax1 = fixed.add_subplot(331,projection='rectilinear')
         ax2 = fixed.add_subplot(332,projection='rectilinear')
@@ -214,6 +257,7 @@ def make_timeseries_plots(daylist, flanklist, taillist):
         #fixed.suptitle(timestamp,  x=0.8, y=0.02, ha='left', va='top')
         fixed.savefig(figureout+'{}'.format(figname)+'.png')
         plt.cla()
+        """
     ######################################################################
     plt.close('all')
 
@@ -323,7 +367,6 @@ def add_derived_variables(dflist):
             dflist[df[0]]['alpha_rad'] = (arctan2(df[1]['z_cc'],
                                                            df[1]['y_cc']))
     return dflist
-
 
 
 if __name__ == "__main__":
