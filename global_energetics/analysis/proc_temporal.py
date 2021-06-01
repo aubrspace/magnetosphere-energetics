@@ -285,7 +285,7 @@ def read_energetics(data_path_list, *, add_variables=True):
         for path in data_path_list:
             print(path)
             if path != None:
-                for datafile in glob.glob(path+'/*.h5')[::100]:
+                for datafile in glob.glob(path+'/*.h5')[0:5]:
                     with pd.HDFStore(datafile) as hdf_file:
                         include_timetag = False
                         for key in hdf_file.keys():
@@ -308,7 +308,8 @@ def read_energetics(data_path_list, *, add_variables=True):
                             else:
                                 print('key {} not understood!'.format(key))
         if add_variables:
-            dflist = add_derived_variables(dflist)
+            if len(dflist) > 0:
+                dflist = add_derived_variables(dflist)
     print('done!')
     return dflist
 

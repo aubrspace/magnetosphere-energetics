@@ -171,6 +171,7 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
                     target = target.assign(Time_UTC=timestamp)
                 locdata[loc[0]] = locdata[loc[0]].append(target,
                                                          ignore_index=True)
+            print('day at {} added'.format(loc[1]))
             for flank in flanklist:
                 target = flank[abs(flank['x_cc']-loc[1])<0.25]
                 if not target.empty:
@@ -181,10 +182,12 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
                                                          ignore_index=True)
                 locdata[loc[0]].sort_values(by=['Time_UTC'])
                 locdata[loc[0]] = locdata[loc[0]].reset_index(drop=True)
+            print('flank at {} added'.format(loc[1]))
         for df in enumerate(locdata):
-            write_disp.write_to_hdf(OPATH+'/temp_energetics.h5',
-                                  'mp_spatial_fixed_'+str(fix_locs[df[0]]),
+            write_disp.write_to_hdf(OPATH+'/energetics.h5',
+                                  'mp_spatial_fixed'+str(fix_locs[df[0]]),
                                     mp_powers=df[1])
+            print('fixedloc {} writen to hdf5'.format(fix_locs[df[0]]))
     ######################################################################
     return locdata
 
@@ -382,10 +385,12 @@ if __name__ == "__main__":
     dflist = proc_temporal.read_energetics(PATH, add_variables=False)
     dflist = add_derived_variables(dflist)
     daylist, flanklist, taillist = [], [], []
-    for df in dflist[::]:
-        day, flank, tail = split_day_flank_tail(df)
-        daylist.append(day)
-        flanklist.append(flank)
-        taillist.append(tail)
-        #make_spatial_plots(day, flank, tail)
+    #Create timeseries data
+    if True:
+        for df in dflist:
+            day, flank, tail = split_day_flank_tail(df)
+            daylist.append(day)
+            flanklist.append(flank)
+            taillist.append(tail)
+            #make_spatial_plots(day, flank, tail)
     make_timeseries_plots(daylist,flanklist,taillist)

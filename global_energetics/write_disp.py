@@ -50,10 +50,17 @@ def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
     for df in [mp_energies, mp_powers, mp_inner_powers,
                ie_energies, ie_powers,
                im_energies, im_powers]:
+        print("""
+            cols = cols.append(df.keys())
+            data = np.resize(np.append(energetics.values,df.values),
+                             np.shape(df.values))
+            energetics = pd.DataFrame(columns=cols, data=[data])
+            """)
         if type(df) != type(None):
             cols = cols.append(df.keys())
-            energetics = pd.DataFrame(columns=cols, data=[np.append(
-                                      energetics.values, df.values)])
+            data = np.resize(np.append(energetics.values,df.values),
+                             np.shape(df.values))
+            energetics = pd.DataFrame(data, columns=cols)
     #Remove duplicate time columns
     #TBD
     if not energetics.empty:
@@ -126,4 +133,6 @@ def combine_hdfs(datapath, outputpath):
                      outputpath+'/energetics.h5', 'Combined_zones')
 
 if __name__ == "__main__":
-    combine_hdfs('output/testoutput/energeticsdata', 'output/testoutput')
+    DATA = sys.argv[1]
+    OPATH = sys.argv[2]
+    combine_hdfs(DATA, OPATH)

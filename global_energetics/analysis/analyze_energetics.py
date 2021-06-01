@@ -163,7 +163,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                 powerin = data[powerin_str]
                 powerout = data[powerout_str]
                 powernet = data[powernet_str]
-                axis.set_ylim([-3e13, 3e13])
+                axis.set_ylim([-3e12, 3e12])
             #INJECTION
             if not override_color:
                 Color = 'gold'
@@ -234,7 +234,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
                 powerin = data[powerin_str]
                 powerout = data[powerout_str]
                 powernet = data[powernet_str]
-                axis.set_ylim([-3e13, 3e13])
+                axis.set_ylim([-3e12, 3e12])
             #INJECTION
             axis.plot(data[timekey],powerin,
                             label=r'$\displaystyle P0_{injection}$',
@@ -299,7 +299,7 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
                 powerin = data[powerin_str]
                 powerout = data[powerout_str]
                 powernet = data[powernet_str]
-                axis.set_ylim([-3e13, 3e13])
+                axis.set_ylim([-3e12, 3e12])
             #INJECTION
             axis.plot(data[timekey],powerin,
                             label=r'$\displaystyle \left(E\times B\right)_{injection}$',
@@ -1110,7 +1110,7 @@ if __name__ == "__main__":
         plot_newell(ax2, [supermag], timekey, y1label)
         plot_OuterPower(ax1, [mp], timekey, y2label)
         plot_cpcp(ax2, [swmf_log], timekey, y3label)
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         new_out_pow.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1127,10 +1127,10 @@ if __name__ == "__main__":
         y1label = r'$\displaystyle Dst$ \textit{equiv.}$\displaystyle \left( nT \right)$'
         y2label = r'$\displaystyle E_{total} \left( J \right)$'
         ax2 = ax1.twinx()
-        plot_dst(ax1, [swmf_log, omni], timekey, y1label)
+        plot_dst(ax1, [swmf_log, omni, supermag], timekey, y1label)
         plot_TotalEnergy(ax2, [mp], timekey, y2label)
         ax2.legend(loc='lower right', facecolor='gray', fontsize=24)
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         energy_dst.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1164,7 +1164,7 @@ if __name__ == "__main__":
         y1label = r'$\displaystyle AL$ \textit{equiv.}$\displaystyle \left( nT \right)$'
         y2label = r'$\displaystyle -\mid Power \left( W \right) \mid $'
         plot_al(ax1, [supermag, swmf_index, omni], timekey, y1label)
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         power_al.savefig(figureout+'{}_justindex.png'.format(figname),
                       facecolor='gainsboro')
@@ -1186,7 +1186,7 @@ if __name__ == "__main__":
         plot_swPower(ax1, [mp], mp,timekey, y1label)
         plot_Power(ax1, [mp], timekey, y1label)
         ax1.set_ylim([-12e13,12e13])
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         swpower.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1207,7 +1207,7 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_Power(ax1, [mp], timekey, y1label)
         plot_Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
+        #shade_plot(ax1), shade_plot(in_ax1)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         power.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1230,7 +1230,7 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_ExBPower(ax1, [mp], timekey, y1label)
         plot_ExBPower(in_ax1, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
+        #shade_plot(ax1), shade_plot(in_ax1)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         exbpower.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1253,7 +1253,7 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_P0Power(ax1, [mp], timekey, y1label)
         plot_P0Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
+        #shade_plot(ax1), shade_plot(in_ax1)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         p0power.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1295,9 +1295,9 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         ax2.set_facecolor('olive'), in_ax2.set_facecolor('olive')
         ax3.set_facecolor('olive'), in_ax3.set_facecolor('olive')
@@ -1325,7 +1325,7 @@ if __name__ == "__main__":
         #plot_swdensity(ax1, [swmf_sw], timekey, y1label)
         plot_swbz(ax2, [swmf_sw], timekey, y2label)
         plot_swflowP(ax3, [swmf_sw], timekey, y3label)
-        shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
+        #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
         ax1.set_facecolor('olive')
         ax2.set_facecolor('olive')
         ax3.set_facecolor('olive')
@@ -1354,8 +1354,8 @@ if __name__ == "__main__":
         ax3.set_facecolor('olive')
         bigsw.savefig(figureout+'{}_noshade.png'.format(figname),
                       facecolor='gainsboro')
-        shade_plot(ax1, do_full=True); shade_plot(ax2, do_full=True)
-        shade_plot(ax3, do_full=True)
+        #shade_plot(ax1, do_full=True); shade_plot(ax2, do_full=True)
+        #shade_plot(ax3, do_full=True)
         bigsw.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
@@ -1380,7 +1380,7 @@ if __name__ == "__main__":
         plot_cpcp(ax2, [swmf_log], timekey, y2label)
         ax2.legend(loc='upper right', facecolor='gray')
         ax2.text(0.01,0.9,'b)', Color='black', fontsize=36, transform=ax2.transAxes)
-        shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
+        #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
         ax1.set_facecolor('olive'); ax2.set_facecolor('olive')
         panel2prox.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1397,7 +1397,7 @@ if __name__ == "__main__":
         ylabel = r'\textit{Energy} $\displaystyle \left(J\right)$'
         plot_DesslerParkerSckopke(ax1, [swmf_log, supermag, omni, mp],
                                   timekey, ylabel)
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         DPS.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1416,7 +1416,7 @@ if __name__ == "__main__":
         plot_Power(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         power_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1435,7 +1435,7 @@ if __name__ == "__main__":
         plot_Volume(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         volume_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1454,7 +1454,7 @@ if __name__ == "__main__":
         plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        shade_plot(ax1)
+        #shade_plot(ax1)
         ax1.set_facecolor('olive')
         surf_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
