@@ -641,6 +641,13 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     if show_timestamp:
         add_timestamp(frame, filename, timestamp_pos)
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
+    if add_clock:
+        #get clock angle from probing data at x=xmax
+        clock = float(frame.dataset.zone('global_field').aux_data[
+                                                          'imf_clock_deg'])
+        coordsys = frame.dataset.zone('global_field').aux_data[
+                                                            'COORDSYSTEM']
+        add_IMF_clock(frame, clock, coordsys, (0,0), 30)
     if save_img:
         #multiframe image (default)
         tp.export.save_png(os.getcwd()+'/'+pngpath+'/'+outputname+'.png',
@@ -654,13 +661,6 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
             tp.export.save_png(os.getcwd()+'/'+pngpath+fr.name+'/'+outputname+'.png',
                                region=fr, width=1600)
         '''
-    if add_clock:
-        #get clock angle from probing data at x=xmax
-        clock = float(frame.dataset.zone('global_field').aux_data[
-                                                          'imf_clock_deg'])
-        coordsys = frame.dataset.zone('global_field').aux_data[
-                                                            'COORDSYSTEM']
-        add_IMF_clock(frame, clock, coordsys, (0,0), 30)
     if save_plt:
         tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
                                  include_data_share_linkage=True,

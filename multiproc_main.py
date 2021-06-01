@@ -28,7 +28,7 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath):
     # up all temporary files and does not create a core dump
     atexit.register(tp.session.stop)
     #globalize variables for each worker
-    global RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH, PNGPATH
+    global RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH, PNGPATH, ID
     RUNDIR = rundir
     MHDDIR = mhddir
     IEDIR = iedir
@@ -36,6 +36,9 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath):
     SCRIPTDIR = scriptdir
     OUTPUTPATH = outputpath
     PNGPATH = pngpath
+    ID = id(multiprocessing.current_process())
+    os.system('mkdir '+MHDDIR+'/'+str(ID))
+    os.system('cp '+MHDDIR+'/*.sat '+MHDDIR+'/'+str(ID)+'/')
 
 def work(mhddatafile):
     # Load data and change zone name
@@ -47,6 +50,65 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
                                   outputpath=OUTPUTPATH)
+    #get supporting module data for this timestamp
+    eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
+    startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
+    eventdt = dt.datetime.strptime(eventstring,'%Y/%m/%d %H:%M:%S.%f')
+    startdt = dt.datetime.strptime(startstring,'%Y/%m/%d %H:%M:%S.%f')
+    deltadt = eventdt-startdt
+    satzones = satellites.get_satellite_zones(eventdt, MHDDIR+'/'+str(ID),
+                                              field_data)
+    #adjust view settings
+    #tile
+    proc = 'Multi Frame Manager'
+    cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
+    tp.macro.execute_extended_command(command_processor_id=proc,
+                                          command=cmd)
+    bot_right = [frame for frame in tp.frames('main')][0]
+    bot_right.name = 'inside_from_tail'
+    frame1 = [frame for frame in tp.frames('Frame 001')][0]
+    frame2 = [frame for frame in tp.frames('Frame 002')][0]
+    frame3 = [frame for frame in tp.frames('Frame 003')][0]
+    view_set.display_single_iso(bot_right,
+                                'K_net *', mhddatafile, show_contour=False,
+                                show_slice=False, energyrange=9e10,
+                                show_legend=False, mode='inside_from_tail',
+                                pngpath=PNGPATH, energy_contourmap=4,
+                                plot_satellites=False, satzones=satzones,
+                                outputname=OUTPUTNAME, save_img=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
+    frame1.activate()
+    frame1.name = 'isodefault'
+    view_set.display_single_iso(frame1,
+                                'K_net *', mhddatafile, show_contour=True,
+                                show_slice=True, show_legend=False,
+                                pngpath=PNGPATH,
+                                plot_satellites=True, satzones=satzones,
+                                outputname=OUTPUTNAME, save_img=False,
+                                show_timestamp=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
+    frame2.activate()
+    frame2.name = 'alternate_iso'
+    view_set.display_single_iso(frame2,
+                                'K_net *', mhddatafile, show_contour=True,
+                                show_slice=True,
+                                pngpath=PNGPATH, add_clock=True,
+                                plot_satellites=True, satzones=satzones,
+                                outputname=OUTPUTNAME, save_img=False,
+                                mode='other_iso',
+                                show_timestamp=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
+    frame3.activate()
+    frame3.name = 'tail_iso'
+    view_set.display_single_iso(frame3,
+                                'K_net *', mhddatafile, show_contour=True,
+                                show_slice=True, show_legend=False,
+                                pngpath=PNGPATH, transluc=60,
+                                plot_satellites=True, satzones=satzones,
+                                outputname=OUTPUTNAME,
+                                mode='iso_tail',
+                                show_timestamp=False,
+                                zone_hidekeys=['box', 'lcb', '30', '40'])
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -56,10 +118,10 @@ if __name__ == '__main__':
         raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    RUNDIR = 'Energetics1'
-    MHDDIR = os.path.join(RUNDIR,'GM','IO2','partB')
-    IEDIR = os.path.join(RUNDIR,'IE','ionosphere')
-    IMDIR = os.path.join(RUNDIR,'IM','plots')
+    RUNDIR = 'substorm_ori'
+    MHDDIR = os.path.join(RUNDIR)
+    IEDIR = os.path.join(RUNDIR)
+    IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     OUTPUTPATH = os.path.join(SCRIPTDIR, 'output')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
@@ -76,7 +138,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt')
+    solution_times = glob.glob(MHDDIR+'/*.plt')[0:13]
     numproc = multiprocessing.cpu_count()-1
     print(solution_times)
 
@@ -92,12 +154,15 @@ if __name__ == '__main__':
         # Join the process pool before exit so Tec cleans up & no core dump
         pool.close()
         pool.join()
+        os.system('rm '+MHDDIR+'/*/')
     ########################################
 
+    '''
     #Combine and delete individual energetics files
     write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                             OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
