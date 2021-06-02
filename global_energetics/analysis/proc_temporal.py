@@ -77,7 +77,7 @@ def add_derived_variables(dflist):
     """
     for df in enumerate(dflist):
         if not df[1].empty:
-            if len(df[1]) > 1:
+            if len(df[1]) > 1 and df[1]['name'].iloc[-1].find('fixed')==-1:
                 ###Add cumulative energy terms
                 #Compute cumulative energy In, Out, and Net
                 start = df[1].index[0]
@@ -280,12 +280,12 @@ def read_energetics(data_path_list, *, add_variables=True):
         print('Nothing to do, no data_paths were given!')
     else:
         approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid',
-                    'field', 'mp_', 'box', 'sphere', 'lcb']
+                    'field', 'mp_', 'box', 'sphere', 'lcb', 'fixed']
         dflist = []
         for path in data_path_list:
             print(path)
             if path != None:
-                for datafile in glob.glob(path+'/*.h5')[0:5]:
+                for datafile in glob.glob(path+'/*.h5'):
                     with pd.HDFStore(datafile) as hdf_file:
                         include_timetag = False
                         for key in hdf_file.keys():

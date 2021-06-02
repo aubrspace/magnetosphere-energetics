@@ -6,7 +6,9 @@ import sys
 import glob
 import time
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
+from numpy import abs,pi,cos, sin, sqrt, rad2deg, matmul, deg2rad,linspace
+import scipy as sp
+from scipy.interpolate import griddata
 import datetime as dt
 import pandas as pd
 import matplotlib as mpl
@@ -1037,6 +1039,57 @@ def plot_swPower(axis, dflist, mp, timekey, ylabel, *,
     axis.set_xlabel(r'\textit{Time (UTC)}')
     axis.set_ylabel(ylabel)
 
+def plot_fixed_loc(fig, ax, df,  powerkey, *,
+                    contourlim=None, rlim=None, show_colorbar=False):
+    """Function plots polar contour plot of power
+    Inputs
+        ax- axis for the plot
+        df- dataframe containing data
+    """
+    #set variables
+    alpha = df[~ df['alpha_rad'].isna()]['alpha_rad']
+    power = df[~ df[powerkey].isna()][powerkey]
+    timedata = df[~ df['Time_UTC'].isna()]['Time_UTC']
+    timedata=pd.to_timedelta(timedata[0]-timedata).values.astype('float64')
+    print(timedata)
+    start = timedata[0]
+    end = timedata[-1]
+    #labels
+    rectlabels = ['-Y',r'$\displaystyle III$','-Z',
+                  r'$\displaystyle IV$','+Y',
+                  r'$\displaystyle I$','+Z',
+                  r'$\displaystyle II$', '-Y']
+    #construct axes
+    xi = linspace(start,end, 100)
+    yi = linspace(-pi,pi,1441)
+    zi = griddata((timedata,alpha),power,(xi[None,:],yi[:,None]),
+                    method='linear')
+    ax.set(xlim=(start, end))
+    ax.set_title(str(df['x_cc'].mean()), pad=12)
+    ax.set_yticks([-pi,-0.75*pi,-0.5*pi,-0.25*pi,0,
+                    0.25*pi,0.5*pi,0.75*pi,pi])
+    ax.set_yticklabels(rectlabels)
+    twin = ax.twinx()
+    twin.set_yticks([-pi,-0.75*pi,-0.5*pi,-0.25*pi,0,
+                    0.25*pi,0.5*pi,0.75*pi,pi])
+    twin.set_yticklabels(rectlabels)
+    #plot contour
+    if powerkey == 'K_net [W/Re^2]':
+        colors = 'coolwarm_r'
+        axes = fig.get_axes()[0:3]
+    elif powerkey == 'ExB_net [W/Re^2]':
+        colors = 'BrBG'
+        axes = fig.get_axes()[3:6]
+    elif powerkey == 'P0_net [W/Re^2]':
+        colors = 'RdYlGn'
+        axes = fig.get_axes()[6:9]
+    cont_lvl = linspace(-3e9, 3e9, 11)
+    #xi = xi.astype('timedelta64')+df['Time_UTC'].iloc[0]
+    #ax.set(xlim=(df['Time_UTC'].iloc[0], df['Time_UTC'].iloc[-1]))
+    cntr = ax.contourf(xi, yi, zi, cont_lvl, cmap=colors, extend='both')
+    if show_colorbar:
+        fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
+
 def chopends_time(dflist, start, end, timekey):
     """Function chops ends of dataframe based on time
     Inputs
@@ -1068,10 +1121,13 @@ if __name__ == "__main__":
     fullstart = dt.datetime(2014, 2, 15, 0)
     fullend = dt.datetime(2014, 2, 23, 0)
     energetics_list = read_energetics(datapath)
-    mplist = []
+    mplist, fixedlist, dospatial, = [], [], False
     for df in energetics_list:
         if df['name'].iloc[-1].find('mp_')!=-1:
             mplist.append(df)
+        if df['name'].iloc[-1].find('fixed')!=-1:
+            fixedlist.append(df)
+            dospatial = True
         if df['name'].iloc[-1].find('lcb')!=-1:
             lcb = df
     if len(mplist) > 1:
@@ -1082,9 +1138,10 @@ if __name__ == "__main__":
     else:
         do_mpcomparisons = False
         mp = mplist[0]
-    [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(datapath[-1])
+    [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(
+                                                             datapath[-1])
     [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
-                                                         fullend, datapath[-1])
+                                                    fullend, datapath[-1])
     #Chop based on time
     cuttoffstart = dt.datetime(2014,2,18,7,0)
     #cuttoffend = dt.datetime(2014,2,18,12,0)
@@ -1458,4 +1515,39 @@ if __name__ == "__main__":
         ax1.set_facecolor('olive')
         surf_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
+    ######################################################################
+    #timeseries of data at a set of fixed points on the surface
+    if dospatial:
+        figname = 'fixed_spatial_timeseries'
+        fixed = plt.figure(figsize=[16,16])
+        #toprow
+        ax1 = fixed.add_subplot(331,projection='rectilinear')
+        ax2 = fixed.add_subplot(332,projection='rectilinear')
+        ax3 = fixed.add_subplot(333,projection='rectilinear')
+        #middlerow
+        ax4 = fixed.add_subplot(334,projection='rectilinear')
+        ax5 = fixed.add_subplot(335,projection='rectilinear')
+        ax6 = fixed.add_subplot(336,projection='rectilinear')
+        #bottomrow
+        ax7 = fixed.add_subplot(337,projection='rectilinear')
+        ax8 = fixed.add_subplot(338,projection='rectilinear')
+        ax9 = fixed.add_subplot(339,projection='rectilinear')
+        fixed.tight_layout(pad=2)
+        #total
+        plot_fixed_loc(fixed, ax1, fixedlist[0], 'K_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax2, fixedlist[1], 'K_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax3, fixedlist[2], 'K_net [W/Re^2]',
+                                              show_colorbar=True)
+        #ExB
+        plot_fixed_loc(fixed, ax4, fixedlist[0], 'ExB_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax5, fixedlist[1], 'ExB_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax6, fixedlist[2], 'ExB_net [W/Re^2]',
+                                                show_colorbar=True)
+        #P0
+        plot_fixed_loc(fixed, ax7, fixedlist[0], 'P0_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax8, fixedlist[1], 'P0_net [W/Re^2]')
+        plot_fixed_loc(fixed, ax9, fixedlist[2], 'P0_net [W/Re^2]',
+                                                show_colorbar=True)
+        fixed.savefig(figureout+'{}'.format(figname)+'.png')
+        plt.cla()
     ######################################################################
