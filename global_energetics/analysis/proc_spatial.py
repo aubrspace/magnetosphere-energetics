@@ -373,6 +373,7 @@ def add_derived_variables(dflist):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     PATH = [sys.argv[1]]
     OPATH = sys.argv[2]
     figureout = os.path.join(OPATH,'figures/')
@@ -394,3 +395,7 @@ if __name__ == "__main__":
             taillist.append(tail)
             #make_spatial_plots(day, flank, tail)
     make_timeseries_plots(daylist,flanklist,taillist)
+    #timestamp
+    ltime = time.time()-start_time
+    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
