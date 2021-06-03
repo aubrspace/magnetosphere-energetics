@@ -164,11 +164,23 @@ def integrate_spatial(dflist, colstrs):
         timestamp = data[~ data['Time_UTC'].isna()]['Time_UTC'].values[0]
         cols, vals = ['Time_UTC'], [timestamp]
         for col in colstrs:
+            #net (directly from file)
             values = data[col]*data['Cell Volume']
             vals.append(values.sum())
             if col.find('W/Re^2')!=-1:
+                #injection
+                injections = data[data[col]>0]
+                injectVals = injections[col]*injections['Cell Volume']
+                vals.append(injectVals.sum())
+                #escape
+                escapes = data[data[col]<0]
+                escapVals = escapes[col]*escapes['Cell Volume']
+                vals.append(escapVals.sum())
+                #modify column names
                 col='W'.join(col.split('W/Re^2'))
-            cols.append(col)
+                injectCol = 'injection'.join(col.split('net'))
+                escapCol = 'escape'.join(col.split('net'))
+            cols.append(col),cols.append(injectCol),cols.append(escapCol)
         df = df.append(pd.DataFrame(data=[vals],columns=cols),
                        ignore_index=True)
     return df.sort_values(by=['Time_UTC'])
