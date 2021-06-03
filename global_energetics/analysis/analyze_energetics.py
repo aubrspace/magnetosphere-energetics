@@ -152,7 +152,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
             powerin_str = 'inner'+powerin_str
             powerout_str = 'inner'+powerout_str
             powernet_str = 'inner'+powernet_str
-        if name.find('mp')!=-1:
+        if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
             if use_shield:
                 powerin = data[powerin_str]/abs(
                                             data['1D'+powerin_str])*100
@@ -1125,12 +1125,13 @@ if __name__ == "__main__":
     for df in energetics_list:
         if df['name'].iloc[-1].find('mp_')!=-1:
             mplist.append(df)
-        if df['name'].iloc[-1].find('fixed')!=-1:
-            fixedlist.append(df)
-            dofixed = True
+        #if df['name'].iloc[-1].find('fixed')!=-1:
+        #    fixedlist.append(df)
+        #    dofixed = True
         if df['name'].iloc[-1].find('aggr')!=-1:
             agglist.append(df)
             doagg = True
+            print('doagg = True!')
         if df['name'].iloc[-1].find('lcb')!=-1:
             lcb = df
     if len(mplist) > 1:
@@ -1522,20 +1523,41 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'DayFlankTail3panel'
-        surf_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[0.8*figx,1.6*figy],
                                           facecolor='gainsboro')
-        surf_comp.tight_layout(pad=padsize*2)
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
-        timekey = 'Time [UTC]'
-        y1label = r'\textit{Area} $\displaystyle \left( R_e^2\right)$'
-        plot_SA(ax1, [mp], timekey, y1label, Color='midnightblue')
-        plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
-        #plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
-        #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        #shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        surf_comp.savefig(figureout+'{}.png'.format(figname),
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist, timekey, y1label)
+        plot_Power(sh_ax1, agglist, timekey, y2label, use_shield=True)
+        plot_P0Power(ax2, agglist, timekey, y1label)
+        plot_P0Power(sh_ax2, agglist, timekey, y2label, use_shield=True)
+        plot_ExBPower(ax3, agglist, timekey, y1label)
+        plot_ExBPower(sh_ax3, agglist, timekey, y2label,use_shield=True,
+                      ylim=[-350,350])
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
     #timeseries of data at a set of fixed points on the surface
