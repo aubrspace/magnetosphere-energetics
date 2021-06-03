@@ -151,6 +151,28 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
     if show_colorbar:
         fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
 
+def integrate_spatial(dflist, colstrs):
+    """Function integrates columns spatially using 'Cell Volume' as area
+    Input
+        dflist- eg. dayside spatial data with K_net with 1df/time
+        colstrs- eg. ['K_net [W/Re^2]', 'ExB_net [W/Re^2]']
+    Output
+        df- integrated data with 1 row/time and ncols=len(colstrs+1)
+    """
+    df = pd.DataFrame()
+    for data in dflist:
+        timestamp = data[~ data['Time_UTC'].isna()]['Time_UTC'].values[0]
+        cols, vals = ['Time_UTC'], [timestamp]
+        for col in colstrs:
+            values = data[col]*data['Cell Volume']
+            vals.append(values.sum())
+            if col.find('W/Re^2')!=-1:
+                col='W'.join(col.split('W/Re^2'))
+            cols.append(col)
+        df = df.append(pd.DataFrame(data=[vals],columns=cols),
+                       ignore_index=True)
+    return df.sort_values(by=['Time_UTC'])
+
 def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
     """Function makes 1D timeseries of quanties
     Inputs
@@ -159,7 +181,7 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
     locdata = []
     ######################################################################
     #Fix locations
-    if True:
+    if False:
         #Restructure data
         for loc in enumerate(fix_locs):
             locdata.append(pd.DataFrame())
@@ -188,6 +210,22 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
                                   'mp_spatial_fixed'+str(fix_locs[df[0]]),
                                     mp_powers=df[1])
             print('fixedloc {} writen to hdf5'.format(fix_locs[df[0]]))
+    ######################################################################
+    #Area integrated quantities
+    if True:
+        #Restructure data
+        colstrs = ['K_net [W/Re^2]', 'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
+                   '1DK_net [W/Re^2]', '1DP0_net [W/Re^2]',
+                   '1DExB_net [W/Re^2]']
+        day_df = integrate_spatial(daylist, colstrs)
+        flank_df = integrate_spatial(flanklist, colstrs)
+        tail_df = integrate_spatial(taillist, colstrs)
+        hdfnames = ['day', 'flank', 'tail']
+        for df in enumerate([day_df, flank_df, tail_df]):
+            write_disp.write_to_hdf(OPATH+'/energetics.h5',
+                                  'spatial_aggr'+str(hdfnames[df[0]]),
+                                    mp_powers=df[1])
+            print('spatial_aggr {} writen to hdf5'.format(hdfnames[df[0]]))
     ######################################################################
     return locdata
 

@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
+from progress.bar import Bar
 
 def plot_all_runs_1Qty(axis, dflist, timekey, qtkey, ylabel, *,
                        xlim=None, ylim=None, Color=None, Size=4, ls=None):
@@ -283,9 +284,11 @@ def read_energetics(data_path_list, *, add_variables=True):
                     'field', 'mp_', 'box', 'sphere', 'lcb', 'fixed']
         dflist = []
         for path in data_path_list:
-            print(path)
             if path != None:
-                for datafile in glob.glob(path+'/*.h5'):
+                filelist = glob.glob(path+'/*.h5')
+                bar = Bar('Processing {}'.format(path),
+                          max=len(filelist))
+                for datafile in filelist:
                     with pd.HDFStore(datafile) as hdf_file:
                         include_timetag = False
                         for key in hdf_file.keys():
@@ -294,7 +297,6 @@ def read_energetics(data_path_list, *, add_variables=True):
                                         {'Time_UTC':hdf_file[key][0]})
                                 include_timetag = True
                         for key in hdf_file.keys():
-                            print(key)
                             if any([key.find(match)!=-1
                                    for match in approved]):
                                 nametag = pd.Series({'name':key})
@@ -303,10 +305,12 @@ def read_energetics(data_path_list, *, add_variables=True):
                                 if include_timetag:
                                     df = df.append(timetag,
                                             ignore_index=True)
-                                print(df['name'])
                                 dflist.append(df)
                             else:
-                                print('key {} not understood!'.format(key))
+                                pass
+                                #print('key {} not understood!'.format(key))
+                    bar.next()
+                bar.finish()
         if add_variables:
             if len(dflist) > 0:
                 dflist = add_derived_variables(dflist)

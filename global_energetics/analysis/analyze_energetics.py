@@ -1121,13 +1121,16 @@ if __name__ == "__main__":
     fullstart = dt.datetime(2014, 2, 15, 0)
     fullend = dt.datetime(2014, 2, 23, 0)
     energetics_list = read_energetics(datapath)
-    mplist, fixedlist, dospatial, = [], [], False
+    mplist, fixedlist, agglist, dofixed, doagg = [], [], [], False, False
     for df in energetics_list:
         if df['name'].iloc[-1].find('mp_')!=-1:
             mplist.append(df)
         if df['name'].iloc[-1].find('fixed')!=-1:
             fixedlist.append(df)
-            dospatial = True
+            dofixed = True
+        if df['name'].iloc[-1].find('aggr')!=-1:
+            agglist.append(df)
+            doagg = True
         if df['name'].iloc[-1].find('lcb')!=-1:
             lcb = df
     if len(mplist) > 1:
@@ -1516,8 +1519,27 @@ if __name__ == "__main__":
         surf_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'DayFlankTail3panel'
+        surf_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
+                                          figsize=[figx,figy],
+                                          facecolor='gainsboro')
+        surf_comp.tight_layout(pad=padsize*2)
+        #Time
+        timekey = 'Time [UTC]'
+        y1label = r'\textit{Area} $\displaystyle \left( R_e^2\right)$'
+        plot_SA(ax1, [mp], timekey, y1label, Color='midnightblue')
+        plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
+        #plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
+        #shade_plot(ax1)
+        ax1.set_facecolor('olive')
+        surf_comp.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
     #timeseries of data at a set of fixed points on the surface
-    if dospatial:
+    if dofixed:
         figname = 'fixed_spatial_timeseries'
         fixed = plt.figure(figsize=[16,16])
         #toprow
