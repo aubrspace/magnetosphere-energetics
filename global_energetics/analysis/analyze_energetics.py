@@ -129,7 +129,7 @@ def plot_Power_al(axis, dflist, timekey, ylabel, *,
 
 def plot_Power(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False, use_shield=False):
+             use_inner=False, use_shield=False, use_average=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -140,6 +140,9 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
     """
     if Color != None:
         override_color = True
+        if dflist[0]['name'].iloc[-1].find('aggr')!=-1:
+            #TBD!!! somehow switch colors!
+            pass
     else:
         override_color = False
     legend_loc = 'upper right'
@@ -154,18 +157,22 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
             powernet_str = 'inner'+powernet_str
         if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
             if use_shield:
-                powerin = data[powerin_str]/abs(
-                                            data['1D'+powerin_str])*100
-                powerout = data[powerout_str]/abs(
-                                            data['1D'+powerout_str])*100
-                powernet = data[powernet_str]/abs(
-                                            data['1D'+powernet_str])*100
+                oneDin = abs(data['1D'+powerin_str])*100+1
+                oneDout = abs(data['1D'+powerout_str])*100+1
+                oneDnet = abs(data['1D'+powernet_str])*100+1
+                powerin = data[powerin_str]/oneDin
+                powerout = data[powerout_str]/oneDout
+                powernet = data[powernet_str]/oneDnet
                 axis.set_ylim([-50, 50])
+            elif use_average:
+                powerin = data[powerin_str]/data['Area [Re^2]']
+                powerout = data[powerout_str]/data['Area [Re^2]']
+                powernet = data[powernet_str]/data['Area [Re^2]']
             else:
                 powerin = data[powerin_str]
                 powerout = data[powerout_str]
                 powernet = data[powernet_str]
-                axis.set_ylim([-3e12, 3e12])
+                axis.set_ylim([-3e13, 3e13])
             #INJECTION
             if not override_color:
                 Color = 'gold'
@@ -173,8 +180,8 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle K_{injection}$',
                         linewidth=Size, linestyle=ls,
                         color=Color)
-            axis.fill_between(data[timekey],powerin,
-                              color='wheat')
+            #axis.fill_between(data[timekey],powerin,
+            #                  color='wheat')
             #ESCAPE
             if not override_color:
                 Color = 'deepskyblue'
@@ -182,8 +189,8 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle K_{escape}$',
                         linewidth=Size, linestyle=ls,
                         color=Color)
-            axis.fill_between(data[timekey],powerout,
-                              color='lightsteelblue')
+            #axis.fill_between(data[timekey],powerout,
+            #                  color='lightsteelblue')
             #NET
             if not use_shield:
                 if not override_color:
@@ -192,8 +199,8 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle K_{net}$',
                             linewidth=Size, linestyle=ls,
                             color=Color)
-                axis.fill_between(data[timekey],powernet,
-                                color='coral')
+                #axis.fill_between(data[timekey],powernet,
+                #                color='coral')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -204,7 +211,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
 
 def plot_P0Power(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False, use_shield=False):
+             use_inner=False, use_shield=False, use_average=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -223,42 +230,46 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
             powerin_str = 'inner'+powerin_str
             powerout_str = 'inner'+powerout_str
             powernet_str = 'inner'+powernet_str
-        if name.find('mp')!=-1:
+        if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
             if use_shield:
-                powerin = data[powerin_str]/abs(
-                                            data['1D'+powerin_str])*100
-                powerout = data[powerout_str]/abs(
-                                            data['1D'+powerout_str])*100
-                powernet = data[powernet_str]/abs(
-                                            data['1D'+powernet_str])*100
+                oneDin = abs(data['1D'+powerin_str])*100+1
+                oneDout = abs(data['1D'+powerout_str])*100+1
+                oneDnet = abs(data['1D'+powernet_str])*100+1
+                powerin = data[powerin_str]/oneDin
+                powerout = data[powerout_str]/oneDout
+                powernet = data[powernet_str]/oneDnet
                 axis.set_ylim([-50, 50])
+            elif use_average:
+                powerin = data[powerin_str]/data['Area [Re^2]']
+                powerout = data[powerout_str]/data['Area [Re^2]']
+                powernet = data[powernet_str]/data['Area [Re^2]']
             else:
                 powerin = data[powerin_str]
                 powerout = data[powerout_str]
                 powernet = data[powernet_str]
-                axis.set_ylim([-3e12, 3e12])
+                axis.set_ylim([-3e13, 3e13])
             #INJECTION
             axis.plot(data[timekey],powerin,
                             label=r'$\displaystyle P0_{injection}$',
                         linewidth=Size, linestyle=ls,
                         color='gold')
-            axis.fill_between(data[timekey],powerin,
-                              color='wheat')
+            #axis.fill_between(data[timekey],powerin,
+            #                  color='wheat')
             #ESCAPE
             axis.plot(data[timekey],powerout,
                             label=r'$\displaystyle P0_{escape}$',
                         linewidth=Size, linestyle=ls,
                         color='peru')
-            axis.fill_between(data[timekey],powerout,
-                              color='peachpuff')
+            #axis.fill_between(data[timekey],powerout,
+            #                  color='peachpuff')
             #NET
             if not use_shield:
                 axis.plot(data[timekey],powernet,
                             label=r'$\displaystyle P0_{net}$',
                             linewidth=Size, linestyle=ls,
                             color='maroon')
-                axis.fill_between(data[timekey],powernet,
-                                color='coral')
+                #axis.fill_between(data[timekey],powernet,
+                #                color='coral')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -269,7 +280,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
 
 def plot_ExBPower(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False, use_shield=False):
+             use_inner=False, use_shield=False, use_average=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -288,42 +299,46 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
             powerin_str = 'inner'+powerin_str
             powerout_str = 'inner'+powerout_str
             powernet_str = 'inner'+powernet_str
-        if name.find('mp')!=-1:
+        if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
             if use_shield:
-                powerin = data[powerin_str]/abs(
-                                            data['1D'+powerin_str])*100
-                powerout = data[powerout_str]/abs(
-                                            data['1D'+powerout_str])*100
-                powernet = data[powernet_str]/abs(
-                                            data['1D'+powernet_str])*100
+                oneDin = abs(data['1D'+powerin_str])*100+1
+                oneDout = abs(data['1D'+powerout_str])*100+1
+                oneDnet = abs(data['1D'+powernet_str])*100+1
+                powerin = data[powerin_str]/oneDin
+                powerout = data[powerout_str]/oneDout
+                powernet = data[powernet_str]/oneDnet
                 axis.set_ylim([-50, 50])
+            elif use_average:
+                powerin = data[powerin_str]/data['Area [Re^2]']
+                powerout = data[powerout_str]/data['Area [Re^2]']
+                powernet = data[powernet_str]/data['Area [Re^2]']
             else:
                 powerin = data[powerin_str]
                 powerout = data[powerout_str]
                 powernet = data[powernet_str]
-                axis.set_ylim([-3e12, 3e12])
+                axis.set_ylim([-3e13, 3e13])
             #INJECTION
             axis.plot(data[timekey],powerin,
                             label=r'$\displaystyle \left(E\times B\right)_{injection}$',
                         linewidth=Size, linestyle=ls,
                         color='mediumvioletred')
-            axis.fill_between(data[timekey],powerin,
-                              color='palevioletred')
+            #axis.fill_between(data[timekey],powerin,
+            #                  color='palevioletred')
             #ESCAPE
             axis.plot(data[timekey],powerout,
                             label=r'$\displaystyle \left(E\times B\right)_{escape}$',
                         linewidth=Size, linestyle=ls,
                         color='deepskyblue')
-            axis.fill_between(data[timekey],powerout,
-                              color='lightsteelblue')
+            #axis.fill_between(data[timekey],powerout,
+            #                  color='lightsteelblue')
             #NET
             if not use_shield:
                 axis.plot(data[timekey],powernet,
                             label=r'$\displaystyle \left(E\times B\right)_{net}$',
                             linewidth=Size, linestyle=ls,
                             color='midnightblue')
-                axis.fill_between(data[timekey],powernet,
-                                color='blue')
+                #axis.fill_between(data[timekey],powernet,
+                #                color='blue')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -1518,6 +1533,166 @@ if __name__ == "__main__":
         #shade_plot(ax1)
         ax1.set_facecolor('olive')
         surf_comp.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'Flank3panel'
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[0.8*figx,1.6*figy],
+                                          facecolor='gainsboro')
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist[1:2], timekey, y1label)
+        plot_Power(sh_ax1, agglist[1:2], timekey, y2label, use_shield=True)
+        plot_P0Power(ax2, agglist[1:2], timekey, y1label)
+        plot_P0Power(sh_ax2, agglist[1:2], timekey, y2label, use_shield=True)
+        plot_ExBPower(ax3, agglist[1:2], timekey, y1label)
+        plot_ExBPower(sh_ax3, agglist[1:2], timekey, y2label,use_shield=True,
+                      ylim=[-350,350])
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'Tail3panel'
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[0.8*figx,1.6*figy],
+                                          facecolor='gainsboro')
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist[2:3], timekey, y1label)
+        plot_Power(sh_ax1, agglist[2:3], timekey, y2label, use_shield=True)
+        plot_P0Power(ax2, agglist[2:3], timekey, y1label)
+        plot_P0Power(sh_ax2, agglist[2:3], timekey, y2label, use_shield=True)
+        plot_ExBPower(ax3, agglist[2:3], timekey, y1label)
+        plot_ExBPower(sh_ax3, agglist[2:3], timekey, y2label,use_shield=True,
+                      ylim=[-350,350])
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'AverageDay3panel'
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[0.8*figx,1.6*figy],
+                                          facecolor='gainsboro')
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist[0:1], timekey, y1label, use_average=True)
+        plot_Power(sh_ax1, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
+        plot_P0Power(ax2, agglist[0:1], timekey, y1label, use_average=True)
+        plot_P0Power(sh_ax2, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
+        plot_ExBPower(ax3, agglist[0:1], timekey, y1label, use_average=True)
+        plot_ExBPower(sh_ax3, agglist[0:1], timekey, y2label,use_shield=True,
+                      ylim=[-350,350], use_average=True)
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'Day3panel'
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[0.8*figx,1.6*figy],
+                                          facecolor='gainsboro')
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist[0:1], timekey, y1label)
+        plot_Power(sh_ax1, agglist[0:1], timekey, y2label, use_shield=True)
+        plot_P0Power(ax2, agglist[0:1], timekey, y1label)
+        plot_P0Power(sh_ax2, agglist[0:1], timekey, y2label, use_shield=True)
+        plot_ExBPower(ax3, agglist[0:1], timekey, y1label)
+        plot_ExBPower(sh_ax3, agglist[0:1], timekey, y2label,use_shield=True,
+                      ylim=[-350,350])
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
     #Comparisons of sections of the magntopause surface
