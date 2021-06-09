@@ -347,9 +347,10 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc, facecolor='gray')
 
-def plot_OuterPower(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
-    """Function plots outer surface boundary powers
+def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
+             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             allpositive=False):
+    """Function plots spatatial distribution in terms of percents
     Inputs
         axis- object plotted on
         dflist- datasets
@@ -357,30 +358,99 @@ def plot_OuterPower(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'upper left'
-    for data in dflist:
-        name = data['name'].iloc[-1]
-        powerin = 'K_injection [W]'
-        powerout = 'K_net [W]'
-        powernet = 'K_escape [W]'
-        for qtkey in [powerin]:
-            if name.find('mp')!=-1:
-                axis.plot(data[timekey],-1*data[qtkey],
-                            label='magnetopause',
-                        linewidth=Size, linestyle=ls,
-                        color='lightsteelblue')
+    legend_loc = 'upper right'
+    powerin_str = powerkey+'_injection [W]'
+    powerout_str = powerkey+'_escape [W]'
+    powernet_str = powerkey+'_net [W]'
+    if len(axis) == 1:
+        injaxis = axis[0]
+        escaxis = axis[0]
+    else:
+        injaxis = axis[0]
+        escaxis = axis[1]
+    if (dflist[0]['name'].iloc[-1] !=-1) and (len(dflist)>1):
+        total_powerin = dflist[0][~ dflist[0][powerin_str].isna()][
+                                                              powerin_str]
+        total_powerout = dflist[0][~ dflist[0][powerin_str].isna()][
+                                                             powerout_str]
+        total_powernet = dflist[0][~ dflist[0][powerin_str].isna()][
+                                                             powernet_str]
+        for data in dflist[1::]:
+            data = data[~ data[powerin_str].isna()]
+            total_powerin = total_powerin+data[powerin_str]
+            total_powerout = total_powerout+data[powerout_str]
+            total_powernet = total_powernet+data[powernet_str]
+        for data in dflist:
+            name = data['name'].iloc[-1]
+            data = data[~ data[powerin_str].isna()]
+            #set linestyles
+            if name.lower().find('day') != -1:
+                marker = 'o'
+                name = 'Day'
+                KColors = dict({'inj':'gold','esc':'deepskyblue'})
+                ExBColors = dict({'inj':'mediumvioletred',
+                                  'esc':'deepskyblue'})
+                P0Colors = dict({'inj':'gold','esc':'peru'})
+            elif name.lower().find('flank') != -1:
+                marker = 'v'
+                name = 'Flank'
+                KColors = dict({'inj':'wheat','esc':'lightsteelblue'})
+                ExBColors = dict({'inj':'palevioletred',
+                                  'esc':'lightsteelblue'})
+                P0Colors = dict({'inj':'wheat','esc':'peachpuff'})
+            elif name.lower().find('tail') != -1:
+                marker = 'X'
+                name = 'Tail'
+                KColors = dict({'inj':'goldenrod','esc':'steelblue'})
+                ExBColors = dict({'inj':'crimson',
+                                  'esc':'steelblue'})
+                P0Colors = dict({'inj':'goldenrod','esc':'saddlebrown'})
+            Colordict = dict({'K':KColors,'ExB':ExBColors,'P0':P0Colors})
+            powerout = data[powerout_str]/total_powerout
+            powernet = data[powernet_str]/total_powernet
+            if allpositive:
+                powerin = data[powerin_str]/total_powerin
+                injaxis.set_ylim([0, 1])
+                escaxis.set_ylim([0, 1])
             else:
-                axis.plot(data[timekey],-1*data[qtkey],
-                            label='lcb surface',
-                        linewidth=Size, linestyle=ls,
-                        color='violet')
+                powerin = -1*data[powerin_str]/total_powerin
+                injaxis.set_ylim([-1, 1])
+                escaxis.set_ylim([-1, 1])
+            #INJECTION
+            injaxis.plot(data[timekey],powerin,
+                         label=r'$\displaystyle '+name+'_{injection \%}$',
+                        linewidth=Size, marker=marker, markersize='14',
+                        markevery=100,markerfacecolor='black',
+                        color=Colordict[powerkey]['inj'])
+            #axis.fill_between(data[timekey],powerin,
+            #                  color='palevioletred')
+            #ESCAPE
+            escaxis.plot(data[timekey],powerout,
+                         label=r'$\displaystyle '+name+'_{escape \%}$',
+                        linewidth=Size, marker=marker, markersize='14',
+                        markevery=100,markerfacecolor='black',
+                        color=Colordict[powerkey]['esc'])
+            #axis.fill_between(data[timekey],powerout,
+            #                  color='lightsteelblue')
+            '''
+            #NET
+            axis.plot(data[timekey],powernet,
+                            label=r'$\displaystyle \left(E\times B\right)_{net \%}$',
+                            linewidth=Size, marker=marker,
+                            color='midnightblue')
+                #axis.fill_between(data[timekey],powernet,
+                #                color='blue')
+            '''
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time (UTC)}')
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc, facecolor='gray')
+    injaxis.set_xlabel(r'\textit{Time (UTC)}')
+    escaxis.set_xlabel(r'\textit{Time (UTC)}')
+    injaxis.set_ylabel(ylabel)
+    escaxis.set_ylabel(ylabel)
+    injaxis.legend(loc=legend_loc, facecolor='gray')
+    escaxis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
@@ -1184,7 +1254,6 @@ if __name__ == "__main__":
         y3label = 'Cross Polar Cap Potential [Wb/s]'
         ax2 = ax1.twinx()
         plot_newell(ax2, [supermag], timekey, y1label)
-        plot_OuterPower(ax1, [mp], timekey, y2label)
         plot_cpcp(ax2, [swmf_log], timekey, y3label)
         #shade_plot(ax1)
         ax1.set_facecolor('olive')
@@ -1540,7 +1609,7 @@ if __name__ == "__main__":
         figname = 'Flank3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[0.8*figx,1.6*figy],
+                                          figsize=[figx,3*figy],
                                           facecolor='gainsboro')
         sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,
@@ -1564,9 +1633,9 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
         sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
@@ -1580,7 +1649,7 @@ if __name__ == "__main__":
         figname = 'Tail3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[0.8*figx,1.6*figy],
+                                          figsize=[figx,3*figy],
                                           facecolor='gainsboro')
         sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,
@@ -1604,9 +1673,9 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
         sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
@@ -1620,7 +1689,7 @@ if __name__ == "__main__":
         figname = 'AverageDay3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[0.8*figx,1.6*figy],
+                                          figsize=[figx,3*figy],
                                           facecolor='gainsboro')
         sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,
@@ -1630,7 +1699,7 @@ if __name__ == "__main__":
         sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
-        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[0:1], timekey, y1label, use_average=True)
         plot_Power(sh_ax1, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
@@ -1644,9 +1713,89 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'AverageFlank3panel'
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist[1:2], timekey, y1label, use_average=True)
+        plot_Power(sh_ax1, agglist[1:2], timekey, y2label, use_shield=True, use_average=True)
+        plot_P0Power(ax2, agglist[1:2], timekey, y1label, use_average=True)
+        plot_P0Power(sh_ax2, agglist[1:2], timekey, y2label, use_shield=True, use_average=True)
+        plot_ExBPower(ax3, agglist[1:2], timekey, y1label, use_average=True)
+        plot_ExBPower(sh_ax3, agglist[1:2], timekey, y2label,use_shield=True,
+                      ylim=[-350,350], use_average=True)
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
+        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'AverageTail3panel'
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
+                                            nrows=3,ncols=1, sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        dft_3.tight_layout(pad=padsize*1.1)
+        sh_dft_3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
+        plot_Power(ax1, agglist[2:3], timekey, y1label, use_average=True)
+        plot_Power(sh_ax1, agglist[2:3], timekey, y2label, use_shield=True, use_average=True)
+        plot_P0Power(ax2, agglist[2:3], timekey, y1label, use_average=True)
+        plot_P0Power(sh_ax2, agglist[2:3], timekey, y2label, use_shield=True, use_average=True)
+        plot_ExBPower(ax3, agglist[2:3], timekey, y1label, use_average=True)
+        plot_ExBPower(sh_ax3, agglist[2:3], timekey, y2label,use_shield=True,
+                      ylim=[-350,350], use_average=True)
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
         sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
@@ -1684,9 +1833,9 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
         sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
@@ -1724,15 +1873,98 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        shade_plot(ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
         sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
         dft_3.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
         sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'Spatial_Powers3panel'
+        spPower3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,3*figy],
+                                          facecolor='gainsboro')
+        spPower3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power \%} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{ExB Power \%} $\displaystyle \left( W\right)$'
+        y3label = r'\textit{P0 Power \%} $\displaystyle \left( W\right)$'
+        plot_PowerSpatDist([ax1], agglist, timekey, y1label, 'K')
+        plot_PowerSpatDist([ax2], agglist, timekey, y2label, 'P0')
+        plot_PowerSpatDist([ax3], agglist, timekey, y3label, 'ExB')
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        shade_plot(ax1),
+        shade_plot(ax2),
+        shade_plot(ax3),
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'),
+        spPower3.savefig(figureout+'{}.png'.format(figname),
+                      facecolor='gainsboro')
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'Spatial_Powers'
+        spPower1, (ax1, ax2)=plt.subplots(nrows=2, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,2*figy],
+                                          facecolor='gainsboro')
+        spPower2, (ax3, ax4)=plt.subplots(nrows=2, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,2*figy],
+                                          facecolor='gainsboro')
+        spPower3, (ax5, ax6)=plt.subplots(nrows=2, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,2*figy],
+                                          facecolor='gainsboro')
+        spPower1.tight_layout(pad=padsize*1.3)
+        spPower2.tight_layout(pad=padsize*1.3)
+        spPower3.tight_layout(pad=padsize*1.3)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power \%} $\displaystyle \left( W\right)$'
+        y2label = r'\textit{P0 Power \%} $\displaystyle \left( W\right)$'
+        y3label = r'\textit{ExB Power \%} $\displaystyle \left( W\right)$'
+        plot_PowerSpatDist([ax1,ax2], agglist, timekey, y1label, 'K',
+                           allpositive=True)
+        plot_PowerSpatDist([ax3,ax4], agglist, timekey, y2label, 'P0',
+                           allpositive=True)
+        plot_PowerSpatDist([ax5,ax6], agglist, timekey, y3label, 'ExB',
+                           allpositive=True)
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+        ax4.legend(loc='upper left', facecolor='gray')
+        ax5.legend(loc='upper left', facecolor='gray')
+        ax6.legend(loc='upper left', facecolor='gray')
+
+        shade_plot(ax1),
+        shade_plot(ax2),
+        shade_plot(ax3),
+        shade_plot(ax4),
+        shade_plot(ax5),
+        shade_plot(ax6),
+        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        ax3.set_facecolor('olive'),
+        ax4.set_facecolor('olive'), ax5.set_facecolor('olive'),
+        ax6.set_facecolor('olive'),
+        spPower1.savefig(figureout+'{}.png'.format(figname+'_K'),
+                      facecolor='gainsboro')
+        spPower2.savefig(figureout+'{}.png'.format(figname+'_P0'),
+                      facecolor='gainsboro')
+        spPower3.savefig(figureout+'{}.png'.format(figname+'_ExB'),
                       facecolor='gainsboro')
     ######################################################################
     #timeseries of data at a set of fixed points on the surface
