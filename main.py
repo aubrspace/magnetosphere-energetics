@@ -56,7 +56,7 @@ if __name__ == "__main__":
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
                       tail_cap=-50, tail_analysis_cap=-20,
-                                  zone_rename='mp_30Re',
+                      zone_rename='mp_30Re',
                                   outputpath=OUTPATH)
     #magnetopause.get_magnetopause(field_data, mhddatafile,
     #                  tail_cap=-40, tail_analysis_cap=-40,

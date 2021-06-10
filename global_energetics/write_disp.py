@@ -50,17 +50,9 @@ def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
     for df in [mp_energies, mp_powers, mp_inner_powers,
                ie_energies, ie_powers,
                im_energies, im_powers]:
-        print("""
-            cols = cols.append(df.keys())
-            data = np.resize(np.append(energetics.values,df.values),
-                             np.shape(df.values))
-            energetics = pd.DataFrame(columns=cols, data=[data])
-            """)
         if type(df) != type(None):
-            cols = cols.append(df.keys())
-            data = np.resize(np.append(energetics.values,df.values),
-                             np.shape(df.values))
-            energetics = pd.DataFrame(data, columns=cols)
+            for key in df.keys():
+                energetics[key] = df[key]
     #Remove duplicate time columns
     #TBD
     if not energetics.empty:
