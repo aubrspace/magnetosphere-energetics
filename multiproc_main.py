@@ -119,7 +119,7 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     RUNDIR = 'substorm_ori'
-    MHDDIR = os.path.join(RUNDIR)
+    MHDDIR = os.path.join(RUNDIR, 'GM', 'IO2')
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt')[0:13]
+    solution_times = glob.glob(MHDDIR+'/*.plt')[0:1]
     numproc = multiprocessing.cpu_count()-1
     print(solution_times)
 
@@ -154,15 +154,13 @@ if __name__ == '__main__':
         # Join the process pool before exit so Tec cleans up & no core dump
         pool.close()
         pool.join()
-        os.system('rm '+MHDDIR+'/*/')
+        os.system('rm -r '+MHDDIR+'/*/')
     ########################################
 
-    '''
     #Combine and delete individual energetics files
     write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                             OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
-    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
