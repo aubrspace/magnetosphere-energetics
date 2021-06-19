@@ -44,6 +44,9 @@ def work(mhddatafile):
     # Load data and change zone name
     print(mhddatafile)
     tp.new_layout()
+    unzipdatafile = mhddatafile.split('gz')[0]
+    os.system('gunzip -c '+mhddatafile+' > '+unzipdatafile)
+    mhddatafile = unzipdatafile
     field_data = tp.data.load_tecplot(mhddatafile)
     field_data.zone(0).name = 'global_field'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
@@ -70,7 +73,7 @@ def work(mhddatafile):
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=False,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=False, energyrange=9e10,
                                 show_legend=False, mode='inside_from_tail',
                                 pngpath=PNGPATH, energy_contourmap=4,
@@ -109,6 +112,7 @@ def work(mhddatafile):
                                 mode='iso_tail',
                                 show_timestamp=False,
                                 zone_hidekeys=['box', 'lcb', '30', '40'])
+    os.system('rm '+mhddatafile)
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -118,8 +122,8 @@ if __name__ == '__main__':
         raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    RUNDIR = 'substorm_ori'
-    MHDDIR = os.path.join(RUNDIR, 'GM', 'IO2')
+    RUNDIR = 'Energetics1'
+    MHDDIR = os.path.join(RUNDIR, 'GM', 'IO2','partB')
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
@@ -131,16 +135,26 @@ if __name__ == '__main__':
     os.system('mkdir '+OUTPUTPATH+'/figures')
     os.system('mkdir '+OUTPUTPATH+'/indices')
     os.system('mkdir '+OUTPUTPATH+'/png')
-
     ########################################
     ########### MULTIPROCESSING ###########
     #Pytecplot requires spawn method
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt')[0:1]
-    numproc = multiprocessing.cpu_count()-1
+    solution_times = glob.glob(MHDDIR+'/*.plt.gz')[0:10]
+    #Pick up only the files that haven't been processed
+    if os.path.exists(OUTPUTPATH+'/energeticsdata'):
+        parseddonelist, parsednotdone = [], []
+        donelist = glob.glob(OUTPUTPATH+'/png/*')
+        for png in donelist:
+            parseddonelist.append(png.split('/')[-1].split('.')[0])
+        for plt in solution_times:
+            parsednotdone.append(plt.split('e')[-1].split('.')[0])
+        solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt.gz' for item
+                    in parsednotdone if item not in parseddonelist]
     print(solution_times)
+    print(len(solution_times))
+    numproc = multiprocessing.cpu_count()-1
 
     # Set up the pool with initializing function and associated arguments
     num_workers = min(numproc, len(solution_times))
