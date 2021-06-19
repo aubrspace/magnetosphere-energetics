@@ -393,6 +393,22 @@ def set_3Daxes(frame, *,
         zblank.comparison_operator = RelOp.GreaterThan
         zblank.comparison_value = zmax
 
+def variable_blank(frame, variable_str, value, *,
+                   slot=5, operator=RelOp.GreaterThan):
+    """Function sets up blanking based on given criteria
+    Inputs
+        frame- frame object to manage axes on
+        variable_str, value- which variable to use for condition
+        slot- only 8 available slots for tecplot, 0-7
+        operator- see tecplot.constant for options
+    """
+    frame.plot().value_blanking.active = True
+    blank = frame.plot().value_blanking.constraint(slot)
+    blank.active = True
+    blank.variable = frame.dataset.variable(variable_str)
+    blank.comparison_operator = operator
+    blank.comparison_value = value
+
 def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
                  approved_zones=None):
     """Function shows/hides zones, sets shading and translucency

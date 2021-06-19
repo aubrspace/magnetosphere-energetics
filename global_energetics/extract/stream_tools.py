@@ -576,6 +576,27 @@ def get_surface_variables(field_data, zone_name, do_1Dsw):
         eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
+        if zone_name.find('inner')==-1:
+            ##################################################################
+            #Day, flank, tail definitions
+                #2-dayside
+                #1-flank
+                #0-tail
+            eq('{Day} = IF({x_cc}>0,1,0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            h_vals = tp.active_frame().dataset.zone(zone_index).values('h').as_numpy_array()
+            x_vals = tp.active_frame().dataset.zone(zone_index).values('X*').as_numpy_array()
+            hmin = h_vals[np.where(np.logical_and(x_vals<-5,x_vals>-10))].min()
+            eq('{Tail} = IF({X [R]}<-5 && ({surface_normal_x}<-.8 || {h}<'+str(hmin)+'),1,0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{Flank} = IF({Day}==0 && {Tail}==0, 1, 0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
 
 
 def get_1D_sw_variables(field_data, xmax, xmin, nx):
@@ -612,6 +633,130 @@ def get_1D_sw_variables(field_data, xmax, xmin, nx):
                                      ', 0)')
         eq(eqstr, value_location=ValueLocation.CellCentered)
 
+def get_surfaceshear_variables(field_data, field, minval, maxval,*,
+                               reverse=False):
+    """Function calculates values for energetics of 1D pristine solar wind
+    Inputs
+        field_data- tecplot Dataset class containing 3D field data
+        field- string indicating which variable to use to find N vector
+        minval, maxval- range for boundary layer where shear variables
+                        will be non-zero
+        reverse- if True reverse initial gradient for N
+    """
+    eq = tp.data.operate.execute_equation
+    #TBD add reverse functionality
+    #Modified field variable that saturates at given limits(boundarylayer)
+    eq('{'+field+'_bl} = IF({'+field+'}>'+str(minval)+'&&'+
+                           '{'+field+'}<'+str(maxval)+
+         ',{'+field+'},IF({'+field+'}<'+str(minval)+','+str(minval)+','+
+                                                  str(maxval)+'))',
+                         value_location=ValueLocation.CellCentered)
+    #value_location=ValueLocation.CellCentered)
+    """
+    #Un normalized vector representing gradient of created boundary layer
+    eq('{N_x} = ddx({'+field+'_bl})',
+            value_location=ValueLocation.CellCentered)
+    eq('{N_y} = ddy({'+field+'_bl})',
+            value_location=ValueLocation.CellCentered)
+    eq('{N_z} = ddz({'+field+'_bl})',
+            value_location=ValueLocation.CellCentered)
+    eq('{N} = sqrt({N_x}**2+{N_y}**2+{N_z}**2)',
+            value_location=ValueLocation.CellCentered)
+    #Normalized N, with conditon to avoid div by 0
+    eq('{nx} = IF({N}>1e-10, {N_x}/{N}, 0)',
+            value_location=ValueLocation.CellCentered)
+    eq('{ny} = IF({N}>1e-10, {N_y}/{N}, 0)',
+            value_location=ValueLocation.CellCentered)
+    eq('{nz} = IF({N}>1e-10, {N_z}/{N}, 0)',
+            value_location=ValueLocation.CellCentered)
+    #Velocity perpendicular to the boundary layer gradient
+    eq('{Udotn} = {U_x [km/s]}*{nx}+{U_y [km/s]}*{ny}+{U_z [km/s]}*{nz}',
+            value_location=ValueLocation.CellCentered)
+    eq('{Uperp_x} = {nx}*{Udotn}',
+            value_location=ValueLocation.CellCentered)
+    eq('{Uperp_y} = {ny}*{Udotn}',
+            value_location=ValueLocation.CellCentered)
+    eq('{Uperp_z} = {nz}*{Udotn}',
+            value_location=ValueLocation.CellCentered)
+    #Velocity parallel to the boundary layer gradient
+    eq('{Upar_x} = {U_x [km/s]} - {Uperp_x}',
+            value_location=ValueLocation.CellCentered)
+    eq('{Upar_y} = {U_y [km/s]} - {Uperp_y}',
+            value_location=ValueLocation.CellCentered)
+    eq('{Upar_z} = {U_z [km/s]} - {Uperp_z}',
+            value_location=ValueLocation.CellCentered)
+    eq('{Upar} = sqrt({Upar_x}**2+{Upar_y}**2+{Upar_z}**2)',
+            value_location=ValueLocation.CellCentered)
+    #Directional derivative normal to boundary layer
+    #eq('{D_n Upar} = ddx({Upar})*{nx}+ddy({Upar})*{ny}+ddz({Upar})*{nz}',
+    #        value_location=ValueLocation.CellCentered)
+    """
+
+def temporal_FD_variable(zone_past, zone_current, field):
+    """Function creates field variable representing forward difference in
+        time
+    Inputs
+        zone_past, zone_current- ID's for data at two time locations
+        field- variable that is being differenced
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{d'+field+'}={'+field+'}['+str(zone_current.index+1)+']'
+                              '-{'+field+'}['+str(zone_past.index+1)+']',
+                                                    zones=[zone_current],
+                              value_location=ValueLocation.CellCentered)
+
+def get_surface_velocity(zone, field, field_surface_0, delta_field,
+                         delta_time, *, reverse=False):
+    """Function calculates field variable of surface velocity
+    Inputs
+        zone- where to calcuate field variables
+        field- primary field used to ID surface and get surf velocity
+        field_surface_0- value which defines the surface
+        delta_field- field variable for IDing displacement gradient
+        delta_time- time differential (s) used to calculate velocity
+        reverse- boolean for swapping normal direction (based on field)
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{h_'+field+'} = {'+field+'}-'+str(field_surface_0), zones=[zone],
+                               value_location=ValueLocation.CellCentered)
+    #Un normalized vector representing gradient of created boundary layer
+    eq('{N_x} = ddx({'+field+'})*IF('+str(int(reverse))+',-1,1)',
+            value_location=ValueLocation.CellCentered)
+    eq('{N_y} = ddy({'+field+'})*IF('+str(int(reverse))+',-1,1)',
+            value_location=ValueLocation.CellCentered)
+    eq('{N_z} = ddz({'+field+'})*IF('+str(int(reverse))+',-1,1)',
+            value_location=ValueLocation.CellCentered)
+    eq('{N} = sqrt({N_x}**2+{N_y}**2+{N_z}**2)',
+            value_location=ValueLocation.CellCentered)
+    #Normalized N, with conditon to avoid div by 0
+    eq('{nx}=IF({N}!=0,{N_x}/({N}+1e-15),0)',
+            value_location=ValueLocation.CellCentered)
+    eq('{ny}=IF({N}!=0,{N_y}/({N}+1e-15),0)',
+            value_location=ValueLocation.CellCentered)
+    eq('{nz}=IF({N}!=0,{N_z}/({N}+1e-15),0)',
+            value_location=ValueLocation.CellCentered)
+    #Un normalized vector representing gradient of temporal change
+    eq('{'+delta_field+'_x} = -ddx({'+delta_field+'})', zones=[zone],
+            value_location=ValueLocation.CellCentered)
+    eq('{'+delta_field+'_y} = -ddy({'+delta_field+'})', zones=[zone],
+            value_location=ValueLocation.CellCentered)
+    eq('{'+delta_field+'_z} = -ddz({'+delta_field+'})', zones=[zone],
+            value_location=ValueLocation.CellCentered)
+    eq('{'+delta_field+'_nx} = {'+delta_field+'_x}*{nx}', zones=[zone],
+            value_location=ValueLocation.CellCentered)
+    eq('{'+delta_field+'_ny} = {'+delta_field+'_y}*{ny}', zones=[zone],
+            value_location=ValueLocation.CellCentered)
+    eq('{'+delta_field+'_nz} = {'+delta_field+'_z}*{nz}', zones=[zone],
+            value_location=ValueLocation.CellCentered)
+    eq('{Grad'+delta_field+'} = sqrt(({'+delta_field+'_x}*{nx})**2+'+
+                                    '({'+delta_field+'_y}*{ny})**2+'+
+                                    '({'+delta_field+'_z}*{nz})**2)',
+                          value_location=ValueLocation.CellCentered,
+                                                       zones=[zone])
+    eq('{d_surface_'+field+'} = IF({Grad'+delta_field+'}!=0,'+
+                    '-{'+delta_field+'}/({Grad'+delta_field+'}+1e-15),0)',
+                          value_location=ValueLocation.CellCentered,
+                                                       zones=[zone])
 
 def get_global_variables(field_data):
     """Function calculates values for energetics tracing
@@ -640,7 +785,6 @@ def get_global_variables(field_data):
     eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
                           '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
-
     #Magnetic field unit vectors
     eq('{unitbx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
     eq('{unitby} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
@@ -751,6 +895,26 @@ def get_global_variables(field_data):
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
+    #Vorticity
+    eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
+                          '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
+                          '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
+                            value_location=ValueLocation.CellCentered)
+    '''
+    eq('{W_x [km/s/Re]} = ddy({U_z [km/s]}) - ddz({U_y [km/s]})',
+        value_location=ValueLocation.CellCentered)
+    eq('{W_y [km/s/Re]} = ddz({U_x [km/s]}) - ddx({U_z [km/s]})',
+        value_location=ValueLocation.CellCentered)
+    eq('{W_z [km/s/Re]} = ddx({U_y [km/s]}) - ddy({U_x [km/s]})',
+        value_location=ValueLocation.CellCentered)
+    eq('{W [km/s/Re]} = sqrt({W_x [km/s/Re]}**2+{W_y [km/s/Re]}**2+'+
+                            '{W_z [km/s/Re]}**2)',
+        value_location=ValueLocation.CellCentered)
+    eq('{h_w [km^2/s^2/Re]} = {W_x [km/s/Re]}*{U_x [km/s]} +'+
+                             '{W_y [km/s/Re]}*{U_y [km/s]} +'+
+                             '{W_z [km/s/Re]}*{U_z [km/s]} +',
+        value_location=ValueLocation.CellCentered)
+    '''
 
 def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
@@ -900,6 +1064,12 @@ def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
     Outputs
         created variable index
     """
+    #FOR LATER
+    '''
+    {d_Betastar0.7} = IF({beta_star}<2.8&&{beta_star}>0.7, {beta_star}, IF({beta_star}<0.7, 0.7, 2.8))
+{dn_x} = ddx({d_Betastar0.7})
+{dn_y} = ddy({d_Betastar0.7})
+    '''
     eq = tp.data.operate.execute_equation
     eqstr = ('{'+zonename+'} = '+
         'IF({X [R]} >'+str(xmin-2)+'&&'+

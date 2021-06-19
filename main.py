@@ -13,7 +13,7 @@ import tecplot as tp
 import tecplot
 from tecplot.constant import *
 from tecplot.exception import *
-import global_energetics
+#import global_energetics
 from global_energetics.extract import magnetopause
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import satellites
@@ -21,6 +21,7 @@ from global_energetics.extract import stream_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
+from global_energetics.write_disp import write_to_hdf
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -52,12 +53,42 @@ if __name__ == "__main__":
     main = tp.active_frame()
     main.name = 'main'
 
-
-    #Caclulate surfaces
+    #Caclulate initial surface
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                      tail_cap=-50, tail_analysis_cap=-20,
-                      zone_rename='mp_30Re',
+                                  do_blank=True,blank_value=100,
                                   outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data, mhddatafile,
+                                  do_blank=True,blank_value=200,
+                                  outputpath=OUTPATH)
+    """
+    data['wbin'] = -999
+    write_to_hdf(OUTPATH+'/wbins/energetics_'+'total'+'.h5','mp',
+                 mp_powers=data)
+    print('WBIN written!')
+    #blanking setup
+    wlow = main.plot().value_blanking.constraint(5)
+    wlow.variable = main.dataset.variable('W *')
+    wlow.comparison_operator = RelOp.LessThan
+    wlow.active = True
+    whigh = main.plot().value_blanking.constraint(6)
+    whigh.variable = main.dataset.variable('W *')
+    whigh.comparison_operator = RelOp.GreaterThan
+    whigh.active = True
+    wbins, dw = np.linspace(0,500,10, retstep=True)
+    '''
+    #recalculate for each condition
+    for w in wbins:
+        wlow.comparison_value = w-dw/2
+        whigh.comparison_value = w+dw/2
+        _, powers, _ = magnetopause.get_magnetopause(field_data,
+                                                        mhddatafile,
+                                             zone_rename='mp_'+str(int(w)),
+                                                        outputpath=OUTPATH)
+        powers['wbin'] = w
+        write_to_hdf(OUTPATH+'/wbins/energetics_'+str(int(w))+'.h5','mp',
+                     mp_powers=powers)
+        print('WBIN written!')
+    '''
     #magnetopause.get_magnetopause(field_data, mhddatafile,
     #                  tail_cap=-40, tail_analysis_cap=-40,
     #                              zone_rename='mp_40Re',
@@ -66,6 +97,7 @@ if __name__ == "__main__":
     #                  tail_cap=-50, tail_analysis_cap=-50,
     #                              zone_rename='mp_50Re',
     #                              outputpath=OUTPATH)
+    """
     '''
     magnetopause.get_magnetopause(field_data, mhddatafile, mode='box',
                                   do_1Dsw=False,
@@ -127,6 +159,7 @@ if __name__ == "__main__":
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
+    """
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
@@ -136,7 +169,6 @@ if __name__ == "__main__":
                                 plot_satellites=True, satzones=satzones,
                                 mode='iso_tail', transluc=60,
                                 outputname=OUTPUTNAME, save_img=False)
-    """
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

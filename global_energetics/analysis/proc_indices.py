@@ -24,6 +24,18 @@ def datetimeparser2(datetimestring):
 def datetimeparser3(datetimestring):
     #maybe move this somewhere to call a diff parser depending on file
     return dt.datetime.strptime(datetimestring,'%Y-%m-%dT%H:%M:%SZ')
+def datetimeparser4(datetimestring):
+    #maybe move this somewhere to call a diff parser depending on file
+    decHour = float(datetimestring.split(' ')[-1])
+    hour = str(int(decHour))
+    if len(hour)==1: hour = '0'+hour
+    minute = str(int((decHour-int(decHour))*60))
+    if len(minute)==1: minute = '0'+minute
+    sec = str(int(((decHour-int(decHour))*60 - int((decHour-int(decHour))
+                  *60))*60))
+    if len(sec)==1: sec = '0'+sec
+    newstring = ' '.join([datetimestring.split(' ')[0],hour,minute,sec])
+    return dt.datetime.strptime(newstring, '%Y%m%d %H %M %S')
 
 def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
     """Function converts coordinates from given columns from dataframe

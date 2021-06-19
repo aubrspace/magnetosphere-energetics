@@ -180,8 +180,11 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle K_{injection}$',
                         linewidth=Size, linestyle=ls,
                         color=Color)
-            #axis.fill_between(data[timekey],powerin,
-            #                  color='wheat')
+            dtime = data[timekey][~ data[timekey].isin([np.inf,
+                                                           -np.inf])]
+            if name.find('aggr')==-1:
+                axis.fill_between(data[timekey],powerin,
+                                  color='wheat')
             #ESCAPE
             if not override_color:
                 Color = 'deepskyblue'
@@ -189,8 +192,9 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle K_{escape}$',
                         linewidth=Size, linestyle=ls,
                         color=Color)
-            #axis.fill_between(data[timekey],powerout,
-            #                  color='lightsteelblue')
+            if name.find('aggr')==-1:
+                axis.fill_between(data[timekey].values,powerout.values,
+                              color='lightsteelblue')
             #NET
             if not use_shield:
                 if not override_color:
@@ -199,8 +203,12 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle K_{net}$',
                             linewidth=Size, linestyle=ls,
                             color=Color)
-                #axis.fill_between(data[timekey],powernet,
-                #                color='coral')
+                dtime = data[timekey][~ data[timekey].isin([np.inf,
+                                                           -np.inf])]
+                powernet = powernet[~ powernet.isin([np.inf,-np.inf])]
+                if name.find('aggr')==-1:
+                    axis.fill_between(data[timekey],powernet,
+                                      color='coral')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -253,23 +261,26 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle P0_{injection}$',
                         linewidth=Size, linestyle=ls,
                         color='gold')
-            #axis.fill_between(data[timekey],powerin,
-            #                  color='wheat')
+            if name.find('aggr')==-1:
+                axis.fill_between(data[timekey],powerin,
+                              color='wheat')
             #ESCAPE
             axis.plot(data[timekey],powerout,
                             label=r'$\displaystyle P0_{escape}$',
                         linewidth=Size, linestyle=ls,
                         color='peru')
-            #axis.fill_between(data[timekey],powerout,
-            #                  color='peachpuff')
+            if name.find('aggr')==-1:
+                axis.fill_between(data[timekey],powerout,
+                                  color='peachpuff')
             #NET
             if not use_shield:
                 axis.plot(data[timekey],powernet,
                             label=r'$\displaystyle P0_{net}$',
                             linewidth=Size, linestyle=ls,
                             color='maroon')
-                #axis.fill_between(data[timekey],powernet,
-                #                color='coral')
+                if name.find('aggr')==-1:
+                    axis.fill_between(data[timekey],powernet,
+                                color='coral')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -322,23 +333,26 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
                             label=r'$\displaystyle \left(E\times B\right)_{injection}$',
                         linewidth=Size, linestyle=ls,
                         color='mediumvioletred')
-            #axis.fill_between(data[timekey],powerin,
-            #                  color='palevioletred')
+            if name.find('aggr')==-1:
+                axis.fill_between(data[timekey],powerin,
+                                  color='palevioletred')
             #ESCAPE
             axis.plot(data[timekey],powerout,
                             label=r'$\displaystyle \left(E\times B\right)_{escape}$',
                         linewidth=Size, linestyle=ls,
                         color='deepskyblue')
-            #axis.fill_between(data[timekey],powerout,
-            #                  color='lightsteelblue')
+            if name.find('aggr')==-1:
+                axis.fill_between(data[timekey],powerout,
+                                  color='lightsteelblue')
             #NET
             if not use_shield:
                 axis.plot(data[timekey],powernet,
                             label=r'$\displaystyle \left(E\times B\right)_{net}$',
                             linewidth=Size, linestyle=ls,
                             color='midnightblue')
-                #axis.fill_between(data[timekey],powernet,
-                #                color='blue')
+                if name.find('aggr')==-1:
+                    axis.fill_between(data[timekey],powernet,
+                                    color='blue')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -1184,11 +1198,14 @@ def chopends_time(dflist, start, end, timekey):
     Outputs
         dflist
     """
+    newlist = []
     for df in enumerate(dflist):
         name = pd.Series({'name':df[1]['name'].iloc[-1]})
-        cutdf = df[1][(df[1][timekey]>start)&(df[1][timekey]<end)].append(
-                                                    name,ignore_index=True)
-    return dflist
+        cutdf = df[1][(df[1][timekey]>start)&
+                      (df[1][timekey]<end)].append(
+                            name,ignore_index=True)
+        newlist.append(cutdf)
+    return newlist
 
 if __name__ == "__main__":
     datapath = sys.argv[1::]
@@ -1232,12 +1249,15 @@ if __name__ == "__main__":
     [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
                                                     fullend, datapath[-1])
     #Chop based on time
-    cuttoffstart = dt.datetime(2014,2,18,7,0)
-    #cuttoffend = dt.datetime(2014,2,18,12,0)
-    cuttoffend = mp['Time [UTC]'].iloc[-2]
+    cuttoffstart = dt.datetime(2014,2,18,6,0)
+    cuttoffend = dt.datetime(2014,2,20,0,0)
+    #cuttoffstart = dt.datetime(2013,9,19,4,0)
+    #cuttoffend = mp['Time [UTC]'].iloc[-2]
     datalist = [mp, swmf_index, swmf_log, swmf_sw, supermag, omni]
+    print(swmf_log)
     [mp,swmf_index,swmf_log,swmf_sw,supermag,omni] = chopends_time(
                           datalist, cuttoffstart, cuttoffend, 'Time [UTC]')
+    print(swmf_log)
     ##Plot data
     ######################################################################
     #Newell Function and Outerbound Net Power, and cpcp
@@ -1275,7 +1295,7 @@ if __name__ == "__main__":
         plot_dst(ax1, [swmf_log, omni, supermag], timekey, y1label)
         plot_TotalEnergy(ax2, [mp], timekey, y2label)
         ax2.legend(loc='lower right', facecolor='gray', fontsize=24)
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         energy_dst.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1309,7 +1329,7 @@ if __name__ == "__main__":
         y1label = r'$\displaystyle AL$ \textit{equiv.}$\displaystyle \left( nT \right)$'
         y2label = r'$\displaystyle -\mid Power \left( W \right) \mid $'
         plot_al(ax1, [supermag, swmf_index, omni], timekey, y1label)
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         power_al.savefig(figureout+'{}_justindex.png'.format(figname),
                       facecolor='gainsboro')
@@ -1331,7 +1351,7 @@ if __name__ == "__main__":
         plot_swPower(ax1, [mp], mp,timekey, y1label)
         plot_Power(ax1, [mp], timekey, y1label)
         ax1.set_ylim([-12e13,12e13])
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         swpower.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1352,7 +1372,7 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_Power(ax1, [mp], timekey, y1label)
         plot_Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        #shade_plot(ax1), shade_plot(in_ax1)
+        shade_plot(ax1), shade_plot(in_ax1)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         power.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1375,7 +1395,7 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_ExBPower(ax1, [mp], timekey, y1label)
         plot_ExBPower(in_ax1, [mp], timekey, y1label, use_inner=True)
-        #shade_plot(ax1), shade_plot(in_ax1)
+        shade_plot(ax1), shade_plot(in_ax1)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         exbpower.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1398,7 +1418,7 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_P0Power(ax1, [mp], timekey, y1label)
         plot_P0Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        #shade_plot(ax1), shade_plot(in_ax1)
+        shade_plot(ax1), shade_plot(in_ax1)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         p0power.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1409,7 +1429,7 @@ if __name__ == "__main__":
     if True:
         figname = '3panelPower'
         panel3power, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
-                                          sharex=True, figsize=[0.8*figx,1.6*figy],
+                                          sharex=True, figsize=[figx,3*figy],
                                           facecolor='gainsboro')
         in3panelpower,(in_ax1, in_ax2, in_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,
@@ -1440,9 +1460,9 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
         ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
         ax2.set_facecolor('olive'), in_ax2.set_facecolor('olive')
         ax3.set_facecolor('olive'), in_ax3.set_facecolor('olive')
@@ -1470,7 +1490,7 @@ if __name__ == "__main__":
         #plot_swdensity(ax1, [swmf_sw], timekey, y1label)
         plot_swbz(ax2, [swmf_sw], timekey, y2label)
         plot_swflowP(ax3, [swmf_sw], timekey, y3label)
-        #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
+        shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
         ax1.set_facecolor('olive')
         ax2.set_facecolor('olive')
         ax3.set_facecolor('olive')
@@ -1499,8 +1519,8 @@ if __name__ == "__main__":
         ax3.set_facecolor('olive')
         bigsw.savefig(figureout+'{}_noshade.png'.format(figname),
                       facecolor='gainsboro')
-        #shade_plot(ax1, do_full=True); shade_plot(ax2, do_full=True)
-        #shade_plot(ax3, do_full=True)
+        shade_plot(ax1, do_full=True); shade_plot(ax2, do_full=True)
+        shade_plot(ax3, do_full=True)
         bigsw.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
     ######################################################################
@@ -1525,7 +1545,7 @@ if __name__ == "__main__":
         plot_cpcp(ax2, [swmf_log], timekey, y2label)
         ax2.legend(loc='upper right', facecolor='gray')
         ax2.text(0.01,0.9,'b)', Color='black', fontsize=36, transform=ax2.transAxes)
-        #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
+        shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
         ax1.set_facecolor('olive'); ax2.set_facecolor('olive')
         panel2prox.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1542,7 +1562,7 @@ if __name__ == "__main__":
         ylabel = r'\textit{Energy} $\displaystyle \left(J\right)$'
         plot_DesslerParkerSckopke(ax1, [swmf_log, supermag, omni, mp],
                                   timekey, ylabel)
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         DPS.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1561,7 +1581,7 @@ if __name__ == "__main__":
         plot_Power(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         power_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1580,7 +1600,7 @@ if __name__ == "__main__":
         plot_Volume(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         volume_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1599,7 +1619,7 @@ if __name__ == "__main__":
         plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        #shade_plot(ax1)
+        shade_plot(ax1)
         ax1.set_facecolor('olive')
         surf_comp.savefig(figureout+'{}.png'.format(figname),
                       facecolor='gainsboro')
@@ -1701,11 +1721,14 @@ if __name__ == "__main__":
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
-        plot_Power(ax1, agglist[0:1], timekey, y1label, use_average=True)
+        plot_Power(ax1, agglist[0:1], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_Power(sh_ax1, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
-        plot_P0Power(ax2, agglist[0:1], timekey, y1label, use_average=True)
+        plot_P0Power(ax2, agglist[0:1], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_P0Power(sh_ax2, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
-        plot_ExBPower(ax3, agglist[0:1], timekey, y1label, use_average=True)
+        plot_ExBPower(ax3, agglist[0:1], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_ExBPower(sh_ax3, agglist[0:1], timekey, y2label,use_shield=True,
                       ylim=[-350,350], use_average=True)
 
@@ -1741,11 +1764,14 @@ if __name__ == "__main__":
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
-        plot_Power(ax1, agglist[1:2], timekey, y1label, use_average=True)
+        plot_Power(ax1, agglist[1:2], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_Power(sh_ax1, agglist[1:2], timekey, y2label, use_shield=True, use_average=True)
-        plot_P0Power(ax2, agglist[1:2], timekey, y1label, use_average=True)
+        plot_P0Power(ax2, agglist[1:2], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_P0Power(sh_ax2, agglist[1:2], timekey, y2label, use_shield=True, use_average=True)
-        plot_ExBPower(ax3, agglist[1:2], timekey, y1label, use_average=True)
+        plot_ExBPower(ax3, agglist[1:2], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_ExBPower(sh_ax3, agglist[1:2], timekey, y2label,use_shield=True,
                       ylim=[-350,350], use_average=True)
 
@@ -1781,11 +1807,14 @@ if __name__ == "__main__":
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
-        plot_Power(ax1, agglist[2:3], timekey, y1label, use_average=True)
+        plot_Power(ax1, agglist[2:3], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_Power(sh_ax1, agglist[2:3], timekey, y2label, use_shield=True, use_average=True)
-        plot_P0Power(ax2, agglist[2:3], timekey, y1label, use_average=True)
+        plot_P0Power(ax2, agglist[2:3], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_P0Power(sh_ax2, agglist[2:3], timekey, y2label, use_shield=True, use_average=True)
-        plot_ExBPower(ax3, agglist[2:3], timekey, y1label, use_average=True)
+        plot_ExBPower(ax3, agglist[2:3], timekey, y1label, use_average=True,
+                   ylim=[-2e10,2e10])
         plot_ExBPower(sh_ax3, agglist[2:3], timekey, y2label,use_shield=True,
                       ylim=[-350,350], use_average=True)
 
@@ -1809,7 +1838,7 @@ if __name__ == "__main__":
         figname = 'Day3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[0.8*figx,1.6*figy],
+                                          figsize=[figx,3*figy],
                                           facecolor='gainsboro')
         sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,

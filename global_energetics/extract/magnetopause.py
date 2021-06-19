@@ -37,13 +37,14 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     calc_box_state,
                                                     abs_to_timestamp,
                                                     get_1D_sw_variables,
+                                             get_surfaceshear_variables,
                                                     write_to_timelog)
 from global_energetics.write_disp import (write_mesh, write_to_hdf,
                                           display_progress)
 
 def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      mode='iso_betastar', include_core=False, source='swmf',
-                     do_1Dsw=True, oneDmx=30, oneDmn=-30, n_oneD=121,
+                     do_1Dsw=False, oneDmx=30, oneDmn=-30, n_oneD=121,
                      do_trace=False, lon_bounds=10, n_fieldlines=5,
                      rmax=30, rmin=3,
                      dx_probe=-1,
@@ -54,6 +55,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
+                     do_blank=False, blank_variable='W *',
+                     blank_value=50,
                      xyzvar=[0,1,2], zone_rename=None,
                      write_data=True, disp_result=True):
     """Function that finds, plots and calculates energetics on the
@@ -146,6 +149,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\ttail_cap: {}\n'.format(tail_cap)+
                '\ttail_analysis_cap: {}\n'.format(tail_analysis_cap)+
                '\tintegrate_surface: {}\n'.format(integrate_surface)+
+               '\tdo_blank: {}\n'.format(do_blank)+
                '\tintegrate_volume: {}\n'.format(integrate_volume)+
                '\txyzvar: {}\n'.format(xyzvar)+
                '\tzone_rename: {}\n'.format(zone_rename))
@@ -277,6 +281,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                 keep_condition=cond,
                                                 keep_cond_value=sp_r)
         zoneindex = iso_betastar_zone.index
+        #get_surfaceshear_variables(field_data, 'beta_star', 0.7, 2.8)
         if zone_rename != None:
             iso_betastar_zone.name = zone_rename
             zonename = zone_rename
@@ -301,7 +306,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     if integrate_surface:
         #integrate power on main surface
         mp_powers = surface_analysis(main_frame, zonename, do_1Dsw,
-                                cuttoff=tail_analysis_cap)
+                                cuttoff=tail_analysis_cap, blank=do_blank,
+                                blank_variable=blank_variable,
+                                blank_value=blank_value)
         #variables to be saved in meshfile
         varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
                     'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',

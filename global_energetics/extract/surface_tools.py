@@ -15,10 +15,12 @@ import pandas as pd
 from global_energetics.extract.stream_tools import (integrate_surface,
                                                     get_surface_variables,
                                                     dump_to_pandas)
+from global_energetics.extract.view_set import variable_blank
 
 def surface_analysis(frame, zone_name, do_1Dsw, *,
                      calc_K=True, calc_ExB=True, calc_P0=True,virial=True,
-                     surface_area=True, test=False,cuttoff=-20):
+                    surface_area=True, test=False,cuttoff=-20,blank=False,
+                    blank_value=0, blank_variable='W *'):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
@@ -28,6 +30,11 @@ def surface_analysis(frame, zone_name, do_1Dsw, *,
     Outputs
         surface_power- power, or energy flux at the magnetopause surface
     """
+    #Optional blanking
+    if blank:
+        variable_blank(frame, blank_variable, blank_value)
+        variable_blank(frame, blank_variable, blank_value-100, slot=4,
+                       operator=RelOp.LessThan)
     #get surface specific variables
     field_data = frame.dataset
     get_surface_variables(field_data, zone_name, do_1Dsw)
@@ -190,11 +197,8 @@ def surface_analysis(frame, zone_name, do_1Dsw, *,
         ###################################################################
     #Collect and report surface integrated quantities
     surface_power = pd.DataFrame([data],columns=keys)
-    '''
-    #Turn blanking back off
-    xblank.active = False
+    #Turn blanking off
     frame.plot().value_blanking.active = False
-    '''
     return surface_power
 
 
