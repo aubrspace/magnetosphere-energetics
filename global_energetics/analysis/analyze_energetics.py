@@ -13,6 +13,7 @@ import datetime as dt
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 import swmfpy
 import spacepy
 from spacepy import coordinates as coord
@@ -88,7 +89,7 @@ def shade_plot(axis, *, do_full=False):
                      label=('ejecta ' + str(num)))
 
 def plot_Power_al(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, multiplier=-1, Size=4, ls=None):
+             xlim=None, ylim=None, multiplier=-1, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -128,7 +129,7 @@ def plot_Power_al(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_Power(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False, use_average=False):
     """Function plots outer surface boundary powers
     Inputs
@@ -218,7 +219,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_P0Power(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False, use_average=False):
     """Function plots outer surface boundary powers
     Inputs
@@ -290,7 +291,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_ExBPower(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False, use_average=False):
     """Function plots outer surface boundary powers
     Inputs
@@ -362,7 +363,7 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
              allpositive=False):
     """Function plots spatatial distribution in terms of percents
     Inputs
@@ -467,7 +468,7 @@ def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
     escaxis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -500,7 +501,7 @@ def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_VoverSA(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -512,7 +513,7 @@ def plot_VoverSA(axis, dflist, timekey, ylabel, *,
     legend_loc = 'lower right'
     qtkey = 'V/SA [Re]'
     if Color == None:
-        Color = 'lightsteelblue'
+        Color = 'magenta'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
@@ -530,7 +531,7 @@ def plot_VoverSA(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_SA(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -542,7 +543,7 @@ def plot_SA(axis, dflist, timekey, ylabel, *,
     legend_loc = 'lower right'
     qtkey = 'Area [Re^2]'
     if Color == None:
-        Color = 'lightsteelblue'
+        Color = 'magenta'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
@@ -560,7 +561,7 @@ def plot_SA(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_Standoff(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -572,7 +573,7 @@ def plot_Standoff(axis, dflist, timekey, ylabel, *,
     legend_loc = 'lower right'
     qtkey = 'X_subsolar [Re]'
     if Color == None:
-        Color = 'lightsteelblue'
+        Color = 'magenta'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
@@ -590,7 +591,7 @@ def plot_Standoff(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_Volume(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -602,7 +603,7 @@ def plot_Volume(axis, dflist, timekey, ylabel, *,
     legend_loc = 'lower right'
     qtkey = 'Volume [Re^3]'
     if Color == None:
-        Color = 'lightsteelblue'
+        Color = 'magenta'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
@@ -620,7 +621,7 @@ def plot_Volume(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_dst(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots dst (or equivalent index) with given data frames
     Inputs
         axis- object plotted on
@@ -637,21 +638,21 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
             legend_loc = 'upper right'
             axis.plot(data[timekey],data[qtkey],
                       label='SMR',
-                      linewidth=Size, linestyle=ls,
+                      linewidth=Size, linestyle='--',
                       color='black')
         elif name == 'swmf_log':
             qtkey = 'dst_sm'
             axis.plot(data[timekey],data[qtkey],
                       label='SWMF Dst',
                       linewidth=Size, linestyle=ls,
-                      color='lightsteelblue')
+                      color='magenta')
         elif name == 'omni':
             qtkey = 'sym_h'
             legend_loc = 'lower left'
             axis.plot(data[timekey],data[qtkey],
                       label='SYM-H',
                       linewidth=Size, linestyle=ls,
-                      color='coral')
+                      color='black')
         else:
             qtkey = None
     if xlim!=None:
@@ -663,7 +664,7 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_al(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots dst (or equivalent index) with given data frames
     Inputs
         axis- object plotted on
@@ -687,14 +688,14 @@ def plot_al(axis, dflist, timekey, ylabel, *,
             axis.plot(data[timekey],data[qtkey],
                       label='AL swmf',
                       linewidth=Size, linestyle=ls,
-                      color='lightsteelblue')
+                      color='magenta')
         elif name == 'omni':
             qtkey = 'al'
             legend_loc = 'lower left'
             axis.plot(data[timekey],data[qtkey],
                       label='AL OMNI',
                       linewidth=Size, linestyle=ls,
-                      color='coral')
+                      color='black')
         else:
             qtkey = None
     if xlim!=None:
@@ -706,7 +707,7 @@ def plot_al(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_newell(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots cross polar cap potential with given data frames
     Inputs
         axis- object plotted on
@@ -715,7 +716,7 @@ def plot_newell(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'upper right'
+    legend_loc = 'upper left'
     for data in dflist:
         name = data['name'].iloc[-1]
         if name == 'supermag':
@@ -726,7 +727,7 @@ def plot_newell(axis, dflist, timekey, ylabel, *,
             #Values should be increased by x10! for now assuming
             #   supermag data is incorrect and including x10 factor
             axis.plot(data[timekey],data[qtkey]/100,
-                      label='Newell CF',
+                      label='Newell Coupling Function',
                       linewidth=Size, linestyle=ls, color='black')
     if xlim!=None:
         axis.set_xlim(xlim)
@@ -734,10 +735,10 @@ def plot_newell(axis, dflist, timekey, ylabel, *,
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time (UTC)}')
     axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc, facecolor='gray')
+    axis.legend(loc=legend_loc)
 
 def plot_cpcp(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots cross polar cap potential with given data frames
     Inputs
         axis- object plotted on
@@ -746,7 +747,7 @@ def plot_cpcp(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'upper right'
+    legend_loc = 'upper left'
     for data in dflist:
         name = data['name'].iloc[-1]
         north = 'cpcpn'
@@ -754,28 +755,28 @@ def plot_cpcp(axis, dflist, timekey, ylabel, *,
         for pole in [north,south]:
             if pole==south:
                 axis.plot(data[timekey],data[pole],
-                      label='South',
-                      linewidth=Size,linestyle='--',color='deepskyblue')
+                      label='South CPCP',
+                      linewidth=Size,linestyle='--',color='magenta')
             else:
                 axis.plot(data[timekey],data[pole],
-                      label='North',
-                      linewidth=Size, linestyle='--', color='gold')
+                      label='North CPCP',
+                      linewidth=Size, linestyle=ls, color='darkmagenta')
         else:
             qtkey = None
         if qtkey != None:
             axis.plot(data[timekey],data[qtkey],
                       label=pole+'_'+name,
-                      linewidth=Size, linestyle='--', color='black')
+                      linewidth=Size, linestyle=ls, color='black')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time (UTC)}')
     axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc, facecolor='gray')
+    axis.legend(loc=legend_loc)
 
 def plot_swdensity(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind density with given data frames
     Inputs
         axis- object plotted on
@@ -815,7 +816,7 @@ def plot_swdensity(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc)
 
 def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
@@ -884,7 +885,7 @@ def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
     axis.legend(loc='upper left', facecolor='gray')
 
 def plot_akasofu(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
@@ -933,7 +934,7 @@ def plot_akasofu(axis, dflist, timekey, ylabel, *,
     axis.legend(loc='upper right', facecolor='gray')
 
 def plot_pearson_r(axis, dflist, ydf, xlabel, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
@@ -1012,7 +1013,7 @@ def plot_swbz(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
 
 def plot_swflowP(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
@@ -1057,7 +1058,7 @@ def plot_swflowP(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
 
 def plot_swPower(axis, dflist, mp, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
@@ -1241,6 +1242,10 @@ if __name__ == "__main__":
         main_key = 'betastar'
         mp = mplist.pop(np.argmax(
                    [df.iloc[-1]['name'].find(main_key) for df in mplist]))
+        #put for loop here to create 'remaining' category for each key that's not the time data
+        remainin_inj = mp['K_injection [W]']-mplist[0]['K_injection [W]']-mplist[1]['K_injection [W]']-mplist[2]['K_injection [W]']
+        mpremain = mp.copy()
+        mpremain['K_injection [W]'] = remainin_inj
     else:
         do_mpcomparisons = False
         mp = mplist[0]
@@ -1254,38 +1259,37 @@ if __name__ == "__main__":
     #cuttoffstart = dt.datetime(2013,9,19,4,0)
     #cuttoffend = mp['Time [UTC]'].iloc[-2]
     datalist = [mp, swmf_index, swmf_log, swmf_sw, supermag, omni]
-    print(swmf_log)
     [mp,swmf_index,swmf_log,swmf_sw,supermag,omni] = chopends_time(
                           datalist, cuttoffstart, cuttoffend, 'Time [UTC]')
-    print(swmf_log)
     ##Plot data
     ######################################################################
     #Newell Function and Outerbound Net Power, and cpcp
-    if False:
+    if True:
         figname = 'Newell_NetOutterPower'
         new_out_pow, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
-        new_out_pow.tight_layout(pad=padsize)
+                                          figsize=[figx,figy])
+        new_out_pow.tight_layout(pad=1.1*padsize)
         #Time
         timekey = 'Time [UTC]'
+        ylabel = r'\textit{Potential} $\displaystyle V \left(Wb/s \right)$'
         y1label = 'Coupling Function [Wb/s]'
         y2label = 'Power Injection [W]'
         y3label = 'Cross Polar Cap Potential [Wb/s]'
-        ax2 = ax1.twinx()
-        plot_newell(ax2, [supermag], timekey, y1label)
-        plot_cpcp(ax2, [swmf_log], timekey, y3label)
+        #ax2 = ax1.twinx()
+        plot_newell(ax1, [supermag], timekey, ylabel, ylim=[0,250])
+        plot_cpcp(ax1, [swmf_log], timekey, ylabel, ylim=[0,250])
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #new_out_pow.autofmt_xdate()
         #shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        new_out_pow.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #ax1.set_facecolor('olive')
+        new_out_pow.savefig(figureout+'{}.eps'.format(figname),
+                            format='eps')
     ######################################################################
     #Total energy and dst index
     if True:
         figname = 'Energy_dst'
         energy_dst, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[0.8*figx,0.8*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[0.8*figx,0.8*figy])
         energy_dst.tight_layout(rect=(0.03,0,0.95,1))
         #Time
         timekey = 'Time [UTC]'
@@ -1294,18 +1298,18 @@ if __name__ == "__main__":
         ax2 = ax1.twinx()
         plot_dst(ax1, [swmf_log, omni, supermag], timekey, y1label)
         plot_TotalEnergy(ax2, [mp], timekey, y2label)
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #new_out_pow.autofmt_xdate()
         ax2.legend(loc='lower right', facecolor='gray', fontsize=24)
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        energy_dst.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        energy_dst.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Correlation for energy and dst
     if True:
         figname = 'Energy_dst_rcor'
         energy_corr, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figy,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figy,figy])
         energy_corr.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
@@ -1313,58 +1317,56 @@ if __name__ == "__main__":
         ylabel = r'$\displaystyle E_{total} \left( J \right)$'
         plot_pearson_r(ax1, [supermag,swmf_log,omni] ,mp,
                        xlabel, ylabel)
-        ax1.set_facecolor('olive')
-        energy_corr.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #energy_corr.autofmt_xdate()
+        #ax1.set_facecolor('olive')
+        energy_corr.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Power and AL
     if True:
         figname = 'Power_al'
         power_al, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         power_al.tight_layout(pad=padsize*1.5)
         #Time
         timekey = 'Time [UTC]'
         y1label = r'$\displaystyle AL$ \textit{equiv.}$\displaystyle \left( nT \right)$'
         y2label = r'$\displaystyle -\mid Power \left( W \right) \mid $'
         plot_al(ax1, [supermag, swmf_index, omni], timekey, y1label)
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        power_al.savefig(figureout+'{}_justindex.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #new_out_pow.autofmt_xdate()
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        power_al.savefig(figureout+'{}_justindex.eps'.format(figname))
         ax2 = ax1.twinx()
         power_al.tight_layout(pad=padsize*1.2)
         plot_Power_al(ax2, [mp], timekey, y2label)
-        power_al.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        power_al.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Theoretical power from the solar wind
     if True:
         figname = 'swPower'
         swpower, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         swpower.tight_layout(pad=padsize*1.1)
         timekey = 'Time [UTC]'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        plot_swPower(ax1, [mp], mp,timekey, y1label)
+        #plot_swPower(ax1, [mp], mp,timekey, y1label)
         plot_Power(ax1, [mp], timekey, y1label)
         ax1.set_ylim([-12e13,12e13])
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        swpower.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #new_out_pow.autofmt_xdate()
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        swpower.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Total Power injection, escape and net
     if True:
         figname = 'Power'
         power, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         innerpower, (in_ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         power.tight_layout(pad=padsize*1.1)
         innerpower.tight_layout(pad=padsize*1.1)
         #Time
@@ -1372,22 +1374,22 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_Power(ax1, [mp], timekey, y1label)
         plot_Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
-        ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
-        power.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        innerpower.savefig(figureout+'{}_inner.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #power.autofmt_xdate()
+        in_ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #innerpower.autofmt_xdate()
+        #shade_plot(ax1), shade_plot(in_ax1)
+        #ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
+        power.savefig(figureout+'{}.eps'.format(figname))
+        innerpower.savefig(figureout+'{}_inner.eps'.format(figname))
     ######################################################################
     #ExB Power injection, escape and net
     if True:
         figname = 'ExBPower'
         exbpower, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         innerexbpower, (in_ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         exbpower.tight_layout(pad=padsize)
         innerexbpower.tight_layout(pad=padsize)
         #Time
@@ -1395,22 +1397,22 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_ExBPower(ax1, [mp], timekey, y1label)
         plot_ExBPower(in_ax1, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
-        ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
-        exbpower.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        innerexbpower.savefig(figureout+'{}_inner.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #power.autofmt_xdate()
+        in_ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #innerpower.autofmt_xdate()
+        #shade_plot(ax1), shade_plot(in_ax1)
+        #ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
+        exbpower.savefig(figureout+'{}.eps'.format(figname))
+        innerexbpower.savefig(figureout+'{}_inner.eps'.format(figname))
     ######################################################################
     #P0 Power injection, escape and net
     if True:
         figname = 'P0Power'
         p0power, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         innerP0power, (in_ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         p0power.tight_layout(pad=padsize)
         innerP0power.tight_layout(pad=padsize)
         #Time
@@ -1418,27 +1420,26 @@ if __name__ == "__main__":
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         plot_P0Power(ax1, [mp], timekey, y1label)
         plot_P0Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        shade_plot(ax1), shade_plot(in_ax1)
-        ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
-        p0power.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        innerP0power.savefig(figureout+'{}_inner.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #power.autofmt_xdate()
+        in_ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #innerpower.autofmt_xdate()
+        #shade_plot(ax1), shade_plot(in_ax1)
+        #ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
+        p0power.savefig(figureout+'{}.eps'.format(figname))
+        innerP0power.savefig(figureout+'{}_inner.eps'.format(figname))
     ######################################################################
     #3panel Power, power_inner, and shielding
     if True:
         figname = '3panelPower'
         panel3power, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
-                                          sharex=True, figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          sharex=True, figsize=[figx,3*figy])
         in3panelpower,(in_ax1, in_ax2, in_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         sh3panelpower,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
                                             nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         panel3power.tight_layout(pad=padsize*1.1)
         in3panelpower.tight_layout(pad=padsize*1.1)
         sh3panelpower.tight_layout(pad=padsize*1.3)
@@ -1448,39 +1449,39 @@ if __name__ == "__main__":
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, [mp], timekey, y1label)
         plot_Power(in_ax1, [mp], timekey, y1label, use_inner=True)
-        plot_Power(sh_ax1, [mp], timekey, y2label, use_shield=True)
+        #plot_Power(sh_ax1, [mp], timekey, y2label, use_shield=True)
         plot_P0Power(ax3, [mp], timekey, y1label)
         plot_P0Power(in_ax3, [mp], timekey, y1label, use_inner=True)
-        plot_P0Power(sh_ax3, [mp], timekey, y2label, use_shield=True)
+        #plot_P0Power(sh_ax3, [mp], timekey, y2label, use_shield=True)
         plot_ExBPower(ax2, [mp], timekey, y1label)
         plot_ExBPower(in_ax2, [mp], timekey, y1label, use_inner=True)
-        plot_ExBPower(sh_ax2, [mp], timekey, y2label, use_shield=True, ylim=[-350,350])
+        #plot_ExBPower(sh_ax2, [mp], timekey, y2label, use_shield=True, ylim=[-350,350])
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
-        ax2.set_facecolor('olive'), in_ax2.set_facecolor('olive')
-        ax3.set_facecolor('olive'), in_ax3.set_facecolor('olive')
-        sh_ax1.set_facecolor('olive'), sh_ax2.set_facecolor('olive')
-        sh_ax3.set_facecolor('olive')
-        panel3power.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        in3panelpower.savefig(figureout+'{}_inner.png'.format(figname),
-                      facecolor='gainsboro')
-        sh3panelpower.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+
+        #shade_plot(ax1), shade_plot(in_ax1), shade_plot(sh_ax1),
+        #shade_plot(ax2), shade_plot(in_ax2), shade_plot(sh_ax2),
+        #shade_plot(ax3), shade_plot(in_ax3), shade_plot(sh_ax3)
+        #ax1.set_facecolor('olive'), in_ax1.set_facecolor('olive')
+        #ax2.set_facecolor('olive'), in_ax2.set_facecolor('olive')
+        #ax3.set_facecolor('olive'), in_ax3.set_facecolor('olive')
+        #sh_ax1.set_facecolor('olive'), sh_ax2.set_facecolor('olive')
+        #sh_ax3.set_facecolor('olive')
+        panel3power.savefig(figureout+'{}.eps'.format(figname))
+        in3panelpower.savefig(figureout+'{}_inner.eps'.format(figname))
+        sh3panelpower.savefig(figureout+'{}_shield.eps'.format(figname))
     ######################################################################
     #Solarwind, regular sized
     if True:
         figname = 'SolarWind'
         solarwind, (ax2,ax3)= plt.subplots(nrows=2,ncols=1,sharex=True,
-                                                     figsize=[0.8*figx,0.8*figy],
-                                                     facecolor='gainsboro')
+                                                     figsize=[0.8*figx,0.8*figy])
         solarwind.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
@@ -1490,19 +1491,19 @@ if __name__ == "__main__":
         #plot_swdensity(ax1, [swmf_sw], timekey, y1label)
         plot_swbz(ax2, [swmf_sw], timekey, y2label)
         plot_swflowP(ax3, [swmf_sw], timekey, y3label)
-        shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
-        ax1.set_facecolor('olive')
-        ax2.set_facecolor('olive')
-        ax3.set_facecolor('olive')
-        solarwind.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
+        #ax1.set_facecolor('olive')
+        #ax2.set_facecolor('olive')
+        #ax3.set_facecolor('olive')
+        solarwind.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Solarwind, expanded
     if True:
         figname = 'ExpandedSolarWind'
         bigsw, (ax1,ax2,ax3)= plt.subplots(nrows=3,ncols=1,sharex=True,
-                                                     figsize=[figx*1.5,2*figy],
-                                                     facecolor='gainsboro')
+                                                     figsize=[figx*1.5,2*figy])
         bigsw.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
@@ -1514,22 +1515,22 @@ if __name__ == "__main__":
         plot_swbz(ax2,[supermag_expanded, omni_expanded], timekey, y2label)
         plot_swflowP(ax3, [supermag_expanded, omni_expanded], timekey,
                                                                    y3label)
-        ax1.set_facecolor('olive')
-        ax2.set_facecolor('olive')
-        ax3.set_facecolor('olive')
-        bigsw.savefig(figureout+'{}_noshade.png'.format(figname),
-                      facecolor='gainsboro')
-        shade_plot(ax1, do_full=True); shade_plot(ax2, do_full=True)
-        shade_plot(ax3, do_full=True)
-        bigsw.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #ax1.set_facecolor('olive')
+        #ax2.set_facecolor('olive')
+        #ax3.set_facecolor('olive')
+        bigsw.savefig(figureout+'{}_noshade.eps'.format(figname))
+        #shade_plot(ax1, do_full=True); shade_plot(ax2, do_full=True)
+        #shade_plot(ax3, do_full=True)
+        bigsw.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #2panel Akosofu, Newell
     if True:
         figname = '2panelProxies'
         panel2prox, (ax1,ax2)=plt.subplots(nrows=2, ncols=1,
-                                          sharex=True, figsize=[figx,2*figy],
-                                          facecolor='gainsboro')
+                                          sharex=True, figsize=[figx,2*figy])
         panel2prox.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
@@ -1545,53 +1546,48 @@ if __name__ == "__main__":
         plot_cpcp(ax2, [swmf_log], timekey, y2label)
         ax2.legend(loc='upper right', facecolor='gray')
         ax2.text(0.01,0.9,'b)', Color='black', fontsize=36, transform=ax2.transAxes)
-        shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
-        ax1.set_facecolor('olive'); ax2.set_facecolor('olive')
-        panel2prox.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
+        #ax1.set_facecolor('olive'); ax2.set_facecolor('olive')
+        panel2prox.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Dessler-Parker-Sckopke
     if True:
         figname = 'DesslerParkerSckopke'
         DPS, (ax1)=plt.subplots(nrows=1, ncols=1,
-                                          sharex=True, figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          sharex=True, figsize=[figx,figy])
         DPS.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
         ylabel = r'\textit{Energy} $\displaystyle \left(J\right)$'
         plot_DesslerParkerSckopke(ax1, [swmf_log, supermag, omni, mp],
                                   timekey, ylabel)
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        DPS.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        DPS.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces power
     if do_mpcomparisons:
         figname = 'ComparativePower'
         power_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         power_comp.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        plot_Power(ax1, [mp], timekey, y1label, Color='midnightblue')
+        #plot_Power(ax1, [mp], timekey, y1label, Color='midnightblue')
         plot_Power(ax1, [mplist[0]], timekey, y1label, Color='coral')
-        #plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
-        #plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        power_comp.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        plot_Power(ax1, [mplist[1]], timekey, y1label, Color='gold')
+        plot_Power(ax1, [mplist[2]], timekey, y1label, Color='plum')
+        #plot_Power(ax1, [difference_mp], timekey, y1label, Color='midnightblue')
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        power_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
     if do_mpcomparisons:
         figname = 'ComparativeVolume'
         volume_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         volume_comp.tight_layout(pad=padsize*2)
         #Time
         timekey = 'Time [UTC]'
@@ -1600,17 +1596,15 @@ if __name__ == "__main__":
         plot_Volume(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        volume_comp.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        volume_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
     if do_mpcomparisons:
         figname = 'ComparativeSurfaceArea'
         surf_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,figy])
         surf_comp.tight_layout(pad=padsize*2)
         #Time
         timekey = 'Time [UTC]'
@@ -1619,307 +1613,188 @@ if __name__ == "__main__":
         plot_SA(ax1, [mplist[0]], timekey, y1label, Color='coral')
         #plot_SA(ax1, [mplist[1]], timekey, y1label, Color='gold')
         #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        shade_plot(ax1)
-        ax1.set_facecolor('olive')
-        surf_comp.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1)
+        #ax1.set_facecolor('olive')
+        surf_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Flank3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[1:2], timekey, y1label)
-        plot_Power(sh_ax1, agglist[1:2], timekey, y2label, use_shield=True)
         plot_P0Power(ax2, agglist[1:2], timekey, y1label)
-        plot_P0Power(sh_ax2, agglist[1:2], timekey, y2label, use_shield=True)
         plot_ExBPower(ax3, agglist[1:2], timekey, y1label)
-        plot_ExBPower(sh_ax3, agglist[1:2], timekey, y2label,use_shield=True,
-                      ylim=[-350,350])
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Tail3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[2:3], timekey, y1label)
-        plot_Power(sh_ax1, agglist[2:3], timekey, y2label, use_shield=True)
         plot_P0Power(ax2, agglist[2:3], timekey, y1label)
-        plot_P0Power(sh_ax2, agglist[2:3], timekey, y2label, use_shield=True)
         plot_ExBPower(ax3, agglist[2:3], timekey, y1label)
-        plot_ExBPower(sh_ax3, agglist[2:3], timekey, y2label,use_shield=True,
-                      ylim=[-350,350])
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'AverageDay3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
-        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[0:1], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_Power(sh_ax1, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
         plot_P0Power(ax2, agglist[0:1], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_P0Power(sh_ax2, agglist[0:1], timekey, y2label, use_shield=True, use_average=True)
         plot_ExBPower(ax3, agglist[0:1], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_ExBPower(sh_ax3, agglist[0:1], timekey, y2label,use_shield=True,
-                      ylim=[-350,350], use_average=True)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'AverageFlank3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
-        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[1:2], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_Power(sh_ax1, agglist[1:2], timekey, y2label, use_shield=True, use_average=True)
         plot_P0Power(ax2, agglist[1:2], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_P0Power(sh_ax2, agglist[1:2], timekey, y2label, use_shield=True, use_average=True)
         plot_ExBPower(ax3, agglist[1:2], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_ExBPower(sh_ax3, agglist[1:2], timekey, y2label,use_shield=True,
-                      ylim=[-350,350], use_average=True)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'AverageTail3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[2:3], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_Power(sh_ax1, agglist[2:3], timekey, y2label, use_shield=True, use_average=True)
         plot_P0Power(ax2, agglist[2:3], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_P0Power(sh_ax2, agglist[2:3], timekey, y2label, use_shield=True, use_average=True)
         plot_ExBPower(ax3, agglist[2:3], timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_ExBPower(sh_ax3, agglist[2:3], timekey, y2label,use_shield=True,
-                      ylim=[-350,350], use_average=True)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Day3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist[0:1], timekey, y1label)
-        plot_Power(sh_ax1, agglist[0:1], timekey, y2label, use_shield=True)
         plot_P0Power(ax2, agglist[0:1], timekey, y1label)
-        plot_P0Power(sh_ax2, agglist[0:1], timekey, y2label, use_shield=True)
         plot_ExBPower(ax3, agglist[0:1], timekey, y1label)
-        plot_ExBPower(sh_ax3, agglist[0:1], timekey, y2label,use_shield=True,
-                      ylim=[-350,350])
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'DayFlankTail3panel'
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[0.8*figx,1.6*figy],
-                                          facecolor='gainsboro')
-        sh_dft_3,(sh_ax1, sh_ax2, sh_ax3)=plt.subplots(
-                                            nrows=3,ncols=1, sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[0.8*figx,1.6*figy])
         dft_3.tight_layout(pad=padsize*1.1)
-        sh_dft_3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
         plot_Power(ax1, agglist, timekey, y1label)
-        plot_Power(sh_ax1, agglist, timekey, y2label, use_shield=True)
         plot_P0Power(ax2, agglist, timekey, y1label)
-        plot_P0Power(sh_ax2, agglist, timekey, y2label, use_shield=True)
         plot_ExBPower(ax3, agglist, timekey, y1label)
-        plot_ExBPower(sh_ax3, agglist, timekey, y2label,use_shield=True,
-                      ylim=[-350,350])
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1), shade_plot(sh_ax1),
-        shade_plot(ax2), shade_plot(sh_ax2),
-        shade_plot(ax3), shade_plot(sh_ax3)
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'), sh_ax1.set_facecolor('olive'),
-        sh_ax2.set_facecolor('olive'), sh_ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
-        sh_dft_3.savefig(figureout+'{}_shield.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Spatial_Powers3panel'
         spPower3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,3*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,3*figy])
         spPower3.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time_UTC'
@@ -1934,29 +1809,23 @@ if __name__ == "__main__":
         ax2.legend(loc='upper left', facecolor='gray')
         ax3.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1),
-        shade_plot(ax2),
-        shade_plot(ax3),
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'),
-        spPower3.savefig(figureout+'{}.png'.format(figname),
-                      facecolor='gainsboro')
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3),
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive'),
+        spPower3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Spatial_Powers'
         spPower1, (ax1, ax2)=plt.subplots(nrows=2, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,2*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,2*figy])
         spPower2, (ax3, ax4)=plt.subplots(nrows=2, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,2*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,2*figy])
         spPower3, (ax5, ax6)=plt.subplots(nrows=2, ncols=1,
                                           sharex=True,
-                                          figsize=[figx,2*figy],
-                                          facecolor='gainsboro')
+                                          figsize=[figx,2*figy])
         spPower1.tight_layout(pad=padsize*1.3)
         spPower2.tight_layout(pad=padsize*1.3)
         spPower3.tight_layout(pad=padsize*1.3)
@@ -1979,22 +1848,19 @@ if __name__ == "__main__":
         ax5.legend(loc='upper left', facecolor='gray')
         ax6.legend(loc='upper left', facecolor='gray')
 
-        shade_plot(ax1),
-        shade_plot(ax2),
-        shade_plot(ax3),
-        shade_plot(ax4),
-        shade_plot(ax5),
-        shade_plot(ax6),
-        ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        ax3.set_facecolor('olive'),
-        ax4.set_facecolor('olive'), ax5.set_facecolor('olive'),
-        ax6.set_facecolor('olive'),
-        spPower1.savefig(figureout+'{}.png'.format(figname+'_K'),
-                      facecolor='gainsboro')
-        spPower2.savefig(figureout+'{}.png'.format(figname+'_P0'),
-                      facecolor='gainsboro')
-        spPower3.savefig(figureout+'{}.png'.format(figname+'_ExB'),
-                      facecolor='gainsboro')
+        #shade_plot(ax1),
+        #shade_plot(ax2),
+        #shade_plot(ax3),
+        #shade_plot(ax4),
+        #shade_plot(ax5),
+        #shade_plot(ax6),
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive'),
+        #ax4.set_facecolor('olive'), ax5.set_facecolor('olive'),
+        #ax6.set_facecolor('olive'),
+        spPower1.savefig(figureout+'{}.eps'.format(figname+'_K'))
+        spPower2.savefig(figureout+'{}.eps'.format(figname+'_P0'))
+        spPower3.savefig(figureout+'{}.eps'.format(figname+'_ExB'))
     ######################################################################
     #timeseries of data at a set of fixed points on the surface
     if dofixed:
@@ -2028,6 +1894,6 @@ if __name__ == "__main__":
         plot_fixed_loc(fixed, ax8, fixedlist[1], 'P0_net [W/Re^2]')
         plot_fixed_loc(fixed, ax9, fixedlist[2], 'P0_net [W/Re^2]',
                                                 show_colorbar=True)
-        fixed.savefig(figureout+'{}'.format(figname)+'.png')
+        fixed.savefig(figureout+'{}'.format(figname)+'.eps')
         plt.cla()
     ######################################################################
