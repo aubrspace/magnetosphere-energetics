@@ -164,32 +164,33 @@ def integrate_spatial(dflist, colstrs):
         timestamp = data[~ data['Time_UTC'].isna()]['Time_UTC'].values[0]
         cols, vals = ['Time_UTC'], [timestamp]
         for col in colstrs:
-            if col == 'Cell Volume':
-                values = data[col]
-                cols.append('Area [Re^2]')
-            else:
-                #net (directly from file)
-                values = data[col]*data['Cell Volume']
-            vals.append(values.sum())
-            if col.find('W/Re^2')!=-1:
-                #injection
-                injections = data[data[col]>0]
-                injectVals = injections[col]*injections['Cell Volume']
-                vals.append(injectVals.sum())
-                #escape
-                escapes = data[data[col]<0]
-                escapVals = escapes[col]*escapes['Cell Volume']
-                vals.append(escapVals.sum())
-                #modify column names
-                col='W'.join(col.split('W/Re^2'))
-                injectCol = 'injection'.join(col.split('net'))
-                escapCol = 'escape'.join(col.split('net'))
-                cols.append(col),cols.append(injectCol),cols.append(escapCol)
+            if any([key==col for key in df.keys()]):
+                if col == 'Cell Volume':
+                    values = data[col]
+                    cols.append('Area [Re^2]')
+                else:
+                    #net (directly from file)
+                    values = data[col]*data['Cell Volume']
+                vals.append(values.sum())
+                if col.find('W/Re^2')!=-1:
+                    #injection
+                    injections = data[data[col]>0]
+                    injectVals = injections[col]*injections['Cell Volume']
+                    vals.append(injectVals.sum())
+                    #escape
+                    escapes = data[data[col]<0]
+                    escapVals = escapes[col]*escapes['Cell Volume']
+                    vals.append(escapVals.sum())
+                    #modify column names
+                    col='W'.join(col.split('W/Re^2'))
+                    injectCol = 'injection'.join(col.split('net'))
+                    escapCol = 'escape'.join(col.split('net'))
+                    cols.append(col),cols.append(injectCol),cols.append(escapCol)
         df = df.append(pd.DataFrame(data=[vals],columns=cols),
                        ignore_index=True)
     return df.sort_values(by=['Time_UTC'])
 
-def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
+def make_timeseries_data(daylist, flanklist, taillist, fix_locs, key):
     """Function makes 1D timeseries of quanties
     Inputs
         daylist, flanklist, taillist- subsets of dataframe for single timestep
@@ -236,7 +237,7 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
         day_df = integrate_spatial(daylist, colstrs)
         flank_df = integrate_spatial(flanklist, colstrs)
         tail_df = integrate_spatial(taillist, colstrs)
-        hdfnames = ['day', 'flank', 'tail']
+        hdfnames = ['day_'+key, 'flank_'+key, 'tail_'+key]
         for df in enumerate([day_df, flank_df, tail_df]):
             write_disp.write_to_hdf(OPATH+'/energetics.h5',
                                   'spatial_aggr'+str(hdfnames[df[0]]),
@@ -245,7 +246,7 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs):
     ######################################################################
     return locdata
 
-def make_timeseries_plots(daylist, flanklist, taillist):
+def make_timeseries_plots(daylist, flanklist, taillist, *, key=''):
     """Function makes 1D timeseries of quanties
     Inputs
         daylist, flanklist, taillist- subsets of dataframe for single timestep
@@ -281,7 +282,7 @@ def make_timeseries_plots(daylist, flanklist, taillist):
                 locdata[loc[0]] = locdata[loc[0]].reset_index(drop=True)
         """
         locdata = make_timeseries_data(daylist, flanklist, taillist,
-                                       fix_locs)
+                                       fix_locs, key)
         """
         #toprow
         ax1 = fixed.add_subplot(331,projection='rectilinear')
@@ -439,16 +440,20 @@ if __name__ == "__main__":
         "font.sans-serif": ["Helvetica"]})
     dflist = proc_temporal.read_energetics(PATH, add_variables=False)
     dflist = add_derived_variables(dflist)
-    daylist, flanklist, taillist = [], [], []
-    #Create timeseries data
-    if True:
-        for df in dflist:
-            day, flank, tail = split_day_flank_tail(df)
-            daylist.append(day)
-            flanklist.append(flank)
-            taillist.append(tail)
-            #make_spatial_plots(day, flank, tail)
-    make_timeseries_plots(daylist,flanklist,taillist)
+    num_cases = int(len(dflist)/len(glob.glob(PATH[0]+'*.h5')))
+    for i in range(0,num_cases):
+        subdflist = dflist[i::num_cases]
+        subname = subdflist[0]['name'].iloc[-2].split('_')[-1]
+        daylist, flanklist, taillist = [], [], []
+        #Create timeseries data
+        if True:
+            for df in subdflist:
+                day, flank, tail = split_day_flank_tail(df)
+                daylist.append(day)
+                flanklist.append(flank)
+                taillist.append(tail)
+                #make_spatial_plots(day, flank, tail)
+        make_timeseries_plots(daylist,flanklist,taillist,key=subname)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

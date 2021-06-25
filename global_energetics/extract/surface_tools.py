@@ -172,7 +172,7 @@ def surface_analysis(frame, zone_name, do_1Dsw, *,
             print('{} area integration done'.format(zone_name))
         ###################################################################
         #average K flux
-        if calc_K and surface_area:
+        if calc_K and surface_area and (SA!=0):
             #ESCAPE
             keys.append(add+'Average K_escape [W/Re^2]')
             kesc_average = kesc/SA

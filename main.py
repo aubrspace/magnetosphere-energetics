@@ -32,6 +32,9 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
+    mhddatafile = '3d__var_1_e20140218-200000-000.plt'
+    OUTPATH = 'temp/'
+    '''
     mhddatafile = sys.argv[1].split('/')[-1]
     MHDPATH = '/'.join(sys.argv[1].split('/')[0:-1])+'/'
     IEPATH = sys.argv[2]
@@ -39,6 +42,7 @@ if __name__ == "__main__":
     OUTPATH = sys.argv[4]
     PNGPATH = sys.argv[5]
     OUTPUTNAME = mhddatafile.split('e')[1].split('.plt')[0]
+    '''
 
     '''
     #setup log
@@ -48,7 +52,7 @@ if __name__ == "__main__":
 
 
     #python objects
-    field_data = tp.data.load_tecplot(sys.argv[1])
+    field_data = tp.data.load_tecplot(mhddatafile)
     field_data.zone(0).name = 'global_field'
     main = tp.active_frame()
     main.name = 'main'
