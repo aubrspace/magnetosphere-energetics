@@ -447,15 +447,6 @@ def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
                         color=Colordict[powerkey]['esc'])
             #axis.fill_between(data[timekey],powerout,
             #                  color='lightsteelblue')
-            '''
-            #NET
-            axis.plot(data[timekey],powernet,
-                            label=r'$\displaystyle \left(E\times B\right)_{net \%}$',
-                            linewidth=Size, marker=marker,
-                            color='midnightblue')
-                #axis.fill_between(data[timekey],powernet,
-                #                color='blue')
-            '''
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -466,6 +457,46 @@ def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
     escaxis.set_ylabel(ylabel)
     injaxis.legend(loc=legend_loc, facecolor='gray')
     escaxis.legend(loc=legend_loc, facecolor='gray')
+
+def plot_VortPower(axis, dflist, timekey, ylabel, powerkey, *,
+                     xlim=None, ylim=None, Color=None, Size=2, ls=None):
+    """Function plots power transfer at different vorticity bins
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        dflabels- labels used for legend
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'upper right'
+    if Color == None:
+        FullColor = 'black'
+        w100Color = 'magenta'
+        w200Color = 'darkmagenta'
+        w300Color = 'hotpink'
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name.find('full')!=-1:
+            Color = FullColor
+            tag = name.split('_')[-1]
+        if name.find('w100')!=-1:
+            Color = w100Color
+            tag = name.split('_')[-1]
+        if name.find('w200')!=-1:
+            Color = w200Color
+            tag = name.split('_')[-1]
+        if name.find('w300')!=-1:
+            Color = w300Color
+            tag = name.split('_')[-1]
+        axis.plot(data[timekey],data[powerkey], label=r'\textit{'+tag+'}',
+                  linewidth=Size, linestyle=ls, color=Color)
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(r'\textit{Time (UTC)}')
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc)
 
 def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
@@ -1234,7 +1265,6 @@ if __name__ == "__main__":
         if df['name'].iloc[-1].find('aggr')!=-1:
             agglist.append(df)
             doagg = True
-            print('doagg = True!')
         if df['name'].iloc[-1].find('lcb')!=-1:
             lcb = df
     if len(mplist) > 1:
@@ -1242,10 +1272,6 @@ if __name__ == "__main__":
         main_key = 'betastar'
         mp = mplist.pop(np.argmax(
                    [df.iloc[-1]['name'].find(main_key) for df in mplist]))
-        #put for loop here to create 'remaining' category for each key that's not the time data
-        remainin_inj = mp['K_injection [W]']-mplist[0]['K_injection [W]']-mplist[1]['K_injection [W]']-mplist[2]['K_injection [W]']
-        mpremain = mp.copy()
-        mpremain['K_injection [W]'] = remainin_inj
     else:
         do_mpcomparisons = False
         mp = mplist[0]
@@ -1619,7 +1645,34 @@ if __name__ == "__main__":
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
+        figname = 'Day3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                          'day_full')!=-1]
+        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
+                                          sharex=True,
+                                          figsize=[figx,3*figy])
+        dft_3.tight_layout(pad=padsize*1.1)
+        #Time
+        timekey = 'Time_UTC'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        plot_Power(ax1, aggsublist, timekey, y1label)
+        plot_P0Power(ax2, aggsublist, timekey, y1label)
+        plot_ExBPower(ax3, aggsublist, timekey, y1label)
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dft_3.savefig(figureout+'{}.eps'.format(figname))
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
         figname = 'Flank3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                       'flank_full')!=-1]
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[figx,3*figy])
@@ -1628,9 +1681,9 @@ if __name__ == "__main__":
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
-        plot_Power(ax1, agglist[1:2], timekey, y1label)
-        plot_P0Power(ax2, agglist[1:2], timekey, y1label)
-        plot_ExBPower(ax3, agglist[1:2], timekey, y1label)
+        plot_Power(ax1, aggsublist, timekey, y1label)
+        plot_P0Power(ax2, aggsublist, timekey, y1label)
+        plot_ExBPower(ax3, aggsublist, timekey, y1label)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
@@ -1644,6 +1697,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Tail3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                          'tail_full')!=-1]
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[figx,3*figy])
@@ -1651,9 +1706,9 @@ if __name__ == "__main__":
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        plot_Power(ax1, agglist[2:3], timekey, y1label)
-        plot_P0Power(ax2, agglist[2:3], timekey, y1label)
-        plot_ExBPower(ax3, agglist[2:3], timekey, y1label)
+        plot_Power(ax1, aggsublist, timekey, y1label)
+        plot_P0Power(ax2, aggsublist, timekey, y1label)
+        plot_ExBPower(ax3, aggsublist, timekey, y1label)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
@@ -1667,6 +1722,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'AverageDay3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                          'day_full')!=-1]
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[figx,3*figy])
@@ -1674,11 +1731,11 @@ if __name__ == "__main__":
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
-        plot_Power(ax1, agglist[0:1], timekey, y1label, use_average=True,
+        plot_Power(ax1, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_P0Power(ax2, agglist[0:1], timekey, y1label, use_average=True,
+        plot_P0Power(ax2, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_ExBPower(ax3, agglist[0:1], timekey, y1label, use_average=True,
+        plot_ExBPower(ax3, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
 
         ax1.legend(loc='upper left', facecolor='gray')
@@ -1693,6 +1750,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'AverageFlank3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                        'flank_full')!=-1]
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[figx,3*figy])
@@ -1700,11 +1759,11 @@ if __name__ == "__main__":
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
-        plot_Power(ax1, agglist[1:2], timekey, y1label, use_average=True,
+        plot_Power(ax1, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_P0Power(ax2, agglist[1:2], timekey, y1label, use_average=True,
+        plot_P0Power(ax2, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_ExBPower(ax3, agglist[1:2], timekey, y1label, use_average=True,
+        plot_ExBPower(ax3, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
 
         ax1.legend(loc='upper left', facecolor='gray')
@@ -1719,6 +1778,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'AverageTail3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                        'flank_full')!=-1]
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[figx,3*figy])
@@ -1727,35 +1788,12 @@ if __name__ == "__main__":
         timekey = 'Time_UTC'
         y1label = r'\textit{Average Power} $\displaystyle \left( W\right)$'
         y2label = r'\textit{Transfer Efficiency}$\displaystyle \left( \% \right)$'
-        plot_Power(ax1, agglist[2:3], timekey, y1label, use_average=True,
+        plot_Power(ax1, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_P0Power(ax2, agglist[2:3], timekey, y1label, use_average=True,
+        plot_P0Power(ax2, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-        plot_ExBPower(ax3, agglist[2:3], timekey, y1label, use_average=True,
+        plot_ExBPower(ax3, aggsublist, timekey, y1label, use_average=True,
                    ylim=[-2e10,2e10])
-
-        ax1.legend(loc='upper left', facecolor='gray')
-        ax2.legend(loc='upper left', facecolor='gray')
-        ax3.legend(loc='upper left', facecolor='gray')
-
-        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
-        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        #ax3.set_facecolor('olive')
-        dft_3.savefig(figureout+'{}.eps'.format(figname))
-    ######################################################################
-    #Comparisons of sections of the magntopause surface
-    if doagg:
-        figname = 'Day3panel'
-        dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
-                                          sharex=True,
-                                          figsize=[figx,3*figy])
-        dft_3.tight_layout(pad=padsize*1.1)
-        #Time
-        timekey = 'Time_UTC'
-        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        plot_Power(ax1, agglist[0:1], timekey, y1label)
-        plot_P0Power(ax2, agglist[0:1], timekey, y1label)
-        plot_ExBPower(ax3, agglist[0:1], timekey, y1label)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
@@ -1769,6 +1807,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'DayFlankTail3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                              'full')!=-1]
         dft_3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[0.8*figx,1.6*figy])
@@ -1776,9 +1816,9 @@ if __name__ == "__main__":
         #Time
         timekey = 'Time_UTC'
         y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
-        plot_Power(ax1, agglist, timekey, y1label)
-        plot_P0Power(ax2, agglist, timekey, y1label)
-        plot_ExBPower(ax3, agglist, timekey, y1label)
+        plot_Power(ax1, aggsublist, timekey, y1label)
+        plot_P0Power(ax2, aggsublist, timekey, y1label)
+        plot_ExBPower(ax3, aggsublist, timekey, y1label)
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
@@ -1792,6 +1832,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Spatial_Powers3panel'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                              'full')!=-1]
         spPower3, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True,
                                           figsize=[figx,3*figy])
@@ -1801,9 +1843,9 @@ if __name__ == "__main__":
         y1label = r'\textit{Power \%} $\displaystyle \left( W\right)$'
         y2label = r'\textit{ExB Power \%} $\displaystyle \left( W\right)$'
         y3label = r'\textit{P0 Power \%} $\displaystyle \left( W\right)$'
-        plot_PowerSpatDist([ax1], agglist, timekey, y1label, 'K')
-        plot_PowerSpatDist([ax2], agglist, timekey, y2label, 'P0')
-        plot_PowerSpatDist([ax3], agglist, timekey, y3label, 'ExB')
+        plot_PowerSpatDist([ax1], aggsublist, timekey, y1label, 'K')
+        plot_PowerSpatDist([ax2], aggsublist, timekey, y2label, 'P0')
+        plot_PowerSpatDist([ax3], aggsublist, timekey, y3label, 'ExB')
 
         ax1.legend(loc='upper left', facecolor='gray')
         ax2.legend(loc='upper left', facecolor='gray')
@@ -1817,6 +1859,8 @@ if __name__ == "__main__":
     #Comparisons of sections of the magntopause surface
     if doagg:
         figname = 'Spatial_Powers'
+        aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
+                                                              'full')!=-1]
         spPower1, (ax1, ax2)=plt.subplots(nrows=2, ncols=1,
                                           sharex=True,
                                           figsize=[figx,2*figy])
@@ -1834,11 +1878,11 @@ if __name__ == "__main__":
         y1label = r'\textit{Power \%} $\displaystyle \left( W\right)$'
         y2label = r'\textit{P0 Power \%} $\displaystyle \left( W\right)$'
         y3label = r'\textit{ExB Power \%} $\displaystyle \left( W\right)$'
-        plot_PowerSpatDist([ax1,ax2], agglist, timekey, y1label, 'K',
+        plot_PowerSpatDist([ax1,ax2], aggsublist, timekey, y1label, 'K',
                            allpositive=True)
-        plot_PowerSpatDist([ax3,ax4], agglist, timekey, y2label, 'P0',
+        plot_PowerSpatDist([ax3,ax4], aggsublist, timekey, y2label, 'P0',
                            allpositive=True)
-        plot_PowerSpatDist([ax5,ax6], agglist, timekey, y3label, 'ExB',
+        plot_PowerSpatDist([ax5,ax6], aggsublist, timekey, y3label, 'ExB',
                            allpositive=True)
 
         ax1.legend(loc='upper left', facecolor='gray')
@@ -1896,4 +1940,37 @@ if __name__ == "__main__":
                                                 show_colorbar=True)
         fixed.savefig(figureout+'{}'.format(figname)+'.eps')
         plt.cla()
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'MPVort'
+        aggsublist = [ag for ag in energetics_list if ag['name'].iloc[-1].find(
+                                                               'mp_')!=-1]
+        dVort_inj, ax1 = plt.subplots(nrows=1, ncols=1, figsize=[14,6])
+        dVort_esc, ax2 = plt.subplots(nrows=1, ncols=1, figsize=[14,6])
+        dVort_net, ax3 = plt.subplots(nrows=1, ncols=1, figsize=[14,6])
+        dVort_inj.tight_layout(pad=2.2), dVort_esc.tight_layout(pad=2.2)
+        dVort_net.tight_layout(pad=2.2)
+        #Time
+        timekey = 'Time [UTC]'
+        y1label = r'\textit{Power} $\displaystyle _{injection}\left( W\right)$'
+        y2label = r'\textit{Power} $\displaystyle _{escape}\left( W\right)$'
+        y3label = r'\textit{Power} $\displaystyle _{net}\left( W\right)$'
+        plot_VortPower(ax1, aggsublist, timekey, y1label,
+                       'K_injection [W]')
+        plot_VortPower(ax2, aggsublist, timekey, y2label,
+                       'K_escape [W]')
+        plot_VortPower(ax3, aggsublist, timekey, y3label,
+                       'K_net [W]')
+
+        ax1.legend(loc='upper left', facecolor='gray')
+        ax2.legend(loc='upper left', facecolor='gray')
+        ax3.legend(loc='upper left', facecolor='gray')
+
+        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
+        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
+        #ax3.set_facecolor('olive')
+        dVort_inj.savefig(figureout+'{}_inj.eps'.format(figname))
+        dVort_esc.savefig(figureout+'{}_esc.eps'.format(figname))
+        dVort_net.savefig(figureout+'{}_net.eps'.format(figname))
     ######################################################################

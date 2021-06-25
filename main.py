@@ -32,7 +32,7 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
-    mhddatafile = '3d__var_1_e20140218-200000-000.plt'
+    mhddatafile = '3d__var_1_e20140218-205300-000.plt'
     OUTPATH = 'temp/'
     '''
     mhddatafile = sys.argv[1].split('/')[-1]

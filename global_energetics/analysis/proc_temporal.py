@@ -282,7 +282,7 @@ def read_energetics(data_path_list, *, add_variables=True):
         print('Nothing to do, no data_paths were given!')
     else:
         approved = ['stats', 'shue', 'shue98', 'shue97', 'flow', 'hybrid',
-                    'field', 'mp_w300', 'box', 'sphere', 'lcb', 'fixed','aggr']
+                    'field', 'mp_', 'box', 'sphere', 'lcb', 'fixed','aggr']
         dflist = []
         for path in data_path_list:
             if path != None:

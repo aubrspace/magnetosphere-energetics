@@ -17,7 +17,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
-def surface_analysis(frame, zone_name, do_1Dsw, *,
+def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                      calc_K=True, calc_ExB=True, calc_P0=True,virial=True,
                     surface_area=True, test=False,cuttoff=-20,blank=False,
                     blank_value=0, blank_variable='W *'):
@@ -37,7 +37,12 @@ def surface_analysis(frame, zone_name, do_1Dsw, *,
                        operator=RelOp.LessThan)
     #get surface specific variables
     field_data = frame.dataset
-    get_surface_variables(field_data, zone_name, do_1Dsw)
+    if do_cms:
+        #calculate movement of surface before finalizing surface variables
+        get_surface_velocity(field_data, zone_name)
+        get_surface_variables(field_data, zone_name, do_1Dsw)
+    else:
+        get_surface_variables(field_data, zone_name, do_1Dsw)
     #initialize objects for frame
     zone_index = int(field_data.zone(zone_name).index)
     keys = []

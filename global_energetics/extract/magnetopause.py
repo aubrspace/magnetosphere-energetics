@@ -55,6 +55,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
+                     do_cms=False, cms_dataset_key='past',
                      do_blank=False, blank_variable='W *',
                      blank_value=50,
                      xyzvar=[0,1,2], zone_rename=None,
@@ -81,7 +82,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         Surface
             tail_cap- X position of tail cap
             tail_analysis_cap- X position where integration stops
-            integrate_surface/volume- booleans for settings
+            integrate_surface/volume/docms- booleans for settings
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
@@ -166,6 +167,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                       str(eventtime.minute))
+        if do_cms:
+            pasttime = swmf_access.swmf_read_time(zoneindex=1)
+            deltatime = eventtime-pasttime
+            pastzonename = tp.active_frame().zone(1).name
     else:
         print("Unknown data source, cant find date/time and won't be able"+
               "to consider dipole orientation!!!")
@@ -173,6 +178,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
 
     main_frame = tp.active_frame()
     aux = field_data.zone('global_field').aux_data
+    if do_cms:
+        past_aux = field_data.zone(pastzonename).aux_data
     #set frame name and calculate global variables
     if field_data.variable_names.count('r [R]') ==0:
         print('Calculating global energetic variables')
@@ -192,6 +199,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     #Get x_subsolar if not already there
     if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
         x_subsolar = float(aux['x_subsolar'])
+        if do_cms:
+            past_x_subsolar = float(past_aux['x_subsolar'])
         closed_index = None
         closed_zone = None
         #Assign closed zone info if already exists
@@ -207,15 +216,31 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                         'dayside',
                                                 lon_bounds, n_fieldlines,
                                                 rmax, rmin, itr_max, tol)
+            if do_cms:
+                past_closedzone_index = streamfind_bisection(field_data,
+                                                        'dayside',
+                                                lon_bounds, n_fieldlines,
+                                                rmax, rmin, itr_max, tol,
+                                                global_key=pastzonename)
         else:
             closed_index = calc_closed_state('Status', 3, tail_cap)
             closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
             closedzone_index = closed_zone.index
+            if do_cms:
+                past_closed_zone, _ = setup_isosurface(1,closed_index,
+                                                       'past_lcb',
+                                                   global_key=pastzonename)
+                past_closedzone_index = past_closed_zone.index
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closedzone_index).values('X *').max())
         print('x_subsolar found at {}'.format(x_subsolar))
         aux['x_subsolar'] = x_subsolar
+        if do_cms:
+            past_x_subsolar = 1
+            past_x_subsolar = max(past_x_subsolar,
+                field_data.zone(past_closedzone_index).values('X *').max())
+            past_aux['x_subsolar'] = past_x_subsolar
         if do_trace:
             #delete streamzone
             field_data.delete_zones(closedzone_index)
@@ -269,6 +294,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                     tail_cap, 50, 0.7,
                                                     include_core, sp_r,
                                                     closed_zone)
+        if do_cms:
+            _ = calc_betastar_state('past_'+zonename, past_x_subsolar,
+                                    tail_cap, 50, 0.7, include_core,
+                                    sp_r, closed_zone)
         state_var_name = field_data.variable(iso_betastar_index).name
         #remake iso zone using new equation
         if not include_core:
@@ -305,14 +334,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     zonelist = [zoneindex.real]
     if integrate_surface:
         #integrate power on main surface
-        mp_powers = surface_analysis(main_frame, zonename, do_1Dsw,
+        mp_powers = surface_analysis(main_frame, zonename, do_cms, do_1Dsw,
                                 cuttoff=tail_analysis_cap, blank=do_blank,
                                 blank_variable=blank_variable,
                                 blank_value=blank_value)
         #variables to be saved in meshfile
         varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
                     'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
-                    'Cell Volume']
+                    'Cell Volume', 'W [km/s/Re]']
         if do_1Dsw:
             for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                             '1DExB_net [W/Re^2]']:
@@ -322,7 +351,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             #integrate power on innerboundary surface
             innerbound_powers = surface_analysis(main_frame,
                                                     zonename+'innerbound',
-                                                    do_1Dsw,
+                                                    False, do_1Dsw,
                                             cuttoff=tail_analysis_cap)
             innerbound_powers = innerbound_powers.add_prefix('inner')
             print('\nInnerbound surface power calculated')

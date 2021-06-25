@@ -466,6 +466,14 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     os.system('rm '+os.getcwd()+'/'+filename)
     return loc_data, x_max
 
+def get_surface_velocity(field_data, zone_name):
+    """Function finds the surface velocity given a single other timestep
+    Inputs
+        field_data- tecplot dataset object
+        zone_name- name for the current zone
+    """
+    from IPython import embed; embed()
+    pass
 
 def get_surface_variables(field_data, zone_name, do_1Dsw):
     """Function calculated variables for a specific 3D surface
@@ -976,7 +984,8 @@ def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
 
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, keep_condition=None,
-                                              keep_cond_value=0):
+                                              keep_cond_value=0,
+                                              global_key='global_field'):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
         iso_value
@@ -989,11 +998,19 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         newzone2- secondary zone that meets keep condition
     """
     frame = tp.active_frame()
-    frame.plot().show_isosurfaces = True
-    iso = frame.plot().isosurface(isoindex)
+    plt = frame.plot()
+    #hide all zones not matching global_key
+    for map_index in plt.fieldmaps().fieldmap_indices:
+        for zone in plt.fieldmap(map_index).zones:
+            if zone.name==global_key:
+                plt.fieldmap(map_index).show = True
+            else:
+                plt.fieldmap(map_index).show = False
+    plt.show_isosurfaces = True
+    iso = plt.isosurface(isoindex)
     iso.show = True
     iso.definition_contour_group_index = contindex
-    frame.plot().contour(contindex).variable_index = varindex
+    plt.contour(contindex).variable_index = varindex
     iso.isosurface_values[0] = iso_value
     print('creating isosurface of {}={:.2f}'.format(
                                     frame.dataset.variable(varindex).name,
