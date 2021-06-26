@@ -14,6 +14,7 @@ import pandas as pd
 #interpackage modules, different path if running as main to test
 from global_energetics.extract.stream_tools import (integrate_surface,
                                                     get_surface_variables,
+                                            get_surface_velocity_estimate,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
@@ -39,7 +40,9 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
     field_data = frame.dataset
     if do_cms:
         #calculate movement of surface before finalizing surface variables
-        get_surface_velocity(field_data, zone_name)
+        get_surface_velocity_estimate(field_data,
+                                      field_data.zone(zone_name).index,
+                                field_data.zone('future_'+zone_name).index)
         get_surface_variables(field_data, zone_name, do_1Dsw)
     else:
         get_surface_variables(field_data, zone_name, do_1Dsw)

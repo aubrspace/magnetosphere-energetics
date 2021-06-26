@@ -55,7 +55,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
-                     do_cms=False, cms_dataset_key='past',
+                     do_cms=True, cms_dataset_key='future',
                      do_blank=False, blank_variable='W *',
                      blank_value=50,
                      xyzvar=[0,1,2], zone_rename=None,
@@ -103,6 +103,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     if do_trace and mode == 'lcb':
         print('last_closed boundary not setup with trace mode!')
         return
+    if do_cms:
+        if len([zn for zn in tp.active_frame().dataset.zones()])<2:
+            print('not enough data to do moving surfaces!')
+            do_cms = False
     display = ('Analyzing Magnetopause with the following settings:\n'+
                '\tdatafile: {}\n'.format(datafile)+
                '\toutputpath: {}\n'.format(outputpath)+
@@ -168,9 +172,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                       str(eventtime.minute))
         if do_cms:
-            pasttime = swmf_access.swmf_read_time(zoneindex=1)
-            deltatime = eventtime-pasttime
-            pastzonename = tp.active_frame().zone(1).name
+            futuretime = swmf_access.swmf_read_time(zoneindex=1)
+            deltatime = eventtime-futuretime
+            futurezonename = tp.active_frame().dataset.zone(1).name
     else:
         print("Unknown data source, cant find date/time and won't be able"+
               "to consider dipole orientation!!!")
@@ -179,7 +183,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     main_frame = tp.active_frame()
     aux = field_data.zone('global_field').aux_data
     if do_cms:
-        past_aux = field_data.zone(pastzonename).aux_data
+        future_aux = field_data.zone(futurezonename).aux_data
     #set frame name and calculate global variables
     if field_data.variable_names.count('r [R]') ==0:
         print('Calculating global energetic variables')
@@ -200,7 +204,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
         x_subsolar = float(aux['x_subsolar'])
         if do_cms:
-            past_x_subsolar = float(past_aux['x_subsolar'])
+            future_x_subsolar = float(future_aux['x_subsolar'])
         closed_index = None
         closed_zone = None
         #Assign closed zone info if already exists
@@ -217,30 +221,30 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                 lon_bounds, n_fieldlines,
                                                 rmax, rmin, itr_max, tol)
             if do_cms:
-                past_closedzone_index = streamfind_bisection(field_data,
+                future_closedzone_index = streamfind_bisection(field_data,
                                                         'dayside',
                                                 lon_bounds, n_fieldlines,
                                                 rmax, rmin, itr_max, tol,
-                                                global_key=pastzonename)
+                                                global_key=futurezonename)
         else:
             closed_index = calc_closed_state('Status', 3, tail_cap)
             closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
             closedzone_index = closed_zone.index
             if do_cms:
-                past_closed_zone, _ = setup_isosurface(1,closed_index,
-                                                       'past_lcb',
-                                                   global_key=pastzonename)
-                past_closedzone_index = past_closed_zone.index
+                future_closed_zone, _ = setup_isosurface(1,closed_index,
+                                                       'future_lcb',
+                                                 global_key=futurezonename)
+                future_closedzone_index = future_closed_zone.index
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closedzone_index).values('X *').max())
         print('x_subsolar found at {}'.format(x_subsolar))
         aux['x_subsolar'] = x_subsolar
         if do_cms:
-            past_x_subsolar = 1
-            past_x_subsolar = max(past_x_subsolar,
-                field_data.zone(past_closedzone_index).values('X *').max())
-            past_aux['x_subsolar'] = past_x_subsolar
+            future_x_subsolar = 1
+            future_x_subsolar = max(future_x_subsolar,
+              field_data.zone(future_closedzone_index).values('X *').max())
+            future_aux['x_subsolar'] = future_x_subsolar
         if do_trace:
             #delete streamzone
             field_data.delete_zones(closedzone_index)
@@ -295,9 +299,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                     include_core, sp_r,
                                                     closed_zone)
         if do_cms:
-            _ = calc_betastar_state('past_'+zonename, past_x_subsolar,
+            future_index = calc_betastar_state('future_'+zonename,
+                                    future_x_subsolar,
                                     tail_cap, 50, 0.7, include_core,
                                     sp_r, closed_zone)
+            future_state_var_name = field_data.variable(future_index).name
         state_var_name = field_data.variable(iso_betastar_index).name
         #remake iso zone using new equation
         if not include_core:
@@ -310,6 +316,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                 keep_condition=cond,
                                                 keep_cond_value=sp_r)
         zoneindex = iso_betastar_zone.index
+        if do_cms:
+            __, _ = setup_isosurface(1,iso_betastar_index,
+                                     'future_'+zonename,
+                                     keep_condition=cond,
+                                     keep_cond_value=sp_r)
         #get_surfaceshear_variables(field_data, 'beta_star', 0.7, 2.8)
         if zone_rename != None:
             iso_betastar_zone.name = zone_rename

@@ -466,12 +466,34 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     os.system('rm '+os.getcwd()+'/'+filename)
     return loc_data, x_max
 
-def get_surface_velocity(field_data, zone_name):
+
+def get_surface_velocity_estimate(field_data, currentindex, futureindex):
     """Function finds the surface velocity given a single other timestep
     Inputs
         field_data- tecplot dataset object
         zone_name- name for the current zone
     """
+    current_mesh, future_mesh = pd.DataFrame(), pd.DataFrame()
+    eq = tp.data.operate.execute_equation
+    eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
+    eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
+    eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
+    tp.macro.execute_extended_command('CFDAnalyzer3',
+                                      'CALCULATE FUNCTION = '+
+                                      'CELLVOLUME VALUELOCATION = '+
+                                      'CELLCENTERED')
+    varnames = ['x_cc', 'y_cc', 'z_cc', 'h_cc', 'Cell Volume']
+    #load data from tecplot to pandas dataframes
+    for var in varnames:
+        current_mesh[var] = field_data.zone(currentindex.real
+                        ).values(var.split(' ')[0]+'*').as_numpy_array()
+        future_mesh[var] = field_data.zone(futureindex.real
+                        ).values(var.split(' ')[0]+'*').as_numpy_array()
+    #setup element spacings
+    alphas, da= np.linspace(-pi, pi, nalpha, retstep=True)
+    phis, dphi = np.linspace(-pi, pi, nphi, retstep=True)
+    thetas, dtheta = np.linspace(-pi, pi, ntheta, retstep=True)
+    x_s, dx = np.linspace(-20, 0, nx, retstep=True)
     from IPython import embed; embed()
     pass
 
@@ -904,11 +926,13 @@ def get_global_variables(field_data):
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
+    '''
     #Vorticity
     eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
                           '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
                           '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
                             value_location=ValueLocation.CellCentered)
+    '''
     '''
     eq('{W_x [km/s/Re]} = ddy({U_z [km/s]}) - ddz({U_y [km/s]})',
         value_location=ValueLocation.CellCentered)

@@ -32,7 +32,8 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
-    mhddatafile = '3d__var_1_e20140218-205300-000.plt'
+    mhddatafile = '3d__var_1_e20140219-090000-000.plt'
+    future = '3d__var_1_e20140219-090100-023.plt'
     OUTPATH = 'temp/'
     '''
     mhddatafile = sys.argv[1].split('/')[-1]
@@ -52,17 +53,14 @@ if __name__ == "__main__":
 
 
     #python objects
-    field_data = tp.data.load_tecplot(mhddatafile)
+    field_data = tp.data.load_tecplot([mhddatafile, future])
     field_data.zone(0).name = 'global_field'
+    field_data.zone(1).name = 'future'
     main = tp.active_frame()
     main.name = 'main'
 
     #Caclulate initial surface
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  do_blank=True,blank_value=100,
-                                  outputpath=OUTPATH)
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  do_blank=True,blank_value=200,
                                   outputpath=OUTPATH)
     """
     data['wbin'] = -999
