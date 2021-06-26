@@ -341,7 +341,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #variables to be saved in meshfile
         varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
                     'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
-                    'Cell Volume', 'W [km/s/Re]']
+                    'Cell Volume', 'W_cc']
         if do_1Dsw:
             for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                             '1DExB_net [W/Re^2]']:

@@ -494,6 +494,7 @@ def get_surface_variables(field_data, zone_name, do_1Dsw):
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
     eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
+    eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
     xnormals = field_data.zone(zone_name).values(
                                   'X GRID K Unit Normal').as_numpy_array()

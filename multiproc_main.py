@@ -54,6 +54,7 @@ def work(mhddatafile):
     magnetopause.get_magnetopause(field_data, mhddatafile,
                                   zone_rename='mp_full',
                                   outputpath=OUTPUTPATH)
+    '''
     magnetopause.get_magnetopause(field_data, mhddatafile,
                                   zone_rename='mp_w100',
                                   do_blank=True,blank_value=100,
@@ -66,6 +67,7 @@ def work(mhddatafile):
                                   zone_rename='mp_w300',
                                   do_blank=True,blank_value=300,
                                   outputpath=OUTPUTPATH)
+    '''
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
     startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
@@ -155,7 +157,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt.gz')
+    solution_times = glob.glob(MHDDIR+'/*.plt.gz')[0:20]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
