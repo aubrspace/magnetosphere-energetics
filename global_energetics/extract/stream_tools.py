@@ -9,6 +9,7 @@ from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
+import scipy.spatial as space
 import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
@@ -20,6 +21,7 @@ import pandas as pd
 from global_energetics.extract import shue
 from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
+from progress.bar import Bar
 
 def create_stream_zone(field_data, x1start, x2start, x3start,
                        zone_name, *, line_type=None, cart_given=False,
@@ -467,7 +469,8 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
     return loc_data, x_max
 
 
-def get_surface_velocity_estimate(field_data, currentindex, futureindex):
+def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
+                                  nalpha=36, nphi=24, ntheta=24, nx=15):
     """Function finds the surface velocity given a single other timestep
     Inputs
         field_data- tecplot dataset object
@@ -478,11 +481,13 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex):
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
     eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
+    eq('{d_cc}=0', value_location=ValueLocation.CellCentered)
+    eq('{Expansion_cc}=0', value_location=ValueLocation.CellCentered)
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
-    varnames = ['x_cc', 'y_cc', 'z_cc', 'h_cc', 'Cell Volume']
+    varnames = ['x_cc', 'y_cc', 'z_cc', 'Cell Volume']
     #load data from tecplot to pandas dataframes
     for var in varnames:
         current_mesh[var] = field_data.zone(currentindex.real
@@ -491,13 +496,152 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex):
                         ).values(var.split(' ')[0]+'*').as_numpy_array()
     #setup element spacings
     alphas, da= np.linspace(-pi, pi, nalpha, retstep=True)
-    phis, dphi = np.linspace(-pi, pi, nphi, retstep=True)
-    thetas, dtheta = np.linspace(-pi, pi, ntheta, retstep=True)
+    phis, dphi = np.linspace(-pi/2, pi/2, nphi, retstep=True)
+    thetas, dtheta = np.linspace(-pi/2, pi/2, ntheta, retstep=True)
     x_s, dx = np.linspace(-20, 0, nx, retstep=True)
-    from IPython import embed; embed()
-    pass
+    #add angles and radii
+    flank_min_h_buff = 10
+    for df in [current_mesh, future_mesh]:
+        df['alpha'] = np.arctan2(df['z_cc'], df['y_cc'])
+        df['phi'] = np.arctan2(df['y_cc'], df['x_cc'])
+        df['theta'] = np.arctan2(df['z_cc'], df['x_cc'])
+        df['h'] = np.sqrt(df['y_cc']**2+df['z_cc']**2)
+        df['r'] = np.sqrt(df['x_cc']**2+df['y_cc']**2+df['z_cc']**2)
+        flank_min_h = df[(df['x_cc']<0) &
+                         (df['x_cc']>df['x_cc'].min()+
+                                         flank_min_h_buff)]['h'].min()
+        tailcond = (df['x_cc']==df['x_cc'].min()) | (
+                   (df['x_cc']<-1) & (df['h']< flank_min_h))
+        flankcond = (~ tailcond)
+        df['flank'] = False
+        df.at[flankcond,'flank'] = True
+    #initialize distance column
+    current_mesh['d'] = 0
+    current_mesh['ExpR'] = 1
+    start_time = time.time()
+    #setup zones, cylindrical flank portion
+    bar = Bar('Calculating distance',max=(nalpha*nx+nphi*ntheta))
+    for a in alphas:
+        for x in x_s:
+            current_sector_ind = ((current_mesh['alpha']<a+da) &
+                                  (current_mesh['alpha']>a) &
+                                  (current_mesh['x_cc']>x) &
+                                  (current_mesh['x_cc']<x+dx) &
+                                  (current_mesh['flank']==True))
+            future_sector_ind = ((future_mesh['alpha']<a+da) &
+                                  (future_mesh['alpha']>a) &
+                                  (future_mesh['x_cc']>x) &
+                                  (future_mesh['x_cc']<x+dx) &
+                                  (current_mesh['flank']==True))
+            csector = current_mesh.loc[current_sector_ind][['x_cc',
+                                                            'y_cc',
+                                                            'z_cc']]
+            fsector = future_mesh.loc[future_sector_ind][['x_cc',
+                                                          'y_cc',
+                                                          'z_cc']]
+            cArea = current_mesh.loc[current_sector_ind][
+                                                      'Cell Volume'].sum()
+            fArea = future_mesh.loc[future_sector_ind][
+                                                      'Cell Volume'].sum()
+            cH = current_mesh.loc[current_sector_ind]['h'].mean()
+            fH = future_mesh.loc[future_sector_ind]['h'].mean()
+            outIn_sign = np.sign(fH-cH)
+            #Calculate distance for each point in csector
+            if (len(csector.values)>0) and (len(fsector.values)>0):
+                expansion_ratio = fArea/cArea
+                current_mesh.at[current_sector_ind,'ExpR']=expansion_ratio
+                for point in enumerate(csector.values):
+                    point_index = csector.index[point[0]]
+                    mindist = min(space.distance.cdist([point[1]],
+                                                fsector.values).min(),
+                                  abs(-20-point[1][0]))*outIn_sign
+                    current_mesh.at[point_index,'d'] = mindist
+                bar.next()
+    #setup zones, cylindrical inside portion
+    for a in alphas:
+        for x in x_s:
+            current_sector_ind = ((current_mesh['alpha']<a+da) &
+                                  (current_mesh['alpha']>a) &
+                                  (current_mesh['x_cc']>x) &
+                                  (current_mesh['x_cc']<x+dx) &
+                                  (current_mesh['flank']==False))
+            future_sector_ind = ((future_mesh['alpha']<a+da) &
+                                  (future_mesh['alpha']>a) &
+                                  (future_mesh['x_cc']>x) &
+                                  (future_mesh['x_cc']<x+dx) &
+                                  (current_mesh['flank']==False))
+            csector = current_mesh.loc[current_sector_ind][['x_cc',
+                                                            'y_cc',
+                                                            'z_cc']]
+            fsector = future_mesh.loc[future_sector_ind][['x_cc',
+                                                          'y_cc',
+                                                          'z_cc']]
+            cArea = current_mesh.loc[current_sector_ind][
+                                                      'Cell Volume'].sum()
+            fArea = future_mesh.loc[future_sector_ind][
+                                                      'Cell Volume'].sum()
+            cH = current_mesh.loc[current_sector_ind]['h'].mean()
+            fH = future_mesh.loc[future_sector_ind]['h'].mean()
+            outIn_sign = np.sign(cH-fH)
+            #Calculate distance for each point in csector
+            if (len(csector.values)>0) and (len(fsector.values)>0):
+                expansion_ratio = fArea/cArea
+                current_mesh.at[current_sector_ind,'ExpR']=expansion_ratio
+                for point in enumerate(csector.values):
+                    point_index = csector.index[point[0]]
+                    mindist = min(space.distance.cdist([point[1]],
+                                                fsector.values).min(),
+                                  abs(-20-point[1][0]))*outIn_sign
+                    current_mesh.at[point_index,'d'] = mindist
+                bar.next()
+    #setup zones, semi_sphere section
+    for phi in phis:
+        for theta in thetas:
+            current_sector_ind = ((current_mesh['theta']<theta+dtheta) &
+                                  (current_mesh['theta']>theta) &
+                                  (current_mesh['phi']>phi) &
+                                  (current_mesh['phi']<phi+dphi))
+            future_sector = ((future_mesh['theta']<theta+dtheta) &
+                             (future_mesh['theta']>theta) &
+                             (future_mesh['phi']>phi) &
+                             (future_mesh['phi']<phi+dphi))
+            csector = current_mesh.loc[current_sector_ind][['x_cc',
+                                                            'y_cc',
+                                                            'z_cc']]
+            fsector = future_mesh.loc[future_sector_ind][['x_cc',
+                                                          'y_cc',
+                                                          'z_cc']]
+            cArea = current_mesh.loc[current_sector_ind][
+                                                      'Cell Volume'].sum()
+            fArea = future_mesh.loc[future_sector_ind][
+                                                      'Cell Volume'].sum()
+            cR = current_mesh.loc[current_sector_ind]['r'].mean()
+            fR = future_mesh.loc[future_sector_ind]['r'].mean()
+            outIn_sign = np.sign(fR-cR)
+            #Calculate distance for each point in csector
+            if (len(csector.values)>0) and (len(fsector.values)>0):
+                expansion_ratio = fArea/cArea
+                current_mesh.at[current_sector_ind,'ExpR']=expansion_ratio
+                for point in enumerate(csector.values):
+                    point_index = csector.index[point[0]]
+                    mindist = min(space.distance.cdist([point[1]],
+                                                fsector.values).min(),
+                                  abs(-20-point[1][0]))*outIn_sign
+                    current_mesh.at[point_index,'d'] = mindist
+                bar.next()
+    bar.finish()
+    #Transfer data back into tecplot
+    field_data.zone(currentindex).values('d_cc')[::]=current_mesh[
+                                                               'd'].values
+    field_data.zone(currentindex).values('Expansion_cc')[::]=current_mesh[
+                                                            'ExpR'].values
+    #timestamp
+    ltime = time.time()-start_time
+    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
 
-def get_surface_variables(field_data, zone_name, do_1Dsw):
+def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
+                                                             dt=60):
     """Function calculated variables for a specific 3D surface
     Inputs
         field_data, zone_name
@@ -516,7 +660,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw):
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
     eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
-    eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
+    #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
+    eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
     xnormals = field_data.zone(zone_name).values(
                                   'X GRID K Unit Normal').as_numpy_array()
@@ -607,8 +752,35 @@ def get_surface_variables(field_data, zone_name, do_1Dsw):
         eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
+        if do_cms:
+            ##############################################################
+            #Flux gathered by moving surface
+            dt = str(dt)
+            eq('{'+add+'U [Re/s]}=sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+'+
+                                  '{U_z [km/s]}**2)/6371',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{'+add+'Ksurface_net [W/Re^2]} = -('+
+                    '{'+add+'K_x [W/Re^2]}*{surface_normal_x}/'+
+                          '{U [Re/s]}*{d_cc}/'+dt+'*(1+{Expansion_cc})/2'+
+                   '+{'+add+'K_y [W/Re^2]}*{surface_normal_y}/'+
+                          '{U [Re/s]}*{d_cc}/'+dt+'*(1+{Expansion_cc})/2'+
+                   '+{'+add+'K_z [W/Re^2]}*{surface_normal_z}/'+
+                          '{U [Re/s]}*{d_cc}/'+dt+'*(1+{Expansion_cc})/2'+
+                            ')',value_location=ValueLocation.CellCentered,
+                                zones=[zone_index])
+
+            #Split into + and - flux
+            eq('{'+add+'Ksurface_escape} = max({'+add+
+                                              'Ksurface_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{'+add+'Ksurface_injection} = min({'+add+
+                                              'Ksurface_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
         if zone_name.find('inner')==-1:
-            ##################################################################
+            ##############################################################
             #Day, flank, tail definitions
                 #2-dayside
                 #1-flank
@@ -1093,8 +1265,8 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
             str(rhomin)+'||({uB [J/Re^3]}>'+str(uBmin)+'), 1, 0), 0)')
     return tp.active_frame().dataset.variable('mp_rho_transition').index
 
-def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
-                        coreradius, closed_zone):
+def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
+                        core, coreradius, closed_zone):
     """Function creates equation in tecplot representing surface
     Inputs
         zonename
@@ -1118,14 +1290,14 @@ def calc_betastar_state(zonename, xmax, xmin, hmax, betamax, core,
         '{X [R]} <'+str(xmax))
     if core == False:
         eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
-    eqstr = (eqstr+',IF({beta_star}<'+str(betamax)+',1,')
+    eqstr=(eqstr+',IF({beta_star}['+str(source+1)+']<'+str(betamax)+',1,')
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
     else:
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
     print(eqstr)
-    eq(eqstr)
+    eq(eqstr, zones=[0])
     return tp.active_frame().dataset.variable(zonename).index
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
@@ -1187,7 +1359,7 @@ def calc_sphere_state(mode, xc, yc, zc, rmin):
                              str(rmin)+', 1, 0)')
     return tp.active_frame().dataset.variable(mode).index
 
-def calc_closed_state(status_key, status_val, xmin):
+def calc_closed_state(statename, status_key, status_val, xmin, source):
     """Function creates state variable for the closed fieldline region
     Inputs
         status_key/val-string key and value used to denote closed fldlin
@@ -1196,11 +1368,11 @@ def calc_closed_state(status_key, status_val, xmin):
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
-    print('{lcb} = IF({X [R]} > '+str(xmin)+','+
-                    'IF({'+status_key+'}=='+str(status_val)+',1,0), 0)')
-    eq('{lcb} = IF({X [R]} > '+str(xmin)+','+
-                    'IF({'+status_key+'}=='+str(status_val)+',1,0), 0)')
-    return tp.active_frame().dataset.variable('lcb').index
+    eq('{'+statename+'} = IF({X [R]} > '+str(xmin)+','+
+                    'IF({'+status_key+'}['+str(source+1)+']=='+
+                                            str(status_val)+',1,0), 0)',
+                                                              zones=[0])
+    return tp.active_frame().dataset.variable(statename).index
 
 def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
     """Function creates state variable for a simple box

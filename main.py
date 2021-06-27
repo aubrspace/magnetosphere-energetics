@@ -35,6 +35,8 @@ if __name__ == "__main__":
     mhddatafile = '3d__var_1_e20140219-090000-000.plt'
     future = '3d__var_1_e20140219-090100-023.plt'
     OUTPATH = 'temp/'
+    PNGPATH = 'temp/'
+    OUTPUTNAME = 'testoutput.png'
     '''
     mhddatafile = sys.argv[1].split('/')[-1]
     MHDPATH = '/'.join(sys.argv[1].split('/')[0:-1])+'/'
@@ -161,16 +163,17 @@ if __name__ == "__main__":
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
-    """
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True,show_fieldline=True,
+                                'Ksurface_net *', mhddatafile,
+                                show_contour=True,
+                                show_slice=True,show_fieldline=False,
                                 pngpath=PNGPATH,
-                                plot_satellites=True, satzones=satzones,
+                                plot_satellites=False, satzones=satzones,
                                 mode='iso_tail', transluc=60,
                                 outputname=OUTPUTNAME, save_img=False)
+    """
     #tile
     proc = 'Multi Frame Manager'
     cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

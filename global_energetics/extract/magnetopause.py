@@ -173,7 +173,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                       str(eventtime.minute))
         if do_cms:
             futuretime = swmf_access.swmf_read_time(zoneindex=1)
-            deltatime = eventtime-futuretime
+            deltatime = (futuretime-eventtime).seconds
             futurezonename = tp.active_frame().dataset.zone(1).name
     else:
         print("Unknown data source, cant find date/time and won't be able"+
@@ -227,13 +227,16 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                 rmax, rmin, itr_max, tol,
                                                 global_key=futurezonename)
         else:
-            closed_index = calc_closed_state('Status', 3, tail_cap)
+            closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
             closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
             closedzone_index = closed_zone.index
             if do_cms:
-                future_closed_zone, _ = setup_isosurface(1,closed_index,
-                                                       'future_lcb',
-                                                 global_key=futurezonename)
+                future_closed_index = calc_closed_state('future_lcb',
+                                                        'Status', 3,
+                                                        tail_cap, 1)
+                future_closed_zone, _ = setup_isosurface(1,
+                                                       future_closed_index,
+                                                       'future_lcb')
                 future_closedzone_index = future_closed_zone.index
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
@@ -294,15 +297,15 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         zonename = 'mp_'+mode
         if zone_rename != None:
             zonename = zone_rename
-        iso_betastar_index = calc_betastar_state(zonename, x_subsolar,
+        iso_betastar_index = calc_betastar_state(zonename, 0, x_subsolar,
                                                     tail_cap, 50, 0.7,
                                                     include_core, sp_r,
                                                     closed_zone)
         if do_cms:
-            future_index = calc_betastar_state('future_'+zonename,
+            future_index = calc_betastar_state('future_'+zonename, 1,
                                     future_x_subsolar,
                                     tail_cap, 50, 0.7, include_core,
-                                    sp_r, closed_zone)
+                                    sp_r, future_closed_zone)
             future_state_var_name = field_data.variable(future_index).name
         state_var_name = field_data.variable(iso_betastar_index).name
         #remake iso zone using new equation
@@ -317,7 +320,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                 keep_cond_value=sp_r)
         zoneindex = iso_betastar_zone.index
         if do_cms:
-            __, _ = setup_isosurface(1,iso_betastar_index,
+            __, _ = setup_isosurface(1,future_index,
                                      'future_'+zonename,
                                      keep_condition=cond,
                                      keep_cond_value=sp_r)
@@ -348,7 +351,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         mp_powers = surface_analysis(main_frame, zonename, do_cms, do_1Dsw,
                                 cuttoff=tail_analysis_cap, blank=do_blank,
                                 blank_variable=blank_variable,
-                                blank_value=blank_value)
+                                blank_value=blank_value,
+                                timedelta=deltatime)
         #variables to be saved in meshfile
         varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
                     'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',

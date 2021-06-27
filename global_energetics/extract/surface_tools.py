@@ -21,7 +21,7 @@ from global_energetics.extract.view_set import variable_blank
 def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                      calc_K=True, calc_ExB=True, calc_P0=True,virial=True,
                     surface_area=True, test=False,cuttoff=-20,blank=False,
-                    blank_value=0, blank_variable='W *'):
+                    blank_value=0, blank_variable='W *',timedelta=60):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
@@ -43,7 +43,8 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
         get_surface_velocity_estimate(field_data,
                                       field_data.zone(zone_name).index,
                                 field_data.zone('future_'+zone_name).index)
-        get_surface_variables(field_data, zone_name, do_1Dsw)
+        get_surface_variables(field_data, zone_name, do_1Dsw, do_cms=True,
+                              dt=timedelta)
     else:
         get_surface_variables(field_data, zone_name, do_1Dsw)
     #initialize objects for frame
@@ -170,8 +171,30 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
             data.append(kinj)
             print(add+'{} K integration done'.format(zone_name))
         ###################################################################
+        #integrate K flux
+        if do_cms:
+            #ESCAPE
+            keys.append(add+'Ksurface_escape [W]')
+            kSesc_index = int(field_data.variable(
+                                             add+'Ksurface_escape*').index)
+            kSesc = integrate_surface(kSesc_index, zone_index)
+            data.append(kSesc)
+            #NET
+            keys.append(add+'Ksurface_net [W]')
+            kSnet_index = int(field_data.variable(
+                                               add+'Ksurface_net *').index)
+            kSnet = integrate_surface(kSnet_index, zone_index)
+            data.append(kSnet)
+            #INJECTION
+            keys.append(add+'Ksurface_injection [W]')
+            kSinj_index = int(field_data.variable(
+                                          add+'Ksurface_injection*').index)
+            kSinj = integrate_surface(kSinj_index, zone_index)
+            data.append(kSinj)
+            print(add+'{} Ksurface integration done'.format(zone_name))
+        ###################################################################
         #integrate area
-        if surface_area and len(data)<12:
+        if surface_area and len(data)<13:
             keys.append('Area [Re^2]')
             area_index = None
             SA = integrate_surface(area_index, zone_index,
