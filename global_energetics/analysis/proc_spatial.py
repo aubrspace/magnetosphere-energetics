@@ -164,31 +164,51 @@ def integrate_spatial(dflist, colstrs):
         timestamp = data[~ data['Time_UTC'].isna()]['Time_UTC'].values[0]
         cols, vals = ['Time_UTC'], [timestamp]
         for col in colstrs:
-            if any([key==col for key in df.keys()]):
+            if any([key==col for key in data.keys()]):
                 if col == 'Cell Volume':
                     values = data[col]
                     cols.append('Area [Re^2]')
-                else:
+                    vals.append(values.sum())
+                if col.find('W/Re^2')!=-1:
                     #net (directly from file)
                     values = data[col]*data['Cell Volume']
-                vals.append(values.sum())
-                if col.find('W/Re^2')!=-1:
+                    vals.append(values.sum())
                     #injection
-                    injections = data[data[col]>0]
+                    injections = data[data[col]<0]
                     injectVals = injections[col]*injections['Cell Volume']
                     vals.append(injectVals.sum())
                     #escape
-                    escapes = data[data[col]<0]
+                    escapes = data[data[col]>0]
                     escapVals = escapes[col]*escapes['Cell Volume']
                     vals.append(escapVals.sum())
                     #modify column names
                     col='W'.join(col.split('W/Re^2'))
                     injectCol = 'injection'.join(col.split('net'))
                     escapCol = 'escape'.join(col.split('net'))
-                    cols.append(col),cols.append(injectCol),cols.append(escapCol)
+                    cols.append(col),cols.append(injectCol)
+                    cols.append(escapCol)
+                elif col.find('W_cc')!=-1:
+                    wbins, dw = np.linspace(0,600,13,retstep=True)
+                    for w in wbins:
+                        vort = data[(data[col]<w+dw)&(data[col]>w)]
+                        for powkey in ['K_','P0_','ExB_']:
+                            vInj = vort[vort[powkey+'net [W/Re^2]']<0][
+                                                     powkey+'net [W/Re^2]']
+                            vEsc = vort[vort[powkey+'net [W/Re^2]']>0][
+                                                     powkey+'net [W/Re^2]']
+                            vNet = vort[powkey+'net [W/Re^2]']
+                            vals.append((vInj*vort['Cell Volume']).sum())
+                            vals.append((vEsc*vort['Cell Volume']).sum())
+                            vals.append((vNet*vort['Cell Volume']).sum())
+                            cols.append(powkey+'injection [W] vort['+
+                                                  str(w)+'-'+str(w+dw)+']')
+                            cols.append(powkey+'escape [W] vort['+
+                                                  str(w)+'-'+str(w+dw)+']')
+                            cols.append(powkey+'net [W] vort['+
+                                                  str(w)+'-'+str(w+dw)+']')
         df = df.append(pd.DataFrame(data=[vals],columns=cols),
                        ignore_index=True)
-    return df.sort_values(by=['Time_UTC'])
+    return df.sort_values(by=['Time_UTC']).reset_index(drop=True)
 
 def make_timeseries_data(daylist, flanklist, taillist, fix_locs, key):
     """Function makes 1D timeseries of quanties
@@ -233,7 +253,7 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs, key):
         #Restructure data
         colstrs = ['K_net [W/Re^2]', 'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
                    '1DK_net [W/Re^2]', '1DP0_net [W/Re^2]',
-                   '1DExB_net [W/Re^2]', 'Cell Volume']
+                   '1DExB_net [W/Re^2]', 'Cell Volume', 'W_cc']
         day_df = integrate_spatial(daylist, colstrs)
         flank_df = integrate_spatial(flanklist, colstrs)
         tail_df = integrate_spatial(taillist, colstrs)
@@ -424,6 +444,11 @@ def add_derived_variables(dflist):
             dflist[df[0]]['h_R'] =sqrt(df[1]['y_cc']**2+df[1]['z_cc']**2)
             dflist[df[0]]['alpha_rad'] = (arctan2(df[1]['z_cc'],
                                                            df[1]['y_cc']))
+            #remove zeros
+            zeroindices = df[1][((df[1]['K_net [W/Re^2]']==0) &
+                                 (df[1]['Cell Volume']==0))].index
+            dflist[df[0]] = df[1].drop(index=zeroindices).reset_index(
+                                                                 drop=True)
     return dflist
 
 

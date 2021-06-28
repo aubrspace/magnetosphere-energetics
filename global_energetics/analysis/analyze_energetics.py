@@ -458,8 +458,11 @@ def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
     injaxis.legend(loc=legend_loc, facecolor='gray')
     escaxis.legend(loc=legend_loc, facecolor='gray')
 
-def plot_VortPower(axis, dflist, timekey, ylabel, powerkey, *,
-                     xlim=None, ylim=None, Color=None, Size=2, ls=None):
+def VortValue(vortstr):
+    return float(vortstr.split('vort')[-1].split('[')[-1].split('-')[0])
+
+def plot_VortPower(axis, dflist, timekey, ylabel, control_key, *,
+                   xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots power transfer at different vorticity bins
     Inputs
         axis- object plotted on
@@ -469,34 +472,60 @@ def plot_VortPower(axis, dflist, timekey, ylabel, powerkey, *,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper right'
-    if Color == None:
-        FullColor = 'black'
-        w100Color = 'magenta'
-        w200Color = 'darkmagenta'
-        w300Color = 'hotpink'
+    control_flavor = control_key.split('_')[0]
+    control_type = control_key.split('_')[-1].split(' ')[0]
     for data in dflist:
         name = data['name'].iloc[-1]
-        if name.find('full')!=-1:
-            Color = FullColor
-            tag = name.split('_')[-1]
-        if name.find('w100')!=-1:
-            Color = w100Color
-            tag = name.split('_')[-1]
-        if name.find('w200')!=-1:
-            Color = w200Color
-            tag = name.split('_')[-1]
-        if name.find('w300')!=-1:
-            Color = w300Color
-            tag = name.split('_')[-1]
-        axis.plot(data[timekey],data[powerkey], label=r'\textit{'+tag+'}',
-                  linewidth=Size, linestyle=ls, color=Color)
+        region = name.split('_')[1].split('aggr')[-1]
+        Klist, Klabels, k, kmax = [], [], 0, 99
+        Colorwheel = ['cadetblue','magenta','darkmagenta',
+                      'indigo','blue','blueviolet','violet',
+                      'royalblue','cyan','teal','dodgerblue',
+                      'darkslateblue', 'black']
+        for powkey in enumerate(sorted(
+                     [key for key in data.keys() if key.find('vort')!=-1],
+                                                          key=VortValue)):
+            #wlabel = 'W '+powkey[1].split('vort')[-1]
+            wlabel = str(VortValue(powkey[1])).split('.')[0]
+            flavor = powkey[1].split('_')[0]
+            powtype = powkey[1].split('_')[-1].split(' ')[0]
+            if (control_flavor==flavor)and(
+                powtype==control_type)and(Color==None):
+                maxpercent =abs((data[powkey[1]]/data[control_key]).max())
+                if (maxpercent>0.1) or (k==0):
+                    if (k==0) or (control_type.find('net')!=-1):
+                        Klist.append(data[powkey[1]].dropna())
+                        Klabels.append(wlabel)
+                    else:
+                        Klist.append(Klist[k-1]+data[powkey[1]].dropna())
+                        Klabels.append(wlabel)
+                elif k<kmax:
+                    Klist.append(data[control_key].dropna())
+                    Klabels.append('Total')
+                    Colorwheel[k] = 'black'
+                    kmax = k
+                print(control_key, wlabel, maxpercent)
+                k+=1
+        for dat in enumerate(Klist):
+            axis.plot(data[timekey].dropna(),dat[1],
+                      label=r'\textit{'+Klabels[dat[0]]+'}',
+                      linewidth=Size, linestyle=ls,
+                      color=Colorwheel[dat[0]])
+            if (dat[0]==0) and (control_type.find('net')==-1):
+                axis.fill_between(data[timekey].dropna(),dat[1],
+                              color=Colorwheel[dat[0]])
+            elif control_type.find('net')==-1:
+                axis.fill_between(data[timekey].dropna(),dat[1],
+                                  Klist[dat[0]-1],
+                                  color=Colorwheel[dat[0]])
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time (UTC)}')
     axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+    from labellines import labelLines
+    labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
 
 def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
@@ -1275,6 +1304,7 @@ if __name__ == "__main__":
     else:
         do_mpcomparisons = False
         mp = mplist[0]
+    """
     [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(
                                                              datapath[-1])
     [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
@@ -1574,6 +1604,8 @@ if __name__ == "__main__":
         ax2.text(0.01,0.9,'b)', Color='black', fontsize=36, transform=ax2.transAxes)
         #shade_plot(ax1); shade_plot(ax2); shade_plot(ax3)
         #ax1.set_facecolor('olive'); ax2.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         panel2prox.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Dessler-Parker-Sckopke
@@ -1589,6 +1621,7 @@ if __name__ == "__main__":
                                   timekey, ylabel)
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         DPS.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces power
@@ -1607,6 +1640,7 @@ if __name__ == "__main__":
         #plot_Power(ax1, [difference_mp], timekey, y1label, Color='midnightblue')
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         power_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
@@ -1624,6 +1658,7 @@ if __name__ == "__main__":
         #plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         volume_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
@@ -1641,6 +1676,7 @@ if __name__ == "__main__":
         #plot_SA(ax1, [mplist[2]], timekey, y1label, Color='plum')
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         surf_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1666,6 +1702,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1692,6 +1731,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1717,6 +1759,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1745,6 +1790,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1773,6 +1821,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1802,6 +1853,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1827,6 +1881,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive')
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1854,6 +1911,9 @@ if __name__ == "__main__":
         #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3),
         #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
         #ax3.set_facecolor('olive'),
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         spPower3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
@@ -1902,6 +1962,12 @@ if __name__ == "__main__":
         #ax3.set_facecolor('olive'),
         #ax4.set_facecolor('olive'), ax5.set_facecolor('olive'),
         #ax6.set_facecolor('olive'),
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax3.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax4.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax5.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax6.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         spPower1.savefig(figureout+'{}.eps'.format(figname+'_K'))
         spPower2.savefig(figureout+'{}.eps'.format(figname+'_P0'))
         spPower3.savefig(figureout+'{}.eps'.format(figname+'_ExB'))
@@ -1940,37 +2006,49 @@ if __name__ == "__main__":
                                                 show_colorbar=True)
         fixed.savefig(figureout+'{}'.format(figname)+'.eps')
         plt.cla()
+    """
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
-        figname = 'MPVort'
-        aggsublist = [ag for ag in energetics_list if ag['name'].iloc[-1].find(
-                                                               'mp_')!=-1]
-        dVort_inj, ax1 = plt.subplots(nrows=1, ncols=1, figsize=[14,6])
-        dVort_esc, ax2 = plt.subplots(nrows=1, ncols=1, figsize=[14,6])
-        dVort_net, ax3 = plt.subplots(nrows=1, ncols=1, figsize=[14,6])
-        dVort_inj.tight_layout(pad=2.2), dVort_esc.tight_layout(pad=2.2)
-        dVort_net.tight_layout(pad=2.2)
-        #Time
-        timekey = 'Time [UTC]'
-        y1label = r'\textit{Power} $\displaystyle _{injection}\left( W\right)$'
-        y2label = r'\textit{Power} $\displaystyle _{escape}\left( W\right)$'
-        y3label = r'\textit{Power} $\displaystyle _{net}\left( W\right)$'
-        plot_VortPower(ax1, aggsublist, timekey, y1label,
-                       'K_injection [W]')
-        plot_VortPower(ax2, aggsublist, timekey, y2label,
-                       'K_escape [W]')
-        plot_VortPower(ax3, aggsublist, timekey, y3label,
-                       'K_net [W]')
-
-        ax1.legend(loc='upper left', facecolor='gray')
-        ax2.legend(loc='upper left', facecolor='gray')
-        ax3.legend(loc='upper left', facecolor='gray')
-
-        #shade_plot(ax1), shade_plot(ax2), shade_plot(ax3)
-        #ax1.set_facecolor('olive'), ax2.set_facecolor('olive'),
-        #ax3.set_facecolor('olive')
-        dVort_inj.savefig(figureout+'{}_inj.eps'.format(figname))
-        dVort_esc.savefig(figureout+'{}_esc.eps'.format(figname))
-        dVort_net.savefig(figureout+'{}_net.eps'.format(figname))
+        figname = 'MPVortDay'
+        timekey = 'Time_UTC'
+        aggsublist = [ag for ag in energetics_list if ag[
+                                       'name'].iloc[-1].find('day')!=-1]
+        keys = ['K_injection [W]', 'K_escape [W]', 'K_net [W]',
+                'P0_injection [W]', 'P0_escape [W]', 'P0_net [W]',
+                'ExB_injection [W]', 'ExB_escape [W]', 'ExB_net [W]']
+        y1 = r'\textit{Power} $\displaystyle _{injection}\left( W\right)$'
+        y2 = r'\textit{Power} $\displaystyle _{escape}\left( W\right)$'
+        y3 = r'\textit{Power} $\displaystyle _{net}\left( W\right)$'
+        ylabels = [y1, y2, y3, y1, y2, y3, y1, y2, y3]
+        for key in enumerate(keys):
+            fig = plt.figure(figsize=[14,6])
+            ax = fig.add_subplot()
+            fig.tight_layout(pad=3.2)
+            plot_VortPower(ax,aggsublist,timekey,ylabels[key[0]],key[1])
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            fig.savefig(figureout+figname+'_'+keys[key[0]].split(' ')[0]+
+                        '.eps'.format(figname))
+    ######################################################################
+    #Comparisons of sections of the magntopause surface
+    if doagg:
+        figname = 'MPVortFlank'
+        timekey = 'Time_UTC'
+        aggsublist = [ag for ag in energetics_list if ag[
+                                       'name'].iloc[-1].find('flank')!=-1]
+        keys = ['K_injection [W]', 'K_escape [W]', 'K_net [W]',
+                'P0_injection [W]', 'P0_escape [W]', 'P0_net [W]',
+                'ExB_injection [W]', 'ExB_escape [W]', 'ExB_net [W]']
+        y1 = r'\textit{Power} $\displaystyle _{injection}\left( W\right)$'
+        y2 = r'\textit{Power} $\displaystyle _{escape}\left( W\right)$'
+        y3 = r'\textit{Power} $\displaystyle _{net}\left( W\right)$'
+        ylabels = [y1, y2, y3, y1, y2, y3, y1, y2, y3]
+        for key in enumerate(keys):
+            fig = plt.figure(figsize=[14,6])
+            ax = fig.add_subplot()
+            fig.tight_layout(pad=3.2)
+            plot_VortPower(ax,aggsublist,timekey,ylabels[key[0]],key[1])
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            fig.savefig(figureout+figname+'_'+keys[key[0]].split(' ')[0]+
+                        '.eps'.format(figname))
     ######################################################################
