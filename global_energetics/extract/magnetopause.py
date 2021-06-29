@@ -279,6 +279,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         #make iso zone
         box_zone, _ = setup_isosurface(1, box_state_index, zonename)
         zoneindex = box_zone.index
+        if do_cms:
+            future_index = calc_box_state('future_'+zonename,
+                                                5, -12,
+                                                7, -3,
+                                                10, -10)
+            future_state_var_name = field_data.variable(future_index).name
+            __, _ = setup_isosurface(1,future_index,
+                                     'future_'+zonename)
     ################################################################
     if mode.find('shue') != -1:
         zonename = 'mp_'+mode

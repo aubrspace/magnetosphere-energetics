@@ -470,7 +470,7 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
 
 
 def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
-                                  nalpha=36, nphi=24, ntheta=24, nx=15):
+                                  nalpha=36, nphi=30, ntheta=30, nx=5):
     """Function finds the surface velocity given a single other timestep
     Inputs
         field_data- tecplot dataset object
@@ -483,6 +483,7 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
     eq('{d_cc}=0', value_location=ValueLocation.CellCentered)
     eq('{Expansion_cc}=0', value_location=ValueLocation.CellCentered)
+    eq('{SectorID}=0', value_location=ValueLocation.CellCentered)
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'CELLVOLUME VALUELOCATION = '+
@@ -495,10 +496,12 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
         future_mesh[var] = field_data.zone(futureindex.real
                         ).values(var.split(' ')[0]+'*').as_numpy_array()
     #setup element spacings
-    alphas, da= np.linspace(-pi, pi, nalpha, retstep=True)
-    phis, dphi = np.linspace(-pi/2, pi/2, nphi, retstep=True)
-    thetas, dtheta = np.linspace(-pi/2, pi/2, ntheta, retstep=True)
-    x_s, dx = np.linspace(-20, 0, nx, retstep=True)
+    alphas, da= np.linspace(-pi, pi, nalpha, retstep=True, endpoint=False)
+    phis, dphi = np.linspace(-pi/2, pi/2, nphi, retstep=True,
+                                                endpoint=False)
+    thetas, dtheta = np.linspace(-pi/2, pi/2, ntheta, retstep=True,
+                                                      endpoint=False)
+    x_s, dx = np.linspace(-20, 0, nx, retstep=True, endpoint=False)
     #add angles and radii
     flank_min_h_buff = 10
     for df in [current_mesh, future_mesh]:
@@ -518,9 +521,8 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
     #initialize distance column
     current_mesh['d'] = 0
     current_mesh['ExpR'] = 1
-    start_time = time.time()
     #setup zones, cylindrical flank portion
-    bar = Bar('Calculating distance',max=(nalpha*nx+nphi*ntheta))
+    bar = Bar('Calculating distance',max=(2*nalpha*nx+nphi*ntheta))
     for a in alphas:
         for x in x_s:
             current_sector_ind = ((current_mesh['alpha']<a+da) &
@@ -532,13 +534,15 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                   (future_mesh['alpha']>a) &
                                   (future_mesh['x_cc']>x) &
                                   (future_mesh['x_cc']<x+dx) &
-                                  (current_mesh['flank']==True))
+                                  (future_mesh['flank']==True))
             csector = current_mesh.loc[current_sector_ind][['x_cc',
                                                             'y_cc',
-                                                            'z_cc']]
+                                                            'z_cc',
+                                                            'h']]
             fsector = future_mesh.loc[future_sector_ind][['x_cc',
                                                           'y_cc',
-                                                          'z_cc']]
+                                                          'z_cc',
+                                                          'h']]
             cArea = current_mesh.loc[current_sector_ind][
                                                       'Cell Volume'].sum()
             fArea = future_mesh.loc[future_sector_ind][
@@ -548,15 +552,13 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
             outIn_sign = np.sign(fH-cH)
             #Calculate distance for each point in csector
             if (len(csector.values)>0) and (len(fsector.values)>0):
-                expansion_ratio = fArea/cArea
+                if cArea==0:
+                    expansion_ratio=0
+                else:
+                    expansion_ratio = fArea/cArea
                 current_mesh.at[current_sector_ind,'ExpR']=expansion_ratio
-                for point in enumerate(csector.values):
-                    point_index = csector.index[point[0]]
-                    mindist = min(space.distance.cdist([point[1]],
-                                                fsector.values).min(),
-                                  abs(-20-point[1][0]))*outIn_sign
-                    current_mesh.at[point_index,'d'] = mindist
-                bar.next()
+                avedist = fsector['h'].mean()-csector['h'].mean()
+                current_mesh.at[current_sector_ind,'d']=avedist
     #setup zones, cylindrical inside portion
     for a in alphas:
         for x in x_s:
@@ -569,13 +571,15 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                   (future_mesh['alpha']>a) &
                                   (future_mesh['x_cc']>x) &
                                   (future_mesh['x_cc']<x+dx) &
-                                  (current_mesh['flank']==False))
+                                  (future_mesh['flank']==False))
             csector = current_mesh.loc[current_sector_ind][['x_cc',
                                                             'y_cc',
-                                                            'z_cc']]
+                                                            'z_cc',
+                                                            'h']]
             fsector = future_mesh.loc[future_sector_ind][['x_cc',
                                                           'y_cc',
-                                                          'z_cc']]
+                                                          'z_cc',
+                                                          'h']]
             cArea = current_mesh.loc[current_sector_ind][
                                                       'Cell Volume'].sum()
             fArea = future_mesh.loc[future_sector_ind][
@@ -585,15 +589,13 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
             outIn_sign = np.sign(cH-fH)
             #Calculate distance for each point in csector
             if (len(csector.values)>0) and (len(fsector.values)>0):
-                expansion_ratio = fArea/cArea
+                if cArea==0:
+                    expansion_ratio=0
+                else:
+                    expansion_ratio = fArea/cArea
                 current_mesh.at[current_sector_ind,'ExpR']=expansion_ratio
-                for point in enumerate(csector.values):
-                    point_index = csector.index[point[0]]
-                    mindist = min(space.distance.cdist([point[1]],
-                                                fsector.values).min(),
-                                  abs(-20-point[1][0]))*outIn_sign
-                    current_mesh.at[point_index,'d'] = mindist
-                bar.next()
+                avedist = fsector['h'].mean()-csector['h'].mean()
+                current_mesh.at[current_sector_ind,'d']=avedist
     #setup zones, semi_sphere section
     for phi in phis:
         for theta in thetas:
@@ -601,16 +603,21 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                   (current_mesh['theta']>theta) &
                                   (current_mesh['phi']>phi) &
                                   (current_mesh['phi']<phi+dphi))
-            future_sector = ((future_mesh['theta']<theta+dtheta) &
+            future_sector_ind = ((future_mesh['theta']<theta+dtheta) &
                              (future_mesh['theta']>theta) &
                              (future_mesh['phi']>phi) &
                              (future_mesh['phi']<phi+dphi))
+            current_mesh.at[current_sector_ind,'Sector'] = k
+            future_mesh.at[future_sector_ind,'Sector'] = k
+            k+=1
             csector = current_mesh.loc[current_sector_ind][['x_cc',
                                                             'y_cc',
-                                                            'z_cc']]
+                                                            'z_cc',
+                                                            'r']]
             fsector = future_mesh.loc[future_sector_ind][['x_cc',
                                                           'y_cc',
-                                                          'z_cc']]
+                                                          'z_cc',
+                                                          'r']]
             cArea = current_mesh.loc[current_sector_ind][
                                                       'Cell Volume'].sum()
             fArea = future_mesh.loc[future_sector_ind][
@@ -620,25 +627,18 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
             outIn_sign = np.sign(fR-cR)
             #Calculate distance for each point in csector
             if (len(csector.values)>0) and (len(fsector.values)>0):
-                expansion_ratio = fArea/cArea
+                if cArea==0:
+                    expansion_ratio=0
+                else:
+                    expansion_ratio = fArea/cArea
                 current_mesh.at[current_sector_ind,'ExpR']=expansion_ratio
-                for point in enumerate(csector.values):
-                    point_index = csector.index[point[0]]
-                    mindist = min(space.distance.cdist([point[1]],
-                                                fsector.values).min(),
-                                  abs(-20-point[1][0]))*outIn_sign
-                    current_mesh.at[point_index,'d'] = mindist
-                bar.next()
-    bar.finish()
+                avedist = fsector['r'].mean()-csector['r'].mean()
+                current_mesh.at[current_sector_ind,'d']=avedist
     #Transfer data back into tecplot
     field_data.zone(currentindex).values('d_cc')[::]=current_mesh[
                                                                'd'].values
     field_data.zone(currentindex).values('Expansion_cc')[::]=current_mesh[
                                                             'ExpR'].values
-    #timestamp
-    ltime = time.time()-start_time
-    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
-                                           np.mod(ltime,60)))
 
 def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                                                              dt=60):
@@ -660,8 +660,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
     eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
-    #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
-    eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
+    eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
+    #eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
     xnormals = field_data.zone(zone_name).values(
                                   'X GRID K Unit Normal').as_numpy_array()
@@ -1098,13 +1098,11 @@ def get_global_variables(field_data):
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
-    '''
     #Vorticity
     eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
                           '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
                           '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
                             value_location=ValueLocation.CellCentered)
-    '''
     '''
     eq('{W_x [km/s/Re]} = ddy({U_z [km/s]}) - ddz({U_y [km/s]})',
         value_location=ValueLocation.CellCentered)

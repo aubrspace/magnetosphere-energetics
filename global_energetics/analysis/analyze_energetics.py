@@ -130,7 +130,8 @@ def plot_Power_al(axis, dflist, timekey, ylabel, *,
 
 def plot_Power(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None,
-             use_inner=False, use_shield=False, use_average=False):
+             use_inner=False, use_shield=False, use_average=False,
+             use_surface=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -156,6 +157,10 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
             powerin_str = 'inner'+powerin_str
             powerout_str = 'inner'+powerout_str
             powernet_str = 'inner'+powernet_str
+        elif use_surface:
+            powerin_str = 'Ksurface_injection [W]'
+            powerout_str = 'Ksurface_escape [W]'
+            powernet_str = 'Ksurface_net [W]'
         if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
             if use_shield:
                 oneDin = abs(data['1D'+powerin_str])*100+1
@@ -526,6 +531,36 @@ def plot_VortPower(axis, dflist, timekey, ylabel, control_key, *,
     axis.set_ylabel(ylabel)
     from labellines import labelLines
     labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
+
+def plot_SurfacePower(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
+    """Function plots outer surface boundary powers
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        dflabels- labels used for legend
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'upper left'
+    qtkey = 'KSurface_'+typekey
+    if Color == None:
+        Color = 'magenta'
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name.find('mp')!=-1:
+            tag = name.split('_')[-1]
+            axis.plot(data[timekey],data[qtkey],
+                        label=r'\textit{'+tag+'}',
+                        linewidth=Size, linestyle=ls,
+                        color=Color)
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    axis.set_xlabel(r'\textit{Time (UTC)}')
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc, facecolor='gray')
 
 def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
@@ -1279,7 +1314,7 @@ if __name__ == "__main__":
         "font.size": 18,
         "font.sans-serif": ["Helvetica"]})
     #figure size defaults
-    figx = 14; figy = 6; padsize=2
+    figx = 14; figy = 6; padsize=3
     #Read in data
     fullstart = dt.datetime(2014, 2, 15, 0)
     fullend = dt.datetime(2014, 2, 23, 0)
@@ -2006,7 +2041,6 @@ if __name__ == "__main__":
                                                 show_colorbar=True)
         fixed.savefig(figureout+'{}'.format(figname)+'.eps')
         plt.cla()
-    """
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if doagg:
@@ -2051,4 +2085,21 @@ if __name__ == "__main__":
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             fig.savefig(figureout+figname+'_'+keys[key[0]].split(' ')[0]+
                         '.eps'.format(figname))
+    ######################################################################
+    """
+    #Total Power injection, escape and net
+    if True:
+        figname = 'SurfacePower'
+        power, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
+                                          figsize=[figx,figy])
+        power.tight_layout(pad=padsize*1.1)
+        #Time
+        timekey = 'Time [UTC]'
+        y1label = r'\textit{Power} $\displaystyle \left( W\right)$'
+        plot_Power(ax1, [mp], timekey, y1label, use_surface=True,
+                   ylim=[-3e12, 3e12])
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #power.autofmt_xdate()
+        #shade_plot(ax1)
+        power.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
