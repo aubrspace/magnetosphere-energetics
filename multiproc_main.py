@@ -20,15 +20,17 @@ from global_energetics.extract import stream_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
-from global_energetics import write_disp
+from global_energetics import write_disp, makevideo
 
-def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath):
+def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath,
+         all_solution_times):
     # !!! IMPORTANT !!!
     # Must register stop at exit to ensure Tecplot cleans
     # up all temporary files and does not create a core dump
     atexit.register(tp.session.stop)
     #globalize variables for each worker
     global RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH, PNGPATH, ID
+    global ALL_SOLUTION_TIMES
     RUNDIR = rundir
     MHDDIR = mhddir
     IEDIR = iedir
@@ -36,6 +38,7 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath):
     SCRIPTDIR = scriptdir
     OUTPUTPATH = outputpath
     PNGPATH = pngpath
+    ALL_SOLUTION_TIMES = all_solution_times
     ID = id(multiprocessing.current_process())
     os.system('mkdir '+MHDDIR+'/'+str(ID))
     os.system('cp '+MHDDIR+'/*.sat '+MHDDIR+'/'+str(ID)+'/')
@@ -43,12 +46,23 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath):
 def work(mhddatafile):
     # Load data and change zone name
     print(mhddatafile)
+    for sol in enumerate(ALL_SOLUTION_TIMES):
+        if mhddatafile == sol[1]:
+            if sol[0]!=len(ALL_SOLUTION_TIMES)-1:
+                nextmhdfile = ALL_SOLUTION_TIMES[sol[0]+1]
+            else:
+                nextmhdfile = mhddatafile
     tp.new_layout()
-    unzipdatafile = mhddatafile.split('gz')[0]
+    unzipdatafile = mhddatafile.split('.gz')[0]
+    unzipnextfile = (MHDDIR+'/'+str(ID)+
+                     nextmhdfile.split('.gz')[0].split('/')[-1])
     os.system('gunzip -c '+mhddatafile+' > '+unzipdatafile)
+    os.system('gunzip -c '+nextmhdfile+' > '+unzipnextfile)
     mhddatafile = unzipdatafile
-    field_data = tp.data.load_tecplot(mhddatafile)
+    nextmhdfile = unzipnextfile
+    field_data = tp.data.load_tecplot([mhddatafile, nextmhdfile])
     field_data.zone(0).name = 'global_field'
+    field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile,
@@ -89,7 +103,8 @@ def work(mhddatafile):
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=True,
+                                'Ksurface_net *', mhddatafile,
+                                show_contour=True,
                                 show_slice=False, energyrange=9e10,
                                 show_legend=False, mode='inside_from_tail',
                                 pngpath=PNGPATH, energy_contourmap=4,
@@ -99,7 +114,8 @@ def work(mhddatafile):
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
-                                'K_net *', mhddatafile, show_contour=True,
+                                'Ksurface_net *', mhddatafile,
+                                show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
                                 plot_satellites=False, satzones=satzones,
@@ -109,7 +125,8 @@ def work(mhddatafile):
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
-                                'K_net *', mhddatafile, show_contour=True,
+                                'Ksurface_net *', mhddatafile,
+                                show_contour=True,
                                 show_slice=True,
                                 pngpath=PNGPATH, add_clock=True,
                                 plot_satellites=False, satzones=satzones,
@@ -120,7 +137,8 @@ def work(mhddatafile):
     frame3.activate()
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
-                                'K_net *', mhddatafile, show_contour=True,
+                                'Ksurface_net *', mhddatafile,
+                                show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH, transluc=60,
                                 plot_satellites=False, satzones=satzones,
@@ -129,6 +147,7 @@ def work(mhddatafile):
                                 show_timestamp=False,
                                 zone_hidekeys=['box', 'lcb', '30', '40'])
     os.system('rm '+mhddatafile)
+    os.system('rm '+nextmhdfile)
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -157,26 +176,29 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    solution_times = glob.glob(MHDDIR+'/*.plt.gz')[0:20]
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
+                                key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
         donelist = glob.glob(OUTPUTPATH+'/png/*')
         for png in donelist:
             parseddonelist.append(png.split('/')[-1].split('.')[0])
-        for plt in solution_times:
+        for plt in all_solution_times:
             parsednotdone.append(plt.split('e')[-1].split('.')[0])
         solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt.gz' for item
                     in parsednotdone if item not in parseddonelist]
+    else:
+        solution_times = all_solution_times
     print(solution_times)
     print(len(solution_times))
-    numproc = multiprocessing.cpu_count()-1
+    numproc = multiprocessing.cpu_count()
 
     # Set up the pool with initializing function and associated arguments
     num_workers = min(numproc, len(solution_times))
     pool = multiprocessing.Pool(num_workers, initializer=init,
             initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
-                      PNGPATH))
+                      PNGPATH, all_solution_times))
     try:
         # Map the work function to each of the job arguments
         pool.map(work, solution_times)
@@ -187,10 +209,12 @@ if __name__ == '__main__':
         os.system('rm -r '+MHDDIR+'/*/')
     ########################################
 
+    """
     #Combine and delete individual energetics files
     write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                             OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
+    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
