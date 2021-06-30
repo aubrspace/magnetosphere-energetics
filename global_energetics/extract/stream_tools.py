@@ -718,14 +718,14 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
         eq('{Csurface_y} = IF({x_cc}<0,'+
-            'IF({Flank}==0,{y_cc}/sqrt({y_cc}**2+{z_cc}**2),'+
+            'IF({Flank}==1,{y_cc}/sqrt({y_cc}**2+{z_cc}**2),'+
                          '-{y_cc}/sqrt({y_cc}**2+{z_cc}**2)),'+
         '{y_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2)*{surface_normal_y})'+
             '*6371*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
         eq('{Csurface_z} = IF({x_cc}<0,'+
-            'IF({Flank}==0,{z_cc}/sqrt({y_cc}**2+{z_cc}**2),'+
+            'IF({Flank}==1,{z_cc}/sqrt({y_cc}**2+{z_cc}**2),'+
                          '-{z_cc}/sqrt({y_cc}**2+{z_cc}**2)),'+
         '{z_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2))'+
             '*6371*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
