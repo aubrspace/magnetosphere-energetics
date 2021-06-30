@@ -607,9 +607,6 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                              (future_mesh['theta']>theta) &
                              (future_mesh['phi']>phi) &
                              (future_mesh['phi']<phi+dphi))
-            current_mesh.at[current_sector_ind,'Sector'] = k
-            future_mesh.at[future_sector_ind,'Sector'] = k
-            k+=1
             csector = current_mesh.loc[current_sector_ind][['x_cc',
                                                             'y_cc',
                                                             'z_cc',
@@ -660,8 +657,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
     eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
-    eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
-    #eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
+    #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
+    eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
     xnormals = field_data.zone(zone_name).values(
                                   'X GRID K Unit Normal').as_numpy_array()
@@ -1098,11 +1095,13 @@ def get_global_variables(field_data):
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
+    '''
     #Vorticity
     eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
                           '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
                           '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
                             value_location=ValueLocation.CellCentered)
+    '''
     '''
     eq('{W_x [km/s/Re]} = ddy({U_z [km/s]}) - ddz({U_y [km/s]})',
         value_location=ValueLocation.CellCentered)
