@@ -174,24 +174,24 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
         #integrate K flux
         if do_cms:
             #ESCAPE
-            keys.append(add+'Ksurface_escape [W]')
+            keys.append(add+'KSurf_escape [W]')
             kSesc_index = int(field_data.variable(
-                                             add+'Ksurface_escape*').index)
+                                             add+'KSurf_escape*').index)
             kSesc = integrate_surface(kSesc_index, zone_index)
             data.append(kSesc)
             #NET
-            keys.append(add+'Ksurface_net [W]')
+            keys.append(add+'KSurf_net [W]')
             kSnet_index = int(field_data.variable(
-                                               add+'Ksurface_net *').index)
+                                               add+'KSurf_net *').index)
             kSnet = integrate_surface(kSnet_index, zone_index)
             data.append(kSnet)
             #INJECTION
-            keys.append(add+'Ksurface_injection [W]')
+            keys.append(add+'KSurf_injection [W]')
             kSinj_index = int(field_data.variable(
-                                          add+'Ksurface_injection*').index)
+                                          add+'KSurf_injection*').index)
             kSinj = integrate_surface(kSinj_index, zone_index)
             data.append(kSinj)
-            print(add+'{} Ksurface integration done'.format(zone_name))
+            print(add+'{} KSurf integration done'.format(zone_name))
         ###################################################################
         #integrate area
         if surface_area and len(data)<13:

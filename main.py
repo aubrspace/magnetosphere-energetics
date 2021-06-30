@@ -166,13 +166,13 @@ if __name__ == "__main__":
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
-                                'Ksurface_net *', mhddatafile,
-                                show_contour=True,
+                                'KSurf_net *', mhddatafile,
+                                show_contour=True, energyrange=3e9,
                                 show_slice=True,show_fieldline=False,
                                 pngpath=PNGPATH,
                                 plot_satellites=False, satzones=satzones,
-                                mode='iso_tail', transluc=60,
-                                outputname=OUTPUTNAME, save_img=False)
+                                mode='iso_tail', transluc=1,
+                                outputname=OUTPUTNAME, save_img=True)
     """
     #tile
     proc = 'Multi Frame Manager'

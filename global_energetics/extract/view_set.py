@@ -569,7 +569,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        plot_satellites=False, energy_contourmap=0,
                        mpslice=60, cpsslice=20, zone_rename=None,
                        show_legend=True, add_clock=False,
-                       zone_hidekeys=['sphere','box','lcb', 'shue']):
+                       zone_hidekeys=['sphere','box','lcb','shue','future']):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
         frame- object for the tecplot frame

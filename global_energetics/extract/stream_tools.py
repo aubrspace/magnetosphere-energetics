@@ -522,7 +522,6 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
     current_mesh['d'] = 0
     current_mesh['ExpR'] = 1
     #setup zones, cylindrical flank portion
-    bar = Bar('Calculating distance',max=(2*nalpha*nx+nphi*ntheta))
     for a in alphas:
         for x in x_s:
             current_sector_ind = ((current_mesh['alpha']<a+da) &
@@ -685,12 +684,79 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
             eq('{surface_normal_x} = {X Grid K Unit Normal}')
             eq('{surface_normal_y} = {Y Grid K Unit Normal}')
             eq('{surface_normal_z} = {Z Grid K Unit Normal}')
+    if zone_name.find('inner')==-1:
+        ##############################################################
+        #Day, flank, tail definitions
+            #2-dayside
+            #1-flank
+            #0-tail
+        eq('{Day} = IF({x_cc}>0,1,0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        ds = tp.active_frame().dataset
+        h_vals = ds.zone(zone_index).values('h').as_numpy_array()
+        x_vals = ds.zone(zone_index).values('X*').as_numpy_array()
+        hmin = h_vals[
+                     np.where(np.logical_and(x_vals<-5,x_vals>-10))].min()
+        eq('{Tail} = IF({X [R]}<-5 && '+
+                     '({surface_normal_x}<-.8 || {h}<'+str(hmin)+'),1,0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        eq('{Flank} = IF({Day}==0 && {Tail}==0, 1, 0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+    dt = str(dt)
+    if do_cms and (dt!='0'):
+        #If x<0 dot n with YZ vector, else dot with R(XYZ) vector
+        eq('{Csurface_x} = IF({x_cc}<0,'+
+                '0,'+
+        '{x_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2))'+
+            '*6371*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        eq('{Csurface_y} = IF({x_cc}<0,'+
+            'IF({Flank}==0,{y_cc}/sqrt({y_cc}**2+{z_cc}**2),'+
+                         '-{y_cc}/sqrt({y_cc}**2+{z_cc}**2)),'+
+        '{y_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2)*{surface_normal_y})'+
+            '*6371*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        eq('{Csurface_z} = IF({x_cc}<0,'+
+            'IF({Flank}==0,{z_cc}/sqrt({y_cc}**2+{z_cc}**2),'+
+                         '-{z_cc}/sqrt({y_cc}**2+{z_cc}**2)),'+
+        '{z_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2))'+
+            '*6371*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        eq('{Csurface} = sqrt({Csurface_x}**2+{Csurface_y}**2+'+
+                             '{Csurface_z}**2)*sign({d_cc})',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        '''
+        eq('{Csurface} = IF({x_cc}<0,'+
+            '{y_cc}/sqrt({y_cc}**2+{z_cc}**2)*{surface_normal_y}+'+
+            '{z_cc}/sqrt({y_cc}**2+{z_cc}**2)*{surface_normal_z},'+
+        '{x_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2)*{surface_normal_x}+'+
+        '{y_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2)*{surface_normal_y}+'+
+        '{z_cc}/sqrt({x_cc}**2+{z_cc}**2+{z_cc}**2)*{surface_normal_z})'+
+            '*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+        '''
+    else:
+        eq('{Csurface} = 0',value_location=ValueLocation.CellCentered,
+                            zones=[zone_index])
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
     prefixlist = ['']
-    if do_1Dsw:
-        prefixlist.append('1D')
     for add in prefixlist:
+        eq('{'+add+'U [Re/s]}=sqrt({'+add+'U_x [km/s]}**2+{'+add+'U_y [km/s]}**2+'+
+                                  '{'+add+'U_z [km/s]}**2)/6371',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
         ##################################################################
         #Virial boundary total pressure term
         eq('{Ptot_virial [J/Re^2]} = ('+
@@ -702,14 +768,24 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
         ##################################################################
-        #Normal Total Energy Flux
-        eq('{'+add+'ExB_net [W/Re^2]} = ('+
-                            '{'+add+'ExB_x [W/Re^2]}*{surface_normal_x}'+
-                           '+{'+add+'ExB_y [W/Re^2]}*{surface_normal_y}'+
-                           '+{'+add+'ExB_z [W/Re^2]}*{surface_normal_z})',
+        #Normal Poynting Flux
+        eq('{'+add+'ExB_net [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
+                                        '*6371**2*('+
+                                        '{U_x [km/s]}*{surface_normal_x}'+
+                                       '+{U_y [km/s]}*{surface_normal_y}'+
+                                       '+{U_z [km/s]}*{surface_normal_z}-'+
+                              '({Csurface_x}*{surface_normal_x}'+
+                              '+{Csurface_y}*{surface_normal_y}'+
+                              '+{Csurface_z}*{surface_normal_z}))-'+
+             '({B_x [nT]}*({U_x [km/s]}-{Csurface_x})+'+
+              '{B_y [nT]}*({U_y [km/s]}-{Csurface_y})+'+
+              '{B_z [nT]}*({U_z [km/s]}-{Csurface_z}))'+
+                                      '*({B_x [nT]}*{surface_normal_x}+'+
+                                        '{B_y [nT]}*{surface_normal_y}+'+
+                                        '{B_z [nT]}*{surface_normal_z})'+
+                                        '/(4*pi*1e-7)*1e-9*6371**2',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
-
         #Split into + and - flux
         eq('{'+add+'ExB_escape} = max({'+add+'ExB_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
@@ -719,13 +795,16 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
             zones=[zone_index])
         ##################################################################
         #Normal Total Pressure Flux
-        eq('{'+add+'P0_net [W/Re^2]} = ('+
-                             '{'+add+'P0_x [W/Re^2]}*{surface_normal_x}'+
-                            '+{'+add+'P0_y [W/Re^2]}*{surface_normal_y}'+
-                            '+{'+add+'P0_z [W/Re^2]}*{surface_normal_z})',
+        eq('{'+add+'P0_net [W/Re^2]} = (1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
+                                        '*6371**2*('+
+                                        '{U_x [km/s]}*{surface_normal_x}'+
+                                       '+{U_y [km/s]}*{surface_normal_y}'+
+                                       '+{U_z [km/s]}*{surface_normal_z}-'+
+                              '({Csurface_x}*{surface_normal_x}'+
+                              '+{Csurface_y}*{surface_normal_y}'+
+                              '+{Csurface_z}*{surface_normal_z}))',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
-
         #Split into + and - flux
         eq('{'+add+'P0_escape} = max({'+add+'P0_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
@@ -735,13 +814,9 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
             zones=[zone_index])
         ##################################################################
         #Normal Total Energy Flux
-        eq('{'+add+'K_net [W/Re^2]} = ('+
-                              '{'+add+'K_x [W/Re^2]}*{surface_normal_x}'+
-                             '+{'+add+'K_y [W/Re^2]}*{surface_normal_y}'+
-                             '+{'+add+'K_z [W/Re^2]}*{surface_normal_z})',
+        eq('{'+add+'K_net [W/Re^2]}={P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
-
         #Split into + and - flux
         eq('{'+add+'K_escape} = max({'+add+'K_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
@@ -749,54 +824,58 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
         eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
-        if do_cms:
-            ##############################################################
-            #Flux gathered by moving surface
-            dt = str(dt)
-            eq('{'+add+'U [Re/s]}=sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+'+
-                                  '{U_z [km/s]}**2)/6371',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{'+add+'Ksurface_net [W/Re^2]} = -('+
-                    '{'+add+'K_x [W/Re^2]}*{surface_normal_x}/'+
-                          '{U [Re/s]}*{d_cc}/'+dt+'*(1+{Expansion_cc})/2'+
-                   '+{'+add+'K_y [W/Re^2]}*{surface_normal_y}/'+
-                          '{U [Re/s]}*{d_cc}/'+dt+'*(1+{Expansion_cc})/2'+
-                   '+{'+add+'K_z [W/Re^2]}*{surface_normal_z}/'+
-                          '{U [Re/s]}*{d_cc}/'+dt+'*(1+{Expansion_cc})/2'+
-                            ')',value_location=ValueLocation.CellCentered,
-                                zones=[zone_index])
-
-            #Split into + and - flux
-            eq('{'+add+'Ksurface_escape} = max({'+add+
-                                              'Ksurface_net [W/Re^2]},0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{'+add+'Ksurface_injection} = min({'+add+
-                                              'Ksurface_net [W/Re^2]},0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-        if zone_name.find('inner')==-1:
-            ##############################################################
-            #Day, flank, tail definitions
-                #2-dayside
-                #1-flank
-                #0-tail
-            eq('{Day} = IF({x_cc}>0,1,0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            h_vals = tp.active_frame().dataset.zone(zone_index).values('h').as_numpy_array()
-            x_vals = tp.active_frame().dataset.zone(zone_index).values('X*').as_numpy_array()
-            hmin = h_vals[np.where(np.logical_and(x_vals<-5,x_vals>-10))].min()
-            eq('{Tail} = IF({X [R]}<-5 && ({surface_normal_x}<-.8 || {h}<'+str(hmin)+'),1,0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{Flank} = IF({Day}==0 && {Tail}==0, 1, 0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+        ##################################################################
+        #Normal Poynting Flux-Surface only
+        eq('{'+add+'ExBSurf_net [W/Re^2]}={Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
+                                        '*6371**2*'+
+                           '(-1*({Csurface_x}*{surface_normal_x}'+
+                               '+{Csurface_y}*{surface_normal_y}'+
+                               '+{Csurface_z}*{surface_normal_z}))-'+
+             '({B_x [nT]}*(-{Csurface_x})+'+
+              '{B_y [nT]}*(-{Csurface_y})+'+
+              '{B_z [nT]}*(-{Csurface_z}))'+
+                                      '*({B_x [nT]}*{surface_normal_x}+'+
+                                        '{B_y [nT]}*{surface_normal_y}+'+
+                                        '{B_z [nT]}*{surface_normal_z})'+
+                                        '/(4*pi*1e-7)*1e-9*6371**2',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        #Split into + and - flux
+        eq('{'+add+'ExBSurf_escape}=max({'+add+'ExBSurf_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        eq('{'+add+'ExBSurf_injection}=min({'+add+'ExBSurf_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        ##################################################################
+        #Normal Total Pressure Flux-Surface only
+        eq('{'+add+'P0Surf_net [W/Re^2]}=(1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
+                                        '*6371**2*('+
+                              '-1*({Csurface_x}*{surface_normal_x}'+
+                                 '+{Csurface_y}*{surface_normal_y}'+
+                                 '+{Csurface_z}*{surface_normal_z}))',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        #Split into + and - flux
+        eq('{'+add+'P0Surf_escape} = max({'+add+'P0Surf_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        eq('{'+add+'P0Surf_injection}=min({'+add+'P0Surf_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        ##################################################################
+        #Normal Total Energy Flux-Surface only
+        eq('{'+add+'KSurf_net [W/Re^2]}={'+add+'P0Surf_net [W/Re^2]}+'+
+                                       '{'+add+'ExBSurf_net [W/Re^2]}',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        #Split into + and - flux
+        eq('{'+add+'KSurf_escape} = max({'+add+'KSurf_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
+        eq('{'+add+'KSurf_injection} = min({'+add+'KSurf_net [W/Re^2]},0)',
+            value_location=ValueLocation.CellCentered,
+            zones=[zone_index])
 
 
 def get_1D_sw_variables(field_data, xmax, xmin, nx):
@@ -978,9 +1057,11 @@ def get_global_variables(field_data):
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
         value_location=ValueLocation.CellCentered)
+    '''
     #Plasma Beta
     eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
+    '''
     #Plasma Beta* using total pressure
     eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
                           '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
@@ -1043,6 +1124,7 @@ def get_global_variables(field_data):
                         '1e-6/(2*4*pi*1e-7*(3e8)**2)*1e9*6371**3',
         value_location=ValueLocation.CellCentered)
 
+    '''
     #Poynting Flux
     # E (m⋅kg⋅s−3⋅A−1)*1e-6 * B ( 1 kg⋅s−2⋅A−1)*1e-9 * 1/mu0 (A2/N)*4pie7
     # (kg2 m)/(s5 N)
@@ -1066,10 +1148,12 @@ def get_global_variables(field_data):
                             '-{E_x [mV/km]}*{B_y [nT]})',
         value_location=ValueLocation.CellCentered)
     '''
+    '''
     eq('{ExB_z [W/Re^2]} = -3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
                                        '-{E_x [mV/km]}*{B_y [nT]})')
     '''
 
+    '''
     #Total pressure Flux
     eq('{P0_x [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]})*6371**2'+
                           '*{U_x [km/s]}',
@@ -1081,12 +1165,14 @@ def get_global_variables(field_data):
                           '*{U_z [km/s]}',
         value_location=ValueLocation.CellCentered)
     '''
+    '''
     eq('{P0_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
                                         '+4.2941e5*{Rho [amu/cm^3]}/2*'+
                                                     '({U_x [km/s]}**2'+
                                                     '+{U_y [km/s]}**2'+
                                                     '+{U_z [km/s]}**2))'+
                           '*1.5696123057605e-4*{U_z [km/s]}')
+    '''
     '''
     #Total Energy Flux
     eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
@@ -1095,6 +1181,7 @@ def get_global_variables(field_data):
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
+    '''
     '''
     #Vorticity
     eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+

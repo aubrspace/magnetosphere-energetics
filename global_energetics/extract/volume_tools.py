@@ -33,7 +33,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, rblank, *,
     field_data = frame.dataset
     volume_name = state_variable_name
     zone_index = int(field_data.zone('global_field').index)
-    if len([var for var in field_data.variables('K_x *')]) < 1:
+    if len([var for var in field_data.variables('beta_star')]) < 1:
         print('Global variables not setup! Cannot perform integration')
         return None
     if blank:

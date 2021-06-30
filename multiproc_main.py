@@ -103,7 +103,7 @@ def work(mhddatafile):
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'Ksurface_net *', mhddatafile,
+                                'KSurf_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=False, energyrange=9e10,
                                 show_legend=False, mode='inside_from_tail',
@@ -114,7 +114,7 @@ def work(mhddatafile):
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
-                                'Ksurface_net *', mhddatafile,
+                                'KSurf_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
@@ -125,7 +125,7 @@ def work(mhddatafile):
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
-                                'Ksurface_net *', mhddatafile,
+                                'KSurf_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=True,
                                 pngpath=PNGPATH, add_clock=True,
@@ -137,7 +137,7 @@ def work(mhddatafile):
     frame3.activate()
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
-                                'Ksurface_net *', mhddatafile,
+                                'KSurf_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH, transluc=60,
@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)
+                                key=makevideo.time_sort)[0:16]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
@@ -192,7 +192,7 @@ if __name__ == '__main__':
         solution_times = all_solution_times
     print(solution_times)
     print(len(solution_times))
-    numproc = multiprocessing.cpu_count()
+    numproc = multiprocessing.cpu_count()-1
 
     # Set up the pool with initializing function and associated arguments
     num_workers = min(numproc, len(solution_times))
