@@ -177,7 +177,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[0:16]
+                                key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
@@ -209,12 +209,10 @@ if __name__ == '__main__':
         os.system('rm -r '+MHDDIR+'/*/')
     ########################################
 
-    """
     #Combine and delete individual energetics files
     write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                             OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
-    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
