@@ -228,7 +228,7 @@ def add_timestamp(frame, filename, position):
     """
     #get text
     ticks = get_time(filename)
-    time = ticks.UTC[0]
+    time = ticks.UTC[0]+dt.timedelta(minutes=45)
     year = time.year
     month = time.month
     day = time.day

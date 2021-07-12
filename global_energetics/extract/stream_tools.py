@@ -747,6 +747,11 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                              '{Csurface_z}**2)*sign({d_cc})',
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
+        eq('{Csurface_n} = {Csurface_x}*{surface_normal_x}+'+
+                          '{Csurface_y}*{surface_normal_y}+'+
+                          '{Csurface_z}*{surface_normal_z}',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
         '''
         eq('{Csurface} = IF({x_cc}<0,'+
             '{y_cc}/sqrt({y_cc}**2+{z_cc}**2)*{surface_normal_y}+'+

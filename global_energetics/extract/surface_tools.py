@@ -201,6 +201,12 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                                     VariableOption='LengthAreaVolume')
             data.append(SA)
             print('{} area integration done'.format(zone_name))
+            if do_cms:
+                keys.append('dVol_dt [Re^3/s]')
+                dVoldt_index = int(field_data.variable('Csurface_n').index)
+                dVoldt = integrate_surface(dVoldt_index, zone_index)
+                data.append(dVoldt)
+                print('{} dVol/dt integration done'.format(zone_name))
         ###################################################################
         #average K flux
         if calc_K and surface_area and (SA!=0):

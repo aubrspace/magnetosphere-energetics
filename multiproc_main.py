@@ -68,20 +68,6 @@ def work(mhddatafile):
     magnetopause.get_magnetopause(field_data, mhddatafile,
                                   zone_rename='mp_full',
                                   outputpath=OUTPUTPATH)
-    '''
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  zone_rename='mp_w100',
-                                  do_blank=True,blank_value=100,
-                                  outputpath=OUTPUTPATH)
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  zone_rename='mp_w200',
-                                  do_blank=True,blank_value=200,
-                                  outputpath=OUTPUTPATH)
-    magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  zone_rename='mp_w300',
-                                  do_blank=True,blank_value=300,
-                                  outputpath=OUTPUTPATH)
-    '''
     #get supporting module data for this timestamp
     eventstring =field_data.zone('global_field').aux_data['TIMEEVENT']
     startstring =field_data.zone('global_field').aux_data['TIMEEVENTSTART']
@@ -103,9 +89,9 @@ def work(mhddatafile):
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'KSurf_net *', mhddatafile,
+                                'K_net *', mhddatafile,
                                 show_contour=True,
-                                show_slice=False, energyrange=9e10,
+                                show_slice=False,
                                 show_legend=False, mode='inside_from_tail',
                                 pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=False, satzones=satzones,
@@ -114,7 +100,7 @@ def work(mhddatafile):
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
-                                'KSurf_net *', mhddatafile,
+                                'K_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH,
@@ -125,7 +111,7 @@ def work(mhddatafile):
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
-                                'KSurf_net *', mhddatafile,
+                                'K_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=True,
                                 pngpath=PNGPATH, add_clock=True,
@@ -137,7 +123,7 @@ def work(mhddatafile):
     frame3.activate()
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
-                                'KSurf_net *', mhddatafile,
+                                'K_net *', mhddatafile,
                                 show_contour=True,
                                 show_slice=True, show_legend=False,
                                 pngpath=PNGPATH, transluc=60,
@@ -176,7 +162,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:10],
                                 key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
