@@ -11,11 +11,14 @@ import datetime as dt
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import swmfpy
 import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
 #interpackage imports
+from global_energetics.analysis.analyze_energetics import mark_times
 from global_energetics.analysis.proc_temporal import read_energetics
 from global_energetics.analysis.proc_indices import (read_indices,
                                                      datetimeparser,
@@ -37,7 +40,7 @@ def mark_cross_themis(axis, crossingdata, *, probe='a',
                         (crossingdata['UT']>timerange[0]) &
                         (crossingdata['PROBE']==probe)]
     for cross in data['UT'].values:
-        axis.axvline(cross)
+        axis.axvline(cross, color='red', linestyle=None, linewidth=1)
 def mark_cross_geotail(axis, crossingdata, *,
                       timerange=[dt.datetime(2014,2,18,6),
                                  dt.datetime(2014,2,20,0)]):
@@ -51,9 +54,9 @@ def mark_cross_geotail(axis, crossingdata, *,
     data = crossingdata[(crossingdata['UT']<timerange[1]) &
                         (crossingdata['UT']>timerange[0])]
     for cross in data['UT'].values:
-        axis.axvline(cross)
+        axis.axvline(cross, color='red', linestyle=None, linewidth=1)
 def plot_Betastar(axis, dflist, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False):
     """Function plots B field magnitude for trajectories
     Inputs
@@ -71,29 +74,29 @@ def plot_Betastar(axis, dflist, ylabel, *,
             probe = name.split('_obs')[0].split('TH')[-1]
             axis.plot(df['UT'],df['Betastar'],
                       label=r'\textit{Themis}$\displaystyle_'+probe+'$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
         elif name.find('GE')!=-1:
             pass
         elif (name.find('C')!=-1) and (name.find('_obs')!=-1):
             probe = name.split('_obs')[0].split('C')[-1]
             axis.plot(df['UT'], df['Betastar'],
                       label=r'\textit{Cluster}$\displaystyle_'+probe+'$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
         elif any([name.find(key)!=-1 for key in simkeys]):
             if name.find('themis')!=-1:
                 probe = name.split('themis')[-1].upper()
                 axis.plot(df['Time [UTC]'],df['Betastar'],
                           label=r'\textit{Sim}$\displaystyle_'+probe+'$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
             elif name.find('cluster')!=-1:
                 probe = name.split('cluster')[-1].upper()
                 axis.plot(df['Time [UTC]'],df['Betastar'],
                           label=r'\textit{Sim}$\displaystyle_'+probe+'$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
             else:
                 axis.plot(df['Time [UTC]'],df['Betastar'],
                           label=r'\textit{Sim}$\displaystyle$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -102,9 +105,9 @@ def plot_Betastar(axis, dflist, ylabel, *,
         axis.set_ylim([0,5])
     axis.set_xlabel(r'\textit{Time (UT)}')
     axis.set_ylabel(ylabel)
-    axis.legend(loc='upper left', facecolor='gray')
+    axis.legend(loc='upper left')
 def plot_Magnetosphere(axis, dflist, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False):
     """Function plots B field magnitude for trajectories
     Inputs
@@ -122,29 +125,29 @@ def plot_Magnetosphere(axis, dflist, ylabel, *,
             probe = name.split('_obs')[0].split('TH')[-1]
             axis.plot(df['UT'],df['Magnetosphere_state'],
                       label=r'\textit{Themis}$\displaystyle_'+probe+'$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
         elif name.find('GE')!=-1:
             pass
         elif (name.find('C')!=-1) and (name.find('_obs')!=-1):
             probe = name.split('_obs')[0].split('C')[-1]
             axis.plot(df['UT'], df['Magnetosphere_state'],
                       label=r'\textit{Cluster}$\displaystyle_'+probe+'$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
         elif any([name.find(key)!=-1 for key in simkeys]):
             if name.find('themis')!=-1:
                 probe = name.split('themis')[-1].upper()
                 axis.plot(df['Time [UTC]'],df['Magnetosphere_state'],
                           label=r'\textit{Sim}$\displaystyle_'+probe+'$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
             elif name.find('cluster')!=-1:
                 probe = name.split('cluster')[-1].upper()
                 axis.plot(df['Time [UTC]'],df['Magnetosphere_state'],
                           label=r'\textit{Sim}$\displaystyle_'+probe+'$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
             else:
                 axis.plot(df['Time [UTC]'],df['Magnetosphere_state'],
                           label=r'\textit{Sim}$\displaystyle$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -154,10 +157,10 @@ def plot_Magnetosphere(axis, dflist, ylabel, *,
         pass
     axis.set_xlabel(r'\textit{Time (UT)}')
     axis.set_ylabel(ylabel)
-    axis.legend(loc='upper left', facecolor='gray')
+    axis.legend(loc='upper left')
 def plot_Bmag(axis, dflist, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None,
-             use_inner=False, use_shield=False):
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
+             use_inner=False, use_shield=False, legend_loc=None):
     """Function plots B field magnitude for trajectories
     Inputs
         axis- object plotted on
@@ -174,40 +177,47 @@ def plot_Bmag(axis, dflist, ylabel, *,
             probe = name.split('_obs')[0].split('TH')[-1]
             axis.plot(df['UT'],df['FGS-D_B_TOTAL'],
                       label=r'\textit{Themis}$\displaystyle_'+probe+'$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
         elif name.find('GE')!=-1:
             axis.plot(df['UT'], df['IB']*0.1,
                       label=r'\textit{Geotail}$\displaystyle$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
         elif (name.find('C')!=-1) and (name.find('_obs')!=-1):
             probe = name.split('_obs')[0].split('C')[-1]
             axis.plot(df['UT'], df['B'],
                       label=r'\textit{Cluster}$\displaystyle_'+probe+'$',
-                      linewidth=Size, linestyle=ls,color='coral')
+                      linewidth=Size, linestyle=ls,color='black')
+        elif name.find('omni')!=-1:
+            axis.plot(df['Time [UTC]'], df['b'],
+                      label=r'\textit{OMNI}',
+                      linewidth=Size, linestyle=ls,color='black')
         elif any([name.find(key)!=-1 for key in simkeys]):
             if name.find('themis')!=-1:
                 probe = name.split('themis')[-1].upper()
                 axis.plot(df['Time [UTC]'],df['Bmag [nT]'],
                           label=r'\textit{Sim}$\displaystyle_'+probe+'$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
             elif name.find('cluster')!=-1:
                 probe = name.split('cluster')[-1].upper()
                 axis.plot(df['Time [UTC]'],df['Bmag [nT]'],
                           label=r'\textit{Sim}$\displaystyle_'+probe+'$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
             else:
                 axis.plot(df['Time [UTC]'],df['Bmag [nT]'],
                           label=r'\textit{Sim}$\displaystyle$',
-                       linewidth=Size, linestyle=ls,color='lightsteelblue')
+                       linewidth=Size, linestyle=ls,color='magenta')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
     else:
-        axis.set_ylim([0,200])
+        axis.set_ylim([0,120])
     axis.set_xlabel(r'\textit{Time (UT)}')
     axis.set_ylabel(ylabel)
-    axis.legend(loc='upper left', facecolor='gray')
+    if legend_loc==None:
+        axis.legend(loc='upper left')
+    else:
+        axis.legend(loc=legend_loc)
 def add_derived_variables(dflist, *, obs=False):
     """Function adds columns of data by performing simple operations
     Inputs
@@ -573,6 +583,7 @@ def simdata_to_df(simdict, satkey):
                                                          'mn','sc','msc']},
                           date_parser=datetimeparser,
                           infer_datetime_format=True, keep_date_col=True)
+            df['Time [UTC]'] = df['Time [UTC]']+dt.timedelta(minutes=45)
             name = satfile.split('/')[-1].split('_')[1]
             nametag = pd.Series({'name':name})
             dflist.append(df.append(nametag,ignore_index=True))
@@ -650,6 +661,9 @@ if __name__ == "__main__":
     cluster_dfs_obs = cluster_to_df(obsdict)
     [cl1,cl2,cl3,cl4] = split_cluster(cluster_dfs_obs)
     [scl1,scl2,scl3,scl4] = split_cluster(cluster_dfs_sim)
+    #omni
+    [_,__,___,____,omni] = read_indices(None, read_swmf=False,
+                                              read_supermag=False)
     #Add derived variables for observation datasets
     [th_a,th_b,th_c,th_d,th_e] = add_derived_variables(
                                                 [th_a[0],th_b[0],th_c[0],th_d[0],th_e[0]],
@@ -677,63 +691,60 @@ if __name__ == "__main__":
     #B magnitude
     if True:
         figname = 'Bmagnitude'
-        Bmag_themis, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5, ncols=1,
+        Bmag_themisBC, (axB,axC) = plt.subplots(nrows=2, ncols=1,
                                                    sharex=True,
-                                                   figsize=[12,20],
-                                                   facecolor='gainsboro')
-        Bmag_geo, (geoax1) = plt.subplots(nrows=1, ncols=1,
-                                                   figsize=[12,4],
-                                                   facecolor='gainsboro')
-        Bmag_cluster, (clax1,clax2,clax3,clax4) = plt.subplots(nrows=4,
-                                                   ncols=1,
+                                                   figsize=[12,8])
+        Bmag_themisADE, (axA,axD,axE) = plt.subplots(nrows=3, ncols=1,
                                                    sharex=True,
-                                                   figsize=[12,16],
-                                                   facecolor='gainsboro')
-        Bmag_themis.tight_layout(pad=2)
+                                                   figsize=[12,12])
+        Bmag_geo, (omniax, geoax1,clax4) = plt.subplots(nrows=3, ncols=1,
+                                                   figsize=[12,8])
+        Bmag_themisBC.tight_layout(pad=2)
+        Bmag_themisADE.tight_layout(pad=2)
         Bmag_geo.tight_layout(pad=2)
-        Bmag_cluster.tight_layout(pad=2)
         ylabel = r'$\displaystyle B_{mag} (nT)$'
-        plot_Bmag(ax1, th_a, ylabel)
-        plot_Bmag(ax2, th_b, ylabel, ylim=[0,40])
-        plot_Bmag(ax3, th_c, ylabel, ylim=[0,40])
-        plot_Bmag(ax4, th_d, ylabel)
-        plot_Bmag(ax5, th_e, ylabel)
+        plot_Bmag(axA, th_a, ylabel)
+        plot_Bmag(axB, th_b, ylabel, ylim=[0,40])
+        plot_Bmag(axC, th_c, ylabel, ylim=[0,40])
+        plot_Bmag(axD, th_d, ylabel, ylim=[0,100])
+        plot_Bmag(axE, th_e, ylabel, ylim=[0,140],legend_loc='upper right')
+        plot_Bmag(omniax, [omni], ylabel, ylim=[0,20])
         plot_Bmag(geoax1, geo, ylabel, ylim=[0,40])
-        plot_Bmag(clax1, cl1, ylabel)
-        plot_Bmag(clax2, cl2, ylabel)
-        plot_Bmag(clax3, cl3, ylabel)
-        plot_Bmag(clax4, cl4, ylabel)
+        plot_Bmag(clax4, cl4, ylabel, ylim=[0,75])
         probe = ['a','b','c','d','e']
-        for ax in enumerate([ax1,ax2,ax3,ax4,ax5]):
-            ax[1].set_facecolor('olive')
+        for ax in enumerate([axA,axB,axC,axD,axE]):
             mark_cross_themis(ax[1], th_cross[0], probe=probe[ax[0]])
+            mark_times(ax[1])
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
         for ax in enumerate([geoax1]):
-            ax[1].set_facecolor('olive')
             mark_cross_geotail(ax[1], geo_cross[0])
-        for ax in enumerate([clax1, clax2, clax3, clax4]):
-            ax[1].set_facecolor('olive')
-        Bmag_themis.savefig(outpath+'/{}_themis.png'.format(figname),
-                      facecolor='gainsboro')
-        Bmag_geo.savefig(outpath+'/{}_geo.png'.format(figname),
-                      facecolor='gainsboro')
-        Bmag_cluster.savefig(outpath+'/{}_cluster.png'.format(figname),
-                      facecolor='gainsboro')
+            mark_times(ax[1])
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+        for ax in enumerate([omniax,clax4]):
+            mark_times(ax[1])
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+        Bmag_themisBC.savefig(outpath+'/{}_themisBC.eps'.format(figname))
+        Bmag_themisADE.savefig(outpath+'/{}_themisADE.eps'.format(figname))
+        Bmag_geo.savefig(outpath+'/{}_geo.eps'.format(figname))
     ######################################################################
     # Betastar magnetosphere
-    if True:
+    if False:
         figname = 'Magnetosphere'
         Mag_themis, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5, ncols=1,
                                                    sharex=True,
-                                                   figsize=[12,20],
-                                                   facecolor='gainsboro')
+                                                   figsize=[12,20])
         Mag_geo, (geoax1) = plt.subplots(nrows=1, ncols=1,
-                                                   figsize=[12,4],
-                                                   facecolor='gainsboro')
+                                                   figsize=[12,4])
         Mag_cluster, (clax1,clax2,clax3,clax4) = plt.subplots(nrows=4,
                                                    ncols=1,
                                                    sharex=True,
-                                                   figsize=[12,16],
-                                                   facecolor='gainsboro')
+                                                   figsize=[12,16])
         Mag_themis.tight_layout(pad=2)
         Mag_geo.tight_layout(pad=2)
         Mag_cluster.tight_layout(pad=2)
@@ -749,61 +760,74 @@ if __name__ == "__main__":
         plot_Magnetosphere(clax3, cl3, ylabel)
         plot_Magnetosphere(clax4, cl4, ylabel)
         for ax in enumerate([ax1,ax2,ax3,ax4,ax5]):
-            ax[1].set_facecolor('olive')
             mark_cross_themis(ax[1], th_cross[0], probe=probe[ax[0]])
+            mark_times(ax[1])
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
         for ax in enumerate([geoax1]):
-            ax[1].set_facecolor('olive')
             mark_cross_geotail(ax[1], geo_cross[0])
+            mark_times(ax[1])
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
         for ax in enumerate([clax1, clax2, clax3, clax4]):
-            ax[1].set_facecolor('olive')
-        Mag_themis.savefig(outpath+'/{}_themis.png'.format(figname),
-                      facecolor='gainsboro')
-        Mag_geo.savefig(outpath+'/{}_geo.png'.format(figname),
-                      facecolor='gainsboro')
-        Mag_cluster.savefig(outpath+'/{}_cluster.png'.format(figname),
-                      facecolor='gainsboro')
+            mark_times(ax[1])
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+        Mag_themis.savefig(outpath+'/{}_themis.eps'.format(figname))
+        Mag_geo.savefig(outpath+'/{}_geo.eps'.format(figname))
+        Mag_cluster.savefig(outpath+'/{}_cluster.eps'.format(figname))
     ######################################################################
     # Betastar magnetosphere
     if True:
         figname = 'Betastar'
-        Beta_themis, (ax1,ax2,ax3,ax4,ax5) = plt.subplots(nrows=5, ncols=1,
+        Betastar, (axA,axD,axE,clax4) = plt.subplots(nrows=4, ncols=1,
                                                    sharex=True,
-                                                   figsize=[12,20],
-                                                   facecolor='gainsboro')
-        Beta_geo, (geoax1) = plt.subplots(nrows=1, ncols=1,
-                                                   figsize=[12,4],
-                                                   facecolor='gainsboro')
-        Beta_cluster, (clax1,clax2,clax3,clax4) = plt.subplots(nrows=4,
-                                                   ncols=1,
+                                                   figsize=[12,12])
+        '''
+        Beta_themisBC, (axB,axC) = plt.subplots(nrows=2, ncols=1,
                                                    sharex=True,
-                                                   figsize=[12,16],
-                                                   facecolor='gainsboro')
-        Beta_themis.tight_layout(pad=2)
+                                                   figsize=[12,8])
+        Beta_themisADE, (axA,axD,axE) = plt.subplots(nrows=3, ncols=1,
+                                                   sharex=True,
+                                                   figsize=[12,12])
+        Beta_geo, (geoax1,clax4) = plt.subplots(nrows=2, ncols=1,
+                                                   figsize=[12,8])
+        Beta_themisBC.tight_layout(pad=2)
+        Beta_themisADE.tight_layout(pad=2)
         Beta_geo.tight_layout(pad=2)
-        Beta_cluster.tight_layout(pad=2)
+        '''
         ylabel = r'$\displaystyle \beta^{*}$'
-        plot_Betastar(ax1, th_a, ylabel)
-        plot_Betastar(ax2, th_b, ylabel)
-        plot_Betastar(ax3, th_c, ylabel)
-        plot_Betastar(ax4, th_d, ylabel)
-        plot_Betastar(ax5, th_e, ylabel)
-        plot_Betastar(geoax1, geo, ylabel)
-        plot_Betastar(clax1, cl1, ylabel)
-        plot_Betastar(clax2, cl2, ylabel)
-        plot_Betastar(clax3, cl3, ylabel)
+        plot_Betastar(axA, th_a, ylabel)
+        #plot_Betastar(axB, th_b, ylabel, ylim=[0,30])
+        #plot_Betastar(axC, th_c, ylabel,ylim=[0,30])
+        plot_Betastar(axD, th_d, ylabel)
+        plot_Betastar(axE, th_e, ylabel)
+        #plot_Betastar(geoax1, geo, ylabel)
         plot_Betastar(clax4, cl4, ylabel)
-        for ax in enumerate([ax1,ax2,ax3,ax4,ax5]):
-            ax[1].set_facecolor('olive')
+        probe = ['a','d','e']
+        for ax in enumerate([axA,axD,axE]):
             mark_cross_themis(ax[1], th_cross[0], probe=probe[ax[0]])
+            mark_times(ax[1])
+            ax[1].axhline(0.7, color='black', linestyle=None, linewidth=1)
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+        '''
         for ax in enumerate([geoax1]):
-            ax[1].set_facecolor('olive')
             mark_cross_geotail(ax[1], geo_cross[0])
-        for ax in enumerate([clax1, clax2, clax3, clax4]):
-            ax[1].set_facecolor('olive')
-        Beta_themis.savefig(outpath+'/{}_themis.png'.format(figname),
-                      facecolor='gainsboro')
-        Beta_geo.savefig(outpath+'/{}_geo.png'.format(figname),
-                      facecolor='gainsboro')
-        Beta_cluster.savefig(outpath+'/{}_cluster.png'.format(figname),
-                      facecolor='gainsboro')
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        '''
+        for ax in enumerate([clax4]):
+            mark_times(ax[1])
+            ax[1].axhline(0.7, color='black', linestyle=None, linewidth=1)
+            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            ax[1].tick_params(which='major', length=7)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+        #Beta_themisBC.savefig(outpath+'/{}_themisBC.eps'.format(figname))
+        #Beta_themisADE.savefig(outpath+'/{}_themisADE.eps'.format(figname))
+        #Beta_geo.savefig(outpath+'/{}_geo.eps'.format(figname))
+        Betastar.savefig(outpath+'/{}.eps'.format(figname))
     ######################################################################

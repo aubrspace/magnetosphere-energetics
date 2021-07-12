@@ -573,7 +573,10 @@ def get_expanded_sw(start, end, data_path):
     omni['Time [UTC]'] = omni['times']
     return supermag, omni
 
-def read_indices(data_path):
+def read_indices(data_path, *, read_swmf=True, read_supermag=True,
+                               read_omni=True,
+                               start=dt.datetime(2014,2,18,6,0),
+                               end=dt.datetime(2014,2,20,0,0)):
     """Top level function handles time varying magnetopause data and
         generates figures according to settings set by inputs
     Inputs
@@ -581,16 +584,26 @@ def read_indices(data_path):
     Outputs
         swmf_indices, swmf_log, swmf_sw, supermag, omni
     """
-    swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path)
-    #find new start/end times
-    start = swmf_index['Time [UTC]'][0]
-    end = swmf_index['Time [UTC]'].iloc[-2]
+    if read_swmf:
+        swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path)
+        #find new start/end times
+        start = swmf_index['Time [UTC]'][0]
+        end = swmf_index['Time [UTC]'].iloc[-2]
+    else:
+        swmf_index, swmf_log, swmf_sw = (pd.DataFrame(), pd.DataFrame(),
+                                         pd.DataFrame())
     #get supermag and omni
-    supermag = get_supermag_data(start, end, data_path)
-    supermag['Time [UTC]'] = supermag['times']
-    omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end)).append(
-            pd.Series({'name':'omni'}), ignore_index=True)
-    omni['Time [UTC]'] = omni['times']
+    if read_supermag:
+        supermag = get_supermag_data(start, end, data_path)
+        supermag['Time [UTC]'] = supermag['times']
+    else:
+        supermag = pd.DataFrame()
+    if read_omni:
+        omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end)).append(
+               pd.Series({'name':'omni'}), ignore_index=True)
+        omni['Time [UTC]'] = omni['times']
+    else:
+        omni = pd.DataFrame()
     #make plots
     return [swmf_index, swmf_log, swmf_sw, supermag, omni]
 

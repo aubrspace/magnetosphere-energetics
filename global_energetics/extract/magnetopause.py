@@ -175,6 +175,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             futuretime = swmf_access.swmf_read_time(zoneindex=1)
             deltatime = (futuretime-eventtime).seconds
             futurezonename = tp.active_frame().dataset.zone(1).name
+        else:
+            deltatime=0
     else:
         print("Unknown data source, cant find date/time and won't be able"+
               "to consider dipole orientation!!!")

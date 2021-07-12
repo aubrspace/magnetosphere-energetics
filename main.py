@@ -32,8 +32,8 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
-    mhddatafile = '3d__var_1_e20140219-090000-000.plt'
-    future = '3d__var_1_e20140219-090100-023.plt'
+    mhddatafile = '3d__var_1_e20140218-151500-029.plt'
+    #future = '3d__var_1_e20140219-090100-023.plt'
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
     OUTPUTNAME = 'testoutput.png'
@@ -55,14 +55,20 @@ if __name__ == "__main__":
 
 
     #python objects
-    field_data = tp.data.load_tecplot([mhddatafile, future])
+    #field_data = tp.data.load_tecplot([mhddatafile, future])
+    field_data = tp.data.load_tecplot(mhddatafile)
     field_data.zone(0).name = 'global_field'
-    field_data.zone(1).name = 'future'
+    #field_data.zone(1).name = 'future'
     main = tp.active_frame()
     main.name = 'main'
 
     #Caclulate initial surface
     magnetopause.get_magnetopause(field_data, mhddatafile,
+                                  do_cms=False,
+                                  outputpath=OUTPATH)
+    magnetopause.get_magnetopause(field_data,mhddatafile,
+                                  do_cms=False,
+                                  mode='shue98',
                                   outputpath=OUTPATH)
     """
     data['wbin'] = -999
@@ -166,7 +172,7 @@ if __name__ == "__main__":
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
-                                'KSurf_net *', mhddatafile,
+                                'K_net *', mhddatafile,
                                 show_contour=True, energyrange=3e9,
                                 show_slice=True,show_fieldline=False,
                                 pngpath=PNGPATH,
