@@ -141,9 +141,9 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
                        'uBFlank','uHydroFlank','UtotFlank',
                        'uBTail','uHydroTail','UtotTail']:
                 temp=qty.split(' ')[0]
-                eq('{'+temp+'acqu} =IF({delta_volume}==-1,-1*{'+qty+'},0)')
-                eq('{'+temp+'forf} =IF({delta_volume}== 1,   {'+qty+'},0)')
-                eq('{'+temp+'net} =    {delta_volume}   *    {'+qty+'}   ')
+                eq('{'+temp+'acqu} =IF({delta_volume}== 1,-1*{'+qty+'},0)')
+                eq('{'+temp+'forf} =IF({delta_volume}==-1,   {'+qty+'},0)')
+                eq('{'+temp+'net} =    {delta_volume}   * -1*{'+qty+'}   ')
                 acqu_index = field_data.variable(temp+'acqu').index
                 forf_index = field_data.variable(temp+'forf').index
                 net_index  = field_data.variable(temp+'net').index

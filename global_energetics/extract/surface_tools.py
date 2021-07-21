@@ -175,7 +175,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
             print(add+'{} K integration done'.format(zone_name))
         ###################################################################
         #integrate K flux
-        if do_cms and calc_K:
+        if False:
             #ESCAPE
             keys.append(add+'KSurf_escape [W]')
             kSesc_index = int(field_data.variable(

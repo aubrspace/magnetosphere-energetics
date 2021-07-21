@@ -1420,8 +1420,8 @@ def calc_delta_state(t0state, t1state):
                           future times
     """
     eq = tp.data.operate.execute_equation
-    eq('{delta_volume} = IF({'+t1state+'}==1 && {'+t0state+'}==0,-1,'+
-                        'IF({'+t1state+'}==0 && {'+t0state+'}==1, 1, 0))',
+    eq('{delta_volume} = IF({'+t1state+'}==1 && {'+t0state+'}==0, 1,'+
+                        'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
                         value_location=ValueLocation.CellCentered)
     return tp.active_frame().dataset.variable('delta_volume').index
 
