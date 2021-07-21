@@ -33,6 +33,7 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     calc_closed_state,
                                                  calc_transition_rho_state,
                                                     calc_shue_state,
+                                                    calc_delta_state,
                                                     calc_sphere_state,
                                                     calc_box_state,
                                                     abs_to_timestamp,
@@ -311,13 +312,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                     tail_cap, 50, 0.7,
                                                     include_core, sp_r,
                                                     closed_zone)
+        state_var_name = field_data.variable(iso_betastar_index).name
         if do_cms:
             future_index = calc_betastar_state('future_'+zonename, 1,
                                     future_x_subsolar,
                                     tail_cap, 50, 0.7, include_core,
                                     sp_r, future_closed_zone)
             future_state_var_name = field_data.variable(future_index).name
-        state_var_name = field_data.variable(iso_betastar_index).name
         #remake iso zone using new equation
         if not include_core:
             cond = 'sphere'
@@ -334,6 +335,9 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                      'future_'+zonename,
                                      keep_condition=cond,
                                      keep_cond_value=sp_r)
+            #get state variable representing acquisitions/forfeitures
+            delta_magnetopause_index = calc_delta_state(state_var_name,
+                                                     future_state_var_name)
         #get_surfaceshear_variables(field_data, 'beta_star', 0.7, 2.8)
         if zone_rename != None:
             iso_betastar_zone.name = zone_rename
@@ -358,7 +362,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     zonelist = [zoneindex.real]
     if integrate_surface:
         #integrate power on main surface
-        mp_powers = surface_analysis(main_frame, zonename, do_cms, do_1Dsw,
+        mp_powers, hmin = surface_analysis(main_frame, zonename, do_cms,
+                                do_1Dsw,
                                 cuttoff=tail_analysis_cap, blank=do_blank,
                                 blank_variable=blank_variable,
                                 blank_value=blank_value,
@@ -374,7 +379,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         if not include_core and mode == 'iso_betastar':
             inner_mesh = pd.DataFrame()
             #integrate power on innerboundary surface
-            innerbound_powers = surface_analysis(main_frame,
+            innerbound_powers, _ = surface_analysis(main_frame,
                                                     zonename+'innerbound',
                                                     False, do_1Dsw,
                                             cuttoff=tail_analysis_cap)
@@ -397,9 +402,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         else:
             doblank = True
         mp_energies = volume_analysis(main_frame, state_var_name,
-                                        do_1Dsw, sp_r,
+                                        do_1Dsw, do_cms, sp_r,
                                         cuttoff=tail_analysis_cap,
-                                        blank=False)
+                                        blank=False, dt=deltatime,
+                                        tail_h=hmin)
         print('\nMagnetopause Energy Terms')
         print(mp_energies)
     #save mesh to hdf file

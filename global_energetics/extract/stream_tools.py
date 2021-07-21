@@ -647,12 +647,16 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                                             'ExpR'].values
     field_data.zone(currentindex).values('SectorID')[::]=current_mesh[
                                                             'ID'].values
+    field_data.zone(futureindex).values('SectorID')[::]=future_mesh[
+                                                            'ID'].values
 
 def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                                                              dt=60):
     """Function calculated variables for a specific 3D surface
     Inputs
         field_data, zone_name
+    Outputs
+        hmin- useful for global field data to know where tail inlets are
     """
     zone_index = field_data.zone(zone_name).index
     #Get grid dependent variables
@@ -720,6 +724,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
         eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
+    else:
+        hmin=0
     dt = str(dt)
     if do_cms and (dt!='0'):
         #If x<0 dot n with YZ vector, else dot with R(XYZ) vector
@@ -772,6 +778,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                             zones=[zone_index])
         eq('{Csurface_z} = 0',value_location=ValueLocation.CellCentered,
                             zones=[zone_index])
+        eq('{Csurface_n} = 0',value_location=ValueLocation.CellCentered,
+                            zones=[zone_index])
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
     prefixlist = ['']
@@ -802,7 +810,7 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                               '+{Csurface_z}*{surface_normal_z})/2)-'+
              '({B_x [nT]}*({U_x [km/s]})+'+
               '{B_y [nT]}*({U_y [km/s]})+'+
-              '{B_z [nT]}*({U_z [km/s]})'+
+              '{B_z [nT]}*({U_z [km/s]}))'+
                                       '*({B_x [nT]}*{surface_normal_x}+'+
                                         '{B_y [nT]}*{surface_normal_y}+'+
                                         '{B_z [nT]}*{surface_normal_z})'+
@@ -894,6 +902,7 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
         eq('{'+add+'KSurf_injection} = min({'+add+'KSurf_net [W/Re^2]},0)',
             value_location=ValueLocation.CellCentered,
             zones=[zone_index])
+        return hmin
 
 
 def get_1D_sw_variables(field_data, xmax, xmin, nx):
@@ -1055,7 +1064,7 @@ def get_surface_velocity(zone, field, field_surface_0, delta_field,
                           value_location=ValueLocation.CellCentered,
                                                        zones=[zone])
 
-def get_global_variables(field_data):
+def get_global_variables(field_data, *, do_cms=False):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
@@ -1193,6 +1202,13 @@ def get_global_variables(field_data):
     eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
+        value_location=ValueLocation.CellCentered)
+    #Hydrodynamic Energy Density
+    eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+        value_location=ValueLocation.CellCentered)
+    #Total Energy Density
+    eq('{Utot [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3+'+
+                          '{uB [J/Re^3]}',
         value_location=ValueLocation.CellCentered)
     '''
     #Vorticity
@@ -1393,8 +1409,21 @@ def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
     print(eqstr)
-    eq(eqstr, zones=[0])
+    eq(eqstr, zones=[0], value_location=ValueLocation.CellCentered)
     return tp.active_frame().dataset.variable(zonename).index
+
+def calc_delta_state(t0state, t1state):
+    """Function creates equation representing volume between now and
+        future magnetosphere
+    Inputs
+        t0state, t1state- names for use in equation for current and
+                          future times
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{delta_volume} = IF({'+t1state+'}==1 && {'+t0state+'}==0,-1,'+
+                        'IF({'+t1state+'}==0 && {'+t0state+'}==1, 1, 0))',
+                        value_location=ValueLocation.CellCentered)
+    return tp.active_frame().dataset.variable('delta_volume').index
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
     """Function creates equation in tecplot representing surface

@@ -16,10 +16,10 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                     integrate_volume,
                                                       dump_to_pandas)
 
-def volume_analysis(frame, state_variable_name, do_1Dsw, rblank, *,
+def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
                     voluB=True, voluE=True, volKEpar=True, volKEperp=True,
-                    volEth=True, volume=True, findS=True,
-                    cuttoff=-20, blank=True):
+                    volEth=True, volume=True, findS=True, dt=60,
+                    cuttoff=-20, blank=True, tail_h=15):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
@@ -103,7 +103,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, rblank, *,
         keys.append(add+'Total [J]')
         total = sum(data[-5::])
         data.append(total)
-        if volume and len(data)<7:
+        if volume and len(data)<8:
             #integrate thermal energy
             eq('{Volume temp} =IF({'+state_variable_name+'}<1,0,1)')
             keys.append('Volume [Re^3]')
@@ -115,6 +115,48 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, rblank, *,
         keys.append(add+'Energy Density [J/Re^3]')
         energy_density = total/Vol
         data.append(energy_density)
+        if do_cms:
+            ##Volume change
+            dVol_index = field_data.variable('delta_volume').index
+            dVol = integrate_volume(dVol_index, zone_index)
+            keys.append('dVolume [Re^3]')
+            print('{} Volume integration done'.format(volume_name))
+            data.append(dVol)
+            #Temporary DayFlankTail designations
+            eq('{DayTemp} = IF({X [R]}>0,1,0)', zones=[zone_index])
+            eq('{TailTemp} = IF(({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
+                               '({X [R]}<-10&&{h}<'+str(tail_h)+'),1,0)',
+                                                zones=[zone_index])
+            eq('{FlankTemp} = IF({DayTemp}==0&&{TailTemp}==0,1,0)',
+                                                    zones=[zone_index])
+            for qty in['uB [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
+                name = qty.split(' ')[0]
+                eq('{'+name+'Day}={DayTemp}*{'+qty+'}',zones=[zone_index])
+                eq('{'+name+'Flank}={FlankTemp}*{'+qty+'}',
+                                                       zones=[zone_index])
+                eq('{'+name+'Tail}={TailTemp}*{'+qty+'}',zones=[zone_index])
+            ##Integrate acquired/forfeited flux
+            for qty in['uB [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]',
+                       'uBDay','uHydroDay','UtotDay',
+                       'uBFlank','uHydroFlank','UtotFlank',
+                       'uBTail','uHydroTail','UtotTail']:
+                temp=qty.split(' ')[0]
+                eq('{'+temp+'acqu} =IF({delta_volume}==-1,-1*{'+qty+'},0)')
+                eq('{'+temp+'forf} =IF({delta_volume}== 1,   {'+qty+'},0)')
+                eq('{'+temp+'net} =    {delta_volume}   *    {'+qty+'}   ')
+                acqu_index = field_data.variable(temp+'acqu').index
+                forf_index = field_data.variable(temp+'forf').index
+                net_index  = field_data.variable(temp+'net').index
+                acqu = integrate_volume(acqu_index, zone_index)
+                forf = integrate_volume(forf_index, zone_index)
+                net  = integrate_volume(net_index, zone_index)
+                keys.append(qty.split(' ')[0]+'_acquired [W]')
+                keys.append(qty.split(' ')[0]+'_forfeited [W]')
+                keys.append(qty.split(' ')[0]+'_net [W]')
+                print('{} Volume integration done'.format(qty))
+                data.append(acqu/dt)
+                data.append(forf/dt)
+                data.append(net/dt)
     volume_energies = pd.DataFrame([data], columns=keys)
     if blank:
         #Turn blanking back off

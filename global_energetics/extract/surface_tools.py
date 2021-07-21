@@ -39,14 +39,17 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
     #get surface specific variables
     field_data = frame.dataset
     if do_cms:
+        '''
         #calculate movement of surface before finalizing surface variables
         get_surface_velocity_estimate(field_data,
                                       field_data.zone(zone_name).index,
                                 field_data.zone('future_'+zone_name).index)
         get_surface_variables(field_data, zone_name, do_1Dsw, do_cms=True,
                               dt=timedelta)
+        '''
+        hmin = get_surface_variables(field_data, zone_name, do_1Dsw)
     else:
-        get_surface_variables(field_data, zone_name, do_1Dsw)
+        hmin = get_surface_variables(field_data, zone_name, do_1Dsw)
     #initialize objects for frame
     zone_index = int(field_data.zone(zone_name).index)
     keys = []
@@ -172,7 +175,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
             print(add+'{} K integration done'.format(zone_name))
         ###################################################################
         #integrate K flux
-        if do_cms:
+        if do_cms and calc_K:
             #ESCAPE
             keys.append(add+'KSurf_escape [W]')
             kSesc_index = int(field_data.variable(
@@ -205,7 +208,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                 keys.append('dVol_dt [Re^3/s]')
                 dVoldt_index = int(field_data.variable('Csurface_n').index)
                 dVoldt = integrate_surface(dVoldt_index, zone_index)
-                data.append(dVoldt)
+                data.append(dVoldt/6371)
                 print('{} dVol/dt integration done'.format(zone_name))
         ###################################################################
         #average K flux
@@ -236,7 +239,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
     surface_power = pd.DataFrame([data],columns=keys)
     #Turn blanking off
     frame.plot().value_blanking.active = False
-    return surface_power
+    return surface_power, hmin
 
 
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
