@@ -96,7 +96,8 @@ def work(mhddatafile):
                                 pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                zone_hidekeys=['box', 'lcb', '30', '40',
+                                               'future'])
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
@@ -107,7 +108,8 @@ def work(mhddatafile):
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                zone_hidekeys=['box', 'lcb', '30', '40',
+                                               'future'])
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
@@ -119,7 +121,8 @@ def work(mhddatafile):
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                zone_hidekeys=['box', 'lcb', '30', '40',
+                                               'future'])
     frame3.activate()
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
@@ -131,7 +134,8 @@ def work(mhddatafile):
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                zone_hidekeys=['box', 'lcb', '30', '40',
+                                               'future'])
     os.system('rm '+mhddatafile)
     os.system('rm '+nextmhdfile)
 
@@ -162,7 +166,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:10],
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
                                 key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
@@ -195,10 +199,12 @@ if __name__ == '__main__':
         os.system('rm -r '+MHDDIR+'/*/')
     ########################################
 
+    '''
     #Combine and delete individual energetics files
     write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                             OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
