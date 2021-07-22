@@ -37,7 +37,7 @@ if __name__ == "__main__":
     future = '3d__var_1_e20140219-090100-023.plt'
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
-    OUTPUTNAME = 'testoutput.png'
+    OUTPUTNAME = 'testoutput1.png'
     '''
     mhddatafile = sys.argv[1].split('/')[-1]
     MHDPATH = '/'.join(sys.argv[1].split('/')[0:-1])+'/'
@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     #Caclulate initial surface
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  do_cms=True,
+                                  do_cms=False,
                                   outputpath=OUTPATH)
     """
     data['wbin'] = -999
@@ -166,15 +166,17 @@ if __name__ == "__main__":
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
+    """
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile,
-                                show_contour=True, energyrange=3e9,
-                                show_slice=True,show_fieldline=False,
-                                pngpath=PNGPATH,
+                                show_contour=False, energyrange=3e9,
+                                show_slice=True,show_fieldline=True,
+                                pngpath=PNGPATH, slicetype='betastar',
+                                show_timestamp=True,
                                 plot_satellites=False, satzones=satzones,
-                                mode='iso_tail', transluc=1,
+                                mode='iso_tail', transluc=60,
                                 outputname=OUTPUTNAME, save_img=True)
     """
     #tile
@@ -188,13 +190,13 @@ if __name__ == "__main__":
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
     view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=False,
+                                'K_net *', mhddatafile, show_contour=True,
                                 show_slice=False, energyrange=9e10,
-                                show_legend=False,
+                                show_legend=False, mode='inside_from_tail',
                                 pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=False, satzones=satzones,
-                                outputname=OUTPUTNAME, save_img=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                show_timestamp=True,
+                                outputname=OUTPUTNAME, save_img=False)
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
@@ -203,8 +205,7 @@ if __name__ == "__main__":
                                 pngpath=PNGPATH,
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
-                                show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                show_timestamp=False)
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
@@ -214,8 +215,7 @@ if __name__ == "__main__":
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
-                                show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
+                                show_timestamp=False)
     '''
     frame2.name = 'lcb'
     view_set.display_single_iso(frame2,
@@ -236,9 +236,18 @@ if __name__ == "__main__":
                                 plot_satellites=True, satzones=satzones,
                                 outputname=OUTPUTNAME,
                                 mode='iso_tail',
+                                show_timestamp=False, save_img=True)
+    bot_right.activate()
+    OUTPUTNAME = 'testoutput2'
+    view_set.display_single_iso(bot_right,
+                                'K_net *', mhddatafile,
+                                show_contour=False, energyrange=3e9,
+                                show_slice=True,show_fieldline=True,
+                                pngpath=PNGPATH, slicetype='betastar',
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40'])
-    """
+                                plot_satellites=False, satzones=satzones,
+                                mode='iso_tail', transluc=60,
+                                outputname=OUTPUTNAME, save_img=True)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

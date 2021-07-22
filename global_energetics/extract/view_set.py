@@ -118,9 +118,9 @@ def add_fieldlines(frame):
     """
     plt = frame.plot()
     ds = frame.dataset
-    plt.vector.u_variable = ds.variable('B_x *')
-    plt.vector.v_variable = ds.variable('B_y *')
-    plt.vector.w_variable = ds.variable('B_z *')
+    plt.vector.u_variable = ds.variable('K_x *')
+    plt.vector.v_variable = ds.variable('K_y *')
+    plt.vector.w_variable = ds.variable('K_z *')
     plt.show_streamtraces = True
     plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
@@ -132,7 +132,7 @@ def add_fieldlines(frame):
     plt.streamtraces.add_rake([10,30,0],[-40,30,0],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,-30,0],[-40,-30,0],Streamtrace.VolumeLine)
     '''
-    plt.streamtraces.color = Color.Custom41
+    plt.streamtraces.color = Color.Custom3
     plt.streamtraces.line_thickness = 0.2
 
 def add_jy_slice(frame, jyindex, showleg):
@@ -142,6 +142,7 @@ def add_jy_slice(frame, jyindex, showleg):
         jyindex
     """
     frame.plot().show_slices = True
+    frame.plot().slice(1).show = False
     yslice = frame.plot().slice(0)
     yslice.show=True
     yslice.orientation = SliceSurface.YPlanes
@@ -192,6 +193,37 @@ def add_jz_slice(frame, jzindex, showleg):
     jzcontour.colormap_filter.distribution=ColorMapDistribution.Continuous
     jzcontour.colormap_filter.continuous_max = 0.003
     jzcontour.colormap_filter.continuous_min = -0.003
+
+def add_Bstar_slice(frame, bindex, showleg):
+    """adds iso contour for earth at r=1Re
+    Inputs
+        frame
+        jyindex
+    """
+    print(frame.dataset.variable(bindex).name)
+    frame.plot().show_slices = True
+    frame.plot().slice(0).show = False
+    bslice = frame.plot().slice(1)
+    bslice.show=True
+    bslice.orientation = SliceSurface.YPlanes
+    bslice.origin[1] = 0
+    bslice.contour.flood_contour_group_index = 2
+    bslice.effects.use_translucency = True
+    bslice.effects.surface_translucency = 40
+    bcontour = frame.plot().contour(2)
+    bcontour.variable_index=bindex
+    bcontour.colormap_name = 'blue-6'
+    bcontour.legend.vertical = True
+    bcontour.legend.position[1] = 72
+    bcontour.legend.position[0] = 98
+    bcontour.legend.box.box_type = TextBox.Filled
+    bcontour.legend.box.fill_color = Color.Custom2
+    bcontour.legend.show = showleg
+    bcontour.levels.reset_levels(np.linspace(0,10,11))
+    bcontour.labels.step = 2
+    bcontour.colormap_filter.distribution=ColorMapDistribution.Continuous
+    bcontour.colormap_filter.continuous_max = 10
+    bcontour.colormap_filter.continuous_min = 0
 
 def add_earth_iso(frame, rindex):
     """adds iso contour for earth at r=1Re
@@ -564,6 +596,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        save_img=True, pngpath='./', save_plt=False,
                        pltpath='./', outputname='output', mhddir='./',
                        show_contour=True, show_slice=True, transluc=1,
+                       slicetype='jy',
                        show_fieldline=False, do_blanking=True, tile=False,
                        show_timestamp=True, mode='iso_day', satzones=[],
                        plot_satellites=False, energy_contourmap=0,
@@ -607,10 +640,15 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     #Optional items
     if show_slice:
-        add_jy_slice(frame, frame.dataset.variable('J_y *').index,
-                     show_legend)
-        #add_jz_slice(frame, jzindex=frame.dataset.variable('J_z *').index,
-                     #showleg=show_legend)
+        if slicetype=='jy':
+            add_jy_slice(frame, frame.dataset.variable('J_y *').index,
+                         show_legend)
+        elif slicetype=='jz':
+            add_jz_slice(frame, frame.dataset.variable('J_z *').index,
+                         showleg=show_legend)
+        elif slicetype=='betastar':
+            add_Bstar_slice(frame,frame.dataset.variable('beta_star').index,
+                            showleg=show_legend)
     if show_fieldline:
         add_fieldlines(frame)
     if tile:
@@ -643,12 +681,9 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
         timestamp_pos = (4,15)
         shade_legend_pos = [5,70]
         shade_markersize = 3
-    if show_contour:
-        frame.plot().show_contour = show_contour
-    else:
-        pass
-        #add_shade_legend(frame, zones_shown, shade_legend_pos,
-        #                 shade_markersize)
+    frame.plot().show_contour = show_contour
+    #add_shade_legend(frame, zones_shown, shade_legend_pos,
+    #                 shade_markersize)
     if plot_satellites:
         if satzones == []:
             print('No satellite zones to plot')
