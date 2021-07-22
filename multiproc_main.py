@@ -166,7 +166,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:10],
                                 key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
@@ -199,12 +199,10 @@ if __name__ == '__main__':
         os.system('rm -r '+MHDDIR+'/*/')
     ########################################
 
-    '''
     #Combine and delete individual energetics files
     write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                             OUTPUTPATH)
     os.system('rm -r '+OUTPUTPATH+'/energeticsdata')
-    '''
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

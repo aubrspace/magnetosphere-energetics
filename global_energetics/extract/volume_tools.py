@@ -115,7 +115,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
         keys.append(add+'Energy Density [J/Re^3]')
         energy_density = total/Vol
         data.append(energy_density)
-        if do_cms:
+        if (do_cms) and (dt!=0):
             ##Volume change
             dVol_index = field_data.variable('delta_volume').index
             dVol = integrate_volume(dVol_index, zone_index)
