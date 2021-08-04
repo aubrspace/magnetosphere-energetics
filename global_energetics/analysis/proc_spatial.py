@@ -151,6 +151,36 @@ def plot_power_dial(fig, ax, df,  powerkey, *,
     if show_colorbar:
         fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
 
+def get_asymmetry(dflist, *, xlocs=[-10]):
+    """Function determines timeseries of asymmetry in terms of radial
+        max/min bounds at a fixed location given dataframes of presummably
+        radially symetric data, one at each timestep
+    Inputs
+        dflist- list like object of DataFrames with time and spatial info
+        xloc- where to calculate max/min r
+    Outputs
+        asym- timeseries DataFrame with max/min r and time
+    """
+    cols = ['Time_UTC']
+    for xloc in xlocs:
+        cols.append('rmax'+str(xloc))
+        cols.append('rmin'+str(xloc))
+        cols.append('rmean'+str(xloc))
+        cols.append('rstd'+str(xloc))
+    asym = pd.DataFrame(columns=cols)
+    for df in dflist:
+        tstamp = df['Time_UTC'].dropna().values[0]
+        load_dict = dict({'Time_UTC':tstamp})
+        for xloc in xlocs:
+            stats = df[(df['x_cc']<(xloc+0.5))&
+                    (df['x_cc']>(xloc-0.5))]['r_R'].describe()
+            load_dict.update({'rmax'+str(xloc):stats['max'],
+                              'rmin'+str(xloc):stats['min'],
+                              'rmean'+str(xloc):stats['mean'],
+                              'rstd'+str(xloc):stats['std']})
+        asym = asym.append(load_dict, ignore_index=True)
+    return asym.sort_values(by=['Time_UTC']).reset_index(drop=True)
+
 def integrate_spatial(dflist, colstrs):
     """Function integrates columns spatially using 'Cell Volume' as area
     Input
@@ -257,8 +287,9 @@ def make_timeseries_data(daylist, flanklist, taillist, fix_locs, key):
         day_df = integrate_spatial(daylist, colstrs)
         flank_df = integrate_spatial(flanklist, colstrs)
         tail_df = integrate_spatial(taillist, colstrs)
-        hdfnames = ['day_'+key, 'flank_'+key, 'tail_'+key]
-        for df in enumerate([day_df, flank_df, tail_df]):
+        asym_df = get_asymmetry(flanklist, xlocs=[-5,-10,-15,-18])
+        hdfnames = ['day_'+key, 'flank_'+key, 'tail_'+key, 'asymmetry']
+        for df in enumerate([day_df, flank_df, tail_df, asym_df]):
             write_disp.write_to_hdf(OPATH+'/energetics.h5',
                                   'spatial_aggr'+str(hdfnames[df[0]]),
                                     mp_powers=df[1])
