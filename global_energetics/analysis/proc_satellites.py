@@ -17,6 +17,8 @@ import swmfpy
 import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
+import verify
+from verify import Contingency2x2 as conting
 #interpackage imports
 from global_energetics.analysis.analyze_energetics import mark_times
 from global_energetics.analysis.proc_temporal import read_energetics
@@ -55,6 +57,122 @@ def mark_cross_geotail(axis, crossingdata, *,
                         (crossingdata['UT']>timerange[0])]
     for cross in data['UT'].values:
         axis.axvline(cross, color='red', linestyle=None, linewidth=1)
+def plot_BetastarScatter(axis, dflist, *, ylabel=None,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None,
+             use_inner=False, use_shield=False):
+    """Function plots B field magnitude for trajectories
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        dflabels- labels used for legend
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    simkeys = ['themisa','themisb','themisc','themisd','themise','geotail',
+               'cluster1', 'cluster2', 'cluster3', 'cluster4']
+    markerdict = dict({'themisa':'^','themisd':'o','themise':'x',
+                       'cluster4':'d'})
+    colordict = dict({'themisa':'black','themisd':'darkmagenta',
+                      'themise':'maroon','cluster4':'magenta'})
+    for df in dflist:
+        name = df['name'].iloc[-1]
+        if name.find('TH')!=-1:
+            probe = name.split('_obs')[0].split('TH')[-1]
+            for simdf in dflist:
+                simname = simdf['name'].iloc[-1]
+                print(simname, probe)
+                if simname.find('themis'+probe.lower())!=-1:
+                    xdata = np.interp(simdf['Time [UTC]'][0:-1],
+                                      df['UT'][0:-1],df['Betastar'][0:-1])
+                    ydata = simdf['Betastar'][0:-1]
+                    xcolors=((simdf['Time [UTC]'][0:-1]-
+                              simdf['Time [UTC]'][0]).values/
+                                           (simdf['Time [UTC]'][-2:-1]-
+                                            simdf['Time [UTC]'][0]).values)
+                    #contingency = conting.fromBoolean(ydata,xdata)
+                    scatterdata = pd.DataFrame({'time':simdf['Time [UTC]'][0:-1],
+                                                'betastar_sim':ydata,
+                                                'betastar_obs':xdata})
+                    scatterdata['diff'] = scatterdata['betastar_sim']-scatterdata['betastar_obs']
+                    scatterdata['match'] = abs(scatterdata['diff'])<0.2
+                    fwd_total, back_total = dt.timedelta(seconds=0), dt.timedelta(seconds=0)
+                    scatterdata['fwd_total']=dt.timedelta(seconds=0)
+                    scatterdata['back_total']=dt.timedelta(seconds=0)
+                    scatterdata['timediff']=dt.timedelta(seconds=0)
+                    for i in scatterdata.index[0:-1]:
+                        if scatterdata['match'].loc[i]:
+                            fwd_total=dt.timedelta(seconds=0)
+                        else:
+                            timedelta = scatterdata['time'][i+1]-scatterdata['time'][i]
+                            fwd_total+=timedelta
+                        scatterdata['fwd_total'].loc[i]=fwd_total
+                    for i in reversed(scatterdata.index[1::]):
+                        if scatterdata['match'].loc[i]:
+                            back_total=dt.timedelta(seconds=0)
+                        else:
+                            timedelta = scatterdata['time'][i]-scatterdata['time'][i-1]
+                            back_total+=timedelta
+                        scatterdata['back_total'].loc[i]=back_total
+                        scatterdata['timediff'].loc[i] = min([scatterdata['fwd_total'].loc[i],
+                                                              scatterdata['back_total'].loc[i]],
+                                                              key=abs)
+                    axis.scatter(xdata,ydata,
+                      label=r'\textit{Themis}$\displaystyle_'+probe+'$',
+                      c=scatterdata['timediff'], marker=markerdict[simname])
+        elif name.find('GE')!=-1:
+            pass
+        elif (name.find('C')!=-1):
+            probe = name.split('_obs')[0].split('C')[-1]
+            for simdf in dflist:
+                simname = simdf['name'].iloc[-1]
+                print(simname, probe)
+                if simname.find('cluster'+probe)!=-1:
+                    xdata = np.interp(simdf['Time [UTC]'][0:-1],
+                                      df['UT'][0:-1],df['Betastar'][0:-1])
+                    ydata = simdf['Betastar'][0:-1]
+                    xcolors=((simdf['Time [UTC]'][0:-1]-
+                              simdf['Time [UTC]'][0]).values/
+                                           (simdf['Time [UTC]'][-2:-1]-
+                                            simdf['Time [UTC]'][0]).values)
+                    scatterdata = pd.DataFrame({'time':simdf['Time [UTC]'][0:-1],
+                                                'betastar_sim':ydata,
+                                                'betastar_obs':xdata})
+                    scatterdata['diff'] = scatterdata['betastar_sim']-scatterdata['betastar_obs']
+                    scatterdata['match'] = abs(scatterdata['diff'])<0.2
+                    fwd_total, back_total = dt.timedelta(seconds=0), dt.timedelta(seconds=0)
+                    scatterdata['fwd_total']=dt.timedelta(seconds=0)
+                    scatterdata['back_total']=dt.timedelta(seconds=0)
+                    scatterdata['timediff']=dt.timedelta(seconds=0)
+                    for i in scatterdata.index[0:-1]:
+                        if scatterdata['match'].loc[i]:
+                            fwd_total=dt.timedelta(seconds=0)
+                        else:
+                            timedelta = scatterdata['time'][i+1]-scatterdata['time'][i]
+                            fwd_total+=timedelta
+                        scatterdata['fwd_total'].loc[i]=fwd_total
+                    for i in reversed(scatterdata.index[1::]):
+                        if scatterdata['match'].loc[i]:
+                            back_total=dt.timedelta(seconds=0)
+                        else:
+                            timedelta = scatterdata['time'][i]-scatterdata['time'][i-1]
+                            back_total+=timedelta
+                        scatterdata['back_total'].loc[i]=back_total
+                        scatterdata['timediff'].loc[i] = min([scatterdata['fwd_total'].loc[i],
+                                                              scatterdata['back_total'].loc[i]],
+                                                              key=abs)
+                    axis.scatter(xdata,ydata,
+                      label=r'\textit{Cluster}$\displaystyle_'+probe+'$',
+                      c=xcolors, marker=markerdict[simname])
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    else:
+        axis.set_xlim([0,2])
+        axis.set_ylim([0,2])
+    axis.set_xlabel(r'$\displaystyle\beta^*_{\textit{Observed}}$')
+    axis.set_ylabel(r'$\displaystyle\beta^*_{\textit{Simulation}}$')
+    axis.legend(loc='upper left')
 def plot_Betastar(axis, dflist, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False):
@@ -686,10 +804,11 @@ if __name__ == "__main__":
         "text.usetex": True,
         "font.family": "sans-serif",
         "font.size": 18,
-        "font.sans-serif": ["Helvetica"]})
+        "font.sans-serif": ["Helvetica"],
+        "image.cmap": "twilight"})
     ######################################################################
     #B magnitude
-    if True:
+    if False:
         figname = 'Bmagnitude'
         Bmag_themisBC, (axB,axC) = plt.subplots(nrows=2, ncols=1,
                                                    sharex=True,
@@ -781,31 +900,15 @@ if __name__ == "__main__":
         Mag_cluster.savefig(outpath+'/{}_cluster.eps'.format(figname))
     ######################################################################
     # Betastar magnetosphere
-    if True:
+    if False:
         figname = 'Betastar'
         Betastar, (axA,axD,axE,clax4) = plt.subplots(nrows=4, ncols=1,
                                                    sharex=True,
                                                    figsize=[12,12])
-        '''
-        Beta_themisBC, (axB,axC) = plt.subplots(nrows=2, ncols=1,
-                                                   sharex=True,
-                                                   figsize=[12,8])
-        Beta_themisADE, (axA,axD,axE) = plt.subplots(nrows=3, ncols=1,
-                                                   sharex=True,
-                                                   figsize=[12,12])
-        Beta_geo, (geoax1,clax4) = plt.subplots(nrows=2, ncols=1,
-                                                   figsize=[12,8])
-        Beta_themisBC.tight_layout(pad=2)
-        Beta_themisADE.tight_layout(pad=2)
-        Beta_geo.tight_layout(pad=2)
-        '''
         ylabel = r'$\displaystyle \beta^{*}$'
         plot_Betastar(axA, th_a, ylabel)
-        #plot_Betastar(axB, th_b, ylabel, ylim=[0,30])
-        #plot_Betastar(axC, th_c, ylabel,ylim=[0,30])
         plot_Betastar(axD, th_d, ylabel)
         plot_Betastar(axE, th_e, ylabel)
-        #plot_Betastar(geoax1, geo, ylabel)
         plot_Betastar(clax4, cl4, ylabel)
         probe = ['a','d','e']
         for ax in enumerate([axA,axD,axE]):
@@ -815,19 +918,47 @@ if __name__ == "__main__":
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
-        '''
-        for ax in enumerate([geoax1]):
-            mark_cross_geotail(ax[1], geo_cross[0])
-            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-        '''
         for ax in enumerate([clax4]):
             mark_times(ax[1])
             ax[1].axhline(0.7, color='black', linestyle=None, linewidth=1)
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
-        #Beta_themisBC.savefig(outpath+'/{}_themisBC.eps'.format(figname))
-        #Beta_themisADE.savefig(outpath+'/{}_themisADE.eps'.format(figname))
-        #Beta_geo.savefig(outpath+'/{}_geo.eps'.format(figname))
+        Betastar.savefig(outpath+'/{}.eps'.format(figname))
+    ######################################################################
+    # Betastar magnetosphere
+    if True:
+        figname = 'BetastarScatter'
+        Betastar, ([ax1,ax2],[ax3,ax4]) = plt.subplots(nrows=2, ncols=2,
+                                                 sharex=True,sharey=True,
+                                                   figsize=[12,12])
+        #ylabel = r'$\displaystyle \beta^{*}$'
+        '''
+        cmap = mpl.cm.Purples
+        norm = mpl.colors.Normalize(vmin=th_a[1]['Time [UTC]'][0:1].values,
+                                vmax=th_a[1]['Time [UTC]'][-2:-1].values)
+        Betastar.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+                         cax=ax4,orientation='vertical',label='Time [UTC]')
+        '''
+        #mpl.rc('image', cmap='Purples')
+        plot_BetastarScatter(ax1, th_a)
+        plot_BetastarScatter(ax2, th_d)
+        plot_BetastarScatter(ax3, th_e)
+        plot_BetastarScatter(ax4, cl4)
+        probe = ['a','d','e']
+        for ax in enumerate([ax1,ax2,ax3,ax4]):
+            #ax[1].tick_params(which='major', length=11)
+            ax[1].xaxis.set_minor_locator(AutoMinorLocator(5))
+            ax[1].yaxis.set_minor_locator(AutoMinorLocator(5))
+            #Box around target zone
+            ax[1].hlines([0.6,0.8],0.6,0.8)
+            ax[1].vlines([0.6,0.8],0.6,0.8)
+            #Dashed lines showing < targets
+            ax[1].hlines([0.6,0.8],0,0.6, ls='--', color='green')
+            ax[1].vlines([0.6,0.8],0,0.6, ls='--', color='green')
+            #Dashed lines showing > targets
+            ax[1].hlines([0.6,0.8],0.8,2, ls='--', color='red')
+            ax[1].vlines([0.6,0.8],0.8,2, ls='--', color='red')
+        #plt.colorbar(ax=ax4)
         Betastar.savefig(outpath+'/{}.eps'.format(figname))
     ######################################################################
