@@ -12,7 +12,7 @@ from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
 
-def add_IMF_clock(frame, clockangle, coordsys, position, size):
+def add_IMF_clock(frame, clockangle, coordsys, position, size, strID):
     """Adds a clock with current IMF orientation
     Inputs
         frame- tecplot frame to add clock to
@@ -46,8 +46,8 @@ def add_IMF_clock(frame, clockangle, coordsys, position, size):
                         lw=6, zorder=5, head_width=0)
     ax.set_title('\nIMF ({})\n'.format(coordsys),fontsize=40,color='white')
     #Save plot
-    figname = (os.getcwd()+'/temp_imfclock'+
-                str(np.random.rand()).split('.')[-1]+'.png')
+    figname = (os.getcwd()+'/temp_imfclock'+strID+'.png')
+    #           str(np.random.rand()).split('.')[-1]+'.png')
     fig.savefig(figname, facecolor='gray', edgecolor='gray')
     #Load plot onto current frame
     img = frame.add_image(figname, position, size)
@@ -602,7 +602,8 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                        plot_satellites=False, energy_contourmap=0,
                        mpslice=60, cpsslice=20, zone_rename=None,
                        show_legend=True, add_clock=False,
-                       zone_hidekeys=['sphere','box','lcb','shue','future']):
+                       zone_hidekeys=['sphere','box','lcb','shue','future'],
+                       IDstr='0'):
     """Function adjusts viewsettings for a single panel isometric 3D image
     Inputs
         frame- object for the tecplot frame
@@ -698,7 +699,7 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                                                           'imf_clock_deg'])
         coordsys = frame.dataset.zone('global_field').aux_data[
                                                             'COORDSYSTEM']
-        add_IMF_clock(frame, clock, coordsys, (0,0), 30)
+        add_IMF_clock(frame, clock, coordsys, (0,0), 30, IDstr)
     if save_img:
         #multiframe image (default)
         tp.export.save_png(os.getcwd()+'/'+pngpath+'/'+outputname+'.png',

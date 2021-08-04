@@ -20,6 +20,7 @@ from global_energetics.extract import stream_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
+from global_energetics.extract.view_set import twodigit
 from global_energetics import write_disp, makevideo
 
 def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath,
@@ -77,6 +78,7 @@ def work(mhddatafile):
     #satzones = satellites.get_satellite_zones(eventdt, MHDDIR+'/'+str(ID),
     #                                          field_data)
     satzones = []
+    """
     #adjust view settings
     #tile
     proc = 'Multi Frame Manager'
@@ -88,6 +90,7 @@ def work(mhddatafile):
     frame1 = [frame for frame in tp.frames('Frame 001')][0]
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
+    '''
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile,
                                 show_contour=True,
@@ -96,8 +99,8 @@ def work(mhddatafile):
                                 pngpath=PNGPATH, energy_contourmap=4,
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40',
-                                               'future'])
+                                IDstr=str(ID))
+    '''
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
@@ -108,8 +111,7 @@ def work(mhddatafile):
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME, save_img=False,
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40',
-                                               'future'])
+                                IDstr=str(ID))
     frame2.activate()
     frame2.name = 'alternate_iso'
     view_set.display_single_iso(frame2,
@@ -121,8 +123,7 @@ def work(mhddatafile):
                                 outputname=OUTPUTNAME, save_img=False,
                                 mode='other_iso',
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40',
-                                               'future'])
+                                IDstr=str(ID))
     frame3.activate()
     frame3.name = 'tail_iso'
     view_set.display_single_iso(frame3,
@@ -132,10 +133,23 @@ def work(mhddatafile):
                                 pngpath=PNGPATH, transluc=60,
                                 plot_satellites=False, satzones=satzones,
                                 outputname=OUTPUTNAME,
-                                mode='iso_tail',
+                                mode='iso_tail', save_img=False,
                                 show_timestamp=False,
-                                zone_hidekeys=['box', 'lcb', '30', '40',
-                                               'future'])
+                                IDstr=str(ID))
+    bot_right.activate()
+    view_set.display_single_iso(bot_right,
+                                'K_net *', mhddatafile,
+                                show_contour=False,
+                                show_slice=True,show_fieldline=True,
+                                pngpath=PNGPATH,
+                                slicetype='betastar',
+                                show_timestamp=False,
+                                plot_satellites=False, satzones=satzones,
+                                mode='iso_tail', transluc=60,
+                                outputname=OUTPUTNAME, save_img=True,
+                                IDstr=str(ID))
+    """
+    os.system('touch '+PNGPATH+'/'+OUTPUTNAME+'.png')
     os.system('rm '+mhddatafile)
     os.system('rm '+nextmhdfile)
 
@@ -160,27 +174,39 @@ if __name__ == '__main__':
     os.system('mkdir '+OUTPUTPATH+'/figures')
     os.system('mkdir '+OUTPUTPATH+'/indices')
     os.system('mkdir '+OUTPUTPATH+'/png')
+    #os.system('mkdir '+OUTPUTPATH+'/png/alt')
     ########################################
     ########### MULTIPROCESSING ###########
     #Pytecplot requires spawn method
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:10],
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
                                 key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
-        donelist = glob.glob(OUTPUTPATH+'/png/*')
+        donelist = glob.glob(OUTPUTPATH+'/png/*.png')
+        #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
         for png in donelist:
             parseddonelist.append(png.split('/')[-1].split('.')[0])
+            #yr,mo,dy,hr,mn = png.split('-')
+            #yr = yr.split('_')[-1]
+            #mn = mn.split('.')[0]
+            #parsed = (yr+twodigit(int(mo))+twodigit(int(dy))+'-'+
+            #                           twodigit(int(hr))+twodigit(int(mn)))
+            #parseddonelist.append(parsed)
         for plt in all_solution_times:
             parsednotdone.append(plt.split('e')[-1].split('.')[0])
+            #parsednotdone.append(plt.split('e')[-1].split('.')[0].split(
+            #                                                     '00-')[0])
         solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt.gz' for item
                     in parsednotdone if item not in parseddonelist]
     else:
         solution_times = all_solution_times
-    print(solution_times)
+    #print(solution_times)
+    print(parseddonelist[0:10])
+    print(parsednotdone[0:10])
     print(len(solution_times))
     numproc = multiprocessing.cpu_count()-1
 
