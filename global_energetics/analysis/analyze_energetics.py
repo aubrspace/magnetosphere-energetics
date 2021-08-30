@@ -167,13 +167,13 @@ def plot_Power_al(axis, dflist, timekey, ylabel, *,
         if (name.find('mp')!=-1) or (name.find('agg')!=-1):
             #INJECTION
             axis.plot(data[timekey],abs(data[powerin])/1e12,
-                            label=r'$\displaystyle K_{injection}$',
+                            label=r'\textit{Injection}',
                         linewidth=Size, linestyle=ls,
                         color='darkmagenta')
             #ESCAPE
             axis.plot(data[timekey],abs(data[powerout])/1e12,
-                            label=r'$\displaystyle K_{escape}$',
-                        linewidth=Size, linestyle='--',
+                            label=r'\textit{Escape}',
+                        linewidth=Size, linestyle=ls,
                         color='magenta')
         else:
             axis.plot(data[timekey],-1*data[qtkey],
@@ -243,7 +243,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
             if not override_color:
                 Color = 'mediumvioletred'
             axis.plot(data[timekey],powerin,
-                            label=r'$\displaystyle K_{injection}$',
+                            label=r'Injection',
                         linewidth=Size, linestyle=ls,
                         color=Color)
             dtime = data[timekey][~ data[timekey].isin([np.inf,
@@ -255,7 +255,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
             if not override_color:
                 Color = 'peru'
             axis.plot(data[timekey],powerout,
-                            label=r'$\displaystyle K_{escape}$',
+                            label=r'Escape',
                         linewidth=Size, linestyle=ls,
                         color=Color)
             if name.find('aggr')==-1:
@@ -267,7 +267,7 @@ def plot_Power(axis, dflist, timekey, ylabel, *,
                     Color = 'black'
                     Size = 1
                 axis.plot(data[timekey],powernet,
-                            label=r'$\displaystyle K_{net}$',
+                            label=r'Net',
                             linewidth=Size, linestyle=ls,
                             color=Color)
                 dtime = data[timekey][~ data[timekey].isin([np.inf,
@@ -330,7 +330,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
                 axis.set_ylim([-20, 20])
             #INJECTION
             axis.plot(data[timekey],powerin,
-                            label=r'$\displaystyle P_{0,injection}$',
+                            label=r'Injection',
                         linewidth=Size, linestyle=ls,
                         color='gold')
             if name.find('aggr')==-1:
@@ -338,7 +338,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
                               color='wheat')
             #ESCAPE
             axis.plot(data[timekey],powerout,
-                            label=r'$\displaystyle P_{0,escape}$',
+                            label=r'Escape',
                         linewidth=Size, linestyle=ls,
                         color='peru')
             if name.find('aggr')==-1:
@@ -348,7 +348,7 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
             if not use_shield:
                 Size = 1
                 axis.plot(data[timekey],powernet,
-                            label=r'$\displaystyle P_{0,net}$',
+                            label=r'Net',
                             linewidth=Size, linestyle=ls,
                             color='maroon')
                 if name.find('aggr')==-1:
@@ -408,7 +408,7 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
                 axis.set_ylim([-20, 20])
             #INJECTION
             axis.plot(data[timekey],powerin,
-                            label=r'$\displaystyle \left(E\times B\right)_{injection}$',
+                            label=r'Injection',
                         linewidth=Size, linestyle=ls,
                         color='mediumvioletred')
             if name.find('aggr')==-1:
@@ -416,7 +416,7 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
                                   color='palevioletred')
             #ESCAPE
             axis.plot(data[timekey],powerout,
-                            label=r'$\displaystyle \left(E\times B\right)_{escape}$',
+                            label=r'Escape',
                         linewidth=Size, linestyle=ls,
                         color='deepskyblue')
             if name.find('aggr')==-1:
@@ -426,7 +426,7 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
             if not use_shield:
                 Size = 1
                 axis.plot(data[timekey],powernet,
-                            label=r'$\displaystyle \left(E\times B\right)_{net}$',
+                            label=r'Net',
                             linewidth=Size, linestyle=ls,
                             color='midnightblue')
                 if name.find('aggr')==-1:
@@ -546,7 +546,7 @@ def plot_DFTstack(axis, dflist, timekey, ylabel, control_key, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'upper right'
+    legend_loc = 'upper left'
     day = [df for df in dflist if df['name'].iloc[-1].split('_')[1].split(
                                                     'aggr')[-1]=='day'][0]
     flank = [df for df in dflist if df['name'].iloc[-1].split(
@@ -556,11 +556,11 @@ def plot_DFTstack(axis, dflist, timekey, ylabel, control_key, *,
     Injlist, Injlabels, Esclist, Esclabels, k, kmax = [],[],[],[],0,99
     for data in dflist:
         name = data['name'].iloc[-1]
-        region = name.split('_')[1].split('aggr')[-1]
-        Colordict = dict({'day':'deepskyblue',
-                          'flank':'magenta',
-                          'tail':'darkmagenta'})
-        Linedict = dict({'day':1, 'flank':1, 'tail':1})
+        region = name.split('_')[1].split('aggr')[-1].capitalize()
+        Colordict = dict({'Day':'deepskyblue',
+                          'Flank':'magenta',
+                          'Tail':'darkmagenta'})
+        Linedict = dict({'Day':1, 'Flank':1, 'Tail':1})
         if (k==0):
             Injlist.append(data[control_key+'injection [W]'].dropna()/1e12)
             Injlabels.append(region)
@@ -611,7 +611,8 @@ def plot_DFTstack(axis, dflist, timekey, ylabel, control_key, *,
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
-    labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
+    axis.legend(loc=legend_loc)
+    #labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
 
 def VortValue(vortstr):
     return float(vortstr.split('vort')[-1].split('[')[-1].split('-')[0])
@@ -793,9 +794,12 @@ def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
         total = 'Total [J]'
         for qtkey in [total]:
             if name.find('mp')!=-1:
-                axis.plot(data[timekey],-1*data[qtkey]/1e15,
+                data['correct_Total'] =(data['Total [J]']-data['uE [J]']+
+                                        data['KEpar [J]']+
+                                        0.5*data['Etherm [J]'])
+                axis.plot(data[timekey],-1*data['correct_Total']/1e15,
                             label=r'$\displaystyle \int_V{U_{total}}$',
-                        linewidth=Size, linestyle=':',
+                        linewidth=Size, linestyle=ls,
                         color='blue')
             else:
                 axis.plot(data[timekey],-1*data[qtkey],
@@ -887,16 +891,116 @@ def plot_Standoff(axis, dflist, timekey, ylabel, *,
     for data in dflist:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
-            tag = name.split('_')[-1]
             axis.plot(data[timekey],data[qtkey],
-                        label=r'\textit{'+tag+'}',
+                        label=r'\textit{Simulation}',
                         linewidth=Size, linestyle=ls,
                         color=Color)
+        elif name.find('swmf_sw')!=-1:
+            #calculate Pdyn
+            convert = 1.6726e-27*1e6*(1e3)**2*1e9
+            data['v'] = np.sqrt(data['vx']**2+data['vy']**2+
+                                data['vz']**2)
+            data['Pdyn'] = data['dens']*data['v']**2*convert
+            r0 = []
+            for i in data.index:
+                r0_i, _ = r0_alpha_1998(data['bz'].loc[i],
+                                        data['Pdyn'].loc[i])
+                r0.append(r0_i)
+            data['r0'] = r0
+            axis.plot(data[timekey],data['r0'],
+                        label=r"\textit{Shue '98}",
+                        linewidth=Size, linestyle=ls,
+                        color='black')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time [UTC]}')
+    axis.set_ylabel(ylabel)
+    axis.legend(loc=legend_loc)
+
+def plot_Asymmetry(axis, dflist, timekey, ylabel, *,
+             xlim=None, ylim=None, Color=None, Size=2, ls=None):
+    """Function plots outer surface boundary powers
+    Inputs
+        axis- object plotted on
+        dflist- datasets
+        dflabels- labels used for legend
+        timekey- used to located column with time and the qt to plot
+        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    legend_loc = 'upper right'
+    qtkey = ''
+    if Color == None:
+        Color = 'magenta'
+    for data in dflist:
+        name = data['name'].iloc[-1]
+        if name.find('asym')!=-1:
+            tag = name.split('_')[-1]
+            axis.fill_between(data[timekey].dropna(),
+                              data['rmax-10'].dropna(),
+                              data['rmin-10'].dropna(), color='silver')
+            axis.fill_between(data[timekey].dropna(),
+                          (data['rmean-10']+1.5*data['rstd-10']).dropna(),
+                          (data['rmean-10']-1.5*data['rstd-10']).dropna(),
+                              color='grey')
+            axis.plot(data[timekey],data['rmean-10'],
+                        label=r'\textit{Simulation}',
+                        linewidth=Size, linestyle=ls,
+                        color=Color)
+        elif name.find('swmf_sw')!=-1:
+            def integrand1(theta, r0, alpha):
+                return 2*pi/3*r0**3*(cos(theta/2))**(-6*alpha)
+            def integrand2(theta):
+                return 2*pi/3*(-20)**3*(cos(theta))**(-3)
+            #calculate Pdyn
+            convert = 1.6726e-27*1e6*(1e3)**2*1e9
+            data['v'] = np.sqrt(data['vx']**2+data['vy']**2+
+                                data['vz']**2)
+            data['Pdyn'] = data['dens']*data['v']**2*convert
+            qtkey = 'Pdyn'
+            shue_rmin, shue_rmean, shue_rmax = [], [], []
+            for i in data.index:
+                r0_i, alpha_i = r0_alpha_1998(data['bz'].loc[i],
+                                              data['Pdyn'].loc[i])
+                for X in enumerate([-9.5,-10,-10.5]):
+                    #bisect to find r-> x=X
+                    theta_l, theta_r, done = pi/2, pi*0.9, False
+                    threshold, nstep, nmax = 0.01, 0, 100
+                    while not done:
+                        theta_m = (theta_l+theta_r)/2
+                        r = r0_i*cos(theta_m/2)**(-2*alpha_i)
+                        x_m = r*cos(theta_m)
+                        if abs(x_m)<abs(X[1]):
+                            theta_l=theta_m
+                        else:
+                            theta_r=theta_m
+                        if (abs(X[1]-x_m)<threshold) or (nstep>nmax):
+                            done=True
+                        nstep+=1
+                    if X[0]==0:
+                        shue_rmin.append(r)
+                    elif X[0]==1:
+                        shue_rmean.append(r)
+                    else:
+                        shue_rmax.append(r)
+            data['rmin'] = shue_rmin
+            data['rmean'] = shue_rmean
+            data['rmax'] = shue_rmax
+            #axis.fill_between(data[timekey].dropna(),data['rmax'].dropna(),
+            #                  data['rmin'].dropna(), color='lightblue')
+            axis.plot(data[timekey],data['rmean'],
+                        label=r"\textit{Shue '98}",
+                        linewidth=Size+1, linestyle=ls,
+                        color='black')
+    if xlim!=None:
+        axis.set_xlim(xlim)
+    if ylim!=None:
+        axis.set_ylim(ylim)
+    else:
+        axis.set_ylim([8,40])
+        axis.yaxis.set_minor_locator(AutoMinorLocator(5))
+    #axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
@@ -968,8 +1072,9 @@ def plot_Volume(axis, dflist, timekey, ylabel, *,
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time [UTC]}')
+    #axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
+    axis.yaxis.set_minor_locator(AutoMinorLocator(5))
     axis.legend(loc=legend_loc)
 
 def plot_dst(axis, dflist, timekey, ylabel, *,
@@ -989,12 +1094,12 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
             qtkey = 'SMR (nT)'
             axis.plot(data[timekey],data[qtkey],
                       label='SMR',
-                      linewidth=Size, linestyle='--',
+                      linewidth=Size, linestyle=ls,
                       color='black')
         elif name == 'swmf_log':
             qtkey = 'dst_sm'
             axis.plot(data[timekey],data[qtkey],
-                      label='SWMF Dst',
+                      label='SWMF',
                       linewidth=Size, linestyle=ls,
                       color='magenta')
         elif name == 'omni':
@@ -1134,23 +1239,25 @@ def plot_cpcp(axis, dflist, timekey, ylabel, *,
     legend_loc = 'upper left'
     for data in dflist:
         name = data['name'].iloc[-1]
-        north = 'cpcpn'
-        south = 'cpcps'
-        for pole in [north,south]:
-            if pole==south:
-                axis.plot(data[timekey],data[pole],
-                      label='South CPCP',
-                      linewidth=Size,linestyle='--',color='magenta')
-            else:
-                axis.plot(data[timekey],data[pole],
-                      label='North CPCP',
-                      linewidth=Size, linestyle=ls, color='darkmagenta')
+        if name == 'omni':
+            pci = data['pc_n']
+            T = 2*pi*(2/12)
+            data['cpcp'] = 29.28 - 3.31*sin(T+1.49)+17.81*pci
+            axis.plot(data[timekey],data['cpcp'],
+                      label=r'\textit{Ridley and Kihn}',
+                      linewidth=Size, linestyle=ls, color='blue')
         else:
-            qtkey = None
-        if qtkey != None:
-            axis.plot(data[timekey],data[qtkey],
-                      label=pole+'_'+name,
-                      linewidth=Size, linestyle=ls, color='black')
+            north = 'cpcpn'
+            south = 'cpcps'
+            for pole in [north,south]:
+                if pole==south:
+                    axis.plot(data[timekey],data[pole],
+                        label='South CPCP',
+                        linewidth=Size,linestyle=ls,color='magenta')
+                else:
+                    axis.plot(data[timekey],data[pole],
+                        label='North CPCP',
+                        linewidth=Size, linestyle=ls, color='darkmagenta')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -1440,6 +1547,7 @@ def plot_swflowP(axis, dflist, timekey, ylabel, *,
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
+    axis.yaxis.set_minor_locator(AutoMinorLocator(5))
 
 def plot_swPower(axis, dflist, mp, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
@@ -1618,6 +1726,7 @@ if __name__ == "__main__":
     fullend = dt.datetime(2014, 2, 23, 0)
     [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(
                                                              datapath[-1])
+    #                                                 read_supermag=False)
     [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
                                                     fullend, datapath[-1])
     energetics_list = read_energetics(datapath)
@@ -1626,8 +1735,8 @@ if __name__ == "__main__":
     cuttoffend = dt.datetime(2014,2,20,0,0)
     simdata = [swmf_index, swmf_log, swmf_sw]
     obsdata = [supermag, omni]
-    [supermag,omni] = chopends_time(obsdata, cuttoffstart, cuttoffend,
-                                    'Time [UTC]')
+    #[supermag,omni] = chopends_time(obsdata, cuttoffstart, cuttoffend,
+    #                                'Time [UTC]')
     [swmf_index,swmf_log,swmf_sw,] = chopends_time(simdata, cuttoffstart,
                                      cuttoffend, 'Time [UTC]', shift=True)
     energeticslist = chopends_time(energetics_list,cuttoffstart,
@@ -1653,18 +1762,34 @@ if __name__ == "__main__":
     else:
         do_mpcomparisons = False
         mp = mplist[0]
-    #Net
-    mp['K_injection [W]'] = mp['K_injection [W]']+mp['Utot_acquired [W]']
-    mp['K_escape [W]'] = mp['K_escape [W]']+mp['Utot_forfeited [W]']
-    mp['K_net [W]'] = mp['K_net [W]']+mp['Utot_net [W]']
-    #ExB
-    mp['ExB_injection [W]'] = mp['ExB_injection [W]']+mp['uB_acquired [W]']
-    mp['ExB_escape [W]'] = mp['ExB_escape [W]']+mp['uB_forfeited [W]']
-    mp['ExB_net [W]'] = mp['ExB_net [W]']+mp['uB_net [W]']
-    #Hydro
-    mp['P0_injection [W]'] = mp['P0_injection [W]']+mp['uHydro_acquired [W]']
-    mp['P0_escape [W]'] = mp['P0_escape [W]']+mp['uHydro_forfeited [W]']
-    mp['P0_net [W]'] = mp['P0_net [W]']+mp['uHydro_net [W]']
+    agglist.append(mp)
+    for df in enumerate(agglist):
+        name = df[1]['name'].iloc[-1]
+        region = name.split('mp')[-1].split('aggr')[-1].split(
+                                                      '_')[0].capitalize()
+        if name.find('asym')==-1:
+            #Net
+            df[1]['K_injection [W]'] = (df[1]['K_injection [W]']+
+                                        mp['Utot'+region+'_acquired [W]'])
+            df[1]['K_escape [W]'] = (df[1]['K_escape [W]']+
+                                     mp['Utot'+region+'_forfeited [W]'])
+            df[1]['K_net [W]'] = (df[1]['K_net [W]']+
+                                  mp['Utot'+region+'_net [W]'])
+            #ExB
+            df[1]['ExB_injection [W]'] = (df[1]['ExB_injection [W]']+
+                                          mp['uB'+region+'_acquired [W]'])
+            df[1]['ExB_escape [W]'] = (df[1]['ExB_escape [W]']+
+                                       mp['uB'+region+'_forfeited [W]'])
+            df[1]['ExB_net [W]'] = (df[1]['ExB_net [W]']+
+                                    mp['uB'+region+'_net [W]'])
+            #Hydro
+            df[1]['P0_injection [W]'] = (df[1]['P0_injection [W]']+
+                                      mp['uHydro'+region+'_acquired [W]'])
+            df[1]['P0_escape [W]'] = (df[1]['P0_escape [W]']+
+                                     mp['uHydro'+region+'_forfeited [W]'])
+            df[1]['P0_net [W]'] = (df[1]['P0_net [W]']+
+                                   mp['uHydro'+region+'_net [W]'])
+    agglist.pop()
     ##Plot data
     ######################################################################
     #Newell Function and Outerbound Net Power, and cpcp
@@ -1689,40 +1814,37 @@ if __name__ == "__main__":
         #new_out_pow.autofmt_xdate()
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
-        new_out_pow.savefig(figureout+'{}.eps'.format(figname),
-                            format='eps')
+        new_out_pow.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Total energy and dst index
     if True:
         figname = 'Energy_dst'
         energy_dst, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[0.8*figx,0.8*figy])
+                                          figsize=[14,6])
         #Time
         timekey = 'Time [UTC]'
-        y1label = r'$\displaystyle Dst_{\textit{equiv.}}\left[ nT \right]$'
+        y1label = r'$\displaystyle Dst\left[ nT \right]$'
         y2label = r'$\displaystyle E_{total} \left[ PJ \right]$'
         ax2 = ax1.twinx()
-        plot_dst(ax1, [swmf_log, supermag], timekey, y1label)
+        mark_times(ax2)
+        plot_dst(ax1, [swmf_log, omni], timekey, y1label)
         plot_TotalEnergy(ax2, [mp], timekey, y2label)
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax1.tick_params(which='major', length=7)
-        ax1.xaxis.set_tick_params(labelsize=12)
-        ax1.yaxis.set_tick_params(labelsize=14)
-        ax2.yaxis.set_tick_params(labelsize=14)
         ax1.xaxis.set_minor_locator(AutoMinorLocator(6))
-        ax1.yaxis.set_minor_locator(AutoMinorLocator(5))
+        ax1.yaxis.set_minor_locator(AutoMinorLocator())
         ax2.legend(loc='lower right', fontsize=18, labelcolor='blue')
         ax2.spines['right'].set_color('blue')
         ax2.yaxis.label.set_color('blue')
         ax2.tick_params(axis='y', colors='blue')
-        #mark_times(ax2)
         #energy_dst.tight_layout(rect=(0.03,0,0.95,1))
         energy_dst.tight_layout(pad=1)
         energy_dst.savefig(figureout+'{}.eps'.format(figname))
+        energy_dst.savefig(figureout+'{}.tiff'.format(figname))
         energy_dst.savefig(figureout+'{}.png'.format(figname))
     ######################################################################
     #Correlation for energy and dst
-    if True:
+    if False:
         figname = 'Energy_dst_rcor'
         energy_corr, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figy,figy])
@@ -1739,7 +1861,7 @@ if __name__ == "__main__":
         energy_corr.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Power and AL
-    if True:
+    if False:
         figname = 'Power_al'
         power_al, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -1757,13 +1879,14 @@ if __name__ == "__main__":
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
         power_al.savefig(figureout+'{}_justindex.eps'.format(figname))
+        power_al.savefig(figureout+'{}_justindex.tiff'.format(figname))
         ax2 = ax1.twinx()
         power_al.tight_layout(pad=padsize*1.2)
         plot_Power_al(ax2, [mp], timekey, y2label)
         power_al.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Theoretical power from the solar wind
-    if True:
+    if False:
         figname = 'swPower'
         swpower, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -1783,7 +1906,7 @@ if __name__ == "__main__":
         swpower.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Total Power injection, escape and net
-    if True:
+    if False:
         figname = 'Power'
         power, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -1809,7 +1932,7 @@ if __name__ == "__main__":
         innerpower.savefig(figureout+'{}_inner.eps'.format(figname))
     ######################################################################
     #ExB Power injection, escape and net
-    if True:
+    if False:
         figname = 'ExBPower'
         exbpower, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -1835,7 +1958,7 @@ if __name__ == "__main__":
         innerexbpower.savefig(figureout+'{}_inner.eps'.format(figname))
     ######################################################################
     #P0 Power injection, escape and net
-    if True:
+    if False:
         figname = 'P0Power'
         p0power, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -1875,16 +1998,18 @@ if __name__ == "__main__":
         sh3panelpower.tight_layout(pad=padsize*1.3)
         #Time
         timekey = 'Time [UTC]'
-        y1label = r'\textit{Power} $\displaystyle \left[ TW\right]$'
-        y2label=r'\textit{Transfer Efficiency}$\displaystyle\left[\%\right]$'
-        plot_Power(ax1, [mp], timekey, y1label)
-        plot_Power(in_ax1, [mp], timekey, y1label, use_inner=True)
+        yKlabel = r'\textit{Integrated  $\mathbf{K}$ Power} $\left[ TW\right]$'
+        ySlabel = r'\textit{Integrated  $\mathbf{S}$ Power} $\left[ TW\right]$'
+        yPlabel = r'\textit{Integrated  $\mathbf{H}$ Power} $\left[ TW\right]$'
+        y2label=r'\textit{Transfer Efficiency}$\left[\%\right]$'
+        plot_Power(ax1, [mp], timekey, yKlabel)
+        plot_Power(in_ax1, [mp], timekey, yKlabel, use_inner=True)
         #plot_Power(sh_ax1, [mp], timekey, y2label, use_shield=True)
-        plot_P0Power(ax3, [mp], timekey, y1label)
-        plot_P0Power(in_ax3, [mp], timekey, y1label, use_inner=True)
+        plot_P0Power(ax3, [mp], timekey, yPlabel)
+        plot_P0Power(in_ax3, [mp], timekey, yPlabel, use_inner=True)
         #plot_P0Power(sh_ax3, [mp], timekey, y2label, use_shield=True)
-        plot_ExBPower(ax2, [mp], timekey, y1label)
-        plot_ExBPower(in_ax2, [mp], timekey, y1label, use_inner=True)
+        plot_ExBPower(ax2, [mp], timekey, ySlabel)
+        plot_ExBPower(in_ax2, [mp], timekey, ySlabel, use_inner=True)
         #plot_ExBPower(sh_ax2, [mp], timekey, y2label, use_shield=True, ylim=[-350,350])
         for ax in [ax1, ax2, ax3]:
             ax.legend(loc='upper left')
@@ -1897,12 +2022,13 @@ if __name__ == "__main__":
         ax3.set_xlabel(timekey)
         panel3power.tight_layout(pad=1)
         panel3power.savefig(figureout+'{}.eps'.format(figname))
+        panel3power.savefig(figureout+'{}.tiff'.format(figname))
         panel3power.savefig(figureout+'{}.png'.format(figname))
         in3panelpower.savefig(figureout+'{}_inner.eps'.format(figname))
         sh3panelpower.savefig(figureout+'{}_shield.eps'.format(figname))
     ######################################################################
     #Solarwind, regular sized
-    if True:
+    if False:
         figname = 'SolarWind'
         solarwind, (ax2,ax3)= plt.subplots(nrows=2,ncols=1,sharex=True,
                                                      figsize=[0.8*figx,0.8*figy])
@@ -1926,7 +2052,7 @@ if __name__ == "__main__":
         solarwind.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Solarwind, expanded
-    if True:
+    if False:
         figname = 'ExpandedSolarWind'
         bigsw, (ax1,ax2,ax3)= plt.subplots(nrows=3,ncols=1,sharex=True,
                                                      figsize=[figx*1.5,2*figy])
@@ -1952,42 +2078,53 @@ if __name__ == "__main__":
         #shade_plot(ax3, do_full=True)
         bigsw.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
-    #2panel Akosofu, Newell
+    #3panel Akosofu, Newell, Dst
     if True:
-        figname = '2panelProxies'
+        figname = '3panelProxies'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                        'flank_full')!=-1]
-        panel2prox, (ax1,ax2)=plt.subplots(nrows=2, ncols=1,
-                                          sharex=True, figsize=[figx,2*figy])
-        panel2prox.tight_layout(pad=padsize)
+        panel2prox,(ax1,ax2,ax3)=plt.subplots(nrows=3,ncols=1,sharex=True,
+                                              figsize=[14,12])
         #Time
         timekey = 'Time [UTC]'
-        y1label = r'\textit{Power}$\displaystyle_{flank} \left[ TW\right]$'
+        y1label = r'\textit{Flank integrated  $\mathbf{K}$ Power }$\left[ TW\right]$'
+        y1blabel = r'$\epsilon \left[ TW\right]$'
         y2label = r'\textit{Potential}$\displaystyle \left[kV\right]=\left[kWb/s\right]$'
-        y3label = r'$\epsilon \left[ TW\right]$'
+        y3label = r'$Dst \left[ nT \right]$'
+        y3blabel = r'$-1*E_{total} \left[ PJ \right]$'
         ax1twin = ax1.twinx()
-        plot_akasofu(ax1twin, [swmf_sw], timekey, y3label)
+        ax3twin = ax3.twinx()
+        plot_akasofu(ax1twin, [swmf_sw], timekey, y1blabel)
         plot_Power_al(ax1, aggsublist, 'Time_UTC', y1label, multiplier=1)
         plot_newell(ax2, [swmf_sw], timekey, y2label)
-        plot_cpcp(ax2, [swmf_log], timekey, y2label)
-        for ax in [ax1, ax1twin, ax2]:
+        plot_cpcp(ax2, [swmf_log, omni], timekey, y2label)
+        plot_dst(ax3, [swmf_log, omni], timekey, y3label)
+        plot_TotalEnergy(ax3twin, [mp], timekey, y3blabel)
+        for ax in [ax1, ax1twin, ax2, ax3, ax3twin]:
             ax.legend(loc='upper left')
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             mark_times(ax)
             ax.tick_params(which='major', length=9)
             ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
             ax.set_xlabel(None)
-        ax2.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
-        ax1twin.spines['right'].set_color('blue')
-        ax1twin.yaxis.label.set_color('blue')
-        ax1twin.tick_params(axis='y', colors='blue')
-        ax1twin.legend().remove()
+        ax3.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
+        ax3.legend(loc='lower left')
+        for ax in enumerate([ax1twin, ax3twin]):
+            ax[1].spines['right'].set_color('blue')
+            ax[1].yaxis.label.set_color('blue')
+            ax[1].tick_params(axis='y', colors='blue')
+            if ax[0]==1:
+                ax[1].legend(loc='lower right', fontsize=18,
+                             labelcolor='blue')
+            else:
+                ax[1].legend().remove()
         panel2prox.tight_layout(pad=1)
         panel2prox.savefig(figureout+'{}.eps'.format(figname))
+        panel2prox.savefig(figureout+'{}.tiff'.format(figname))
     ######################################################################
     #Dessler-Parker-Sckopke
-    if True:
+    if False:
         figname = 'DesslerParkerSckopke'
         DPS, (ax1)=plt.subplots(nrows=1, ncols=1,
                                           sharex=True, figsize=[figx,figy])
@@ -2022,22 +2159,25 @@ if __name__ == "__main__":
         power_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
-    if do_mpcomparisons:
-        figname = 'ComparativeVolume'
-        volume_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[figx,figy])
-        volume_comp.tight_layout(pad=padsize*2)
+    if True:
+        figname = 'MPStandoff'
+        mpstand, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
+                                          figsize=[14,4])
         #Time
         timekey = 'Time [UTC]'
-        y1label = r'\textit{Volume} $\displaystyle \left[ R_e^3\right]$'
-        plot_Volume(ax1, [mp], timekey, y1label, Color='midnightblue')
-        plot_Volume(ax1, [mplist[0]], timekey, y1label, Color='coral')
-        #plot_Volume(ax1, [mplist[1]], timekey, y1label, Color='gold')
-        #plot_Volume(ax1, [mplist[2]], timekey, y1label, Color='plum')
-        #shade_plot(ax1)
-        #ax1.set_facecolor('olive')
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-        volume_comp.savefig(figureout+'{}.eps'.format(figname))
+        y1label = r'\textit{R$_{MP}$} $\left[ R_E\right]$'
+        plot_Standoff(ax1, [swmf_sw, mp], timekey, y1label)
+        for ax in [ax1]:
+            ax.legend(loc='upper left')
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+            mark_times(ax)
+            ax.tick_params(which='major', length=9)
+            ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.set_xlabel(None)
+        ax1.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
+        mpstand.tight_layout(pad=1)
+        mpstand.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
     if do_mpcomparisons:
@@ -2425,37 +2565,42 @@ if __name__ == "__main__":
     #Total Power injection, escape and net
     if True:
         figname = 'SurfacePower'
-        power, (ax1,ax2,ax3) = plt.subplots(nrows=3, ncols=1,sharex=True,
-             figsize=[figx,2*figy],gridspec_kw={'height_ratios':[1,3,1]})
+        asym=[ag for ag in agglist if ag['name'].iloc[-1].find('asym')!=-1]
+        power,(ax1,ax2,ax3,ax4)=plt.subplots(nrows=4, ncols=1,sharex=True,
+             figsize=[14,15],gridspec_kw={'height_ratios':[1,2,1,1]})
         #Time
         timekey = 'Time [UTC]'
-        y1label = r'$\displaystyle P_{ram} \left[ nPa\right]$'
-        y2label = r'\textit{Power} $\displaystyle \left[ TW\right]$'
-        y3label = r'\textit{Volume} $\displaystyle \left[ R_{e}^3\right]$'
-        y4label = r'$\displaystyle\frac{K_\textit{Motional}}{K_\textit{Static}}$'
+        y1label = r'$P_{\textit{ram}} \left[ nPa\right]$'
+        y2label = r'\textit{Integrated  $\mathbf{K}$ Power} $\left[ TW\right]$'
+        y3label = r'\textit{Volume} $\left[ R_{e}^3\right]$'
+        y4label = r'$\Huge{\mathbf{\rho}}\left[R_e\right]$'
         plot_swflowP(ax1, [swmf_sw], timekey, y1label)
         ax1.set_xlabel(None)
         #plot_Power(ax2, [mp], timekey, y2label, use_surface=True,
         #           ylim=[-1e13, 1e13])
         ax2.plot(mp[timekey],mp['K_net [W]']/1e12,
-                 label=r'$\displaystyle K_{net}$',
+                 label=r'\textit{Net static $+$ motional}',
                  linewidth=1, linestyle=None, color='silver')
         ax2.fill_between(mp[timekey], mp['K_net [W]']/1e12,color='silver')
+        ax2.fill_between(mp[timekey], mp['Utot_net [W]']/1e12,color='magenta')
         ax2.plot(mp[timekey],mp['Utot_net [W]']/1e12,
-                 label=r'$\displaystyle K_{net,\textit{ motional}}$',
-                 linewidth=1, linestyle=None, color='magenta')
+                 label=r'\textit{Net motional}',
+                 linewidth=1, linestyle=None, color='darkmagenta')
         ax2.set_ylabel(y2label)
-        ax2.set_ylim([-4,4])
+        ax2.set_ylim([-6,6])
+        ax2.yaxis.set_minor_locator(AutoMinorLocator(5))
         ax2.legend()
         plot_Volume(ax3, [mp,swmf_sw], timekey, y3label)
-        for ax in [ax1,ax2,ax3]:
+        plot_Asymmetry(ax4, [asym[0],swmf_sw], timekey, y4label)
+        for ax in [ax1,ax2,ax3,ax4]:
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax.tick_params(which='major', length=7)
             ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(5))
             mark_times(ax)
+        ax4.set_xlabel(r'\textit{Time [UTC]}')
         power.tight_layout(pad=1)
         power.savefig(figureout+'{}.eps'.format(figname))
+        power.savefig(figureout+'{}.tiff'.format(figname))
     ######################################################################
     #Total Power injection, escape and net
     if True:
@@ -2478,11 +2623,12 @@ if __name__ == "__main__":
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax.tick_params(which='major', length=7)
             ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-            ax.yaxis.set_minor_locator(AutoMinorLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
             mark_times(ax)
         #power.autofmt_xdate()
         #shade_plot(ax1)
         power.savefig(figureout+'{}.eps'.format(figname))
+        power.savefig(figureout+'{}.tiff'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
     if True:
@@ -2490,24 +2636,28 @@ if __name__ == "__main__":
         timekey = 'Time_UTC'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                               'full')!=-1]
-        keys = ['K_','ExB_','P0_']
-        y1 = r'\textit{K Power} $\displaystyle\left[ TW\right]$'
-        y2 = r'\textit{ExB Power} $\displaystyle\left[ TW\right]$'
-        y3 = r'\textit{P0 Power} $\displaystyle\left[ TW\right]$'
-        ylabels = [y1, y2, y3]
-        fig, (ax1,ax2,ax3) = plt.subplots(nrows=3, ncols=1,sharex=True,
-                                          figsize=[14,12])
-        axes = [ax1,ax2,ax3]
+        keys = ['K_','ExB_','P0_', 'K_']
+        yK = r'\textit{Integrated  $\mathbf{K}$ Power} $\left[ TW\right]$'
+        yS = r'\textit{Integrated  $\mathbf{S}$ Power} $\left[ TW\right]$'
+        yP = r'\textit{Integrated  $\mathbf{H}$ Power} $\left[ TW\right]$'
+        yfrac = r'\textit{$\mathbf{K}$ Power Fraction}'
+        ylabels = [yK, yS, yP, yfrac]
+        percents = [False, False, False, True]
+        fig, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4, ncols=1,sharex=True,
+                                          figsize=[14,16])
+        axes = [ax1,ax2,ax3,ax4]
         for key in enumerate(keys):
             plot_DFTstack(axes[key[0]],aggsublist,timekey,ylabels[key[0]],
-                          key[1])
+                          key[1], do_percent=percents[key[0]])
             axes[key[0]].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             axes[key[0]].tick_params(which='major', length=7)
             axes[key[0]].xaxis.set_minor_locator(AutoMinorLocator(6))
-            axes[key[0]].yaxis.set_minor_locator(AutoMinorLocator(5))
+            axes[key[0]].yaxis.set_minor_locator(AutoMinorLocator())
             mark_times(axes[key[0]])
             axes[key[0]].set_xlabel(None)
-        ax3.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
+            axes[key[0]].axhline(0, color='black')
+        ax4.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
         fig.tight_layout(pad=1)
         fig.savefig(figureout+figname+'_3panel.eps'.format(figname))
+        fig.savefig(figureout+figname+'_3panel.tiff'.format(figname))
     ######################################################################

@@ -33,8 +33,8 @@ if __name__ == "__main__":
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
     #mhddatafile = '3d__var_1_e20140218-151500-029.plt'
-    mhddatafile = '3d__var_1_e20140219-090000-000.plt'
-    future = '3d__var_1_e20140219-090100-023.plt'
+    mhddatafile = '3d__var_1_e20140219-160000-000.plt'
+    future = '3d__var_1_e20140219-155000-000.plt'
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
     OUTPUTNAME = 'testoutput1.png'
@@ -65,7 +65,6 @@ if __name__ == "__main__":
 
     #Caclulate initial surface
     magnetopause.get_magnetopause(field_data, mhddatafile,
-                                  do_cms=False,
                                   outputpath=OUTPATH)
     """
     data['wbin'] = -999
@@ -166,7 +165,6 @@ if __name__ == "__main__":
     north_iezone, south_iezone = get_ionosphere_zone(eventdt, IEPATH)
     im_zone = get_innermag_zone(deltadt, IMPATH)
     '''
-    """
     #adjust view settings
     bot_right = [frame for frame in tp.frames('main')][0]
     view_set.display_single_iso(bot_right,
@@ -248,6 +246,7 @@ if __name__ == "__main__":
                                 plot_satellites=False, satzones=satzones,
                                 mode='iso_tail', transluc=60,
                                 outputname=OUTPUTNAME, save_img=True)
+    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

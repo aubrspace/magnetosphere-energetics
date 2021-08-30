@@ -329,8 +329,8 @@ def plot_Bmag(axis, dflist, ylabel, *,
     if ylim!=None:
         axis.set_ylim(ylim)
     else:
-        axis.set_ylim([0,120])
-    axis.set_xlabel(r'\textit{Time (UT)}')
+        axis.set_ylim([0,125])
+    #axis.set_xlabel(r'\textit{Time (UT)}')
     axis.set_ylabel(ylabel)
     if legend_loc==None:
         axis.legend(loc='upper left')
@@ -808,7 +808,7 @@ if __name__ == "__main__":
         "image.cmap": "twilight"})
     ######################################################################
     #B magnitude
-    if False:
+    if True:
         figname = 'Bmagnitude'
         Bmag_themisBC, (axB,axC) = plt.subplots(nrows=2, ncols=1,
                                                    sharex=True,
@@ -817,16 +817,14 @@ if __name__ == "__main__":
                                                    sharex=True,
                                                    figsize=[12,12])
         Bmag_geo, (omniax, geoax1,clax4) = plt.subplots(nrows=3, ncols=1,
-                                                   figsize=[12,8])
-        Bmag_themisBC.tight_layout(pad=2)
-        Bmag_themisADE.tight_layout(pad=2)
-        Bmag_geo.tight_layout(pad=2)
-        ylabel = r'$\displaystyle B_{mag} (nT)$'
+                                                   sharex=True,
+                                                   figsize=[12,12])
+        ylabel = r'$B \left[nT\right]$'
         plot_Bmag(axA, th_a, ylabel)
         plot_Bmag(axB, th_b, ylabel, ylim=[0,40])
         plot_Bmag(axC, th_c, ylabel, ylim=[0,40])
-        plot_Bmag(axD, th_d, ylabel, ylim=[0,100])
-        plot_Bmag(axE, th_e, ylabel, ylim=[0,140],legend_loc='upper right')
+        plot_Bmag(axD, th_d, ylabel, ylim=[0,100], legend_loc='lower right')
+        plot_Bmag(axE, th_e, ylabel, ylim=[0,150], legend_loc='lower left')
         plot_Bmag(omniax, [omni], ylabel, ylim=[0,20])
         plot_Bmag(geoax1, geo, ylabel, ylim=[0,40])
         plot_Bmag(clax4, cl4, ylabel, ylim=[0,75])
@@ -837,20 +835,29 @@ if __name__ == "__main__":
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
-        for ax in enumerate([geoax1]):
-            mark_cross_geotail(ax[1], geo_cross[0])
+            ax[1].yaxis.set_minor_locator(AutoMinorLocator())
+            ax[1].set_xlabel(None)
+        axC.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
+        axE.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
+        for ax in enumerate([omniax,geoax1,clax4]):
             mark_times(ax[1])
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
-        for ax in enumerate([omniax,clax4]):
-            mark_times(ax[1])
-            ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-            ax[1].tick_params(which='major', length=7)
-            ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+            ax[1].yaxis.set_minor_locator(AutoMinorLocator())
+            ax[1].set_xlabel(None)
+        clax4.set_xlabel(r'\textit{Time }$\left[\textit{UTC}\right]$')
+        Bmag_themisBC.tight_layout(pad=1)
+        Bmag_themisADE.tight_layout(pad=1)
+        Bmag_geo.tight_layout(pad=1)
+        #EPS
         Bmag_themisBC.savefig(outpath+'/{}_themisBC.eps'.format(figname))
         Bmag_themisADE.savefig(outpath+'/{}_themisADE.eps'.format(figname))
         Bmag_geo.savefig(outpath+'/{}_geo.eps'.format(figname))
+        #TiFF
+        Bmag_themisBC.savefig(outpath+'/{}_themisBC.tiff'.format(figname))
+        Bmag_themisADE.savefig(outpath+'/{}_themisADE.tiff'.format(figname))
+        Bmag_geo.savefig(outpath+'/{}_geo.tiff'.format(figname))
     ######################################################################
     # Betastar magnetosphere
     if False:
@@ -884,17 +891,20 @@ if __name__ == "__main__":
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+            ax[1].yaxis.set_minor_locator(AutoMinorLocator(5))
         for ax in enumerate([geoax1]):
             mark_cross_geotail(ax[1], geo_cross[0])
             mark_times(ax[1])
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+            ax[1].yaxis.set_minor_locator(AutoMinorLocator(5))
         for ax in enumerate([clax1, clax2, clax3, clax4]):
             mark_times(ax[1])
             ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
             ax[1].tick_params(which='major', length=7)
             ax[1].xaxis.set_minor_locator(AutoMinorLocator(6))
+            ax[1].yaxis.set_minor_locator(AutoMinorLocator(5))
         Mag_themis.savefig(outpath+'/{}_themis.eps'.format(figname))
         Mag_geo.savefig(outpath+'/{}_geo.eps'.format(figname))
         Mag_cluster.savefig(outpath+'/{}_cluster.eps'.format(figname))
@@ -927,7 +937,7 @@ if __name__ == "__main__":
         Betastar.savefig(outpath+'/{}.eps'.format(figname))
     ######################################################################
     # Betastar magnetosphere
-    if True:
+    if False:
         figname = 'BetastarScatter'
         Betastar, ([ax1,ax2],[ax3,ax4]) = plt.subplots(nrows=2, ncols=2,
                                                  sharex=True,sharey=True,
