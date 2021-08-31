@@ -167,7 +167,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:4],
                                 key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
@@ -188,11 +188,10 @@ if __name__ == '__main__':
             #                                                     '00-')[0])
         solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt.gz' for item
                     in parsednotdone if item not in parseddonelist]
+        print(parseddonelist[0:10])
+        print(parsednotdone[0:10])
     else:
         solution_times = all_solution_times
-    #print(solution_times)
-    print(parseddonelist[0:10])
-    print(parsednotdone[0:10])
     print(len(solution_times))
     numproc = multiprocessing.cpu_count()-1
 
