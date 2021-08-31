@@ -15061,3 +15061,278 @@ $!CreateColorMap
       B = 29
       }
     }
+$!CreateColorMap 
+  Name = 'green-pink'
+  NumControlPoints = 17
+  ControlPoint 1
+    {
+    ColorMapFraction = 0.0009506
+    LeadRGB
+      {
+      R = 255
+      G = 255
+      B = 251
+      }
+    TrailRGB
+      {
+      R = 255
+      G = 255
+      B = 251
+      }
+    }
+  ControlPoint 2
+    {
+    ColorMapFraction = 0.0997
+    LeadRGB
+      {
+      R = 205
+      G = 234
+      B = 170
+      }
+    TrailRGB
+      {
+      R = 205
+      G = 234
+      B = 170
+      }
+    }
+  ControlPoint 3
+    {
+    ColorMapFraction = 0.1947
+    LeadRGB
+      {
+      R = 181
+      G = 219
+      B = 133
+      }
+    TrailRGB
+      {
+      R = 181
+      G = 219
+      B = 133
+      }
+    }
+  ControlPoint 4
+    {
+    ColorMapFraction = 0.2726
+    LeadRGB
+      {
+      R = 163
+      G = 205
+      B = 107
+      }
+    TrailRGB
+      {
+      R = 163
+      G = 205
+      B = 107
+      }
+    }
+  ControlPoint 5
+    {
+    ColorMapFraction = 0.3333
+    LeadRGB
+      {
+      R = 149
+      G = 192
+      B = 87
+      }
+    TrailRGB
+      {
+      R = 149
+      G = 192
+      B = 87
+      }
+    }
+  ControlPoint 6
+    {
+    ColorMapFraction = 0.375
+    LeadRGB
+      {
+      R = 129
+      G = 171
+      B = 62
+      }
+    TrailRGB
+      {
+      R = 129
+      G = 171
+      B = 62
+      }
+    }
+  ControlPoint 7
+    {
+    ColorMapFraction = 0.4167
+    LeadRGB
+      {
+      R = 105
+      G = 141
+      B = 41
+      }
+    TrailRGB
+      {
+      R = 105
+      G = 141
+      B = 41
+      }
+    }
+  ControlPoint 8
+    {
+    ColorMapFraction = 0.4583
+    LeadRGB
+      {
+      R = 82
+      G = 108
+      B = 25
+      }
+    TrailRGB
+      {
+      R = 82
+      G = 108
+      B = 25
+      }
+    }
+  ControlPoint 9
+    {
+    ColorMapFraction = 0.5
+    LeadRGB
+      {
+      R = 56
+      G = 70
+      B = 10
+      }
+    TrailRGB
+      {
+      R = 56
+      G = 70
+      B = 10
+      }
+    }
+  ControlPoint 10
+    {
+    ColorMapFraction = 0.5208
+    LeadRGB
+      {
+      R = 111
+      G = 97
+      B = 110
+      }
+    TrailRGB
+      {
+      R = 111
+      G = 97
+      B = 110
+      }
+    }
+  ControlPoint 11
+    {
+    ColorMapFraction = 0.5625
+    LeadRGB
+      {
+      R = 124
+      G = 105
+      B = 127
+      }
+    TrailRGB
+      {
+      R = 124
+      G = 105
+      B = 127
+      }
+    }
+  ControlPoint 12
+    {
+    ColorMapFraction = 0.6042
+    LeadRGB
+      {
+      R = 154
+      G = 123
+      B = 148
+      }
+    TrailRGB
+      {
+      R = 154
+      G = 123
+      B = 148
+      }
+    }
+  ControlPoint 13
+    {
+    ColorMapFraction = 0.6458
+    LeadRGB
+      {
+      R = 187
+      G = 160
+      B = 185
+      }
+    TrailRGB
+      {
+      R = 187
+      G = 160
+      B = 185
+      }
+    }
+  ControlPoint 14
+    {
+    ColorMapFraction = 0.7179
+    LeadRGB
+      {
+      R = 220
+      G = 186
+      B = 213
+      }
+    TrailRGB
+      {
+      R = 220
+      G = 186
+      B = 213
+      }
+    }
+  ControlPoint 15
+    {
+    ColorMapFraction = 0.7786
+    LeadRGB
+      {
+      R = 234
+      G = 201
+      B = 228
+      }
+    TrailRGB
+      {
+      R = 234
+      G = 201
+      B = 228
+      }
+    }
+  ControlPoint 16
+    {
+    ColorMapFraction = 0.8813
+    LeadRGB
+      {
+      R = 249
+      G = 204
+      B = 243
+      }
+    TrailRGB
+      {
+      R = 249
+      G = 204
+      B = 243
+      }
+    }
+  ControlPoint 17
+    {
+    ColorMapFraction = 0.9952
+    LeadRGB
+      {
+      R = 255
+      G = 255
+      B = 255
+      }
+    TrailRGB
+      {
+      R = 255
+      G = 255
+      B = 255
+      }
+    }
