@@ -12,25 +12,25 @@ from global_energetics.makevideo import get_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
 
-def add_IMF_clock(frame, clockangle, coordsys, position, size, strID):
+def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
+                  strID):
     """Adds a clock with current IMF orientation
     Inputs
         frame- tecplot frame to add clock to
         clockangle- IMF angle, angle from +Y towards +Z
-        cor
+        coordsys- GSM, GSE etc
+        bmag- magnitude of B at X=+31.5, Y=0, Z=0
         outputpath- where to save image (will be deleted)
         position, size- image settings
     """
-    #Create a clock plot in python
     plt.rc('xtick', labelsize=30, color='white')
     plt.rc('ytick', labelsize=30, color='white')
+    fig = plt.figure(figsize=(12, 6*1.2), facecolor='gray')
 
-    # force square figure and square axes looks better for polar, IMO
-    arrowsize = 4
+    ##Create a clock plot in python
+    arrowsize = 4*bmag/15
     # make a square figure
-    fig = plt.figure(figsize=(arrowsize, arrowsize*1.2), facecolor='gray')
-    ax = fig.add_axes([0.2, 0.1, 0.6, 0.6], polar=True, facecolor='gray',
-                      frame_on=False)
+    ax = fig.add_subplot(122, polar=True, facecolor='gray', frame_on=False)
     ax.set_theta_zero_location('N')
     ax.set_thetagrids([0,90,180,270], ['+Z','+Y','-Z','-Y'])
     ax.set_rticks([])
@@ -39,12 +39,25 @@ def add_IMF_clock(frame, clockangle, coordsys, position, size, strID):
     ax.set_rmax(2.0)
     # arrow at 45 degree
     arrfwd = plt.arrow(clockangle/180.*np.pi, 0, 0, 1, alpha=0.5,
-                       width=0.15, edgecolor='black', facecolor='cyan',
-                       lw=6, zorder=5)
+                       width=0.0375*arrowsize, edgecolor='black',
+                       facecolor='cyan', lw=6, zorder=5)
     arrback = plt.arrow((clockangle+180)/180.*np.pi, 0, 0, 1, alpha=0.5,
-                        width = 0.15, edgecolor='black', facecolor='cyan',
-                        lw=6, zorder=5, head_width=0)
+                        width = 0.0375*arrowsize, edgecolor='black',
+                        facecolor='cyan', lw=6, zorder=5, head_width=0)
     ax.set_title('\nIMF ({})\n'.format(coordsys),fontsize=40,color='white')
+    ##Create a dynamic pressure bar graph
+    bar = fig.add_subplot(121, facecolor='gray', frame_on=False)
+    bar.bar(0,pdyn,color='magenta')
+    bar.set_xlim([-0.5,0.5])
+    bar.set_ylim([0,20])
+    bar.set_title('\nPdyn (nPa)\n'.format(coordsys), fontsize=40,
+                  color='white')
+    bar.tick_params(axis='x',          # changes apply to the x-axis
+                   which='both',      # both major and minor ticks
+                   bottom=False,      # ticks along the bottom edge
+                   top=False,         # ticks along the top edge
+                   labelbottom=False) # labels along the bottom edge
+    fig.tight_layout(pad=1)
     #Save plot
     figname = (os.getcwd()+'/temp_imfclock'+strID+'.png')
     #           str(np.random.rand()).split('.')[-1]+'.png')
@@ -152,7 +165,7 @@ def add_jy_slice(frame, jyindex, showleg):
     yslice.effects.surface_translucency = 40
     jycontour = frame.plot().contour(1)
     jycontour.variable_index=jyindex
-    jycontour.colormap_name = 'orange-green-blue-gray'
+    jycontour.colormap_name = 'green-pink'
     jycontour.legend.vertical = True
     jycontour.legend.position[1] = 72
     jycontour.legend.position[0] = 98
@@ -181,7 +194,7 @@ def add_jz_slice(frame, jzindex, showleg):
     zslice.effects.surface_translucency = 40
     jzcontour = frame.plot().contour(2)
     jzcontour.variable_index=jzindex
-    jzcontour.colormap_name = 'orange-green-blue-gray'
+    jzcontour.colormap_name = 'green-pink'
     jzcontour.legend.vertical = True
     jzcontour.legend.position[1] = 72
     jzcontour.legend.position[0] = 98
@@ -699,7 +712,9 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                                                           'imf_clock_deg'])
         coordsys = frame.dataset.zone('global_field').aux_data[
                                                             'COORDSYSTEM']
-        add_IMF_clock(frame, clock, coordsys, (0,0), 30, IDstr)
+        bmag= float(frame.dataset.zone('global_field').aux_data['imf_mag'])
+        pdyn= float(frame.dataset.zone('global_field').aux_data['sw_pdyn'])
+        add_IMF_clock(frame, clock, coordsys, bmag, pdyn, (0,0), 30, IDstr)
     if save_img:
         #multiframe image (default)
         tp.export.save_png(os.getcwd()+'/'+pngpath+'/'+outputname+'.png',

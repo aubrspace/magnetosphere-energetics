@@ -78,7 +78,6 @@ def work(mhddatafile):
     #satzones = satellites.get_satellite_zones(eventdt, MHDDIR+'/'+str(ID),
     #                                          field_data)
     satzones = []
-    """
     #adjust view settings
     #tile
     proc = 'Multi Frame Manager'
@@ -90,17 +89,6 @@ def work(mhddatafile):
     frame1 = [frame for frame in tp.frames('Frame 001')][0]
     frame2 = [frame for frame in tp.frames('Frame 002')][0]
     frame3 = [frame for frame in tp.frames('Frame 003')][0]
-    '''
-    view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile,
-                                show_contour=True,
-                                show_slice=False,
-                                show_legend=False, mode='inside_from_tail',
-                                pngpath=PNGPATH, energy_contourmap=4,
-                                plot_satellites=False, satzones=satzones,
-                                outputname=OUTPUTNAME, save_img=False,
-                                IDstr=str(ID))
-    '''
     frame1.activate()
     frame1.name = 'isodefault'
     view_set.display_single_iso(frame1,
@@ -139,17 +127,15 @@ def work(mhddatafile):
     bot_right.activate()
     view_set.display_single_iso(bot_right,
                                 'K_net *', mhddatafile,
-                                show_contour=False,
-                                show_slice=True,show_fieldline=True,
+                                show_contour=True,
+                                show_slice=False,
                                 pngpath=PNGPATH,
-                                slicetype='betastar',
-                                show_timestamp=False,
+                                show_timestamp=True,
                                 plot_satellites=False, satzones=satzones,
-                                mode='iso_tail', transluc=60,
+                                mode='inside_from_tail', transluc=40,
                                 outputname=OUTPUTNAME, save_img=True,
                                 IDstr=str(ID))
-    """
-    os.system('touch '+PNGPATH+'/'+OUTPUTNAME+'.png')
+    #os.system('touch '+PNGPATH+'/'+OUTPUTNAME+'.png')
     os.system('rm '+mhddatafile)
     os.system('rm '+nextmhdfile)
 
