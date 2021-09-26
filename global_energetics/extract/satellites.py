@@ -139,7 +139,7 @@ def add_currentlocation(zonenames, field_data):
             loc_satzone.values('Z *')[0] = zpos
             loc_satzone.values('Status')[0] = status
 
-def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
+def get_satellite_zones(field_data, datapath, *, coordsys='GSM'):
     """Function to find satellite trace data (if avail) and append the data
         to the current tecplot session
     Inputs
@@ -147,7 +147,6 @@ def get_satellite_zones(eventdt, datapath, field_data, *, coordsys='GSM'):
         datapath- str path to ionosphere data
         coordsys- coordinate system of the field data
     """
-    eventstring = str(eventdt)
     satfiles = glob.glob(datapath+'/*.sat')
     satzones = []
     if satfiles == []:

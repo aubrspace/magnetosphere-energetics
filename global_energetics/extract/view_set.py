@@ -65,7 +65,7 @@ def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
     #Load plot onto current frame
     img = frame.add_image(figname, position, size)
     #Delete plot image file
-    os.system('rm '+figname)
+    os.remove(figname)
 
 def add_shade_legend(frame, entries, location, markersize):
     """Adds box with colored squares and text for legend of shaded surfaces
@@ -545,7 +545,7 @@ def set_satellites(satnames, frame):
             xvals = dataset.zone(name).values('X *').as_numpy_array()
             yvals = dataset.zone(name).values('Y *').as_numpy_array()
             zvals = dataset.zone(name).values('Z *').as_numpy_array()
-            svals = dataset.zone(name).values(mp_surface_var).as_numpy_array()
+            svals=dataset.zone(name).values(mp_surface_var).as_numpy_array()
             xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
             ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
             zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
@@ -570,7 +570,8 @@ def set_satellites(satnames, frame):
                   Color.Custom50, Color.Custom51, Color.Custom19,
                   Color.Custom27, Color.Custom35]
     #setup Status variable contour map
-    plot.contour(2).variable_index = int(dataset.variable(mp_surface_var).index)
+    plot.contour(2).variable_index = int(
+                                    dataset.variable(mp_surface_var).index)
     plot.contour(2).colormap_name = 'Diverging - Orange/Purple'
     plot.contour(2).levels.reset_levels([-1,0,1,2,3])
     plot.contour(2).legend.position[1] = 46
@@ -595,7 +596,7 @@ def set_satellites(satnames, frame):
         plot.fieldmap(index).show = True
         plot.fieldmap(index).scatter.show = True
         if inside:
-            plot.fieldmap(index).scatter.symbol().shape = GeomShape.Octahedron
+            plot.fieldmap(index).scatter.symbol().shape=GeomShape.Octahedron
             plot.fieldmap(index).scatter.color = Color.Yellow
             plot.fieldmap(index).scatter.size = 2
         else:
@@ -605,23 +606,14 @@ def set_satellites(satnames, frame):
 
 
 
-def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
-                       save_img=True, pngpath='./', save_plt=False,
-                       pltpath='./', outputname='output', mhddir='./',
-                       show_contour=True, show_slice=True, transluc=1,
-                       slicetype='jy',
-                       show_fieldline=False, do_blanking=True, tile=False,
-                       show_timestamp=True, mode='iso_day', satzones=[],
-                       plot_satellites=False, energy_contourmap=0,
-                       mpslice=60, cpsslice=20, zone_rename=None,
-                       show_legend=True, add_clock=False,
-                       zone_hidekeys=['sphere','box','lcb','shue','future'],
-                       IDstr='0'):
-    """Function adjusts viewsettings for a single panel isometric 3D image
+def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
+    """Function adjusts viewsettings for a single panel 3D image
     Inputs
         frame- object for the tecplot frame
-        contour_key- string key for which contour variable to plot
         filename
+        mode
+    **kwargs
+        contour_key- string key for which contour variable to plot
         energyrange- limits for contour saturation on energy contour
         save_img- default True
         pngpath- path for saving .png file
@@ -632,81 +624,90 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
         tile- boolean for tile mode
         mpslice- number of x slices in mp surface
         cpsslice- number of x slices in cps surface
-        zone_rename- optional rename of zone
     """
     ###Always included
-    #Add colormaps
     path = os.getcwd()+'/energetics.map'
     tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
-    #set background color
     frame.background_color = Color.Custom17
-    #zones
-    zones_shown = manage_zones(frame, mpslice, transluc, energy_contourmap,
-                               zone_hidekeys)
-    if mode == 'inside_from_tail':
-        xtail = -15
-    else:
-        xtail = -45
-    set_3Daxes(frame, xmin=xtail)
-    set_camera(frame, setting=mode)
-    add_energy_contour(frame, energyrange, contour_key, energy_contourmap,
-                       show_legend)
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
-    #Optional items
-    if show_slice:
-        if slicetype=='jy':
+    ###DEFAULTS for genaric mode###
+    default = {'transluc': 1,           #zone settings
+               'zone_hidekeys':['sphere','box','lcb','shue','future'],
+               'plot_satellites': False,
+               'satzones': [],
+               'do_blanking': True,
+               'xtail': -45,
+               'mpslice':60,
+               'cpsslice':20,
+               'contour_key': 'K_net *', #contour settings
+               'energyrange': 3e9,
+               'show_contour': True,
+               'contourmap': 0,
+               'show_legend': True,
+               'save_img': True,         #io settings
+               'save_plt': False,
+               'mhddir': './',
+               'pltpath': './',
+               'pngpath': './',
+               'outputname': 'output',
+               'pngwidth':1600,
+               'IDstr': '0',
+               'show_slice': True,       #slice settings
+               'slicetype': 'jy',
+               'show_fieldline': False,
+               'add_clock': False,       #overlay settings
+               'show_timestamp': True,
+               'timestamp_pos': [4,15],
+               'show_shade_legend': False,
+               'shade_legend_pos': [5,70],
+               'shade_markersize': 3}
+    ###############################
+    ###Mode specific settings###
+    if mode == 'inside_from_tail':
+        default['xtail'] = -15
+        default['show_slice'] = False
+        default['transluc'] = 40
+    elif mode == 'iso_tail':
+        default['transluc'] = 60
+    elif mode == 'other_iso':
+        default['add_clock'] = True
+    ###############################
+    ###Overwrite w/ kwargs###
+    for inkey in kwargs:
+        default[inkey]=kwargs[inkey]
+    ###############################
+    #Produce image
+    zones_shown= manage_zones(frame,default['mpslice'],default['transluc'],
+                            default['contourmap'],default['zone_hidekeys'])
+    set_3Daxes(frame, xmin=default['xtail'])
+    set_camera(frame, setting=mode)
+    add_energy_contour(frame,default['energyrange'],default['contour_key'],
+                             default['contourmap'], default['show_legend'])
+    if default['show_slice']:
+        if default['slicetype']=='jy':
             add_jy_slice(frame, frame.dataset.variable('J_y *').index,
-                         show_legend)
-        elif slicetype=='jz':
+                         default['show_legend'])
+        elif default['slicetype']=='jz':
             add_jz_slice(frame, frame.dataset.variable('J_z *').index,
-                         showleg=show_legend)
+                         showleg=default['show_legend'])
         elif slicetype=='betastar':
             add_Bstar_slice(frame,frame.dataset.variable('beta_star').index,
-                            showleg=show_legend)
-    if show_fieldline:
+                            showleg=default['show_legend'])
+    if default['show_fieldline']:
         add_fieldlines(frame)
-    if tile:
-        #hide global zone
-        frame.plot().fieldmap(0).show=False
-        #Increase axis labels
-        frame.plot().axes.x_axis.tick_labels.font.size = 5
-        frame.plot().axes.y_axis.tick_labels.font.size = 5
-        frame.plot().axes.z_axis.tick_labels.font.size = 5
-        frame.plot().axes.orientation_axis.size = 15
-        frame.plot().axes.orientation_axis.position = [50,75]
-        #tile
-        proc = 'Multi Frame Manager'
-        cmd = 'MAKEFRAMES3D ARRANGE=TOP SIZE=50'
-        tp.macro.execute_extended_command(command_processor_id=proc,
-                                          command=cmd)
-        #hide orientation axis for small frames
-        for fr in tp.frames('Frame *'):
-            fr.plot().axes.orientation_axis.show=False
-        #Change where text will be generated
-        timestamp_pos = (4,15)
-        shade_legend_pos = [5,50]
-        shade_markersize = 1.5
-        frame.plot().fieldmap(0).show=True
-        #shift main image
-        frame.plot().view.translate(x=20, y=5)
-        frame.plot().view.magnification = 4.7
-
-    else:
-        timestamp_pos = (4,15)
-        shade_legend_pos = [5,70]
-        shade_markersize = 3
-    frame.plot().show_contour = show_contour
-    #add_shade_legend(frame, zones_shown, shade_legend_pos,
-    #                 shade_markersize)
-    if plot_satellites:
+    frame.plot().show_contour = default['show_contour']
+    if default['show_shade_legend']:
+        add_shade_legend(frame, zones_shown, default['shade_legend_pos'],
+                         default['shade_markersize'])
+    if default['plot_satellites']:
         if satzones == []:
             print('No satellite zones to plot')
         else:
-            set_satellites(satzones, frame)
-    if show_timestamp:
-        add_timestamp(frame, filename, timestamp_pos)
+            set_satellites(default['satzones'], frame)
+    if default['show_timestamp']:
+        add_timestamp(frame, filename, default['timestamp_pos'])
     tp.macro.execute_command('$!Interface ZoneBoundingBoxMode = Off')
-    if add_clock:
+    if default['add_clock']:
         #get clock angle from probing data at x=xmax
         clock = float(frame.dataset.zone('global_field').aux_data[
                                                           'imf_clock_deg'])
@@ -714,22 +715,16 @@ def display_single_iso(frame, contour_key, filename, *, energyrange=3e9,
                                                             'COORDSYSTEM']
         bmag= float(frame.dataset.zone('global_field').aux_data['imf_mag'])
         pdyn= float(frame.dataset.zone('global_field').aux_data['sw_pdyn'])
-        add_IMF_clock(frame, clock, coordsys, bmag, pdyn, (0,0), 30, IDstr)
-    if save_img:
+        add_IMF_clock(frame, clock, coordsys, bmag, pdyn, (0,0), 30,
+                      default['IDstr'])
+    if default['save_img']:
         #multiframe image (default)
-        tp.export.save_png(os.getcwd()+'/'+pngpath+'/'+outputname+'.png',
-                                                          width=1600)
-        '''
-        #each frame in a separate directory
-        for fr in tp.frames():
-            #make sure the directory for each frame image is there
-            if not os.path.exists(pngpath+fr.name):
-                os.system('mkdir '+pngpath+fr.name)
-            tp.export.save_png(os.getcwd()+'/'+pngpath+fr.name+'/'+outputname+'.png',
-                               region=fr, width=1600)
-        '''
-    if save_plt:
-        tp.data.save_tecplot_plt(pltpath+outputname+'.plt',
+        tp.export.save_png(os.getcwd()+'/'+default['pngpath']+'/'+
+                           default['outputname']+'.png',
+                                                 width=default['pngwidth'])
+    if default['save_plt']:
+        tp.data.save_tecplot_plt(default['pltpath']+
+                                              default['outputname']+'.plt',
                                  include_data_share_linkage=True,
                                  include_autogen_face_neighbors=True)
 

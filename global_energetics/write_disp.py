@@ -22,8 +22,7 @@ def write_mesh(filename, zonename, timedata, mesh):
     pathstring = ''
     for lvl in filename.split('/')[0:-1]:
         pathstring = pathstring+lvl+'/'
-    if not os.path.exists(pathstring):
-            os.system('mkdir '+pathstring)
+    os.makedirs(pathstring, exist_ok=True)
     with pd.HDFStore(filename) as store:
         store[zonename] = mesh
         store['Time_UTC'] = timedata
@@ -42,8 +41,7 @@ def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
     pathstring = ''
     for lvl in filename.split('/')[0:-1]:
         pathstring = pathstring+lvl+'/'
-    if not os.path.exists(pathstring):
-            os.system('mkdir '+pathstring)
+    os.makedirs(pathstring, exist_ok=True)
     energetics = pd.DataFrame()
     cols = energetics.keys()
     #Combine all dataframes that are passed

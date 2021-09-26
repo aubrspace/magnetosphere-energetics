@@ -64,7 +64,7 @@ def set_frames(folder):
     """
     #create sorted list of image files
     framelist = sorted(glob.glob(folder+'/*.png'), key=time_sort)
-    os.system('mkdir '+folder+'/frames/')
+    os.makedirs(folder+'/frames/', exist_ok=True)
     n=0.01
     for image in framelist:
         if n<0.099:
@@ -93,7 +93,7 @@ def vid_compile(folder, framerate, title):
     #   pix_fmt fixes pixel format so that quicktime works
     #########################################################
     if glob.glob(folder+'/'+title+'.avi') != []:
-        os.system('rm '+folder+'/'+title+'.avi')
+        os.remove(folder+'/'+title+'.avi')
     print(glob.glob(folder+'/img-???.png'))
     if glob.glob(folder+'/img-???.png') != []:
         make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%03d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
@@ -102,8 +102,6 @@ def vid_compile(folder, framerate, title):
     elif glob.glob(folder+'/img-?.png') != []:
         make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
     os.system(make_vid_cmd)
-    print('\nopening video: '+folder+'/'+title+'.avi\n')
-    os.system('open '+folder+'/'+title+'.mp4')
 
 #Main program
 if __name__ == '__main__':

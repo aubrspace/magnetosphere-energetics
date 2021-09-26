@@ -437,7 +437,7 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
         x_max
     """
     frame.activate()
-    os.system('touch '+filename)
+    with open(filename,'wb') as fileobject: fileobject.close()
     #Export 3D point data to csv file
     export_command=('VarNames:'+
                     'FrOp=1:'+
@@ -465,7 +465,7 @@ def dump_to_pandas(frame, zonelist, varlist, filename):
         x_max = loc_data['x_cc'].max()
     else: x_max = []
     #Delete csv file
-    os.system('rm '+os.getcwd()+'/'+filename)
+    os.remove(os.getcwd()+'/'+filename)
     return loc_data, x_max
 
 
