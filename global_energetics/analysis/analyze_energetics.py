@@ -1099,13 +1099,13 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
         elif name == 'swmf_log':
             qtkey = 'dst_sm'
             axis.plot(data[timekey],data[qtkey],
-                      label='SWMF',
+                      label='Sim',
                       linewidth=Size, linestyle=ls,
                       color='magenta')
         elif name == 'omni':
             qtkey = 'sym_h'
             axis.plot(data[timekey],data[qtkey],
-                      label='SYM-H',
+                      label='Obs',
                       linewidth=Size, linestyle=ls,
                       color='black')
         else:
@@ -1425,7 +1425,8 @@ def plot_akasofu(axis, dflist, timekey, ylabel, *,
     #axis.legend(loc='upper right')
 
 def plot_pearson_r(axis, dflist, ydf, xlabel, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=2, ls=None):
+                   qtkeyX='dst',qtkeyY='Total [J]',
+                   xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
@@ -1436,17 +1437,37 @@ def plot_pearson_r(axis, dflist, ydf, xlabel, ylabel, *,
     for data in dflist:
         name = data['name'].iloc[-1]
         if name == 'supermag':
-            qtkey = 'SMR (nT)'
+            if qtkeyX=='dst':
+                qtkey = 'SMR (nT)'
+            elif qtkeyX=='pram':
+                qtkey = 'Dyn. Pres. (nPa)'
             Color = 'black'
         elif name == 'swmf_log':
-            qtkey = 'dst_sm'
-            Color = 'lightsteelblue'
+            if qtkeyX=='dst':
+                qtkey = 'dst_sm'
+            Color = 'magenta'
+        elif name == 'swmf_sw':
+            if qtkeyX=='pram':
+                convert = 1.6726e-27*1e6*(1e3)**2*1e9
+                data['v2'] = data['vx']**2+data['vy']**2+data['vz']**2
+                data['pram'] = data['v2']*data['dens']*convert
+                qtkey = 'pram'
+            Color = 'magenta'
         elif name == 'omni':
-            qtkey = 'sym_h'
-            Color = 'coral'
-        ydata = np.interp(data['Time [UTC]'][0:-1],
-                          ydf['Time [UTC]'][0:-1],ydf['Total [J]'][0:-1])
-        xdata = data[qtkey][0:-1].values
+            if qtkeyX=='dst':
+                qtkey = 'sym_h'
+            elif qtkeyX=='pram':
+                convert = 1.6726e-27*1e6*(1e3)**2*1e9
+                data['pram'] = data['v']**2 * data['density']*convert
+                qtkey = 'pram'
+            Color = 'lightgrey'
+        if qtkeyX=='pram':
+            useindex = data[qtkey]>0
+        else:
+            useindex = (~ data[qtkey].isna())
+        ydata = np.interp(data.loc[useindex]['Time [UTC]'][0:-1],
+                        ydf['Time [UTC]'][0:-1],ydf[qtkeyY][0:-1])
+        xdata = data.loc[useindex][qtkey][0:-1].values
         #normalized_x = (xdata-np.min(xdata))/(np.max(xdata-np.min(xdata)))
         cov = np.cov(np.stack((xdata,ydata)))[0][1]
         r = cov/(xdata.std()*ydata.std())
@@ -1823,7 +1844,7 @@ if __name__ == "__main__":
                                           figsize=[14,6])
         #Time
         timekey = 'Time [UTC]'
-        y1label = r'$\displaystyle Dst\left[ nT \right]$'
+        y1label = r'$\displaystyle Dst \left[ nT \right]$'
         y2label = r'$\displaystyle E_{total} \left[ PJ \right]$'
         ax2 = ax1.twinx()
         mark_times(ax2)
@@ -1844,21 +1865,42 @@ if __name__ == "__main__":
         energy_dst.savefig(figureout+'{}.png'.format(figname))
     ######################################################################
     #Correlation for energy and dst
-    if False:
+    if True:
         figname = 'Energy_dst_rcor'
         energy_corr, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figy,figy])
-        energy_corr.tight_layout(pad=padsize)
         #Time
         timekey = 'Time [UTC]'
         xlabel = r'$\displaystyle Dst\textit{equiv.}\left[ nT \right]$'
         ylabel = r'$\displaystyle E_{total} \left[ J \right]$'
-        plot_pearson_r(ax1, [supermag,swmf_log,omni] ,mp, xlabel, ylabel)
+        plot_pearson_r(ax1, [omni,swmf_log] ,mp, xlabel, ylabel)
+        ax1.set_facecolor('dimgrey')
+        energy_corr.tight_layout(pad=0.5)
+        #ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #ax1.tick_params(which='major', length=7)
+        #ax1.xaxis.set_minor_locator(AutoMinorLocator(6))
+        #ax1.yaxis.set_minor_locator(AutoMinorLocator(5))
+        energy_corr.savefig(figureout+'{}.png'.format(figname))
+    ######################################################################
+    #Correlation for ram pressure and volume
+    if True:
+        figname = 'Pram_volume_rcor'
+        pram_corr, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
+                                          figsize=[figy,figy])
+        #Time
+        timekey = 'Time [UTC]'
+        xlabel = r'$P_{\textit{ram}} \left[ nPa\right]$'
+        ylabel = r'$\textit{Volume}^{(-2.2)} \left[ R_e^3 \right]$'
+        plot_pearson_r(ax1, [swmf_sw] ,mp, xlabel, ylabel,
+                       qtkeyX='pram', qtkeyY='Volume [Re^3]')
+        '''
         ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax1.tick_params(which='major', length=7)
         ax1.xaxis.set_minor_locator(AutoMinorLocator(6))
         ax1.yaxis.set_minor_locator(AutoMinorLocator(5))
-        energy_corr.savefig(figureout+'{}.eps'.format(figname))
+        '''
+        pram_corr.tight_layout(pad=1)
+        pram_corr.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Power and AL
     if False:

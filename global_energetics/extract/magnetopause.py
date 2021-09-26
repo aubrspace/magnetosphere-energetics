@@ -56,6 +56,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
+                     save_mesh=True,
                      do_cms=True, cms_dataset_key='future',
                      do_blank=False, blank_variable='W *',
                      blank_value=50,
@@ -84,6 +85,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             tail_cap- X position of tail cap
             tail_analysis_cap- X position where integration stops
             integrate_surface/volume/docms- booleans for settings
+            savemesh- booleans for saving mesh info
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
@@ -191,7 +193,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     if field_data.variable_names.count('r [R]') ==0:
         print('Calculating global energetic variables')
         main_frame.name = 'main'
-        get_global_variables(field_data)
+        get_global_variables(field_data, eventtime)
         if do_1Dsw:
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
@@ -360,10 +362,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = zone_rename
     ################################################################
     #perform integration for surface and volume quantities
-    mp_powers = pd.DataFrame()
+    mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
     mp_energies = pd.DataFrame()
     mp_mesh = pd.DataFrame()
     zonelist = [zoneindex.real]
+    if save_mesh:
+        #variables to be saved in meshfile
+        #varnames = ['x_cc', 'y_cc', 'z_cc', 'Cell Volume', 'W_cc']
+        varnames = []
     if integrate_surface:
         #integrate power on main surface
         mp_powers, hmin = surface_analysis(main_frame, zonename, do_cms,
@@ -372,15 +378,23 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                 blank_variable=blank_variable,
                                 blank_value=blank_value,
                                 timedelta=deltatime)
-        #variables to be saved in meshfile
-        varnames = ['x_cc', 'y_cc', 'z_cc', 'K_net [W/Re^2]',
-                    'P0_net [W/Re^2]', 'ExB_net [W/Re^2]',
-                    'Cell Volume', 'W_cc']
-        if do_1Dsw:
+        if save_mesh:
+            #for name in ['K_net [W/Re^2]', 'P0_net [W/Re^2]',
+            #         'ExB_net [W/Re^2]']:
+            #    varnames.append(name)
+            cc_length = len(field_data.zone(zonename).values(
+                                                  'x_cc').as_numpy_array())
+            for name in field_data.variable_names:
+                var_length = len(field_data.zone(zonename).values(
+                                  name.split(' ')[0]+'*').as_numpy_array())
+                if var_length==cc_length:
+                    varnames.append(name)
+        if do_1Dsw and save_mesh:
             for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                             '1DExB_net [W/Re^2]']:
                 varnames.append(name)
-        if not include_core and mode == 'iso_betastar':
+        #if not include_core and mode == 'iso_betastar':
+        if False:
             inner_mesh = pd.DataFrame()
             #integrate power on innerboundary surface
             innerbound_powers, _ = surface_analysis(main_frame,
@@ -392,13 +406,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             #save innerboundary mesh data
             inner_index =(
                         field_data.zone(zonename+'innerbound').index.real)
-            for var in varnames:
-                inner_mesh[var] = field_data.zone(inner_index
-                    ).values(var.split(' ')[0]+'*').as_numpy_array()
-        else:
-            innerbound_powers = None
+            if save_mesh:
+                for var in varnames:
+                    inner_mesh[var] = field_data.zone(inner_index
+                           ).values(var.split(' ')[0]+'*').as_numpy_array()
         print('\nMagnetopause Power Terms')
         print(mp_powers)
+    else:
+        hmin = do_cms
     if integrate_volume:
         print('Zonename is: {}'.format(zonename))
         if zonename == 'sphere':
@@ -412,10 +427,11 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                         tail_h=hmin)
         print('\nMagnetopause Energy Terms')
         print(mp_energies)
-    #save mesh to hdf file
-    for var in varnames:
-        mp_mesh[var] = field_data.zone(zoneindex.real
-                        ).values(var.split(' ')[0]+'*').as_numpy_array()
+    if save_mesh:
+        #save mesh to hdf file
+        for var in varnames:
+            mp_mesh[var] = field_data.zone(zoneindex.real
+                           ).values(var.split(' ')[0]+'*').as_numpy_array()
     #Add time and x_subsolar
     mp_powers['Time [UTC]'] = eventtime
     mp_powers['X_subsolar [Re]'] = x_subsolar

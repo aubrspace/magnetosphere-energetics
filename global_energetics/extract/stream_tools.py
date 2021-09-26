@@ -672,6 +672,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
     eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
     eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
     eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
+    eq('{Utot_cc}={Utot [J/Re^3]}',
+                         value_location=ValueLocation.CellCentered)
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
     eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
@@ -724,6 +726,11 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
         eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
+        eq('{Unorm [km/s]}=sqrt(({U_x [km/s]}*{surface_normal_x})**2+'+
+                            '({U_y [km/s]}*{surface_normal_y})**2+'+
+                            '({U_z [km/s]}*{surface_normal_z})**2)',
+                         value_location=ValueLocation.CellCentered,
+                         zones=[zone_index])
     else:
         hmin=0
     dt = str(dt)
@@ -789,7 +796,7 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
         ##################################################################
-        #Virial boundary total pressure term
+        #Virial boundary terms
         eq('{Ptot_virial [J/Re^2]} = ('+
                        '{P [nPa]}+{Dp [nPa]}+{Bmag [nT]}/(8*pi*1e7)) * ('+
                                           '{X [R]}*{surface_normal_x}'+
@@ -1063,77 +1070,85 @@ def get_surface_velocity(zone, field, field_surface_0, delta_field,
                     '-{'+delta_field+'}/({Grad'+delta_field+'}+1e-15),0)',
                           value_location=ValueLocation.CellCentered,
                                                        zones=[zone])
+def get_dipole_field(timeUTC, sys_pair, *, B0=-31000):
+    """Function calculates dipole field in given coordinate system based on
+        current time in UTC
+    Inputs
+        timeUTC- datetime object
+        sys_pair- tuple ('CoordinateSys', 'Type') eg: ('GSM','car')
+        B0- surface magnetic field strength
+    """
+    #Determine dipole vector in given coord system
+    axis = coord.Coords([0,0,1],'MAG','car')
+    axis.ticks = spacetime.Ticktock(timeUTC, 'UTC')
+    newaxis = axis.convert(sys_pair[0], sys_pair[1]).data
+    #return newaxis
+    #Create dipole matrix
+    ######################################
+    #   (3x^2-r^2)      3xy         3xz
+    #B =    3yx     (3y^2-r^2)      3yz    * vec{m}
+    #       3zx         3zy     (3z^2-r^2)
+    ######################################
+    M11 = '(3*{X [R]}**2-{r [R]}**2)'
+    M12 = '3*{X [R]}*{Y [R]}'
+    M13 = '3*{X [R]}*{Z [R]}'
+    M21 = M12
+    M22 = '(3*{Y [R]}**2-{r [R]}**2)'
+    M23 = '3*{Y [R]}*{Z [R]}'
+    M31 = M13
+    M32 = M23
+    M33 = '(3*{Z [R]}**2-{r [R]}**2)'
+    #Multiply dipole matrix by dipole vector
+    d_x='{Bdx}='+str(B0)+'/{r [R]}**5*('+(M11+'*'+str(newaxis[0][0])+'+'+
+                                            M12+'*'+str(newaxis[0][1])+'+'+
+                                            M13+'*'+str(newaxis[0][2]))+')'
+    d_y='{Bdy}='+str(B0)+'/{r [R]}**5*('+(M21+'*'+str(newaxis[0][0])+'+'+
+                                            M22+'*'+str(newaxis[0][1])+'+'+
+                                            M23+'*'+str(newaxis[0][2]))+')'
+    d_z='{Bdz}='+str(B0)+'/{r [R]}**5*('+(M31+'*'+str(newaxis[0][0])+'+'+
+                                            M32+'*'+str(newaxis[0][1])+'+'+
+                                            M33+'*'+str(newaxis[0][2]))+')'
+    #Return equation strings to be evaluated
+    return d_x, d_y, d_z
 
-def get_global_variables(field_data, *, do_cms=False):
+def get_global_variables(field_data, timeUTC):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
     """
+    ######################################################################
+    #General equations
     eq = tp.data.operate.execute_equation
     #Useful spatial variables
     eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
     eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
     eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
-    '''
-    eq('{lat [deg]} = 180/pi*asin({Z [R]} / {r [R]})')
-    eq('{lon [deg]} = if({X [R]}>0, 180/pi*atan({Y [R]} / {X [R]}),'+
-                     'if({Y [R]}>0, 180/pi*atan({Y [R]}/{X [R]})+180,'+
-                                   '180/pi*atan({Y [R]}/{X [R]})-180))')
-    '''
+
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
         value_location=ValueLocation.CellCentered)
-    '''
     #Plasma Beta
     eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
-    '''
     #Plasma Beta* using total pressure
     eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
                           '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
     #Magnetic field unit vectors
-    eq('{unitbx} ={B_x [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{unitby} ={B_y [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{unitbz} ={B_z [nT]}/sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{unitbx} ={B_x [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{unitby} ={B_y [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+    eq('{unitbz} ={B_z [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
     eq('{Bmag [nT]} =sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
         value_location=ValueLocation.CellCentered)
-    '''
-    eq('{divB [nT/Re]} =IF({r [R]}>4,'+
-                     'ddx({B_x [nT]})+ddy({B_y [nT]})+ddz({B_z [nT]}),0)',
+    #Dipole field (requires coordsys and UT information!!!)
+    Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(timeUTC, ('GSM', 'car'))
+    eq(Bdx_eq); eq(Bdy_eq); eq(Bdz_eq)
+    eq('{Bdmag [nT]} =sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)',
         value_location=ValueLocation.CellCentered)
-    eq('{bdotu}= ({B_x [nT]}*{U_x [km/s]}+'+
-                 '{B_y [nT]}*{U_y [km/s]}+'+
-                 '{B_z [nT]}*{U_z [km/s]}*(4*pi*1e2))',
-        value_location=ValueLocation.CellCentered)
-        variable_data_type=FieldDataType.Double)
-    eq('{S [W]} = {divB [nT/Re]}*{bdotu}*6371**2',
-        value_location=ValueLocation.CellCentered)
-    #eq('{F2 [W/Re^3]} = ({B_x [nT]}*ddx({bdotu})+'+
-                        '{B_y [nT]}*ddy({bdotu})+'+
-                        '{B_z [nT]}*ddz({bdotu}))*6371**2')
-    '''
-
-    #Magnetic Energy per volume
-    eq('{uB [J/Re^3]} = ({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-
-    #Ram pressure energy per volume
-    eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                                    '(({U_x [km/s]}*{unitbx})**2+'+
-                                    '({U_y [km/s]}*{unitby})**2+'+
-                                    '({U_z [km/s]}*{unitbz})**2) *'+
-                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-    eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                          '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
-                           '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
-                           '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
-                                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-
     #Electric Field
     eq('{E_x [mV/km]} = ({U_z [km/s]}*{B_y [nT]}'+
                           '-{U_y [km/s]}*{B_z [nT]})',
@@ -1144,13 +1159,47 @@ def get_global_variables(field_data, *, do_cms=False):
     eq('{E_z [mV/km]} = ({U_y [km/s]}*{B_x [nT]}'+
                          '-{U_x [km/s]}*{B_y [nT]})',
         value_location=ValueLocation.CellCentered)
-
-    #Electric Energy per volume
-    eq('{uE [J/Re^3]} = ({E_x [mV/km]}**2+{E_y [mV/km]}**2+'+
-                        '{E_z [mV/km]}**2)*'+
-                        '1e-6/(2*4*pi*1e-7*(3e8)**2)*1e9*6371**3',
+    ######################################################################
+    #Volumetric energy terms
+    #Total Magnetic Energy per volume
+    eq('{uB [J/Re^3]} = {Bmag [nT]}**2'+
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
         value_location=ValueLocation.CellCentered)
-
+    #Dipole magnetic Energy
+    eq('{uB_dipole [J/Re^3]} = {Bdmag [nT]}**2'+
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
+    #Disturbance Magnetic Energy per volume
+    eq('{delta_uB [J/Re^3]}= (({B_x [nT]}-{Bdx})**2+'+
+                             '({B_y [nT]}-{Bdy})**2+'+
+                             '({B_z [nT]}-{Bdz})**2)'+
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
+    #Hydrodynamic Energy Density
+    eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+        value_location=ValueLocation.CellCentered)
+    #Total Energy Density
+    eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
+        value_location=ValueLocation.CellCentered)
+    #Kinetic energy per volume
+    eq('{KE [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                      '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)'+
+                      '*1e6*1.6605e-27*1e6*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
+    eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                                    '(({U_x [km/s]}*{unitbx})**2+'+
+                                    '({U_y [km/s]}*{unitby})**2+'+
+                                    '({U_z [km/s]}*{unitbz})**2) *'+
+                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
+    eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
+                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
+                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
+                                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
+        value_location=ValueLocation.CellCentered)
+    ######################################################################
+    #Energy Flux terms
     #Poynting Flux
     # E (m⋅kg⋅s−3⋅A−1)*1e-6 * B ( 1 kg⋅s−2⋅A−1)*1e-9 * 1/mu0 (A2/N)*4pie7
     # (kg2 m)/(s5 N)
@@ -1173,11 +1222,6 @@ def get_global_variables(field_data, *, do_cms=False):
                             '({E_y [mV/km]}*{B_x [nT]}'+
                             '-{E_x [mV/km]}*{B_y [nT]})',
         value_location=ValueLocation.CellCentered)
-    '''
-    eq('{ExB_z [W/Re^2]} = -3.22901e4*({E_y [mV/km]}*{B_x [nT]}'+
-                                       '-{E_x [mV/km]}*{B_y [nT]})')
-    '''
-
     #Total pressure Flux
     eq('{P0_x [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
                           '*{U_x [km/s]}',
@@ -1188,14 +1232,6 @@ def get_global_variables(field_data, *, do_cms=False):
     eq('{P0_z [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
                           '*{U_z [km/s]}',
         value_location=ValueLocation.CellCentered)
-    '''
-    eq('{P0_z [W/Re^2]} = ({P [nPa]}*(1.666667/0.666667)*2.585e11'+
-                                        '+4.2941e5*{Rho [amu/cm^3]}/2*'+
-                                                    '({U_x [km/s]}**2'+
-                                                    '+{U_y [km/s]}**2'+
-                                                    '+{U_z [km/s]}**2))'+
-                          '*1.5696123057605e-4*{U_z [km/s]}')
-    '''
     #Total Energy Flux
     eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
@@ -1203,34 +1239,14 @@ def get_global_variables(field_data, *, do_cms=False):
         value_location=ValueLocation.CellCentered)
     eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
         value_location=ValueLocation.CellCentered)
-    #Hydrodynamic Energy Density
-    eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Total Energy Density
-    eq('{Utot [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3+'+
-                          '{uB [J/Re^3]}',
-        value_location=ValueLocation.CellCentered)
+    ######################################################################
+    #Terms with derivatives (experimental)
     '''
     #Vorticity
     eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
                           '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
                           '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
                             value_location=ValueLocation.CellCentered)
-    '''
-    '''
-    eq('{W_x [km/s/Re]} = ddy({U_z [km/s]}) - ddz({U_y [km/s]})',
-        value_location=ValueLocation.CellCentered)
-    eq('{W_y [km/s/Re]} = ddz({U_x [km/s]}) - ddx({U_z [km/s]})',
-        value_location=ValueLocation.CellCentered)
-    eq('{W_z [km/s/Re]} = ddx({U_y [km/s]}) - ddy({U_x [km/s]})',
-        value_location=ValueLocation.CellCentered)
-    eq('{W [km/s/Re]} = sqrt({W_x [km/s/Re]}**2+{W_y [km/s/Re]}**2+'+
-                            '{W_z [km/s/Re]}**2)',
-        value_location=ValueLocation.CellCentered)
-    eq('{h_w [km^2/s^2/Re]} = {W_x [km/s/Re]}*{U_x [km/s]} +'+
-                             '{W_y [km/s/Re]}*{U_y [km/s]} +'+
-                             '{W_z [km/s/Re]}*{U_z [km/s]} +',
-        value_location=ValueLocation.CellCentered)
     '''
 
 def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
