@@ -227,13 +227,13 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
             data.append(kinj_average)
         ###################################################################
         #Virial boundary total pressure integral
-        if virial and len(data)<14:
-            keys.append('Pt_virial [J]')
+        if virial:
+            keys.append('Virial Total [J]')
             virial_index = int(
-                            field_data.variable(add+'Ptot_virial *').index)
-            ptvirial = integrate_surface(virial_index, zone_index)
-            data.append(ptvirial)
-            print('{} Pt_virial integration done'.format(zone_name))
+                         field_data.variable(add+'virial_surfTotal').index)
+            virialTot = integrate_surface(virial_index, zone_index)
+            data.append(virialTot)
+            print('{} virialTot integration done'.format(zone_name))
         ###################################################################
     #Collect and report surface integrated quantities
     surface_power = pd.DataFrame([data],columns=keys)
