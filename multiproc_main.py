@@ -73,36 +73,41 @@ def work(mhddatafile):
     field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, mhddatafile,
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
                                   outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     satzones = satellites.get_satellite_zones(field_data,
                                   CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
-    #adjust view settings
-    proc = 'Multi Frame Manager'
-    cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-    tp.macro.execute_extended_command(command_processor_id=proc,
-                                      command=cmd)
-    mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
-    save=False
-    timestamp=False
-    for frame in enumerate(tp.frames()):
-        frame[1].activate()
-        if frame[0]==0:
-            pass
-        if frame[0]==1:
-            pass
-        if frame[0]==2:
-            pass
-        if frame[0]==3:
-            save = True
-            timestamp = True
-        view_set.display_single_iso(frame[1], mhddatafile,
-                                    mode=mode[frame[0]],
-                                    pngpath=CONTEXT['PNGPATH'],
-                                    outputname=OUTPUTNAME,
-                                    IDstr=str(CONTEXT['id']),
-                                    save_img=save,show_timestamp=timestamp)
+    if False:#manually switch on or off
+        #adjust view settings
+        proc = 'Multi Frame Manager'
+        cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
+        tp.macro.execute_extended_command(command_processor_id=proc,
+                                          command=cmd)
+        mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        save=False
+        timestamp=False
+        for frame in enumerate(tp.frames()):
+            frame[1].activate()
+            if frame[0]==0:
+                pass
+            if frame[0]==1:
+                pass
+            if frame[0]==2:
+                pass
+            if frame[0]==3:
+                save = True
+                timestamp = True
+            view_set.display_single_iso(frame[1], mhddatafile,
+                                        mode=mode[frame[0]],
+                                        pngpath=CONTEXT['PNGPATH'],
+                                        outputname=OUTPUTNAME,
+                                        IDstr=str(CONTEXT['id']),
+                                        save_img=save,
+                                        show_timestamp=timestamp)
+    else:
+        with open(CONTEXT['PNGPATH']+'/'+OUTPUTNAME+'.png','wb') as png:
+            png.close()
     #Remove unzipped copies now that work is done for that file
     for f in temp_files:
         os.remove(f)
@@ -134,7 +139,7 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:1],
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz')[0:4],
                                 key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
