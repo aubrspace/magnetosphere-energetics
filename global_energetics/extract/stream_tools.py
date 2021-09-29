@@ -756,7 +756,6 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
         #Virial boundary terms
         virial_term_list = get_virials()
         for term in virial_term_list:
-            print(term)
             eq(term, value_location=ValueLocation.CellCentered)
         ##################################################################
         #Normal Poynting Flux
@@ -1020,19 +1019,16 @@ def get_virials():
                                 '{virial_Mag1}+{virial_Mag2}')
     terms.append(total)
     return terms
-def get_dipole_field(timeUTC, sys_pair, *, B0=-31000):
+def get_dipole_field(auxdata, *, B0=31000):
     """Function calculates dipole field in given coordinate system based on
         current time in UTC
     Inputs
-        timeUTC- datetime object
-        sys_pair- tuple ('CoordinateSys', 'Type') eg: ('GSM','car')
+        auxdata- tecplot object containing key data pairs
         B0- surface magnetic field strength
     """
     #Determine dipole vector in given coord system
-    axis = coord.Coords([0,0,1],'MAG','car')
-    axis.ticks = spacetime.Ticktock(timeUTC, 'UTC')
-    newaxis = axis.convert(sys_pair[0], sys_pair[1]).data
-    #return newaxis
+    theta_tilt = float(auxdata['BTHETATILT'])
+    axis = [sin(deg2rad(theta_tilt)), 0, -1*cos(deg2rad(theta_tilt))]
     #Create dipole matrix
     ######################################
     #   (3x^2-r^2)      3xy         3xz
@@ -1049,19 +1045,19 @@ def get_dipole_field(timeUTC, sys_pair, *, B0=-31000):
     M32 = M23
     M33 = '(3*{Z [R]}**2-{r [R]}**2)'
     #Multiply dipole matrix by dipole vector
-    d_x='{Bdx}='+str(B0)+'/{r [R]}**5*('+(M11+'*'+str(newaxis[0][0])+'+'+
-                                            M12+'*'+str(newaxis[0][1])+'+'+
-                                            M13+'*'+str(newaxis[0][2]))+')'
-    d_y='{Bdy}='+str(B0)+'/{r [R]}**5*('+(M21+'*'+str(newaxis[0][0])+'+'+
-                                            M22+'*'+str(newaxis[0][1])+'+'+
-                                            M23+'*'+str(newaxis[0][2]))+')'
-    d_z='{Bdz}='+str(B0)+'/{r [R]}**5*('+(M31+'*'+str(newaxis[0][0])+'+'+
-                                            M32+'*'+str(newaxis[0][1])+'+'+
-                                            M33+'*'+str(newaxis[0][2]))+')'
+    d_x='{Bdx}='+str(B0)+'/{r [R]}**5*('+(M11+'*'+str(axis[0])+'+'+
+                                            M12+'*'+str(axis[1])+'+'+
+                                            M13+'*'+str(axis[2]))+')'
+    d_y='{Bdy}='+str(B0)+'/{r [R]}**5*('+(M21+'*'+str(axis[0])+'+'+
+                                            M22+'*'+str(axis[1])+'+'+
+                                            M23+'*'+str(axis[2]))+')'
+    d_z='{Bdz}='+str(B0)+'/{r [R]}**5*('+(M31+'*'+str(axis[0])+'+'+
+                                            M32+'*'+str(axis[1])+'+'+
+                                            M33+'*'+str(axis[2]))+')'
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
-def get_global_variables(field_data, timeUTC):
+def get_global_variables(field_data):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
@@ -1110,7 +1106,8 @@ def get_global_variables(field_data, timeUTC):
     temporal_FD_variable(currentzone, futurezone, 'rhoUy_cc')
     temporal_FD_variable(currentzone, futurezone, 'rhoUz_cc')
     #Dipole field (requires coordsys and UT information!!!)
-    Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(timeUTC, ('GSM', 'car'))
+    aux = field_data.zone('global_field').aux_data
+    Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
     eq(Bdx_eq); eq(Bdy_eq); eq(Bdz_eq)
     eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
     eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
