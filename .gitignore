@@ -1,0 +1,38 @@
+### macOS.gitignore
+.DS_Store
+
+### tecplot.gitignore
+#datafiles
+*.plt
+*.plt.gz
+*.png
+*.mp4
+
+### swmf.gitignore
+*.dat
+*.in
+
+### python.gitignore
+*__pycache__
+*.h5
+
+### vim.gitignore
+*.swp
+
+###Specific stuff
+*example*
+*toy*
+*trial*
+*copy*
+*demo*
+*note*
+*local*
+*test*
+*temp*
+*mock*
+*scratch*
+WI_H1_SWE_*
+banner.txt
+new_satdata/
+output/
+supermag.py
