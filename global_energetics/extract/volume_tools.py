@@ -19,7 +19,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
 def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
                     voluB=True, voluE=True, volKE=True, volKEpar=True,
                     volKEperp=True, volEth=True, volTotal=True,
-                    volume=True, findS=True, dt=60,
+                    volume=True, findS=True, virial=True, dt=60,
                     cuttoff=-20, blank=True, tail_h=15):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
@@ -138,6 +138,17 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
         keys.append(add+'Energy Density [J/Re^3]')
         energy_density = Total/Vol
         data.append(energy_density)
+        if virial:
+            #Virial kinetic energy
+            keys.append('Virial 2x Uk [J]')
+            data.append(2*KE)
+            keys.append('Virial 2x Uk [nT]')
+            data.append(2*KE*(-3/2)/(8e13))
+            #Virial differential magnetic field energy
+            keys.append('Virial Ub [J]')
+            data.append(uB)
+            keys.append('Virial Ub [nT]')
+            data.append(uB*(-3/2)/(8e13))
         if (do_cms) and (dt!=0):
             ##Volume change
             dVol_index = field_data.variable('delta_volume').index

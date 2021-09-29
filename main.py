@@ -52,9 +52,10 @@ if __name__ == "__main__":
     main.name = 'main'
 
     #Caclulate initial surface
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  integrate_surface=True, save_mesh=True,
-                                  outputpath=OUTPATH)
+    _,mp_powers, mp_energies = magnetopause.get_magnetopause(field_data,
+                                                             mhddatafile,
+                                                             do_cms=False,
+                                                        outputpath=OUTPATH)
 
     """
     #adjust view settings
@@ -122,3 +123,4 @@ if __name__ == "__main__":
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
                                            np.mod(ltime,60)))
+    from IPython import embed; embed()

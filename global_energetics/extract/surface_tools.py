@@ -113,7 +113,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
             test3_index = int(field_data.variable('test3').index)
             test3 = integrate_surface(test3_index, zone_index)
             data.append(test3)
-            print('{} test integrations done'.format(zone_name))
+            print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
         #integrate Poynting flux
         if calc_ExB:
@@ -133,7 +133,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                            field_data.variable(add+'ExB_injection*').index)
             ExBinj = integrate_surface(ExBinj_index, zone_index)
             data.append(ExBinj)
-            print(add+'{} ExB integration done'.format(zone_name))
+            print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
         #integrate P0 flux
         if calc_P0:
@@ -153,7 +153,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                             field_data.variable(add+'P0_injection*').index)
             P0inj = integrate_surface(P0inj_index, zone_index)
             data.append(P0inj)
-            print(add+'{} P0 integration done'.format(zone_name))
+            print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
         #integrate K flux
         if calc_K:
@@ -172,7 +172,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
             kinj_index = int(field_data.variable(add+'K_injection*').index)
             kinj = integrate_surface(kinj_index, zone_index)
             data.append(kinj)
-            print(add+'{} K integration done'.format(zone_name))
+            print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
         #integrate K flux
         if False:
@@ -194,22 +194,22 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
                                           add+'KSurf_injection*').index)
             kSinj = integrate_surface(kSinj_index, zone_index)
             data.append(kSinj)
-            print(add+'{} KSurf integration done'.format(zone_name))
+            print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
         #integrate area
-        if surface_area and len(data)<13:
+        if surface_area and add=='':
             keys.append('Area [Re^2]')
             area_index = None
             SA = integrate_surface(area_index, zone_index,
                                     VariableOption='LengthAreaVolume')
             data.append(SA)
-            print('{} area integration done'.format(zone_name))
+            print(zone_name+' '+keys[-1]+' integration done')
             if do_cms:
                 keys.append('dVol_dt [Re^3/s]')
                 dVoldt_index = int(field_data.variable('Csurface_n').index)
                 dVoldt = integrate_surface(dVoldt_index, zone_index)
                 data.append(dVoldt/6371)
-                print('{} dVol/dt integration done'.format(zone_name))
+                print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
         #average K flux
         if calc_K and surface_area and (SA!=0):
@@ -228,12 +228,25 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
         ###################################################################
         #Virial boundary total pressure integral
         if virial:
-            keys.append('Virial Total [J]')
-            virial_index = int(
-                         field_data.variable(add+'virial_surfTotal').index)
-            virialTot = integrate_surface(virial_index, zone_index)
-            data.append(virialTot)
-            print('{} virialTot integration done'.format(zone_name))
+            virial_dict = {'virial_scalarP':'Virial ScalarP [J]',
+                           'virial_advect':'Virial Advection [J]',
+                           'virial_Mag1':'Virial BFlux [J]',
+                           'virial_Mag2':'Virial BdipoleFlux [J]',
+                           'virial_surfTotal':'Virial Total [J]'}
+            for v_key in virial_dict.keys():
+                #Integrated value in Joules
+                keys.append(virial_dict[v_key])
+                virial_index = int(
+                         field_data.variable(add+v_key).index)
+                virialResult = integrate_surface(virial_index, zone_index)
+                data.append(virialResult)
+                print(zone_name+' '+keys[-1]+' integration done')
+                #Corresponding contribution to Dst
+                mod_tag = virial_dict[v_key].split(' [J]')[0]+' [nT]'
+                keys.append(mod_tag)
+                dstResult = virialResult*(-3/2)/(8e13)
+                data.append(dstResult)
+                print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################
     #Collect and report surface integrated quantities
     surface_power = pd.DataFrame([data],columns=keys)

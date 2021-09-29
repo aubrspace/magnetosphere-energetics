@@ -433,9 +433,10 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             mp_mesh[var] = field_data.zone(zoneindex.real
                            ).values(var.split(' ')[0]+'*').as_numpy_array()
     if integrate_volume and integrate_surface and do_virial:
+        #Complete virial predicted Dst
         mp_powers['Virial_Dst [nT]'] = (mp_powers['Virial Total [J]']+
                                    2*mp_energies['KE [J]']+
-                                   mp_energies['uB_dist [J]'])/(8e13*3/2)
+                                   mp_energies['uB_dist [J]'])/(8e13)*-3/2
     #Add time and x_subsolar
     mp_powers['Time [UTC]'] = eventtime
     mp_powers['X_subsolar [Re]'] = x_subsolar
