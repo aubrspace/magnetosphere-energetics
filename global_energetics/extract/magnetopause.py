@@ -397,8 +397,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         if True:
             inner_mesh = pd.DataFrame()
             #integrate power on innerboundary surface
-            if not any(
-              [zn.find('innerbound')!=-1 for zn in field_data.zone_names]):
+            print([zn.find('innerbound')!=-1 for zn in field_data.zone_names])
+            if mode=='iso_betastar':
                 innerbound_powers, _ = surface_analysis(main_frame,
                                     field_data.zone('*innerbound*').name,
                                                     False, do_1Dsw,
