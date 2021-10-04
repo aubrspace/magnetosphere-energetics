@@ -141,7 +141,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
         if virial:
             #Virial kinetic energy
             keys.append('Virial 2x Uk [J]')
-            data.append(2*KE)
+            data.append(2*KE+2*Eth)
             keys.append('Virial 2x Uk [nT]')
             data.append(2*KE*(-3/2)/(8e13))
             #Virial differential magnetic field energy

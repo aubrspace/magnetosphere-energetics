@@ -18,7 +18,7 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
-def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
+def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *, find_DFT=True,
                      calc_K=True, calc_ExB=True, calc_P0=True,virial=True,
                     surface_area=True, test=False,cuttoff=-20,blank=False,
                     blank_value=0, blank_variable='W *',timedelta=60):
@@ -47,9 +47,11 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
         get_surface_variables(field_data, zone_name, do_1Dsw, do_cms=True,
                               dt=timedelta)
         '''
-        hmin = get_surface_variables(field_data, zone_name, do_1Dsw)
+        hmin = get_surface_variables(field_data, zone_name, do_1Dsw,
+                                     find_DFT=find_DFT)
     else:
-        hmin = get_surface_variables(field_data, zone_name, do_1Dsw)
+        hmin = get_surface_variables(field_data, zone_name, do_1Dsw,
+                                     find_DFT=find_DFT)
     #initialize objects for frame
     zone_index = int(field_data.zone(zone_name).index)
     keys = []
@@ -228,11 +230,15 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *,
         ###################################################################
         #Virial boundary total pressure integral
         if virial:
-            virial_dict = {'virial_scalarP':'Virial ScalarP [J]',
-                           'virial_advect':'Virial Advection [J]',
-                           'virial_Mag1':'Virial BFlux [J]',
-                           'virial_Mag2':'Virial BdipoleFlux [J]',
-                           'virial_surfTotal':'Virial Total [J]'}
+            virial_dict = {'virial_scalarPth':'Virial ScalarPth [J]',
+                           'virial_scalaruB':'Virial ScalarPmag [J]',
+                           'virial_scalaruB_dipole':'Virial ScalarPdip [J]',
+                           'virial_advect1':'Virial Advection d/dt [J]',
+                           'virial_advect2':'Virial Advection 2 [J]',
+                           'virial_MagB_':'Virial B Stress [J]',
+                           'virial_MagBd':'Virial Bd Stress [J]',
+                           'virial_BBd':'Virial BBd Stress [J]',
+                           'virial_surfTotal':'Virial Surface Total [J]'}
             for v_key in virial_dict.keys():
                 #Integrated value in Joules
                 keys.append(virial_dict[v_key])

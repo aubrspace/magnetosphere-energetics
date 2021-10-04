@@ -650,8 +650,8 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
     field_data.zone(futureindex).values('SectorID')[::]=future_mesh[
                                                             'ID'].values
 
-def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
-                                                             dt=60):
+def get_surface_variables(field_data, zone_name, do_1Dsw, *,
+                          find_DFT=True, do_cms=False, dt=60):
     """Function calculated variables for a specific 3D surface
     Inputs
         field_data, zone_name
@@ -706,7 +706,7 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
             eq('{surface_normal_x} = {X Grid K Unit Normal}')
             eq('{surface_normal_y} = {Y Grid K Unit Normal}')
             eq('{surface_normal_z} = {Z Grid K Unit Normal}')
-    if zone_name.find('inner')==-1:
+    if find_DFT:
         ##############################################################
         #Day, flank, tail definitions
             #2-dayside
@@ -730,11 +730,6 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
         eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
-        eq('{Unorm [km/s]}=sqrt(({U_x [km/s]}*{surface_normal_x})**2+'+
-                            '({U_y [km/s]}*{surface_normal_y})**2+'+
-                            '({U_z [km/s]}*{surface_normal_z})**2)',
-                         value_location=ValueLocation.CellCentered,
-                         zones=[zone_index])
     else:
         hmin=0
     dt = str(dt)
@@ -752,6 +747,13 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *, do_cms=False,
     #   multiple sets of flowfield variables (denoted by the prefix)
     prefixlist = ['']
     for add in prefixlist:
+        ##################################################################
+        #Velocity normal to the surface
+        eq('{Unorm [km/s]}=sqrt(({U_x [km/s]}*{surface_normal_x})**2+'+
+                            '({U_y [km/s]}*{surface_normal_y})**2+'+
+                            '({U_z [km/s]}*{surface_normal_z})**2)',
+                         value_location=ValueLocation.CellCentered,
+                         zones=[zone_index])
         ##################################################################
         #Virial boundary terms
         virial_term_list = get_virials()
@@ -982,41 +984,52 @@ def get_virials():
     dSx='{surface_normal_x}';rx='{X [R]}'
     dSy='{surface_normal_y}';ry='{Y [R]}'
     dSz='{surface_normal_z}';rz='{Z [R]}'
-    #Scalar pressure at radial distance
-    term1=('{virial_scalarP}=-1*('+dSx+'*'+rx+'+'+
-                                dSy+'*'+ry+'+'+
-                                dSz+'*'+rz+')'+'*'+
-            '({Pth [J/Re^3]}+{uB [J/Re^3]})')
-    terms.append(term1)
+    #Scalar pressures at radial distance
+    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}']
+    signs = ['-1*','-1*','']
+    for p in enumerate(pressures):
+        ptag = p[1].split(' ')[0].split('{')[-1]
+        term=('{virial_scalar'+ptag+'}='+signs[p[0]]+'('+dSx+'*'+rx+'+'+
+                                             dSy+'*'+ry+'+'+
+                                             dSz+'*'+rz+')'+'*'+p[1])
+        terms.append(term)
     #Momentum advection
-    term2 = ('{virial_advect}=-1*({r_cc}**2*6371*('+dSx+'*{drhoUx_cc}+'+
+    termA1 = ('{virial_advect1}=-1*({r_cc}**2*6371*('+dSx+'*{drhoUx_cc}+'+
                                                  dSy+'*{drhoUy_cc}+'+
-                                           dSz+'*{drhoUz_cc})/(2*'+dt+')+'+
-             '({rhoUx_cc}*'+dSx+'+{rhoUy_cc}*'+dSy+'+{rhoUz_cc}*'+dSz+')*'+
+                                        dSz+'*{drhoUz_cc})/(2*'+dt+'))*'+
+             '1.6605*6371**3*1e-6')
+    terms.append(termA1)
+    termA2 = ('{virial_advect2}=-1*(({rhoUx_cc}*'+dSx+
+                                   '+{rhoUy_cc}*'+dSy+
+                                   '+{rhoUz_cc}*'+dSz+')*'+
              '({ux_cc}*'+rx+'+{uy_cc}*'+ry+'+{uz_cc}*'+rz+'))*'+
-             '1.6605*6371**3*10e-6')
-    terms.append(term2)
-    #Total field magnetic stress
-    term3 = ('{virial_Mag1}=('+dSx+'*{B_x [nT]}+'+
-                             dSy+'*{B_y [nT]}+'+
-                             dSz+'*{B_z [nT]})*'+
-                             '(({B_x [nT]}-{Bdx}/2)*'+rx+'+'+
-                              '({B_y [nT]}-{Bdy}/2)*'+ry+'+'+
-                              '({B_z [nT]}-{Bdz}/2)*'+rz+')'+
+             '1.6605*6371**3*1e-6')
+    terms.append(termA2)
+    #Magnetic stress non scalar contributions
+    magstressors = [['{B_x [nT]}', '{B_y [nT]}', '{B_z [nT]}'],
+                   ['{Bdx}', '{Bdy}', '{Bdz}']]
+    signs = ['','-1*']
+    for b in enumerate(magstressors):
+        tag = b[1][0][1:3]
+        termM=('{virial_Mag'+tag+'}='+signs[b[0]]+'('+dSx+'*'+b[1][0]+'+'+
+                                                     dSy+'*'+b[1][1]+'+'+
+                                                     dSz+'*'+b[1][2]+')*'+
+                                     '('+rx+'*'+b[1][0]+'+'+
+                                         ry+'*'+b[1][1]+'+'+
+                                         rz+'*'+b[1][2]+')'+
                               '*1e-9*6371**3/(4*pi*1e-7)')
-    terms.append(term3)
-    #Dipole field only magnetic stress
-    rxBdx = '('+ry+'*{Bdz}-'+rz+'*{Bdy})'
-    rxBdy = '('+rz+'*{Bdx}-'+rx+'*{Bdz})'
-    rxBdz = '('+rx+'*{Bdy}-'+ry+'*{Bdx})'
-    term4 = ('{virial_Mag2}=('+dSx+'*({Bdy}*'+rxBdz+'-{Bdz}*'+rxBdy+')+'+
-                               dSy+'*({Bdz}*'+rxBdx+'-{Bdx}*'+rxBdz+')+'+
-                               dSz+'*({Bdx}*'+rxBdy+'-{Bdy}*'+rxBdx+'))'+
+        terms.append(termM)
+    #Complete the square term from b(0) derivation
+    termb = ('{virial_BBd}=('+dSx+'*{B_x [nT]}+'+
+                              dSy+'*{B_y [nT]}+'+
+                              dSz+'*{B_z [nT]})*'+
+                           '('+rx+'*{Bdx}+'+ry+'*{Bdy}+'+rz+'*{Bdz})'+
                               '*1e-9*6371**3/(2*4*pi*1e-7)')
-    terms.append(term4)
+    terms.append(termb)
     #Total surface contribution
-    total = ('{virial_surfTotal}={virial_scalarP}+{virial_advect}+'+
-                                '{virial_Mag1}+{virial_Mag2}')
+    term_titles = ['{'+term.split('{')[1].split('}')[0]+'}'
+                                                        for term in terms]
+    total = ('{virial_surfTotal}='+'+'.join(term_titles))
     terms.append(total)
     return terms
 def get_dipole_field(auxdata, *, B0=31000):
@@ -1382,7 +1395,6 @@ def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
     else:
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
-    print(eqstr)
     eq(eqstr, zones=[0], value_location=ValueLocation.CellCentered)
     return tp.active_frame().dataset.variable(zonename).index
 
@@ -1442,12 +1454,12 @@ def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
                       '({X [R]} > '+str(xtail)+'), 1, 0)')
     return field_data.variable(mode).index
 
-def calc_sphere_state(mode, xc, yc, zc, rmin):
+def calc_sphere_state(mode, xc, yc, zc, rmax, *, rmin=0):
     """Function creates state variable for a simple box
     Inputs
         mode
         xc, yc, zc- locations for sphere center
-        rmin- sphere radius
+        rmax- sphere radius
     Outputs
         state_var_index- index to find state variable in tecplot
     """
@@ -1455,7 +1467,11 @@ def calc_sphere_state(mode, xc, yc, zc, rmin):
     eq('{'+mode+'} = IF(sqrt(({X [R]} -'+str(xc)+')**2 +'+
                             '({Y [R]} -'+str(yc)+')**2 +'+
                             '({Z [R]} -'+str(zc)+')**2) <'+
-                             str(rmin)+', 1, 0)')
+                             str(rmax)+'&&'+
+                        'sqrt(({X [R]} -'+str(xc)+')**2 +'+
+                            '({Y [R]} -'+str(yc)+')**2 +'+
+                            '({Z [R]} -'+str(zc)+')**2) >'+
+                            str(rmin)+',1, 0)')
     return tp.active_frame().dataset.variable(mode).index
 
 def calc_closed_state(statename, status_key, status_val, xmin, source):

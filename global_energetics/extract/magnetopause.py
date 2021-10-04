@@ -49,7 +49,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      do_trace=False, lon_bounds=10, n_fieldlines=5,
                      rmax=30, rmin=3,
                      dx_probe=-1,
-                     sp_x=0, sp_y=0, sp_z=0, sp_r=3,
+                     sp_x=0, sp_y=0, sp_z=0, sp_rmax=3, sp_rmin=0,
                      box_xmax=-5, box_xmin=-8,
                      box_ymax=5, box_ymin=-5,
                      box_zmax=5, box_zmin=-5,
@@ -131,7 +131,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                '\t\tsp_x: {}\n'.format(sp_x)+
                '\t\tsp_y: {}\n'.format(sp_y)+
                '\t\tsp_z: {}\n'.format(sp_z)+
-               '\t\tsp_r: {}\n'.format(sp_r))
+               '\t\tsp_rmax: {}\n'.format(sp_rmax))
     if mode == 'box':
         #box settings
         display = (display +
@@ -270,7 +270,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = zone_rename
         #calculate surface state variable
         sp_state_index = calc_sphere_state(zonename,sp_x, sp_y, sp_z,
-                                            sp_r)
+                                            sp_rmax, rmin=3)
         state_var_name = field_data.variable(sp_state_index).name
         #make iso zone
         sp_zone, _ = setup_isosurface(1, sp_state_index, zonename)
@@ -316,14 +316,14 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             zonename = zone_rename
         iso_betastar_index = calc_betastar_state(zonename, 0, x_subsolar,
                                                     tail_cap, 50, 0.7,
-                                                    include_core, sp_r,
+                                                    include_core, sp_rmax,
                                                     closed_zone)
         state_var_name = field_data.variable(iso_betastar_index).name
         if do_cms:
             future_index = calc_betastar_state('future_'+zonename, 1,
                                     future_x_subsolar,
                                     tail_cap, 50, 0.7, include_core,
-                                    sp_r, future_closed_zone)
+                                    sp_rmax, future_closed_zone)
             future_state_var_name = field_data.variable(future_index).name
         #remake iso zone using new equation
         if not include_core:
@@ -334,13 +334,13 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                                 iso_betastar_index,
                                                 zonename,
                                                 keep_condition=cond,
-                                                keep_cond_value=sp_r)
+                                                keep_cond_value=sp_rmax)
         zoneindex = iso_betastar_zone.index
         if do_cms:
             __, _ = setup_isosurface(1,future_index,
                                      'future_'+zonename,
                                      keep_condition=cond,
-                                     keep_cond_value=sp_r)
+                                     keep_cond_value=sp_rmax)
             #get state variable representing acquisitions/forfeitures
             delta_magnetopause_index = calc_delta_state(state_var_name,
                                                      future_state_var_name)
@@ -373,7 +373,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
     if integrate_surface:
         #integrate power on main surface
         mp_powers, hmin = surface_analysis(main_frame, zonename, do_cms,
-                                do_1Dsw,
+                                do_1Dsw, find_DFT=(mode.find('mp')!=-1),
                                 cuttoff=tail_analysis_cap, blank=do_blank,
                                 blank_variable=blank_variable,
                                 blank_value=blank_value,
@@ -394,21 +394,24 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                             '1DExB_net [W/Re^2]']:
                 varnames.append(name)
         #if not include_core and mode == 'iso_betastar':
-        if False:
+        if True:
             inner_mesh = pd.DataFrame()
             #integrate power on innerboundary surface
-            innerbound_powers, _ = surface_analysis(main_frame,
-                                                    zonename+'innerbound',
+            if not any(
+              [zn.find('innerbound')!=-1 for zn in field_data.zone_names]):
+                innerbound_powers, _ = surface_analysis(main_frame,
+                                    field_data.zone('*innerbound*').name,
                                                     False, do_1Dsw,
+                                                    find_DFT=False,
                                             cuttoff=tail_analysis_cap)
-            innerbound_powers = innerbound_powers.add_prefix('inner')
-            print('\nInnerbound surface power calculated')
-            #save innerboundary mesh data
-            inner_index =(
-                        field_data.zone(zonename+'innerbound').index.real)
-            if save_mesh:
-                for var in varnames:
-                    inner_mesh[var] = field_data.zone(inner_index
+                innerbound_powers = innerbound_powers.add_prefix('inner')
+                print('\nInnerbound surface power calculated')
+                if save_mesh:
+                    #save inner boundary mesh to the mesh file
+                    inner_index =(
+                              field_data.zone('*innerbound*').index.real)
+                    for var in varnames:
+                        inner_mesh[var] = field_data.zone(inner_index
                            ).values(var.split(' ')[0]+'*').as_numpy_array()
         print('\nMagnetopause Power Terms')
         print(mp_powers)
@@ -421,7 +424,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         else:
             doblank = True
         mp_energies = volume_analysis(main_frame, state_var_name,
-                                        do_1Dsw, do_cms, sp_r,
+                                        do_1Dsw, do_cms, sp_rmax,
                                         cuttoff=tail_analysis_cap,
                                         blank=False, dt=deltatime,
                                         tail_h=hmin)
@@ -434,8 +437,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                            ).values(var.split(' ')[0]+'*').as_numpy_array()
     if integrate_volume and integrate_surface and do_virial:
         #Complete virial predicted Dst
-        mp_powers['Virial_Dst [nT]'] = (mp_powers['Virial Total [J]']+
-                                   2*mp_energies['KE [J]']+
+        mp_powers['Virial_Dst [nT]']=(mp_powers['Virial Surface Total [J]']+
+                                    mp_energies['Virial 2x Uk [J]']+
                                    mp_energies['uB_dist [J]'])/(8e13)*-3/2
     #Add time and x_subsolar
     mp_powers['Time [UTC]'] = eventtime
