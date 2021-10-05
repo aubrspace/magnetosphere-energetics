@@ -1087,6 +1087,9 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
+    pallete = {'supermag':'black','swmf_log':'magenta','omni':'black'}
+    if Color != None:
+        pallete = {'supermag':Color,'swmf_log':Color,'omni':Color}
     legend_loc = 'lower left'
     for data in dflist:
         name = data['name'].iloc[-1]
@@ -1095,19 +1098,19 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
             axis.plot(data[timekey],data[qtkey],
                       label='SMR',
                       linewidth=Size, linestyle=ls,
-                      color='black')
+                      color=pallete[name])
         elif name == 'swmf_log':
             qtkey = 'dst_sm'
             axis.plot(data[timekey],data[qtkey],
                       label='Sim',
                       linewidth=Size, linestyle=ls,
-                      color='magenta')
+                      color=pallete[name])
         elif name == 'omni':
             qtkey = 'sym_h'
             axis.plot(data[timekey],data[qtkey],
                       label='Obs',
                       linewidth=Size, linestyle=ls,
-                      color='black')
+                      color=pallete[name])
         else:
             qtkey = None
     if xlim!=None:

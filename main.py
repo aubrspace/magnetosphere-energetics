@@ -57,6 +57,7 @@ if __name__ == "__main__":
                                                              do_cms=False,
                                                         outputpath=OUTPATH,
                                                     zone_rename='mp_')
+    '''
     _,sp5_powers, sp5_energies = magnetopause.get_magnetopause(field_data,
                                                              mhddatafile,
                                                              do_cms=False,
@@ -71,6 +72,7 @@ if __name__ == "__main__":
                                                         mode='sphere',
                                          sp_x=0, sp_y=0, sp_z=0, sp_rmax=8,
                                                     zone_rename='R8_')
+    '''
 
     """
     #adjust view settings
