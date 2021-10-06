@@ -10,8 +10,6 @@ import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
 import datetime as dt
 import pandas as pd
-import spacepy
-from spacepy import coordinates as coord
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *

@@ -1014,7 +1014,6 @@ def get_virials():
     tags = ['B_','Bd','b']
     signs = ['','-1*','']
     for b in enumerate(magstressors):
-        print(tags[b[0]])
         termM=('{virial_Mag'+tags[b[0]]+'}='+signs[b[0]]+
                                                  '('+dSx+'*'+b[1][0]+'+'+
                                                      dSy+'*'+b[1][1]+'+'+

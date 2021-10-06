@@ -140,4 +140,3 @@ if __name__ == "__main__":
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
                                            np.mod(ltime,60)))
-    from IPython import embed; embed()
