@@ -76,14 +76,6 @@ def work(mhddatafile):
     magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
                                   outputpath=CONTEXT['OUTPUTPATH'],
                                   zone_rename='mp_')
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'],
-                                  mode='sphere', sp_rmax=5,
-                                  zone_rename='R5_')
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'],
-                                  mode='sphere', sp_rmax=5,
-                                  zone_rename='R8_')
     #get supporting module data for this timestamp
     satzones = satellites.get_satellite_zones(field_data,
                                   CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
