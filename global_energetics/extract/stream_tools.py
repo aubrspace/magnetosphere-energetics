@@ -1124,6 +1124,10 @@ def get_global_variables(field_data):
     temporal_FD_variable(currentzone, futurezone, 'rhoUx_cc')
     temporal_FD_variable(currentzone, futurezone, 'rhoUy_cc')
     temporal_FD_variable(currentzone, futurezone, 'rhoUz_cc')
+    #Density weighted by r^2
+    eq('{rho r^2 [kgm^2/Re^3]} = {rho [amu/cm^3]}*{r [R]}**2'+
+                                   '*1e6*1.6605e-27*(6371*1e3)**5',
+        value_location=ValueLocation.CellCentered)
     #Dipole field (requires coordsys and UT information!!!)
     aux = field_data.zone('global_field').aux_data
     Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)

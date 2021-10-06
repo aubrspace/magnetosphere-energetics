@@ -139,16 +139,24 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
         energy_density = Total/Vol
         data.append(energy_density)
         if virial:
+            #integrate r^2 weighted mass (will look @ 2nd derivative)
+            eq('{rho r^2 temp} = IF({'+state_variable_name+'}<1,0,'+
+                                                 '{rho r^2 [kgm^2/Re^3]})')
+            keys.append(add+'Mr^2 [kgm^2]')
+            rhor2_index = int(field_data.variable('rho r^2 temp').index)
+            rhor2 = integrate_volume(rhor2_index, zone_index)
+            print('{} Mr^2 integration done'.format(volume_name))
+            data.append(rhor2)
             #Virial kinetic energy
             keys.append('Virial 2x Uk [J]')
             data.append(2*KE+2*Eth)
             keys.append('Virial 2x Uk [nT]')
-            data.append((2*KE+2*Eth)*(-3/2)/(8e13))
+            data.append((2*KE+2*Eth)/(8e13))
             #Virial differential magnetic field energy
             keys.append('Virial Ub [J]')
             data.append(uB)
             keys.append('Virial Ub [nT]')
-            data.append(uB*(-3/2)/(8e13))
+            data.append(uB/(8e13))
         if (do_cms) and (dt!=0):
             ##Volume change
             dVol_index = field_data.variable('delta_volume').index
