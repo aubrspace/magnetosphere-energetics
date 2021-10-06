@@ -985,8 +985,9 @@ def get_virials():
     dSy='{surface_normal_y}';ry='{Y [R]}'
     dSz='{surface_normal_z}';rz='{Z [R]}'
     #Scalar pressures at radial distance
-    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}']
-    signs = ['-1*','-1*','']
+    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}',
+                 '{delta_uB [J/Re^3]}']
+    signs = ['-1*','-1*','', '-1*']
     for p in enumerate(pressures):
         ptag = p[1].split(' ')[0].split('{')[-1]
         term=('{virial_scalar'+ptag+'}='+signs[p[0]]+'('+dSx+'*'+rx+'+'+
@@ -1007,11 +1008,15 @@ def get_virials():
     terms.append(termA2)
     #Magnetic stress non scalar contributions
     magstressors = [['{B_x [nT]}', '{B_y [nT]}', '{B_z [nT]}'],
-                   ['{Bdx}', '{Bdy}', '{Bdz}']]
-    signs = ['','-1*']
+                    ['{Bdx}', '{Bdy}', '{Bdz}'],
+                    ['({B_x [nT]}-{Bdx})','({B_y [nT]}-{Bdy})',
+                     '({B_z [nT]}-{Bdz})']]
+    tags = ['B_','Bd','b']
+    signs = ['','-1*','']
     for b in enumerate(magstressors):
-        tag = b[1][0][1:3]
-        termM=('{virial_Mag'+tag+'}='+signs[b[0]]+'('+dSx+'*'+b[1][0]+'+'+
+        print(tags[b[0]])
+        termM=('{virial_Mag'+tags[b[0]]+'}='+signs[b[0]]+
+                                                 '('+dSx+'*'+b[1][0]+'+'+
                                                      dSy+'*'+b[1][1]+'+'+
                                                      dSz+'*'+b[1][2]+')*'+
                                      '('+rx+'*'+b[1][0]+'+'+
@@ -1027,8 +1032,10 @@ def get_virials():
                               '*1e-9*6371**3/(2*4*pi*1e-7)')
     terms.append(termb)
     #Total surface contribution
+    termcopy = terms.copy()
+    termcopy.remove(term); termcopy.remove(termM) #last used is inner
     term_titles = ['{'+term.split('{')[1].split('}')[0]+'}'
-                                                        for term in terms]
+                                                     for term in termcopy]
     total = ('{virial_surfTotal}='+'+'.join(term_titles))
     terms.append(total)
     return terms

@@ -240,8 +240,9 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *, find_DFT=True,
                            'virial_BBd':'Virial BBd Stress [J]',
                            'virial_surfTotal':'Virial Surface Total [J]'}
             if zone_name.find('innerbound')!=-1:
-                virial_dict.update({'virial_delta_uB':
-                                                    'Virial b Stress [J]'})
+                virial_dict.update({'virial_scalardelta_uB':
+                                                 'Virial ScalarPbin [J]'})
+                virial_dict.update({'virial_Magb':'Virial b Stress [J]'})
             for v_key in virial_dict.keys():
                 #Integrated value in Joules
                 keys.append(virial_dict[v_key])
