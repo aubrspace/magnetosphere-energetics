@@ -253,7 +253,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *, find_DFT=True,
                 #Corresponding contribution to Dst
                 mod_tag = virial_dict[v_key].split(' [J]')[0]+' [nT]'
                 keys.append(mod_tag)
-                dstResult = virialResult/(8e13)
+                dstResult = virialResult/(-8e13)
                 data.append(dstResult)
                 print(zone_name+' '+keys[-1]+' integration done')
         ###################################################################

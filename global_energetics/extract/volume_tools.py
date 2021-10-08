@@ -151,12 +151,12 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             keys.append('Virial 2x Uk [J]')
             data.append(2*KE+2*Eth)
             keys.append('Virial 2x Uk [nT]')
-            data.append((2*KE+2*Eth)/(8e13))
+            data.append((2*KE+2*Eth)/(-8e13))
             #Virial differential magnetic field energy
             keys.append('Virial Ub [J]')
             data.append(uB)
             keys.append('Virial Ub [nT]')
-            data.append(uB/(8e13))
+            data.append(uB/(-8e13))
         if (do_cms) and (dt!=0):
             ##Volume change
             dVol_index = field_data.variable('delta_volume').index
