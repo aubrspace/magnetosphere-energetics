@@ -52,90 +52,64 @@ if __name__ == "__main__":
     main.name = 'main'
 
     #Caclulate initial surface
-    _,mp_powers, mp_energies = magnetopause.get_magnetopause(field_data,
-                                                             mhddatafile,
-                                                             do_cms=False,
-                                                        outputpath=OUTPATH,
-                                                    zone_rename='mp_')
-    '''
-    _,sp5_powers, sp5_energies = magnetopause.get_magnetopause(field_data,
-                                                             mhddatafile,
-                                                             do_cms=False,
-                                                        outputpath=OUTPATH,
-                                                        mode='sphere',
-                                         sp_x=0, sp_y=0, sp_z=0, sp_rmax=5,
-                                                    zone_rename='R5_')
-    _,sp8_powers, sp8_energies = magnetopause.get_magnetopause(field_data,
-                                                             mhddatafile,
-                                                             do_cms=False,
-                                                        outputpath=OUTPATH,
-                                                        mode='sphere',
-                                         sp_x=0, sp_y=0, sp_z=0, sp_rmax=8,
-                                                    zone_rename='R8_')
-    '''
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  outputpath=OUTPATH,
+                                  integrate_surface=True,
+                                  integrate_volume=True)
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  mode='nlobe',
+                                  outputpath=OUTPATH,
+                                  integrate_surface=True,
+                                  integrate_volume=True)
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  mode='slobe',
+                                  outputpath=OUTPATH,
+                                  integrate_surface=True,
+                                  integrate_volume=True)
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  mode='rc',
+                                  outputpath=OUTPATH,
+                                  integrate_surface=True,
+                                  integrate_volume=True)
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  mode='ps',
+                                  outputpath=OUTPATH,
+                                  integrate_surface=True,
+                                  integrate_volume=True)
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  mode='qDp',
+                                  outputpath=OUTPATH,
+                                  integrate_surface=True,
+                                  integrate_volume=True)
 
-    """
-    #adjust view settings
-    #tile
-    #proc = 'Multi Frame Manager'
-    #cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-    #tp.macro.execute_extended_command(command_processor_id=proc,
-    #                                      command=cmd)
-    bot_right = [frame for frame in tp.frames('main')][0]
-    bot_right.name = 'inside_from_tail'
-    view_set.display_single_iso(bot_right,
-                                'beta_star',mhddatafile, show_contour=False,
-                                energyrange=20, transluc=40,
-                                show_slice=True, show_legend=True,
-                                show_fieldline=True,
-                                pngpath=PNGPATH,
-                                plot_satellites=False,
-                                outputname=OUTPUTNAME, save_img=False,
-                                show_timestamp=False)
-    '''
-    frame1 = [frame for frame in tp.frames('Frame 001')][0]
-    frame2 = [frame for frame in tp.frames('Frame 002')][0]
-    frame3 = [frame for frame in tp.frames('Frame 003')][0]
-    frame1.activate()
-    frame1.name = 'isodefault'
-    view_set.display_single_iso(frame1,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_legend=False,
-                                pngpath=PNGPATH,
-                                plot_satellites=False,
-                                outputname=OUTPUTNAME, save_img=False,
-                                show_timestamp=False)
-    frame2.activate()
-    frame2.name = 'alternate_iso'
-    view_set.display_single_iso(frame2,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True,
-                                pngpath=PNGPATH, add_clock=True,
-                                plot_satellites=False,
-                                outputname=OUTPUTNAME, save_img=False,
-                                mode='other_iso',
-                                show_timestamp=False)
-    frame3.activate()
-    frame3.name = 'tail_iso'
-    view_set.display_single_iso(frame3,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=True, show_legend=False,
-                                pngpath=PNGPATH, transluc=60,
-                                plot_satellites=False,
-                                outputname=OUTPUTNAME,
-                                mode='iso_tail',
-                                show_timestamp=False, save_img=True)
-    bot_right.activate()
-    view_set.display_single_iso(bot_right,
-                                'K_net *', mhddatafile, show_contour=True,
-                                show_slice=False,
-                                show_legend=False, mode='inside_from_tail',
-                                pngpath=PNGPATH,
-                                plot_satellites=False,
-                                show_timestamp=True, transluc=40,
-                                outputname=OUTPUTNAME, save_img=False)
-    '''
-    """
+    if True:#manually switch on or off
+        #adjust view settings
+        proc = 'Multi Frame Manager'
+        cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
+        tp.macro.execute_extended_command(command_processor_id=proc,
+                                          command=cmd)
+        mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        save=False
+        timestamp=False
+        zone_hidekeys = ['sphere', 'box','lcb','shue','future',
+                         'mp_iso_betastar']
+        for frame in enumerate(tp.frames()):
+            frame[1].activate()
+            if frame[0]==0:
+                pass
+            if frame[0]==1:
+                pass
+            if frame[0]==2:
+                pass
+            if frame[0]==3:
+                #save = True
+                timestamp = True
+            view_set.display_single_iso(frame[1], mhddatafile,
+                                        mode=mode[frame[0]],
+                                        save_img=save,
+                                        zone_hidekeys=zone_hidekeys,
+                                        show_timestamp=timestamp,
+                                        show_contour=False)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

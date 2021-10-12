@@ -467,6 +467,16 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
     plt = frame.plot()
     show_list = []
     hide_keys = zone_hidekeys
+    shadings = {'mp_iso_betastar':Color.Custom34,
+                'mp_iso_betastarinnerbound':Color.Custom11,
+                'plasmasheet':Color.Custom9,
+                'ms_nlobe':Color.Custom20,
+                'ms_slobe':Color.Custom21,
+                'ms_rc':Color.Custom22,
+                'ms_ps':Color.Custom23,
+                'ms_qDp':Color.Custom24,
+                'shue97':Color.Custom8,
+                'shue98':Color.Custom7}
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
@@ -482,6 +492,8 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
                 plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
                 plt.fieldmap(map_index).contour.flood_contour_group_index=(
                                                                 cont_num)
+                plt.fieldmap(map_index).shade.color = shadings.get(
+                                                         zone.name, "Grey")
                 show_list.append(zone.name)
     #Transluceny and shade settings
     for map_index in plt.fieldmaps().fieldmap_indices:
@@ -490,6 +502,7 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
             plt.fieldmap(map_index).effects.use_translucency=True
             plt.fieldmap(map_index).effects.surface_translucency=(
                                                               translucency)
+            '''old shade settings
             if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
             if zone.name.find('fieldline') != -1:
@@ -505,6 +518,7 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
                 plt.fieldmap(map_index).shade.color = Color.Custom7
             if zone.name.find('cps') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom8
+            '''
     return show_list
 
 def set_satellites(satnames, frame):
@@ -681,8 +695,11 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
                             default['contourmap'],default['zone_hidekeys'])
     set_3Daxes(frame, xmin=default['xtail'])
     set_camera(frame, setting=mode)
-    add_energy_contour(frame,default['energyrange'],default['contour_key'],
-                             default['contourmap'], default['show_legend'])
+    if default['show_contour']:
+        add_energy_contour(frame,default['energyrange'],
+                           default['contour_key'], default['contourmap'],
+                           default['show_legend'])
+    frame.plot().show_contour = default['show_contour']
     if default['show_slice']:
         if default['slicetype']=='jy':
             add_jy_slice(frame, frame.dataset.variable('J_y *').index,
@@ -695,7 +712,6 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
                             showleg=default['show_legend'])
     if default['show_fieldline']:
         add_fieldlines(frame)
-    frame.plot().show_contour = default['show_contour']
     if default['show_shade_legend']:
         add_shade_legend(frame, zones_shown, default['shade_legend_pos'],
                          default['shade_markersize'])

@@ -1084,6 +1084,13 @@ def get_global_variables(field_data):
     currentzone = field_data.zone('global_field')
     futurezone = field_data.zone('future')
     ######################################################################
+    '''Save for later
+    {SLobe} = if({mp_}==1&&{Status}==1,1,0)
+    {NLobe} = if({mp_}==1&&{Status}==2,1,0)
+    {Plasmasheet} = if({lcb}==1&&abs({B_x [nT]})<10&&{X [R]}<0&&{r [R]}>7,1,0)
+    {RingCurrent} = if({lcb}==1&&{r [R]}<7&&(abs({B_x [nT]})>10||{X [R]}>0),1,0)
+    {StretchedTail} = if({lcb}==1&&{r [R]}>7&&(abs({B_x [nT]})>10||{X [R]}>0),1,0)
+    '''
     #General equations
     eq = tp.data.operate.execute_equation
     #Useful spatial variables
@@ -1137,6 +1144,12 @@ def get_global_variables(field_data):
     eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
     eq('{Bdmag [nT]} =sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)',
         value_location=ValueLocation.CellCentered)
+    #Dipolar coordinate variables
+    eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
+    #{mhat_y} = 0
+    eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
+    eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
+    eq('{Lshell} = {r [R]}/cos({lambda})**2')
     ######################################################################
     #Volumetric energy terms
     #Total Magnetic Energy per volume
@@ -1356,6 +1369,66 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         newzone2 = frame.dataset.zone(newzone2_key)
         newzone2.name = zonename+'innerbound'
         return newzone, newzone2
+
+def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
+    """Function creates equation for the plasmasheet or quasi diploar
+        region within the confines of closed field line surface indicated
+        by closed_var
+    Inputs
+        closed_var- variable name for magnetopause zone
+        lshselllim- dipolar coord l shell limit
+        bxmax- x comp B limit
+    Return
+        index- index for the created variable
+    """
+    eq = tp.data.operate.execute_equation
+    if ps_qDp == 'ps':
+        eq('{ms_ps_L='+lshelllim+'} = if({'+closed_var+'}==1&&'+
+                                        '{'+Lvar+'}>'+lshelllim+'&&'+
+                                        'abs({B_x [nT]})<'+bxmax+'&&'+
+                                        '{X [R]}<0,1,0)')
+        return tp.active_frame().dataset.variable(
+                                               'ms_ps_L='+lshelllim).index
+    elif ps_qDp == 'qDp':
+        eq('{ms_qDp_L='+lshelllim+'} = if({'+closed_var+'}==1&&'+
+                                         '{'+Lvar+'}>'+lshelllim+'&&'+
+                                         '(abs({B_x [nT]})>'+bxmax+'||'+
+                                         '{X [R]}>0),1,0)')
+        return tp.active_frame().dataset.variable(
+                                              'ms_qDp_L='+lshelllim).index
+
+
+def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell'):
+    """Function creates eq for region containing ring currents within the
+        confines of closed field line surface indicated by closed_var
+    Inputs
+        closed_var- variable name for magnetopause zone
+        lshsellmax- dipolar coord l shell limit
+    Return
+        index- index for the created variable
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{ms_rc_L='+lshellmax+'} = if({'+closed_var+'}==1&&'+
+                                    '{'+Lvar+'}<'+lshellmax+',1,0)')
+    return tp.active_frame().dataset.variable('ms_rc_L='+lshellmax).index
+
+def calc_lobe_state(mp_var, northsouth, *, status='Status'):
+    """Function creates equation for north or south lobe within the
+        confines of magnetopause surface indicated by mp_var
+    Inputs
+        mp_var- variable name for magnetopause zone
+        northsouth- which lobe to create equation for
+        status- optional change to the status variable name
+    Return
+        index- index for the created variable
+    """
+    eq = tp.data.operate.execute_equation
+    if northsouth == 'north':
+        eq('{NLobe} = if({'+mp_var+'}==1&&{'+status+'}==2,1,0)')
+        return tp.active_frame().dataset.variable('NLobe').index
+    else:
+        eq('{SLobe} = if({'+mp_var+'}==1&&{'+status+'}==1,1,0)')
+        return tp.active_frame().dataset.variable('SLobe').index
 
 def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
     """Function creates equation in tecplot representing surface

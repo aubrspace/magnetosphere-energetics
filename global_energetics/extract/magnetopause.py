@@ -28,6 +28,9 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     get_global_variables,
                                                     dump_to_pandas,
                                                     setup_isosurface,
+                                                    calc_lobe_state,
+                                                    calc_rc_state,
+                                                    calc_ps_qDp_state,
                                                     calc_iso_rho_state,
                                                     calc_betastar_state,
                                                     calc_closed_state,
@@ -53,6 +56,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                      box_xmax=-5, box_xmin=-8,
                      box_ymax=5, box_ymin=-5,
                      box_zmax=5, box_zmin=-5,
+                     lshelllim=7, bxmax=10,
                      itr_max=100, tol=0.1,
                      tail_cap=-20, tail_analysis_cap=-20,
                      integrate_surface=True, integrate_volume=True,
@@ -89,7 +93,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             xyzvar- for X, Y, Z variables in field data variable list
             zone_rename- optional rename if calling multiple times
     """
-    approved= ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere',                'lcb']
+    approved= ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere',
+               'lcb', 'nlobe', 'slobe', 'rc', 'ps', 'qDp']
     if not any([mode == match for match in approved]):
         print('Magnetopause mode "{}" not recognized!!'.format(mode))
         print('Please set mode to one of the following:')
@@ -223,6 +228,8 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         elif has_status == True:
             closed_index = calc_closed_state('Status', 3, tail_cap)
             closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
+        #Assign magnetopause variable if exists
+        mpvar = field_data.variable('mp*')
     else:
         if do_trace:
             closedzone_index = streamfind_bisection(field_data,
@@ -361,15 +368,72 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
             closed_zone.name = zone_rename
             zonename = zone_rename
     ################################################################
+    if mode.find('lobe') != -1:
+        assert do_trace == False, (
+                            "lobe mode only works with do_trace==False!")
+        assert type(mpvar) != type(None),('magnetopause variable not found'+
+                                          ' cannot calculate lobe zone!')
+        zonename = 'ms_'+mode
+        #calculate surface state variable
+        northsouth = 'north'
+        if mode.lower().find('s') != -1:
+            northsouth = 'south'
+        lobe_index = calc_lobe_state(mpvar.name, northsouth)
+        state_var_name = field_data.variable(lobe_index).name
+        #make iso zone
+        lobe_zone, _ = setup_isosurface(1, lobe_index, zonename)
+        zoneindex = lobe_zone.index
+        if zone_rename != None:
+            lobe_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
+    if mode.find('rc') != -1:
+        assert closed_index != None, ('No closed_zone present! Cant do rc')
+        zonename = 'ms_'+mode
+        #calculate surface state variable
+        rc_index = calc_rc_state(closed_zone.name, str(lshelllim))
+        state_var_name = field_data.variable(rc_index).name
+        #make iso zone
+        rc_zone, _ = setup_isosurface(1, rc_index, zonename)
+        zoneindex = rc_zone.index
+        if zone_rename != None:
+            rc_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
+    if mode.find('ps') != -1:
+        assert closed_index != None, ('No closed_zone present! Cant do ps')
+        zonename = 'ms_'+mode
+        #calculate surface state variable
+        ps_index = calc_ps_qDp_state('ps', closed_zone.name,
+                                     str(lshelllim), str(bxmax))
+        state_var_name = field_data.variable(ps_index).name
+        #make iso zone
+        ps_zone, _ = setup_isosurface(1, ps_index, zonename)
+        zoneindex = ps_zone.index
+        if zone_rename != None:
+            ps_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
+    if mode.find('qDp') != -1:
+        assert closed_index != None, ('No closed_zone present! Cant do qDp')
+        zonename = 'ms_'+mode
+        #calculate surface state variable
+        qDp_index = calc_ps_qDp_state('qDp', closed_zone.name,
+                                      str(lshelllim), str(bxmax))
+        state_var_name = field_data.variable(qDp_index).name
+        #make iso zone
+        qDp_zone, _ = setup_isosurface(1, qDp_index, zonename)
+        zoneindex = qDp_zone.index
+        if zone_rename != None:
+            qDp_zone.name = zone_rename
+            zonename = zone_rename
+    ################################################################
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
     mp_energies = pd.DataFrame()
     mp_mesh = pd.DataFrame()
     zonelist = [zoneindex.real]
-    if save_mesh:
-        #variables to be saved in meshfile
-        #varnames = ['x_cc', 'y_cc', 'z_cc', 'Cell Volume', 'W_cc']
-        varnames = []
+    savemeshvars = []
     if integrate_surface:
         #integrate power on main surface
         mp_powers, hmin = surface_analysis(main_frame, zonename, do_cms,
@@ -379,39 +443,33 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
                                 blank_value=blank_value,
                                 timedelta=deltatime)
         if save_mesh:
-            #for name in ['K_net [W/Re^2]', 'P0_net [W/Re^2]',
-            #         'ExB_net [W/Re^2]']:
-            #    varnames.append(name)
             cc_length = len(field_data.zone(zonename).values(
                                                   'x_cc').as_numpy_array())
             for name in field_data.variable_names:
                 var_length = len(field_data.zone(zonename).values(
                                   name.split(' ')[0]+'*').as_numpy_array())
                 if var_length==cc_length:
-                    varnames.append(name)
+                    savemeshvars.append(name)
         if do_1Dsw and save_mesh:
             for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                             '1DExB_net [W/Re^2]']:
-                varnames.append(name)
-        #if not include_core and mode == 'iso_betastar':
-        if True:
-            inner_mesh = pd.DataFrame()
+                savemeshvars.append(name)
+        if mode=='iso_betastar':
             #integrate power on innerboundary surface
-            if mode=='iso_betastar':
-                innerbound_powers, _ = surface_analysis(main_frame,
+            inner_mesh = pd.DataFrame()
+            innerbound_powers, _ = surface_analysis(main_frame,
                                     field_data.zone('*innerbound*').name,
                                                     False, do_1Dsw,
                                                     find_DFT=False,
                                             cuttoff=tail_analysis_cap)
-                innerbound_powers = innerbound_powers.add_prefix('inner')
-                print('\nInnerbound surface power calculated')
-                if save_mesh:
-                    #save inner boundary mesh to the mesh file
-                    inner_index =(
-                              field_data.zone('*innerbound*').index.real)
-                    for var in varnames:
-                        inner_mesh[var] = field_data.zone(inner_index
-                           ).values(var.split(' ')[0]+'*').as_numpy_array()
+            innerbound_powers = innerbound_powers.add_prefix('inner')
+            print('\nInnerbound surface power calculated')
+            if save_mesh:
+                #save inner boundary mesh to the mesh file
+                inner_index =(field_data.zone('*innerbound*').index.real)
+                for var in savemeshvars:
+                    inner_mesh[var] = field_data.zone(inner_index).values(
+                                    var.split(' ')[0]+'*').as_numpy_array()
         print('\nMagnetopause Power Terms')
         print(mp_powers)
     else:
@@ -431,7 +489,7 @@ def get_magnetopause(field_data, datafile, *, outputpath='output/',
         print(mp_energies)
     if save_mesh:
         #save mesh to hdf file
-        for var in varnames:
+        for var in savemeshvars:
             mp_mesh[var] = field_data.zone(zoneindex.real
                            ).values(var.split(' ')[0]+'*').as_numpy_array()
     if integrate_volume and integrate_surface and do_virial:
