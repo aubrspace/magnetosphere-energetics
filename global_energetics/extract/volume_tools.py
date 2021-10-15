@@ -16,11 +16,8 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                     integrate_volume,
                                                       dump_to_pandas)
 
-def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
-                    voluB=True, voluE=True, volKE=True, volKEpar=True,
-                    volKEperp=True, volEth=True, volTotal=True,
-                    volume=True, findS=True, virial=True, dt=60,
-                    cuttoff=-20, blank=True, tail_h=15):
+def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
+                    dt, cuttoff, tail_h):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
     Inputs
@@ -30,22 +27,36 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
     Outputs
         magnetic_energy- volume integrated magnetic energy B2/2mu0
     """
+    #initalize everything to False
+    voluB=False
+    voluE=False
+    volKE=False
+    volKEpar=False
+    volKEperp=False
+    volEth=False
+    volTotal=False
+    virial=False
+    volume=False
+    if analysis_type=='energy' or analysis_type=='all':
+        voluB=True
+        voluE=True
+        volKE=True
+        volEth=True
+        volTotal=True
+        volume=True
+    if analysis_type=='virial' or analysis_type=='all':
+        virial=True
+        volume=True
+    if analysis_type=='all':
+        volKEpar=True
+        volKEperp=True
     #initialize objects for main frame
     field_data = frame.dataset
-    volume_name = state_variable_name
+    volume_name = state_var
     zone_index = int(field_data.zone('global_field').index)
     if len([var for var in field_data.variables('beta_star')]) < 1:
         print('Global variables not setup! Cannot perform integration')
         return None
-    if blank:
-        #Blank X < X_cuttoff
-        frame.plot().value_blanking.active = True
-        rblank = frame.plot().value_blanking.constraint(2)
-        rblank.active = True
-        rblank.variable = field_data.variable('r *')
-        rblank.comparison_operator = RelOp.LessThan
-        rblank.comparison_value = rblank
-        rblank.blanking.cell_mode = ValueBlankCellMode.AllCorners
     keys = []
     data = []
     eq = tp.data.operate.execute_equation
@@ -57,7 +68,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
     for add in prefixlist:
         if voluB:
             #integrate total magnetic energy
-            eq('{uBtot temp} = IF({'+state_variable_name+'}<1, 0, '+
+            eq('{uBtot temp} = IF({'+state_var+'}<1, 0, '+
                                    '{'+add+'uB [J/Re^3]})')
             keys.append(add+'uBtot [J]')
             uB_index = int(field_data.variable('uBtot temp').index)
@@ -65,7 +76,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             print(add+'{} uBtot integration done'.format(volume_name))
             data.append(uB)
             #integrate dipole magnetic energy
-            eq('{uB_dipole temp} = IF({'+state_variable_name+'}<1, 0, '+
+            eq('{uB_dipole temp} = IF({'+state_var+'}<1, 0, '+
                                    '{'+add+'uB_dipole [J/Re^3]})')
             keys.append(add+'uB_dipole [J]')
             uB_index = int(field_data.variable('uB_dipole temp').index)
@@ -73,7 +84,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             print(add+'{} uB dipole integration done'.format(volume_name))
             data.append(uB)
             #integrate disturbance magnetic energy
-            eq('{uB_dist temp} = IF({'+state_variable_name+'}<1, 0, '+
+            eq('{uB_dist temp} = IF({'+state_var+'}<1, 0, '+
                                    '{'+add+'delta_uB [J/Re^3]})')
             keys.append(add+'uB_dist [J]')
             uB_index = int(field_data.variable('uB_dist temp').index)
@@ -82,7 +93,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             data.append(uB)
         if volKE:
             #integrate KE
-            eq('{KE temp}=IF({'+state_variable_name+'}<1,0,'+
+            eq('{KE temp}=IF({'+state_var+'}<1,0,'+
                                '{'+add+'KE [J/Re^3]})')
             keys.append(add+'KE [J]')
             KE_index = int(field_data.variable('KE temp').index)
@@ -91,7 +102,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             data.append(KE)
         if volKEpar:
             #integrate parallel KE
-            eq('{KEpar temp}=IF({'+state_variable_name+'}<1,0,'+
+            eq('{KEpar temp}=IF({'+state_var+'}<1,0,'+
                                '{'+add+'KEpar [J/Re^3]})')
             keys.append(add+'KEpar [J]')
             KEpar_index = int(field_data.variable('KEpar temp').index)
@@ -100,7 +111,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             data.append(KEpar)
         if volKEperp:
             #integrate perp KE
-            eq('{KEperp temp} =IF({'+state_variable_name+'}<1,0,'+
+            eq('{KEperp temp} =IF({'+state_var+'}<1,0,'+
                                  '{'+add+'KEperp [J/Re^3]})')
             keys.append(add+'KEperp [J]')
             KEperp_index = int(field_data.variable('KEperp temp').index)
@@ -109,7 +120,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             data.append(KEperp)
         if volEth:
             #integrate thermal energy
-            eq('{Etherm temp} =IF({'+state_variable_name+'}<1,0,'+
+            eq('{Etherm temp} =IF({'+state_var+'}<1,0,'+
                                                 '{P [nPa]}*6371**3*1.5)')
             keys.append(add+'Etherm [J]')
             Eth_index = int(field_data.variable('Etherm temp').index)
@@ -118,7 +129,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             data.append(Eth)
         if volTotal:
             #integrate total energy
-            eq('{Total temp} =IF({'+state_variable_name+'}<1,0,'+
+            eq('{Total temp} =IF({'+state_var+'}<1,0,'+
                                                 '{'+add+'Utot [J/Re^3]})')
             keys.append(add+'Total [J]')
             Total_index = int(field_data.variable('Total temp').index)
@@ -127,7 +138,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
             data.append(Total)
         if volume:
             #integrate volume size
-            eq('{Volume temp} =IF({'+state_variable_name+'}<1,0,1)')
+            eq('{Volume temp} =IF({'+state_var+'}<1,0,1)')
             keys.append('Volume [Re^3]')
             Vol_index = int(field_data.variable('Volume temp').index)
             Vol = integrate_volume(Vol_index, zone_index)
@@ -140,7 +151,7 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
         data.append(energy_density)
         if virial:
             #integrate r^2 weighted mass (will look @ 2nd derivative)
-            eq('{rho r^2 temp} = IF({'+state_variable_name+'}<1,0,'+
+            eq('{rho r^2 temp} = IF({'+state_var+'}<1,0,'+
                                                  '{rho r^2 [kgm^2/Re^3]})')
             keys.append(add+'Mr^2 [kgm^2]')
             rhor2_index = int(field_data.variable('rho r^2 temp').index)
@@ -200,10 +211,6 @@ def volume_analysis(frame, state_variable_name, do_1Dsw, do_cms, rblank, *,
                 data.append(forf/dt)
                 data.append(net/dt)
     volume_energies = pd.DataFrame([data], columns=keys)
-    if blank:
-        #Turn blanking back off
-        rblank.active = False
-        frame.plot().value_blanking.active = False
 
     return volume_energies
 

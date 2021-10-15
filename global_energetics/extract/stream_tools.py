@@ -650,8 +650,8 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
     field_data.zone(futureindex).values('SectorID')[::]=future_mesh[
                                                             'ID'].values
 
-def get_surface_variables(field_data, zone_name, do_1Dsw, *,
-                          find_DFT=True, do_cms=False, dt=60):
+def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
+                          *, find_DFT=True, do_cms=False, dt=60):
     """Function calculated variables for a specific 3D surface
     Inputs
         field_data, zone_name
@@ -676,8 +676,12 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *,
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
-    eq('{Utot_cc}={Utot [J/Re^3]}',
+    if analysis_type == 'energy' or analysis_type == 'all':
+        eq('{Utot_cc}={Utot [J/Re^3]}',
                          value_location=ValueLocation.CellCentered)
+    eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered)
+    eq('{By_cc}={B_y [nT]}', value_location=ValueLocation.CellCentered)
+    eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered)
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
     eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
     xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
@@ -706,7 +710,7 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *,
             eq('{surface_normal_x} = {X Grid K Unit Normal}')
             eq('{surface_normal_y} = {Y Grid K Unit Normal}')
             eq('{surface_normal_z} = {Z Grid K Unit Normal}')
-    if find_DFT:
+    if zone_name.find('mp')!=-1 and zone_name.find('innerbound')==-1:
         ##############################################################
         #Day, flank, tail definitions
             #2-dayside
@@ -732,8 +736,8 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *,
                 zones=[zone_index])
     else:
         hmin=0
-    dt = str(dt)
     '''
+    dt = str(dt)
     Old surface velocity calculation
         #If x<0 dot n with YZ vector, else dot with R(XYZ) vector
         eq('{Csurface_x} = IF({x_cc}<0,'+
@@ -743,73 +747,76 @@ def get_surface_variables(field_data, zone_name, do_1Dsw, *,
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
     '''
-    ##Different prefixes allow for calculation of surface fluxes using 
-    #   multiple sets of flowfield variables (denoted by the prefix)
-    prefixlist = ['']
-    for add in prefixlist:
-        ##################################################################
-        #Velocity normal to the surface
-        eq('{Unorm [km/s]}=sqrt(({U_x [km/s]}*{surface_normal_x})**2+'+
-                            '({U_y [km/s]}*{surface_normal_y})**2+'+
-                            '({U_z [km/s]}*{surface_normal_z})**2)',
-                         value_location=ValueLocation.CellCentered,
-                         zones=[zone_index])
-        ##################################################################
-        #Virial boundary terms
+    if analysis_type == 'virial' or analysis_type == 'all':
+        eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
+        eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
+        eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
         virial_term_list = get_virials()
         for term in virial_term_list:
             eq(term, value_location=ValueLocation.CellCentered)
-        ##################################################################
-        #Normal Poynting Flux
-        eq('{'+add+'ExB_net [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
-                                        '*6371**2*('+
-                                      '{U_x [km/s]}*{surface_normal_x}'+
-                                     '+{U_y [km/s]}*{surface_normal_y}'+
-                                     '+{U_z [km/s]}*{surface_normal_z})-'+
-             '({B_x [nT]}*({U_x [km/s]})+'+
-              '{B_y [nT]}*({U_y [km/s]})+'+
-              '{B_z [nT]}*({U_z [km/s]}))'+
-                                    '*({B_x [nT]}*{surface_normal_x}+'+
-                                      '{B_y [nT]}*{surface_normal_y}+'+
-                                      '{B_z [nT]}*{surface_normal_z})'+
-                                        '/(4*pi*1e-7)*1e-9*6371**2',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        #Split into + and - flux
-        eq('{'+add+'ExB_escape} = max({'+add+'ExB_net [W/Re^2]},0)',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        eq('{'+add+'ExB_injection} = min({'+add+'ExB_net [W/Re^2]},0)',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        ##################################################################
-        #Normal Total Pressure Flux
-        eq('{'+add+'P0_net [W/Re^2]} = (1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
-                                        '*6371**2*('+
-                                     '{U_x [km/s]}*{surface_normal_x}'+
-                                     '+{U_y [km/s]}*{surface_normal_y}'+
-                                     '+{U_z [km/s]}*{surface_normal_z})',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        #Split into + and - flux
-        eq('{'+add+'P0_escape} = max({'+add+'P0_net [W/Re^2]},0)',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        eq('{'+add+'P0_injection} = min({'+add+'P0_net [W/Re^2]},0)',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        ##################################################################
-        #Normal Total Energy Flux
-        eq('{'+add+'K_net [W/Re^2]}={P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        #Split into + and - flux
-        eq('{'+add+'K_escape} = max({'+add+'K_net [W/Re^2]},0)',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
-        eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
-            value_location=ValueLocation.CellCentered,
-            zones=[zone_index])
+    ##Different prefixes allow for calculation of surface fluxes using 
+    #   multiple sets of flowfield variables (denoted by the prefix)
+    if analysis_type == 'energy' or analysis_type == 'all':
+        prefixlist = ['']
+        for add in prefixlist:
+            ##############################################################
+            #Velocity normal to the surface
+            eq('{Unorm [km/s]}=sqrt(({U_x [km/s]}*{surface_normal_x})**2+'+
+                                '({U_y [km/s]}*{surface_normal_y})**2+'+
+                                '({U_z [km/s]}*{surface_normal_z})**2)',
+                            value_location=ValueLocation.CellCentered,
+                            zones=[zone_index])
+            ##############################################################
+            #Normal Poynting Flux
+            eq('{'+add+'ExB_net [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
+                                            '*6371**2*('+
+                                        '{U_x [km/s]}*{surface_normal_x}'+
+                                        '+{U_y [km/s]}*{surface_normal_y}'+
+                                        '+{U_z [km/s]}*{surface_normal_z})-'+
+                '({B_x [nT]}*({U_x [km/s]})+'+
+                '{B_y [nT]}*({U_y [km/s]})+'+
+                '{B_z [nT]}*({U_z [km/s]}))'+
+                                        '*({B_x [nT]}*{surface_normal_x}+'+
+                                        '{B_y [nT]}*{surface_normal_y}+'+
+                                        '{B_z [nT]}*{surface_normal_z})'+
+                                            '/(4*pi*1e-7)*1e-9*6371**2',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            #Split into + and - flux
+            eq('{'+add+'ExB_escape} = max({'+add+'ExB_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{'+add+'ExB_injection} = min({'+add+'ExB_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            ##############################################################
+            #Normal Total Pressure Flux
+            eq('{'+add+'P0_net [W/Re^2]} = (1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
+                                            '*6371**2*('+
+                                        '{U_x [km/s]}*{surface_normal_x}'+
+                                        '+{U_y [km/s]}*{surface_normal_y}'+
+                                        '+{U_z [km/s]}*{surface_normal_z})',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            #Split into + and - flux
+            eq('{'+add+'P0_escape} = max({'+add+'P0_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{'+add+'P0_injection} = min({'+add+'P0_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            ##############################################################
+            #Normal Total Energy Flux
+            eq('{'+add+'K_net [W/Re^2]}={P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            #Split into + and - flux
+            eq('{'+add+'K_escape} = max({'+add+'K_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
+            eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone_index])
         return hmin
 
 
@@ -1076,28 +1083,24 @@ def get_dipole_field(auxdata, *, B0=31000):
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
-def get_global_variables(field_data):
+def get_global_variables(field_data, analysis_type):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
     """
-    currentzone = field_data.zone('global_field')
-    futurezone = field_data.zone('future')
     ######################################################################
-    '''Save for later
-    {SLobe} = if({mp_}==1&&{Status}==1,1,0)
-    {NLobe} = if({mp_}==1&&{Status}==2,1,0)
-    {Plasmasheet} = if({lcb}==1&&abs({B_x [nT]})<10&&{X [R]}<0&&{r [R]}>7,1,0)
-    {RingCurrent} = if({lcb}==1&&{r [R]}<7&&(abs({B_x [nT]})>10||{X [R]}>0),1,0)
-    {StretchedTail} = if({lcb}==1&&{r [R]}>7&&(abs({B_x [nT]})>10||{X [R]}>0),1,0)
-    '''
-    #General equations
     eq = tp.data.operate.execute_equation
+    aux = field_data.zone('global_field').aux_data
+    #General equations
     #Useful spatial variables
     eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
     eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
-    eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
-
+    #Dipolar coordinate variables
+    eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
+    #{mhat_y} = 0
+    eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
+    eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
+    eq('{Lshell} = {r [R]}/cos({lambda})**2')
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
@@ -1109,68 +1112,37 @@ def get_global_variables(field_data):
     eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
                           '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
-    #Magnetic field unit vectors
-    eq('{unitbx} ={B_x [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{unitby} ={B_y [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{unitbz} ={B_z [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-    eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{By_cc}={B_y [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered)
     eq('{Bmag [nT]} =sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
         value_location=ValueLocation.CellCentered)
-    #Density times velocity between now and next timestep
-    eq('{rhoUx_cc}={Rho [amu/cm^3]}*{U_x [km/s]}',
+    ######################################################################
+    #Virial only intermediate terms
+    if analysis_type=='virial' or analysis_type=='all':
+        #Density times velocity between now and next timestep
+        eq('{rhoUx_cc}={Rho [amu/cm^3]}*{U_x [km/s]}',
                          value_location=ValueLocation.CellCentered)
-    eq('{rhoUy_cc}={Rho [amu/cm^3]}*{U_y [km/s]}',
+        eq('{rhoUy_cc}={Rho [amu/cm^3]}*{U_y [km/s]}',
                          value_location=ValueLocation.CellCentered)
-    eq('{rhoUz_cc}={Rho [amu/cm^3]}*{U_z [km/s]}',
+        eq('{rhoUz_cc}={Rho [amu/cm^3]}*{U_z [km/s]}',
                          value_location=ValueLocation.CellCentered)
-    temporal_FD_variable(currentzone, futurezone, 'rhoUx_cc')
-    temporal_FD_variable(currentzone, futurezone, 'rhoUy_cc')
-    temporal_FD_variable(currentzone, futurezone, 'rhoUz_cc')
-    #Density weighted by r^2
-    eq('{rho r^2 [kgm^2/Re^3]} = {rho [amu/cm^3]}*{r [R]}**2'+
+        currentzone = field_data.zone('global_field')
+        futurezone = field_data.zone('future')
+        temporal_FD_variable(currentzone, futurezone, 'rhoUx_cc')
+        temporal_FD_variable(currentzone, futurezone, 'rhoUy_cc')
+        temporal_FD_variable(currentzone, futurezone, 'rhoUz_cc')
+        #Density weighted by r^2
+        eq('{rho r^2 [kgm^2/Re^3]} = {rho [amu/cm^3]}*{r [R]}**2'+
                                    '*1e6*1.6605e-27*(6371*1e3)**5',
-        value_location=ValueLocation.CellCentered)
-    #Dipole field (requires coordsys and UT information!!!)
-    aux = field_data.zone('global_field').aux_data
-    Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
-    eq(Bdx_eq); eq(Bdy_eq); eq(Bdz_eq)
-    eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
-    eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
-    eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
-    eq('{Bdmag [nT]} =sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)',
-        value_location=ValueLocation.CellCentered)
-    #Dipolar coordinate variables
-    eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
-    #{mhat_y} = 0
-    eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
-    eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
-    eq('{Lshell} = {r [R]}/cos({lambda})**2')
+                          value_location=ValueLocation.CellCentered)
+        #Dipole field (requires coordsys and UT information!!!)
+        Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
+        eq(Bdx_eq); eq(Bdy_eq); eq(Bdz_eq)
+        eq('{Bdmag [nT]} =sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)',
+                          value_location=ValueLocation.CellCentered)
     ######################################################################
     #Volumetric energy terms
     #Total Magnetic Energy per volume
     eq('{uB [J/Re^3]} = {Bmag [nT]}**2'+
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Dipole magnetic Energy
-    eq('{uB_dipole [J/Re^3]} = {Bdmag [nT]}**2'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Disturbance Magnetic Energy per volume
-    eq('{delta_uB [J/Re^3]}= (({B_x [nT]}-{Bdx})**2+'+
-                             '({B_y [nT]}-{Bdy})**2+'+
-                             '({B_z [nT]}-{Bdz})**2)'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Hydrodynamic Energy Density
-    eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Total Energy Density
-    eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
         value_location=ValueLocation.CellCentered)
     #Thermal Pressure in Energy units
     eq('{Pth [J/Re^3]} = {P [nPa]}*6371**3',
@@ -1180,68 +1152,94 @@ def get_global_variables(field_data):
                       '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)'+
                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
         value_location=ValueLocation.CellCentered)
-    eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                                    '(({U_x [km/s]}*{unitbx})**2+'+
-                                    '({U_y [km/s]}*{unitby})**2+'+
-                                    '({U_z [km/s]}*{unitbz})**2) *'+
-                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-    eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
-                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
-                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
-                                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
+    if analysis_type=='virial' or analysis_type=='all':
+        #Dipole magnetic Energy
+        eq('{uB_dipole [J/Re^3]} = {Bdmag [nT]}**2'+
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+                          value_location=ValueLocation.CellCentered)
+        #Disturbance Magnetic Energy per volume
+        eq('{delta_uB [J/Re^3]}= (({B_x [nT]}-{Bdx})**2+'+
+                             '({B_y [nT]}-{Bdy})**2+'+
+                             '({B_z [nT]}-{Bdz})**2)'+
+                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+                          value_location=ValueLocation.CellCentered)
+    if analysis_type=='energy' or analysis_type=='all':
+        #Hydrodynamic Energy Density
+        eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+                          value_location=ValueLocation.CellCentered)
+        #Total Energy Density
+        eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
+                          value_location=ValueLocation.CellCentered)
     ######################################################################
-    #Energy Flux terms
-    #Poynting Flux
-    eq('{ExB_x [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+    if analysis_type=='energy' or analysis_type=='all':
+        #Energy Flux terms
+        #Magnetic field unit vectors
+        eq('{unitbx} ={B_x [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+        eq('{unitby} ={B_y [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+        eq('{unitbz} ={B_z [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+        #Poynting Flux
+        eq('{ExB_x [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
                               '{U_x [km/s]})-{B_x [nT]}*'+
                                             '({B_x [nT]}*{U_x [km/s]}+'+
                                              '{B_y [nT]}*{U_y [km/s]}+'+
                                              '{B_z [nT]}*{U_z [km/s]})'+
                                            '/(4*pi*1e-7)*1e-9*6371**2',
-            value_location=ValueLocation.CellCentered)
-    eq('{ExB_y [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                          value_location=ValueLocation.CellCentered)
+        eq('{ExB_y [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
                               '{U_y [km/s]})-{B_y [nT]}*'+
                                             '({B_x [nT]}*{U_x [km/s]}+'+
                                              '{B_y [nT]}*{U_y [km/s]}+'+
                                              '{B_z [nT]}*{U_z [km/s]})'+
                                            '/(4*pi*1e-7)*1e-9*6371**2',
-            value_location=ValueLocation.CellCentered)
-    eq('{ExB_z [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                          value_location=ValueLocation.CellCentered)
+        eq('{ExB_z [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
                               '{U_z [km/s]})-{B_z [nT]}*'+
                                             '({B_x [nT]}*{U_x [km/s]}+'+
                                              '{B_y [nT]}*{U_y [km/s]}+'+
                                              '{B_z [nT]}*{U_z [km/s]})'+
                                            '/(4*pi*1e-7)*1e-9*6371**2',
-            value_location=ValueLocation.CellCentered)
-    #Total pressure Flux
-    eq('{P0_x [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          value_location=ValueLocation.CellCentered)
+        #Total pressure Flux
+        eq('{P0_x [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
                           '*{U_x [km/s]}',
-        value_location=ValueLocation.CellCentered)
-    eq('{P0_y [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          value_location=ValueLocation.CellCentered)
+        eq('{P0_y [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
                           '*{U_y [km/s]}',
-        value_location=ValueLocation.CellCentered)
-    eq('{P0_z [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          value_location=ValueLocation.CellCentered)
+        eq('{P0_z [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
                           '*{U_z [km/s]}',
-        value_location=ValueLocation.CellCentered)
-    #Total Energy Flux
-    eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
-        value_location=ValueLocation.CellCentered)
-    eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
-        value_location=ValueLocation.CellCentered)
-    eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
-        value_location=ValueLocation.CellCentered)
+                          value_location=ValueLocation.CellCentered)
+        #Total Energy Flux
+        eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
+                          value_location=ValueLocation.CellCentered)
+        eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
+                          value_location=ValueLocation.CellCentered)
+        eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
+                          value_location=ValueLocation.CellCentered)
     ######################################################################
+    if analysis_type=='all':
+        eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                                    '(({U_x [km/s]}*{unitbx})**2+'+
+                                    '({U_y [km/s]}*{unitby})**2+'+
+                                    '({U_z [km/s]}*{unitbz})**2) *'+
+                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
+                          value_location=ValueLocation.CellCentered)
+        eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
+                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
+                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
+                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
+                                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
+                          value_location=ValueLocation.CellCentered)
     #Terms with derivatives (experimental)
-    '''
-    #Vorticity
-    eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
-                          '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
-                          '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
-                            value_location=ValueLocation.CellCentered)
-    '''
+    if analysis_type=='development':
+        #Vorticity
+        eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
+                              '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
+                              '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
+                          value_location=ValueLocation.CellCentered)
 
 def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
@@ -1369,6 +1367,112 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         newzone2 = frame.dataset.zone(newzone2_key)
         newzone2.name = zonename+'innerbound'
         return newzone, newzone2
+def calc_state(mode, sourcezone, **kwargs):
+    """Function selects which state calculation method to use
+    Inputs
+        mode- eg. "iso_betastar" "ps" "shue97" selects what to create
+        sourcezoneID- which tecplot field data to use to create new state
+        kwargs- see magnetosphere.py get_magnetosphere for details
+    Returns
+        zone- tecplot zone object
+        innerzone- for magnetopause surface only, tecplot zone obj
+        state_index- index for accessing new variable in tecplot
+        zonename- name of the zone, (eg. appends mp for magnetopause)
+    """
+    #####################################################################
+    #   This is where new subzones/surfaces can be put in
+    #       Simply create a function calc_MYNEWSURF_state and call it
+    #       Recommend: zonename as input so variable name is automated
+    #       See ex use of 'assert' if any pre_recs are needed
+    #####################################################################
+    #Call calc_XYZ_state and return state_index and create zonename
+    if mode == 'iso_betastar':
+        zonename = 'mp_'+mode
+        if sourcezone.name.find('future')!=-1:
+            closed_zone = kwargs.get('future_closed_zone')
+        else:
+            closed_zone = kwargs.get('closed_zone')
+        state_index = calc_betastar_state(zonename, sourcezone.index,
+                                          kwargs.get('x_subsolar'),
+                                          kwargs.get('tail_cap', -20),
+                                          50,kwargs.get('mpbetastar',0.7),
+                                          kwargs.get('inner_r',3),
+                                          closed_zone)
+    elif mode == 'sphere':
+        zonename = mode+str(kwargs.get('sp_rmax',3))
+        state_index = calc_sphere_state(zonename, kwargs.get('sp_x',0),
+                                        kwargs.get('sp_y',0),
+                                        kwargs.get('sp_z',0),
+                                        kwargs.get('sp_rmax',3),
+                                        rmin=kwargs.get('sp_rmin',0))
+    elif mode == 'box':
+        zonename = mode
+        state_index = calc_box_state(zonename,
+                                     kwargs.get('box_xmax',-5),
+                                     kwargs.get('box_xmin',-8),
+                                     kwargs.get('box_ymax',5),
+                                     kwargs.get('box_ymin',-5),
+                                     kwargs.get('box_zmax',5),
+                                     kwargs.get('box_zmin',-5))
+    elif mode.find('shue') != -1:
+        if mode =='shue97':
+            zonename = 'shu97'
+        else:
+            zonename = 'shue98'
+        state_index = calc_shue_state(tp.active_frame().dataset, mode,
+                                      kwargs.get('x_subsolar'),
+                                      kwargs.get('tail_cap', -20))
+    elif mode.find('lcb') != -1:
+        assert kwargs.get('do_trace',False) == False, (
+                            "lcb mode only works with do_trace==False!")
+        assert kwargs.get('closed_zone').index != None, (
+                                    'No closed_zone present! Cant do lcb')
+        zonename = kwargs.get('closed_zone').name
+        state_index = tp.active_frame().dataset.variable(zonename).index
+    elif mode.find('lobe') != -1:
+        mpvar = kwargs.get('mpvar', None)
+        assert kwargs.get('do_trace',False) == False, (
+                            "lobe mode only works with do_trace==False!")
+        assert mpvar != None,('magnetopause variable not found'+
+                              'cannot calculate lobe zone!')
+        zonename = 'ms_'+mode
+        if mode.lower().find('s') != -1:
+            state_index = calc_lobe_state(mpvar, 'south')
+        else:
+            state_index = calc_lobe_state(mpvar, 'north')
+    elif mode.find('rc') != -1:
+        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+                                       ' closed_zone present! Cant do rc')
+        zonename = 'ms_'+mode
+        state_index = calc_rc_state(kwargs.get('closed_zone').name,
+                                    str(kwargs.get('lshelllim',7)))
+    elif mode.find('ps') != -1:
+        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+                                       ' closed_zone present! Cant do rc')
+        zonename = 'ms_'+mode
+        state_index = calc_ps_qDp_state('ps',
+                                        kwargs.get('closed_zone').name,
+                                        str(kwargs.get('lshelllim',7)),
+                                        str(kwargs.get('bxmax',10)))
+    elif mode.find('qDp') != -1:
+        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+                                       ' closed_zone present! Cant do rc')
+        zonename = 'ms_'+mode
+        state_index = calc_ps_qDp_state('qDp',
+                                        kwargs.get('closed_zone').name,
+                                        str(kwargs.get('lshelllim',7)),
+                                        str(kwargs.get('bxmax',10)))
+    else:
+        assert False, ('mode not recognized!! Check "approved" list with'+
+                       'available calc_state functions')
+    if mode != 'iso_betastar':
+        zone, innerzone = setup_isosurface(1, state_index, zonename)
+        innerzone = None
+    else:
+        zone, innerzone = setup_isosurface(1, state_index, zonename,
+                                           keep_condition='sphere',
+                                  keep_cond_value=kwargs.get('inner_r',3))
+    return zone, innerzone, state_index
 
 def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
     """Function creates equation for the plasmasheet or quasi diploar
@@ -1448,14 +1552,12 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
     return tp.active_frame().dataset.variable('mp_rho_transition').index
 
 def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
-                        core, coreradius, closed_zone):
+                        coreradius, closed_zone):
     """Function creates equation in tecplot representing surface
     Inputs
         zonename
         xmax, xmin, hmax, hmin, rmin- spatial bounds
         rhomax- density bound
-        core- boolean for including the inner boundary in domain, used to
-                isolate effects on outer boundary only
         closed_zone- zone object, None to omit closed zone in equation
     Outputs
         created variable index
@@ -1469,9 +1571,7 @@ def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
     eq = tp.data.operate.execute_equation
     eqstr = ('{'+zonename+'} = '+
         'IF({X [R]} >'+str(xmin-2)+'&&'+
-        '{X [R]} <'+str(xmax))
-    if core == False:
-        eqstr =(eqstr+'&& {r [R]} > '+str(coreradius))
+        '{X [R]} <'+str(xmax)+'&& {r [R]} > '+str(coreradius))
     eqstr=(eqstr+',IF({beta_star}['+str(source+1)+']<'+str(betamax)+',1,')
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
@@ -1532,6 +1632,7 @@ def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
     else:
         r0, alpha = r0_alpha_1998(Bz, Dp)
     eq = tp.data.operate.execute_equation
+    eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
     eq('{r'+mode+'} = '+str(r0)+'*(2/(1+cos({theta})))**'+str(alpha))
     eq('{'+mode+'} = IF(({r [R]} < {r'+mode+'}) &&'+
                       '({X [R]} > '+str(xtail)+'), 1, 0)')

@@ -14,7 +14,7 @@ import tecplot
 from tecplot.constant import *
 from tecplot.exception import *
 #import global_energetics
-from global_energetics.extract import magnetopause
+from global_energetics.extract import magnetosphere
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import satellites
 from global_energetics.extract import stream_tools
@@ -52,36 +52,10 @@ if __name__ == "__main__":
     main.name = 'main'
 
     #Caclulate initial surface
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  outputpath=OUTPATH,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  mode='nlobe',
-                                  outputpath=OUTPATH,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  mode='slobe',
-                                  outputpath=OUTPATH,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  mode='rc',
-                                  outputpath=OUTPATH,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  mode='ps',
-                                  outputpath=OUTPATH,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  mode='qDp',
-                                  outputpath=OUTPATH,
-                                  integrate_surface=True,
-                                  integrate_volume=True)
-
+    magnetosphere.get_magnetosphere(field_data, analysis_type='all',
+                                        outputpath=OUTPATH, mode=mode,
+                                        integrate_surface=True,
+                                        integrate_volume=True)
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'

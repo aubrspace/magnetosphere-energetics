@@ -18,23 +18,33 @@ from global_energetics.extract.stream_tools import (integrate_surface,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
-def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *, find_DFT=True,
-                     calc_K=True, calc_ExB=True, calc_P0=True,virial=True,
-                    surface_area=True, test=False,cuttoff=-20,blank=False,
-                    blank_value=0, blank_variable='W *',timedelta=60):
+def surface_analysis(frame, zone_name, analysis_type, do_cms, do_1Dsw,
+                     blank, blank_variable, blank_value, timedelta):
     """Function to calculate energy flux at magnetopause surface
     Inputs
         field_data- tecplot Dataset object with 3D field data and mp
         zone_name
         calc_ - boolean for performing that integration
-        cuttoff- used to blank tail end of surface
     Outputs
         surface_power- power, or energy flux at the magnetopause surface
     """
+    surface_area=True
+    test=False
+    if analysis_type=='energy' or analysis_type=='all':
+        calc_K=True
+        calc_ExB=True
+        calc_P0=True
+    else:
+        calc_K=False
+        calc_ExB=False
+        calc_P0=False
+    if zone_name.find('mp')!=-1 and zone_name.find('innerbound')==-1:
+        find_DFT=True
+    else:
+        find_DFT=False
     #Optional blanking
     if blank:
-        variable_blank(frame, blank_variable, blank_value)
-        variable_blank(frame, blank_variable, blank_value-100, slot=4,
+        variable_blank(frame, blank_variable, blank_value,
                        operator=RelOp.LessThan)
     #get surface specific variables
     field_data = frame.dataset
@@ -47,11 +57,11 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *, find_DFT=True,
         get_surface_variables(field_data, zone_name, do_1Dsw, do_cms=True,
                               dt=timedelta)
         '''
-        hmin = get_surface_variables(field_data, zone_name, do_1Dsw,
-                                     find_DFT=find_DFT)
+        hmin = get_surface_variables(field_data, zone_name, analysis_type,
+                                     do_1Dsw, find_DFT=find_DFT)
     else:
-        hmin = get_surface_variables(field_data, zone_name, do_1Dsw,
-                                     find_DFT=find_DFT)
+        hmin = get_surface_variables(field_data, zone_name, analysis_type,
+                                     do_1Dsw, find_DFT=find_DFT)
     #initialize objects for frame
     zone_index = int(field_data.zone(zone_name).index)
     keys = []
@@ -229,7 +239,7 @@ def surface_analysis(frame, zone_name, do_cms, do_1Dsw, *, find_DFT=True,
             data.append(kinj_average)
         ###################################################################
         #Virial boundary total pressure integral
-        if virial:
+        if analysis_type=='virial' or analysis_type=='all':
             virial_dict = {'virial_scalarPth':'Virial ScalarPth [J]',
                            'virial_scalaruB':'Virial ScalarPmag [J]',
                            'virial_scalaruB_dipole':'Virial ScalarPdip [J]',
