@@ -74,26 +74,40 @@ def work(mhddatafile):
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'],
-                                  zone_rename='mp_')
+                                  save_mesh=False,
+                                  outputpath=CONTEXT['OUTPUTPATH'])
     magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'],
-                                  mode='sphere', sp_rmax=5,
-                                  zone_rename='R5_')
+                                  save_mesh=False,
+                                  mode='nlobe',
+                                  outputpath=CONTEXT['OUTPUTPATH'])
     magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'],
-                                  mode='sphere', sp_rmax=8,
-                                  zone_rename='R8_')
+                                  save_mesh=False,
+                                  mode='slobe',
+                                  outputpath=CONTEXT['OUTPUTPATH'])
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  save_mesh=False,
+                                  mode='rc',
+                                  outputpath=CONTEXT['OUTPUTPATH'])
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  save_mesh=False,
+                                  mode='ps',
+                                  outputpath=CONTEXT['OUTPUTPATH'])
+    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
+                                  save_mesh=False,
+                                  mode='qDp',
+                                  outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     satzones = satellites.get_satellite_zones(field_data,
                                   CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
-    if False:#manually switch on or off
+    if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
         tp.macro.execute_extended_command(command_processor_id=proc,
                                           command=cmd)
         mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        zone_hidekeys = ['sphere', 'box','lcb','shue','future',
+                         'mp_iso_betastar']
         save=False
         timestamp=False
         for frame in enumerate(tp.frames()):
@@ -113,6 +127,8 @@ def work(mhddatafile):
                                         outputname=OUTPUTNAME,
                                         IDstr=str(CONTEXT['id']),
                                         save_img=save,
+                                        show_contour=False,
+                                        zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
     else:
         with open(CONTEXT['PNGPATH']+'/'+OUTPUTNAME+'.png','wb') as png:
