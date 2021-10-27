@@ -131,21 +131,33 @@ def add_fieldlines(frame):
     """
     plt = frame.plot()
     ds = frame.dataset
-    plt.vector.u_variable = ds.variable('K_x *')
-    plt.vector.v_variable = ds.variable('K_y *')
-    plt.vector.w_variable = ds.variable('K_z *')
+    plt.vector.u_variable = ds.variable('B_x *')
+    plt.vector.v_variable = ds.variable('B_y *')
+    plt.vector.w_variable = ds.variable('B_z *')
     plt.show_streamtraces = True
     plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-10,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-20,0,10],[-10,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-20,0,10],[-30,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-30,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-30,0,10],[-50,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-50,0,10],[-30,0,-10],Streamtrace.VolumeLine)
     '''
     plt.streamtraces.add_rake([10,0,30],[-40,0,30],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,-30],[-40,0,-30],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,30,0],[-40,30,0],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,-30,0],[-40,-30,0],Streamtrace.VolumeLine)
     '''
-    plt.streamtraces.color = Color.Custom3
+    plt.streamtraces.obey_source_zone_blanking = False
+    plt.streamtraces.color = plt.contour(3)
+    plt.contour(3).variable_index = frame.dataset.variable('Status').index
+    plt.contour(3).colormap_name='Large Rainbow'
+    plt.contour(3).colormap_filter.reversed=True
+    plt.contour(3).levels.reset_levels([-1,0,1,2,3])
+    plt.contour(3).legend.show = False
     plt.streamtraces.line_thickness = 0.2
 
 def add_jy_slice(frame, jyindex, showleg):
@@ -350,6 +362,12 @@ def set_camera(frame, *, setting='iso_day'):
         view.alpha, view.theta, view.psi = (0,83,84)
         view.position = (-2514.8,-310.4,264.5)
         view.magnification = 15.30
+        oa_position = [95,7]
+    elif setting == 'zoomed_out':
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (0,156,80)
+        view.position = (-342,694,122)
+        view.magnification = 2.603
         oa_position = [95,7]
     else:
         print('Camera setting {} not developed!'.format(setting))
@@ -681,7 +699,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
         default['xtail'] = -15
         default['show_slice'] = False
         default['transluc'] = 40
-    elif mode == 'iso_tail':
+    elif mode == 'iso_tail' or mode=='zoomed_out':
         default['transluc'] = 60
     elif mode == 'other_iso':
         default['add_clock'] = True
@@ -693,7 +711,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     #Produce image
     zones_shown= manage_zones(frame,default['mpslice'],default['transluc'],
                             default['contourmap'],default['zone_hidekeys'])
-    set_3Daxes(frame, xmin=default['xtail'])
+    set_3Daxes(frame, xmin=default['xtail'], do_blanking=False)
     set_camera(frame, setting=mode)
     if default['show_contour']:
         add_energy_contour(frame,default['energyrange'],
@@ -744,6 +762,86 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
                                  include_data_share_linkage=True,
                                  include_autogen_face_neighbors=True)
 
+def display_2D_contours(frame, **kwargs):
+    """Function does view settings for 2D contour plot
+    Inputs
+        frame
+        kwargs:
+    """
+    #Initialization
+    ds = frame.dataset
+    filename = kwargs.get('filename','var_1_e20130430-040200-000.h5')
+    betastar_index = ds.variable('beta_star').index
+    mp_index = ds.variable('mp').index
+    closed_index = ds.variable('closed').index
+    plot = frame.plot()
+    #Axis settings
+    #plot.axes.axis_mode=AxisMode.Independent
+    #plot.axes.preserve_scale=True
+    plot.axes.x_axis.min=-60
+    plot.axes.x_axis.max=30
+    plot.axes.x_axis.reverse=True
+    plot.axes.y_axis.min=-40
+    plot.axes.y_axis.max=40
+    #Contour settings
+    plot.contour(0).variable_index= betastar_index
+    plot.show_contour=True
+    plot.contour(0).levels.reset_levels([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,
+                                             0.8,0.9,1,1.1,1.2,1.3,1.4])
+    plot.contour(0).colormap_name='div3-green-brown-div'
+    #Blanking 1- magnetopause boundary trace
+    blank = plot.value_blanking
+    blank.active=True
+    #blank.constraint(0).active=True
+    blank.constraint(0).variable_index=mp_index
+    blank.cell_mode=ValueBlankCellMode.TrimCells
+    blank.constraint(0).show_line=True
+    blank.constraint(0).color=Color.Cyan
+    blank.constraint(0).comparison_value=0.7
+    #Blanking 2- "closed" field line region
+    blank.constraint(1).active=True
+    blank.constraint(1).variable_index=closed_index
+    blank.constraint(1).show_line=True
+    blank.constraint(1).color=Color.White
+    blank.constraint(1).comparison_operator=RelOp.LessThan
+    blank.constraint(1).comparison_value=kwargs.get('closed_val',0)
+    blank.constraint(1).line_pattern=LinePattern.Dashed
+    #Copy zone so outline shows up on top of contours
+    ds.copy_zones([1])
+    plot.fieldmaps(1).effects.value_blanking=False
+    #Put 1Re circle and 2.5Re boundary
+    tp.macro.execute_command('''$!AttachGeom 
+  GeomType = Circle
+  Color = Custom2
+  IsFilled = Yes
+  FillColor = Custom2
+  RawData
+2.5''')
+    tp.macro.execute_command('''$!AttachGeom 
+  GeomType = Circle
+  Color = Custom6
+  IsFilled = Yes
+  FillColor = Custom6
+  RawData
+1''')
+    #Adjust contour legend
+    plot.contour(0).legend.vertical=False
+    plot.contour(0).legend.box.box_type=TextBox.Filled
+    plot.contour(0).legend.box.fill_color=Color.Custom2
+    plot.contour(0).legend.position = (85,98)
+    #Frame background color
+    plot.frame.background_color = Color.Custom1
+    plot.axes.y_axis.tick_labels.color=Color.White
+    plot.axes.y_axis.title.color=Color.White
+    plot.axes.y_axis.line.color=Color.White
+    plot.axes.x_axis.tick_labels.color=Color.White
+    plot.axes.x_axis.title.color=Color.White
+    plot.axes.x_axis.line.color=Color.White
+    add_timestamp(frame, filename, kwargs.get('timestamp_pos',(15,15)))
+    #Save output file
+    tp.export.save_png(os.getcwd()+'/'+kwargs.get('pngpath','./')+'/'+
+                           kwargs.get('outputname','2Dcontour')+'.png',
+                           width=kwargs.get('pngwidth',1600))
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

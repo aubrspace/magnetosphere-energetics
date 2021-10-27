@@ -1,5 +1,6 @@
 from . import ionosphere
 from . import magnetosphere
+from . import magnetosphere2D
 from . import plasmasheet
 from . import satellites
 from . import shue

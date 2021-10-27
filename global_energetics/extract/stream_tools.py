@@ -23,6 +23,46 @@ from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
 from progress.bar import Bar
 
+def standardize_vars(**kwargs):
+    """Function attempts to standarize variable names for consistency
+    Inputs
+        kwargs:
+            See dictionary for potential names to switch from
+    """
+    #Initialize and standardize variables
+    known_swaps = {'/x':'X [R]',
+                   '/y':'Y [R]',
+                   '/z':'Z [R]',
+                   '/ux':'U_x [km/s]',
+                   '/uy':'U_y [km/s]',
+                   '/uz':'U_z [km/s]',
+                   '/Ux':'U_x [km/s]',
+                   '/Uy':'U_y [km/s]',
+                   '/Uz':'U_z [km/s]',
+                   '/jx':'J_x [uA/m^2]',
+                   '/jy':'J_y [uA/m^2]',
+                   '/jz':'J_z [uA/m^2]',
+                   '/Jx':'J_x [uA/m^2]',
+                   '/Jy':'J_y [uA/m^2]',
+                   '/Jz':'J_z [uA/m^2]',
+                   '/bx':'B_x [nT]',
+                   '/by':'B_y [nT]',
+                   '/bz':'B_z [nT]',
+                   '/Bx':'B_x [nT]',
+                   '/By':'B_y [nT]',
+                   '/Bz':'B_z [nT]',
+                   '/b1x':'Bx_diff [nT]',
+                   '/b1y':'By_diff [nT]',
+                   '/b1z':'Bz_diff [nT]',
+                   '/p':'P [nPa]',
+                   '/P':'P [nPa]',
+                   '/rho':'Rho [amu/cm^3]',
+                   '/Rho':'Rho [amu/cm^3]',
+                   '/status':'Status'}
+    ds = tp.active_frame().dataset
+    for var in ds.variable_names:
+        ds.variable(var).name = kwargs.get(var,known_swaps[var])
+
 def create_stream_zone(field_data, x1start, x2start, x3start,
                        zone_name, *, line_type=None, cart_given=False,
                        save=False):
@@ -39,6 +79,10 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     Outputs
         streamzone
     """
+    do2D = False
+    if type(x3start)==type(None):
+        x3start=0
+        do2D=True
     if cart_given==False:
         # Get starting position in cartesian coordinates
         [x_start, y_start, z_start] = sph_to_cart(x1start, x2start,
@@ -51,15 +95,30 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     tp.active_frame().plot().show_streamtraces = True
     field_line = tp.active_frame().plot().streamtraces
     if line_type == 'south':
-        field_line.add(seed_point=[x_start, y_start, z_start],
+        if do2D:
+            field_line.add(seed_point=[x_start, y_start],
+                       stream_type=Streamtrace.TwoDLine,
+                       direction=StreamDir.Reverse)
+        else:
+            field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Reverse)
     elif line_type == 'north':
-        field_line.add(seed_point=[x_start, y_start, z_start],
+        if do2D:
+            field_line.add(seed_point=[x_start, y_start],
+                       stream_type=Streamtrace.TwoDLine,
+                       direction=StreamDir.Forward)
+        else:
+            field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Forward)
     else:
-        field_line.add(seed_point=[x_start, y_start, z_start],
+        if do2D:
+            field_line.add(seed_point=[x_start, y_start],
+                       stream_type=Streamtrace.TwoDLine,
+                       direction=StreamDir.Both)
+        else:
+            field_line.add(seed_point=[x_start, y_start, z_start],
                        stream_type=Streamtrace.VolumeLine,
                        direction=StreamDir.Both)
     # Create zone
@@ -69,13 +128,15 @@ def create_stream_zone(field_data, x1start, x2start, x3start,
     field_line.delete_all()
 
 
-def check_streamline_closed(field_data, zone_name, r_seed, line_type):
+def check_streamline_closed(field_data, zone_name, r_seed, line_type,
+                            **kwargs):
     """Function to check if a streamline is open or closed
     Inputs
         field_data- tecplot Dataset class with 3D field data
         zone_name
         r_seed [R]- position used to seed field line
         line_type- dayside, north or south from tail
+        kwargs
     Outputs
         isclosed- boolean, True for closed
     """
@@ -89,15 +150,22 @@ def check_streamline_closed(field_data, zone_name, r_seed, line_type):
         r_end_n = 0
         r_end_s = r_values[0]
         r_seed = 2
-    elif line_type == 'inner_mag':
+    elif line_type == 'inner_mag' or line_type=='inner_magXZ':
         xmax, xmin = field_data.zone(zone_name+'*').values('X *').minmax()
-        ymax, ymin = field_data.zone(zone_name+'*').values('Y *').minmax()
         zmax, zmin = field_data.zone(zone_name+'*').values('Z *').minmax()
-        extrema = [[xmax, ymax, zmax],
-                   [xmin, ymin, zmin]]
-        bounds = [[-220,-126,-126],
-                  [31.5, 126, 126]]
+        if line_type != 'inner_magXZ':
+            ymax,ymin=field_data.zone(zone_name+'*').values('Y *').minmax()
+            extrema = [[xmax, ymax, zmax],
+                       [xmin, ymin, zmin]]
+            defbounds = [[-220,-126,-126],
+                      [31.5, 126, 126]]
+        else:
+            extrema = [[xmax, zmax],
+                       [xmin, zmin]]
+            defbounds = [[-220,-126],
+                      [31.5, 126]]
         isclosed = True
+        bounds = kwargs.get('bounds',defbounds)
         for minmax in enumerate(extrema):
             for value in enumerate(minmax[1]):
                 if abs(value[1])>0.9*abs(bounds[minmax[0]][value[0]]):
@@ -294,7 +362,8 @@ def streamfind_bisection(field_data, method,
        zonelist- list of indices of created zones
     """
     #validate method form
-    approved_methods = ['dayside', 'tail', 'flow', 'plasmasheet']
+    approved_methods = ['dayside', 'tail', 'flow', 'plasmasheet',
+                        'daysideXZ', 'inner_magXZ']
     reverse_if_flow = 0
     if all([test.find(method)==-1 for test in approved_methods]):
         print('WARNING: method for streamfind_bisection not recognized!!'+
@@ -322,6 +391,14 @@ def streamfind_bisection(field_data, method,
                               np.linspace(180, dimmax, int(nstream/4)))
         disp_message = 'Finding Plasmasheet Field Lines'
         lin_type = 'inner_mag'
+    elif method == 'daysideXZ':
+        positions = [0]
+        disp_message = 'Tracing Bx Bz fieldlines'
+        lin_type = 'dayside'
+    elif method == 'inner_magXZ':
+        positions = [0]
+        disp_message = 'Tracing Bx Bz fieldlines'
+        lin_type = method
 
     #set vector field
     field_key_y = field_key_x.split('x')[0]+'y'+field_key_x.split('x')[-1]
@@ -329,8 +406,8 @@ def streamfind_bisection(field_data, method,
     plot = tp.active_frame().plot()
     plot.vector.u_variable = field_data.variable(field_key_x)
     plot.vector.v_variable = field_data.variable(field_key_y)
-    plot.vector.w_variable = field_data.variable(field_key_z)
-
+    if method != 'daysideXZ' and method != 'inner_magXZ':
+        plot.vector.w_variable = field_data.variable(field_key_z)
     seedlist = []
     streamtrace = tp.active_frame().plot().streamtraces
     for a in positions:
@@ -359,8 +436,17 @@ def streamfind_bisection(field_data, method,
             def getseed(r):return (sm2gsm_temp(1, r, a, time), None,
                                     lin_type)
             cartesian = True
+        elif method == 'daysideXZ':
+            plot.vector.v_variable = field_data.variable(field_key_z)
+            def getseed(r):return r, 0, None, r, lin_type
+            cartesian = True
+        elif method=='inner_magXZ':
+            plot.vector.v_variable = field_data.variable(field_key_z)
+            def getseed(r):return r, 0, None, r, lin_type
+            cartesian = True
         #Create initial max/min to lines
         x1, x2, x3, rchk, lin_type = getseed(rmax)
+        print(x1,x2,x3,rchk,lin_type)
         create_stream_zone(field_data, x1, x2, x3,
                             'max line',
                             cart_given=cartesian)
@@ -378,9 +464,11 @@ def streamfind_bisection(field_data, method,
         if max_closed and min_closed:
             notfound = False
             print('Warning: line closed at {}'.format(rmax))
+            x1, x2, x3, rchk, lin_type = getseed(rmax)
         elif not max_closed and not min_closed:
             notfound = False
             print('Warning: line open at {}'.format(rmin))
+            x1, x2, x3, rchk, lin_type = getseed(rmin)
         else:
             rmid = (rmax+rmin)/2
             itr = 0
@@ -416,8 +504,13 @@ def streamfind_bisection(field_data, method,
         if cartesian == False:
             seed = sph_to_cart(seed[0],seed[1],seed[2])
         print(seed)
-        streamtrace.add(seed_point=seed,
+        if method!='daysideXZ' and method!='inner_magXZ':
+            streamtrace.add(seed_point=seed,
                        stream_type=Streamtrace.VolumeLine,
+                       direction=StreamDir.Both)
+        else:
+            streamtrace.add(seed_point=seed[0:2],
+                       stream_type=Streamtrace.TwoDLine,
                        direction=StreamDir.Both)
     streamtrace.extract(concatenate=True)
     field_data.zone(-1).name = lin_type+'stream'
@@ -1083,24 +1176,29 @@ def get_dipole_field(auxdata, *, B0=31000):
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
-def get_global_variables(field_data, analysis_type):
+def get_global_variables(field_data, analysis_type, **kwargs):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
+        kwargs:
+            is3D- if all 3 dimensions are present
     """
     ######################################################################
     eq = tp.data.operate.execute_equation
-    aux = field_data.zone('global_field').aux_data
     #General equations
     #Useful spatial variables
-    eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-    eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
-    #Dipolar coordinate variables
-    eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
-    #{mhat_y} = 0
-    eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
-    eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
-    eq('{Lshell} = {r [R]}/cos({lambda})**2')
+    if kwargs.get('is3D',True):
+        eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
+        eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
+        aux = field_data.zone('global_field').aux_data
+        #Dipolar coordinate variables
+        eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
+        #{mhat_y} = 0
+        eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
+        eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
+        eq('{Lshell} = {r [R]}/cos({lambda})**2')
+    else:
+        eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)')
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
@@ -1494,10 +1592,15 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
         return tp.active_frame().dataset.variable(
                                                'ms_ps_L='+lshelllim).index
     elif ps_qDp == 'qDp':
-        eq('{ms_qDp_L='+lshelllim+'} = if({'+closed_var+'}==1&&'+
+        eq('{ms_qDp_L='+lshelllim+'} = if({'+closed_var+'}>0&&'+
                                          '{'+Lvar+'}>'+lshelllim+'&&'+
                                          '(abs({B_x [nT]})>'+bxmax+'||'+
                                          '{X [R]}>0),1,0)')
+        eqstr=('{ms_qDp_L='+lshelllim+'} = if({'+closed_var+'}>0&&'+
+                                         '{'+Lvar+'}>'+lshelllim+'&&'+
+                                         '(abs({B_x [nT]})>'+bxmax+'||'+
+                                         '{X [R]}>0),1,0)')
+        print(eqstr)
         return tp.active_frame().dataset.variable(
                                               'ms_qDp_L='+lshelllim).index
 
@@ -1578,7 +1681,8 @@ def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
     else:
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
-    eq(eqstr, zones=[0], value_location=ValueLocation.CellCentered)
+    #eq(eqstr, zones=[0], value_location=ValueLocation.CellCentered)
+    eq(eqstr, zones=[0])
     return tp.active_frame().dataset.variable(zonename).index
 
 def calc_delta_state(t0state, t1state):

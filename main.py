@@ -52,19 +52,23 @@ if __name__ == "__main__":
     main.name = 'main'
 
     #Caclulate initial surface
-    magnetosphere.get_magnetosphere(field_data, analysis_type='all',
-                                        outputpath=OUTPATH, mode=mode,
-                                        integrate_surface=True,
-                                        integrate_volume=True)
+    #for mode in ['iso_betastar', 'ps','qDp','rc','nlobe','slobe']:
+    mesh, power, energy = magnetosphere.get_magnetosphere(field_data,
+                                    outputpath=OUTPATH,
+                                    analysis_type='virial',
+                                    tail_cap=-60,
+                                    integrate_surface=True,
+                                    integrate_volume=True)
+    print(energy.keys())
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-        tp.macro.execute_extended_command(command_processor_id=proc,
-                                          command=cmd)
-        mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        #tp.macro.execute_extended_command(command_processor_id=proc,
+        #                                  command=cmd)
+        #mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        mode = ['iso_day']
         save=False
-        timestamp=False
         zone_hidekeys = ['sphere', 'box','lcb','shue','future',
                          'mp_iso_betastar']
         for frame in enumerate(tp.frames()):
@@ -82,7 +86,7 @@ if __name__ == "__main__":
                                         mode=mode[frame[0]],
                                         save_img=save,
                                         zone_hidekeys=zone_hidekeys,
-                                        show_timestamp=timestamp,
+                                        show_timestamp=True,
                                         show_contour=False)
     #timestamp
     ltime = time.time()-start_time
