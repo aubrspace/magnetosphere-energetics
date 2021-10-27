@@ -139,12 +139,11 @@ def add_fieldlines(frame):
     plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-10,0,10],[-20,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-20,0,10],[-10,0,-10],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-20,0,10],[-30,0,-10],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-30,0,10],[-20,0,-10],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-30,0,10],[-50,0,-10],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-50,0,10],[-30,0,-10],Streamtrace.VolumeLine)
+    plt.streamtraces.add_rake([-80,0,10],[-80,0,-10],Streamtrace.VolumeLine)
     '''
     plt.streamtraces.add_rake([10,0,30],[-40,0,30],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,-30],[-40,0,-30],Streamtrace.VolumeLine)
@@ -179,7 +178,7 @@ def add_jy_slice(frame, jyindex, showleg):
     jycontour.variable_index=jyindex
     jycontour.colormap_name = 'green-pink'
     jycontour.legend.vertical = True
-    jycontour.legend.position[1] = 72
+    jycontour.legend.position[1] = 98
     jycontour.legend.position[0] = 98
     jycontour.legend.box.box_type = TextBox.Filled
     jycontour.legend.box.fill_color = Color.Custom2
@@ -472,7 +471,8 @@ def variable_blank(frame, variable_str, value, *,
     blank.comparison_operator = operator
     blank.comparison_value = value
 
-def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
+def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
+                 energyfracs, fracnames, *,
                  approved_zones=None):
     """Function shows/hides zones, sets shading and translucency
     Inputs
@@ -485,14 +485,14 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
     plt = frame.plot()
     show_list = []
     hide_keys = zone_hidekeys
-    shadings = {'mp_iso_betastar':Color.Custom34,
+    shadings = {'mp_iso_betastar':Color.Custom1,
                 'mp_iso_betastarinnerbound':Color.Custom11,
                 'plasmasheet':Color.Custom9,
-                'ms_nlobe':Color.Custom20,
-                'ms_slobe':Color.Custom21,
-                'ms_rc':Color.Custom22,
-                'ms_ps':Color.Custom23,
-                'ms_qDp':Color.Custom24,
+                'ms_nlobe':Color.Custom12,
+                'ms_slobe':Color.Cyan,
+                'ms_rc':Color.Blue,
+                'ms_ps':Color.Purple,
+                'ms_qDp':Color.Custom19,
                 'shue97':Color.Custom8,
                 'shue98':Color.Custom7}
     #hide all other zones
@@ -514,12 +514,15 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys, *,
                                                          zone.name, "Grey")
                 show_list.append(zone.name)
     #Transluceny and shade settings
+    transluc = dict()
+    for name in enumerate(fracnames):
+        transluc.update({name[1]:int(100-energyfracs[name[0]]*100)})
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
             plt.fieldmap(map_index).effects.use_translucency=True
             plt.fieldmap(map_index).effects.surface_translucency=(
-                                                              translucency)
+                                      transluc.get(zone.name,translucency))
             '''old shade settings
             if zone.name.find('hybrid') != -1:
                 plt.fieldmap(map_index).shade.color = Color.Custom20
@@ -664,6 +667,8 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     ###DEFAULTS for genaric mode###
     default = {'transluc': 1,           #zone settings
+               'energyfracs':[.4,.4,.4,.4,.4],
+               'fracnames':['ms_nlobe','ms_slobe','ms_rc','ms_ps','ms_qDp'],
                'zone_hidekeys':['sphere','box','lcb','shue','future'],
                'plot_satellites': False,
                'satzones': [],
@@ -701,7 +706,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
         default['transluc'] = 40
     elif mode == 'iso_tail' or mode=='zoomed_out':
         default['transluc'] = 60
-    elif mode == 'other_iso':
+    elif mode == 'other_iso' or mode=='zoomed_out':
         default['add_clock'] = True
     ###############################
     ###Overwrite w/ kwargs###
@@ -710,7 +715,8 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     ###############################
     #Produce image
     zones_shown= manage_zones(frame,default['mpslice'],default['transluc'],
-                            default['contourmap'],default['zone_hidekeys'])
+                            default['contourmap'],default['zone_hidekeys'],
+                            default['energyfracs'],default['fracnames'])
     set_3Daxes(frame, xmin=default['xtail'], do_blanking=False)
     set_camera(frame, setting=mode)
     if default['show_contour']:

@@ -5,6 +5,7 @@ import time
 import logging
 import atexit, os, multiprocessing, sys
 import numpy as np
+import pandas as pd
 from numpy import pi
 import datetime as dt
 import glob
@@ -15,7 +16,7 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 import global_energetics
-from global_energetics.extract import magnetopause
+from global_energetics.extract import magnetosphere
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import satellites
 from global_energetics.extract import stream_tools
@@ -73,43 +74,25 @@ def work(mhddatafile):
     field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  save_mesh=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'])
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  save_mesh=False,
-                                  mode='nlobe',
-                                  outputpath=CONTEXT['OUTPUTPATH'])
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  save_mesh=False,
-                                  mode='slobe',
-                                  outputpath=CONTEXT['OUTPUTPATH'])
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  save_mesh=False,
-                                  mode='rc',
-                                  outputpath=CONTEXT['OUTPUTPATH'])
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  save_mesh=False,
-                                  mode='ps',
-                                  outputpath=CONTEXT['OUTPUTPATH'])
-    magnetopause.get_magnetopause(field_data, mhddatafile, do_cms=False,
-                                  save_mesh=False,
-                                  mode='qDp',
-                                  outputpath=CONTEXT['OUTPUTPATH'])
+    magnetosphere.get_magnetosphere(field_data, save_mesh=False,
+                                  outputpath=CONTEXT['OUTPUTPATH'],
+                                  tail_cap=-60,
+                                  integrate_surface=False,
+                                  integrate_volume=False)
     #get supporting module data for this timestamp
-    satzones = satellites.get_satellite_zones(field_data,
-                                  CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
+    #satzones = satellites.get_satellite_zones(field_data,
+    #                              CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-        tp.macro.execute_extended_command(command_processor_id=proc,
-                                          command=cmd)
-        mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
-        zone_hidekeys = ['sphere', 'box','lcb','shue','future',
-                         'mp_iso_betastar']
-        save=False
-        timestamp=False
+        #tp.macro.execute_extended_command(command_processor_id=proc,
+        #                                  command=cmd)
+        #mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        mode = ['zoomed_out']
+        zone_hidekeys = ['sphere', 'box','lcb','shue','future']
+        #                 'mp_iso_betastar']
+        timestamp=True
         for frame in enumerate(tp.frames()):
             frame[1].activate()
             if frame[0]==0:
@@ -126,8 +109,9 @@ def work(mhddatafile):
                                         pngpath=CONTEXT['PNGPATH'],
                                         outputname=OUTPUTNAME,
                                         IDstr=str(CONTEXT['id']),
-                                        save_img=save,
                                         show_contour=False,
+                                        timestamp_pos=[4,20],
+                                        show_fieldline=True,
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
     else:
@@ -165,7 +149,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)
+                                key=makevideo.time_sort)[975:1665]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

@@ -45,6 +45,9 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
         volTotal=True
         volume=True
     if analysis_type=='virial' or analysis_type=='all':
+        voluB=True
+        volKE=True
+        volEth=True
         virial=True
         volume=True
         voluB=True
@@ -78,22 +81,23 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
             uB = integrate_volume(uB_index, zone_index)
             print(add+'{} uBtot integration done'.format(volume_name))
             data.append(uB)
-            #integrate dipole magnetic energy
-            eq('{uB_dipole '+state_var+'} = IF({'+state_var+'}<1, 0, '+
+            if analysis_type=='virial' or analysis_type=='all':
+                #integrate dipole magnetic energy
+                eq('{uB_dipole temp} = IF({'+state_var+'}<1, 0, '+
                                    '{'+add+'uB_dipole [J/Re^3]})')
-            keys.append(add+'uB_dipole [J]')
-            uB_index = int(field_data.variable('uB_dipole '+state_var).index)
-            uB = integrate_volume(uB_index, zone_index)
-            print(add+'{} uB dipole integration done'.format(volume_name))
-            data.append(uB)
-            #integrate disturbance magnetic energy
-            eq('{uB_dist '+state_var+'} = IF({'+state_var+'}<1, 0, '+
+                keys.append(add+'uB_dipole [J]')
+                uB_index = int(field_data.variable('uB_dipole temp').index)
+                uB = integrate_volume(uB_index, zone_index)
+                print(add+'{} uB dipole integration done'.format(volume_name))
+                data.append(uB)
+                #integrate disturbance magnetic energy
+                eq('{uB_dist temp} = IF({'+state_var+'}<1, 0, '+
                                    '{'+add+'delta_uB [J/Re^3]})')
-            keys.append(add+'uB_dist [J]')
-            uB_index = int(field_data.variable('uB_dist '+state_var).index)
-            uB = integrate_volume(uB_index, zone_index)
-            print(add+'{} uB disturb integration done'.format(volume_name))
-            data.append(uB)
+                keys.append(add+'uB_dist [J]')
+                uB_index = int(field_data.variable('uB_dist temp').index)
+                uB = integrate_volume(uB_index, zone_index)
+                print(add+'{} uB disturb integration done'.format(volume_name))
+                data.append(uB)
         if volKE:
             #integrate KE
             eq('{KE '+state_var+'}=IF({'+state_var+'}<1,0,'+
