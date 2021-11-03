@@ -75,23 +75,20 @@ def work(mhddatafile):
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data, save_mesh=False,
-                                  outputpath=CONTEXT['OUTPUTPATH'],
-                                  tail_cap=-60,
-                                  integrate_surface=False,
-                                  integrate_volume=False)
+                                    analysis_type='virial',
+                                    outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
     #                              CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
-    if True:#manually switch on or off
+    if False:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-        #tp.macro.execute_extended_command(command_processor_id=proc,
-        #                                  command=cmd)
-        #mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
-        mode = ['zoomed_out']
-        zone_hidekeys = ['sphere', 'box','lcb','shue','future']
-        #                 'mp_iso_betastar']
+        tp.macro.execute_extended_command(command_processor_id=proc,
+                                          command=cmd)
+        mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
+        zone_hidekeys = ['sphere', 'box','lcb','shue','future',
+                         'mp_iso_betastar']
         timestamp=True
         for frame in enumerate(tp.frames()):
             frame[1].activate()
@@ -111,7 +108,6 @@ def work(mhddatafile):
                                         IDstr=str(CONTEXT['id']),
                                         show_contour=False,
                                         timestamp_pos=[4,20],
-                                        show_fieldline=True,
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
     else:
@@ -149,7 +145,8 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[975:1665]
+                                key=makevideo.time_sort)
+    #                           key=makevideo.time_sort)[975:1665]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
