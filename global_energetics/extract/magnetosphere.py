@@ -306,7 +306,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     #Create isosurface zone depending on mode setting
     ################################################################
     zonelist, state_indices = [], []
-    if analysis_type=='virial':
+    if 'virial' in analysis_type:
         modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
     else:
         modes = [mode]
@@ -328,8 +328,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
-    mp_energies = pd.DataFrame()
     mp_mesh = pd.DataFrame()
+    data_to_write={}
     savemeshvars = []
     ################################################################
     if integrate_surface:
@@ -381,9 +381,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                   field_data.variable(state_index[1]).name,
                                      analysis_type, do_1Dsw, do_cms,
                                      deltatime, tail_analysis_cap, hmin)
-            for key in energies.keys():
-                mp_energies[region.name+' '+key] = energies[key]
-        print('\nMagnetopause Energy Terms\n{}'.format(mp_energies))
+            energies['Time [UTC]'] = eventtime
+            data_to_write.update({region.name:energies})
     ################################################################
     if save_mesh:
         #save mesh to hdf file
@@ -391,18 +390,19 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             mp_mesh[var] = field_data.zone(zonelist[0]
                            ).values(var.split(' ')[0]+'*').as_numpy_array()
     ################################################################
-    if integrate_volume and integrate_surface and(analysis_type=='virial'or
-                                                   analysis_type=='all'):
+    if integrate_volume and integrate_surface and(
+                      'virial' in analysis_type or analysis_type=='all'):
         #Complete virial predicted Dst
         region = field_data.zone(zonelist[0])
-        mp_powers['Virial_Dst [nT]']=(
-                mp_powers['Virial Surface Total [J]']+
-                mp_energies[region.name+' Virial 2x Uk [J]']+
-                mp_energies[region.name+' uB_dist [J]'])/(8e13)*-3/2
+        mp_powers['Virial_Dst [nT]']=(mp_powers['Virial Surface Total [J]']+
+             data_to_write[region.name]['Virial Volume Total [J]'])/(-8e13)
     ################################################################
     #Add time and x_subsolar
     mp_powers['Time [UTC]'] = eventtime
     mp_powers['X_subsolar [Re]'] = float(aux['x_subsolar'])
+    region = field_data.zone(zonelist[0])
+    for key in mp_powers:
+        data_to_write[region.name][key] = mp_powers[key]
     if write_data:
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
@@ -410,14 +410,13 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         write_mesh(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                     zone.name, pd.Series(eventtime), mp_mesh)
         write_to_hdf(outputpath+'/energeticsdata/energetics_'+
-                        datestring+'.h5', zone.name,
-                        mp_energies=mp_energies, mp_powers=mp_powers,
-                        mp_inner_powers=innerbound_powers)
+                        datestring+'.h5', data_to_write)
     if disp_result:
         display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                             outputpath+'/energeticsdata/energetics_'+
-                            datestring+'.h5', zone.name)
-    return mp_mesh, mp_powers, mp_energies
+                            datestring+'.h5',
+                            [field_data.zone(zn).name for zn in zonelist])
+    return mp_mesh, data_to_write
 
 # Must list .plt that script is applied for proper execution
 # Run this script with "-c" to connect to Tecplot 360 on port 7600

@@ -30,7 +30,7 @@ def surface_analysis(frame, zone_name, analysis_type, do_cms, do_1Dsw,
     """
     surface_area=True
     test=False
-    if analysis_type=='energy' or analysis_type=='all':
+    if 'energy' in analysis_type or analysis_type=='all':
         calc_K=True
         calc_ExB=True
         calc_P0=True
@@ -239,7 +239,7 @@ def surface_analysis(frame, zone_name, analysis_type, do_cms, do_1Dsw,
             data.append(kinj_average)
         ###################################################################
         #Virial boundary total pressure integral
-        if analysis_type=='virial' or analysis_type=='all':
+        if 'virial' in analysis_type or analysis_type=='all':
             virial_dict = {'virial_scalarPth':'Virial ScalarPth [J]',
                            'virial_scalaruB':'Virial ScalarPmag [J]',
                            'virial_scalaruB_dipole':'Virial ScalarPdip [J]',

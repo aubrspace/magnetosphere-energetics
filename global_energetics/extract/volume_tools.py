@@ -35,16 +35,17 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
     volKEperp=False
     volEth=False
     volTotal=False
-    virial=False
     volume=False
-    if analysis_type=='energy' or analysis_type=='all':
+    virial=False
+    biotsavart=False
+    if 'energy' in analysis_type or analysis_type=='all':
         voluB=True
         voluE=True
         volKE=True
         volEth=True
         volTotal=True
         volume=True
-    if analysis_type=='virial' or analysis_type=='all':
+    if 'virial' in analysis_type or analysis_type=='all':
         voluB=True
         volKE=True
         volEth=True
@@ -53,6 +54,8 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
         voluB=True
         volKE=True
         volEth=True
+    if 'biotsavart' in analysis_type or analysis_type=='all':
+        biotsavart=True
     if analysis_type=='all':
         volKEpar=True
         volKEperp=True
@@ -81,7 +84,7 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
             uB = integrate_volume(uB_index, zone_index)
             print(add+'{} uBtot integration done'.format(volume_name))
             data.append(uB)
-            if analysis_type=='virial' or analysis_type=='all':
+            if 'virial' in analysis_type or analysis_type=='all':
                 #integrate dipole magnetic energy
                 eq('{uB_dipole temp} = IF({'+state_var+'}<1, 0, '+
                                    '{'+add+'uB_dipole [J/Re^3]})')
@@ -157,6 +160,19 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
             keys.append(add+'Energy Density [J/Re^3]')
             energy_density = Total/Vol
             data.append(energy_density)
+        if biotsavart:
+            #evaluate Biot Savart integral for magnetosphere and fulldomain
+            eq('{BioS '+state_var+'}=IF({'+state_var+'}<1,0,'+'{dB [nT]})')
+            keys.append(add+'BioS '+state_var)
+            bioS_ms_index=int(field_data.variable('BioS '+state_var).index)
+            bioS_ms = integrate_volume(bioS_ms_index, zone_index)
+            print('{} BioS ms integration done'.format(volume_name))
+            data.append(bioS_ms)
+            keys.append(add+'BioS full')
+            bioS_index=int(field_data.variable('dB *').index)
+            bioS = integrate_volume(bioS_index, zone_index)
+            print('{} BioS full integration done'.format(volume_name))
+            data.append(bioS)
         if virial:
             #integrate r^2 weighted mass (will look @ 2nd derivative)
             eq('{rho r^2 '+state_var+'} = IF({'+state_var+'}<1,0,'+
@@ -176,6 +192,11 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
             data.append(uB)
             keys.append('Virial Ub [nT]')
             data.append(uB/(-8e13))
+            #Virial volumetric subtotal
+            keys.append('Virial Volume Total [J]')
+            data.append(uB+2*KE+2*Eth)
+            keys.append('Virial Volume Total [nT]')
+            data.append((uB+2*KE+2*Eth)/(-8e13))
         if (do_cms) and (dt!=0):
             ##Volume change
             dVol_index = field_data.variable('delta_volume').index

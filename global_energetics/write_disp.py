@@ -27,39 +27,27 @@ def write_mesh(filename, zonename, timedata, mesh):
         store[zonename] = mesh
         store['Time_UTC'] = timedata
 
-def write_to_hdf(filename, zonename, *, mp_energies=None, mp_powers=None,
-                                        mp_inner_powers=None,
-                                        ie_energies=None, ie_powers=None,
-                                        im_energies=None, im_powers=None):
+def write_to_hdf(filename, data):
     """Function writes pandas data to hdf5 file
     Inputs
         filename- for output
-        zonename- serves as key to store data under in hdf5 structure
-        {}_energies- volume integrated energy quantities, pandas DataFrame
-        {}_powers- surface integrated power quantities, pandas DataFrame
+        data (Dict of DataFrames)- dictionary with name and associated df
     """
     pathstring = ''
     for lvl in filename.split('/')[0:-1]:
         pathstring = pathstring+lvl+'/'
     os.makedirs(pathstring, exist_ok=True)
-    energetics = pd.DataFrame()
-    cols = energetics.keys()
     #Combine all dataframes that are passed
-    for df in [mp_energies, mp_powers, mp_inner_powers,
-               ie_energies, ie_powers,
-               im_energies, im_powers]:
-        if type(df) != type(None):
-            for key in df.keys():
-                energetics[key] = df[key]
-    #Remove duplicate time columns
-    #TBD
-    if not energetics.empty:
-        #Write data to hdf5 file
-        with pd.HDFStore(filename) as store:
-            if any([key == '/'+zonename for key in store.keys()]):
-                energetics = store[zonename].append(energetics,
-                                                ignore_index=True)
-            store[zonename] = energetics
+    with pd.HDFStore(filename) as store:
+        for df in data.items():
+            if type(df[1]) != type(pd.DataFrame()):
+                raise TypeError ('write_to_hdf expects Dict of DataFrames')
+            if '/'+df[0] in store.keys():
+                data[df[0]] = store[df[0]].append(data[df[0]],
+                                                  ignore_index=True)
+            print(df[1])
+            print(data[df[0]])
+            store['/'+df[0]] = data[df[0]]
 
 def display_progress(meshfile, integralfile, zonename):
     """Function displays current status of hdf5 files
@@ -80,7 +68,7 @@ def display_progress(meshfile, integralfile, zonename):
                                         len(glob.glob(meshpath+'*.h5'))))
     result = (result+
                '\tintegralfile: {}\n'.format(integralfile)+
-               '\tzonename_added: {}\n'.format(zonename)+
+               '\tzones_added: {}\n'.format(zonename)+
                '\tintegralfilecount: {}\n'.format(
                                       len(glob.glob(integralpath+'*.h5'))))
     '''

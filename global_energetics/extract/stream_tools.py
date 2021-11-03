@@ -769,7 +769,7 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
-    if analysis_type == 'energy' or analysis_type == 'all':
+    if 'energy' in analysis_type or analysis_type == 'all':
         eq('{Utot_cc}={Utot [J/Re^3]}',
                          value_location=ValueLocation.CellCentered)
     eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered)
@@ -840,7 +840,7 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
                 value_location=ValueLocation.CellCentered,
                 zones=[zone_index])
     '''
-    if analysis_type == 'virial' or analysis_type == 'all':
+    if 'virial' in analysis_type or analysis_type == 'all':
         eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
         eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
         eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
@@ -849,7 +849,7 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
             eq(term, value_location=ValueLocation.CellCentered)
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
-    if analysis_type == 'energy' or analysis_type == 'all':
+    if 'energy' in analysis_type or analysis_type == 'all':
         prefixlist = ['']
         for add in prefixlist:
             ##############################################################
@@ -1186,6 +1186,12 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     ######################################################################
     eq = tp.data.operate.execute_equation
     #General equations
+    if (any([var.find('J_')!=-1 for var in field_data.variable_names])and
+         any([var.find('`mA')!=-1 for var in field_data.variable_names])):
+        field_data.variable('J_x*').name = 'J_x [uA/m^2]'
+        field_data.variable('J_y*').name = 'J_y [uA/m^2]'
+        field_data.variable('J_z*').name = 'J_z [uA/m^2]'
+    #if 'J_x [`mA/m^2]' in ds.variable_names:
     #Useful spatial variables
     if kwargs.get('is3D',True):
         eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
@@ -1214,7 +1220,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         value_location=ValueLocation.CellCentered)
     ######################################################################
     #Virial only intermediate terms
-    if analysis_type=='virial' or analysis_type=='all':
+    if 'virial' in analysis_type or analysis_type=='all':
         #Density times velocity between now and next timestep
         eq('{rhoUx_cc}={Rho [amu/cm^3]}*{U_x [km/s]}',
                          value_location=ValueLocation.CellCentered)
@@ -1250,7 +1256,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                       '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)'+
                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
         value_location=ValueLocation.CellCentered)
-    if analysis_type=='virial' or analysis_type=='all':
+    if 'virial' in analysis_type or analysis_type=='all':
         #Dipole magnetic Energy
         eq('{uB_dipole [J/Re^3]} = {Bdmag [nT]}**2'+
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
@@ -1261,7 +1267,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                              '({B_z [nT]}-{Bdz})**2)'+
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                           value_location=ValueLocation.CellCentered)
-    if analysis_type=='energy' or analysis_type=='all':
+    if 'energy' in analysis_type or analysis_type=='all':
         #Hydrodynamic Energy Density
         eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
                           value_location=ValueLocation.CellCentered)
@@ -1269,16 +1275,16 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
                           value_location=ValueLocation.CellCentered)
     if ('biotsavart' in analysis_type) or analysis_type=='all':
-        eq('{dB_x [nT]} = -({Y [R]}*{J_z [`mA/m^2]}-'+
-                           '{Z [R]}*{J_y [`mA/m^2]})*1e2*6371/{r [R]}**3')
-        eq('{dB_y [nT]} = -({Z [R]}*{J_x [`mA/m^2]}-'+
-                           '{X [R]}*{J_z [`mA/m^2]})*1e2*6371/{r [R]}**3')
-        eq('{dB_z [nT]} = -({X [R]}*{J_y [`mA/m^2]}-'+
-                           '{Y [R]}*{J_x [`mA/m^2]})*1e2*6371/{r [R]}**3')
+        eq('{dB_x [nT]} = -({Y [R]}*{J_z [uA/m^2]}-'+
+                           '{Z [R]}*{J_y [uA/m^2]})*637.1/{r [R]}**3')
+        eq('{dB_y [nT]} = -({Z [R]}*{J_x [uA/m^2]}-'+
+                           '{X [R]}*{J_z [uA/m^2]})*637.1/{r [R]}**3')
+        eq('{dB_z [nT]} = -({X [R]}*{J_y [uA/m^2]}-'+
+                           '{Y [R]}*{J_x [uA/m^2]})*637.1/{r [R]}**3')
         eq('{dB [nT]} = {dB_x [nT]}*{mhat_x}+{dB_z [nT]}*{mhat_z}')
 
     ######################################################################
-    if analysis_type=='energy' or analysis_type=='all':
+    if 'energy' in analysis_type or analysis_type=='all':
         #Energy Flux terms
         #Magnetic field unit vectors
         eq('{unitbx} ={B_x [nT]}/'+

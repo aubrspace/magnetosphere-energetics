@@ -39,6 +39,8 @@ if __name__ == "__main__":
     OUTPUTNAME = 'testoutput1.png'
 
     '''
+1947849 2014 02 19 03 17 00 018  3.93901E-002  2.56463E+000 -1.70966E-015  1.69500E-017 -2.75944E-018  1.04916E-002  3.64284E+000 -4.80667E-001 -9.16607E+000  1.42366E-005  1.81455E+001 -4.43327E+001 -4.90226E+001  1.18495E+002  9.75989E+001
+
     #load from file
     tp.load_layout('/Users/ngpdl/Desktop/volume_diff_sandbox/visual_starter/blank_visuals.lay')
     field_data = tp.active_frame().dataset
@@ -53,13 +55,13 @@ if __name__ == "__main__":
 
     #Caclulate initial surface
     #for mode in ['iso_betastar', 'ps','qDp','rc','nlobe','slobe']:
-    mesh, power, energy = magnetosphere.get_magnetosphere(field_data,
+    with tp.session.suspend():
+        mesh, data = magnetosphere.get_magnetosphere(field_data,
                                     outputpath=OUTPATH,
-                                    analysis_type='virial',
+                                    analysis_type='virial_vs_biotsavart',
                                     tail_cap=-60,
                                     integrate_surface=True,
                                     integrate_volume=True)
-    print(energy.keys())
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
