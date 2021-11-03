@@ -1193,7 +1193,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         aux = field_data.zone('global_field').aux_data
         #Dipolar coordinate variables
         eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
-        #{mhat_y} = 0
+        eq('{mhat_y} = 0')
         eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
         eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
         eq('{Lshell} = {r [R]}/cos({lambda})**2')
@@ -1268,6 +1268,15 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         #Total Energy Density
         eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
                           value_location=ValueLocation.CellCentered)
+    if ('biotsavart' in analysis_type) or analysis_type=='all':
+        eq('{dB_x [nT]} = -({Y [R]}*{J_z [`mA/m^2]}-'+
+                           '{Z [R]}*{J_y [`mA/m^2]})*1e2*6371/{r [R]}**3')
+        eq('{dB_y [nT]} = -({Z [R]}*{J_x [`mA/m^2]}-'+
+                           '{X [R]}*{J_z [`mA/m^2]})*1e2*6371/{r [R]}**3')
+        eq('{dB_z [nT]} = -({X [R]}*{J_y [`mA/m^2]}-'+
+                           '{Y [R]}*{J_x [`mA/m^2]})*1e2*6371/{r [R]}**3')
+        eq('{dB [nT]} = {dB_x [nT]}*{mhat_x}+{dB_z [nT]}*{mhat_z}')
+
     ######################################################################
     if analysis_type=='energy' or analysis_type=='all':
         #Energy Flux terms

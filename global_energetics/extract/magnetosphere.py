@@ -309,7 +309,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if analysis_type=='virial':
         modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
     else:
-        modes = mode
+        modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if zone_rename != None:
