@@ -15,88 +15,200 @@ import spacepy
 from spacepy import coordinates as coord
 from spacepy import time as spacetime
 #interpackage imports
+from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.proc_temporal import read_energetics
+from global_energetics.analysis.analyze_energetics import (chopends_time,
+                                                           plot_dst)
 
-def plot_virial_dst(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=2, ls=None):
-    """Function plots dst (or equivalent index) with given data frames
+def plot_stack_virial_contrib(ax, times, mp, msdict, ylabel, *,
+                              do_percent=False, **kwargs):
+    """Plots contribution of subzone to virial Dst
     Inputs
-        axis- object plotted on
-        dflist- datasets
-        dflabels- labels used for legend
-        timekey- used to located column with time and the qt to plot
-        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+        mp(DataFrame)- total magnetosphere values
+        msdict(Dict of DataFrames)- subzone values
+        kwargs:
+            do_xlabel(boolean)- default False
+            legend_loc(see pyplot)- 'upper right' etc
     """
-    legend_loc = 'lower left'
-    for data in dflist:
-        name = data['name'].iloc[-1]
-        if name.find('mp')==-1:
-            plot_dst(axis, dflist, timekey, ylabel, xlim=xlim,ylim=ylim,
-                     Color=Color, Size=Size, ls=ls)
-            return
+    #Relative contribution mode
+    if not do_percent:
+        ax.plot(times, mp['Virial Volume Total [nT]'],
+                color='black')
+        value_key = 'Virial Volume Total [nT]'
+    else:
+        value_key = 'Virial Contribution [%]'
+    stack_value = [m for m in msdict.values()][0][value_key]
+    for ms in enumerate([mslist for mslist in msdict.items()][0:-1]):
+        mslabel = ms[1][0]
+        if ms[0]==0:
+            ax.fill_between(times, stack_value,
+                            label=mslabel)
         else:
-            qtkey = None
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time [UTC]}')
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+            ax.fill_between(times, stack_value, old_value,
+                               label=mslabel)
+        old_value = stack_value
+        stack_value = stack_value+ [m for m in msdict.values()][ms[0]+1][
+                                                                 value_key]
+    if do_percent:
+        ax.axhline(100, color='black')
+    if kwargs.get('do_xlabel',False):
+        ax.set_xlabel(r'Time $\left[ UTC\right]$')
+    ax.set_ylabel(ylabel)
+    ax.legend(loc=kwargs.get('legend_loc',None))
+
+def plot_raw_virial_contributions(ax, times, mp, msdict, ylabel, *,
+                                  do_percent=False, **kwargs):
+    """Plots contribution of subzone to virial Dst
+    Inputs
+        mp(DataFrame)- total magnetosphere values
+        msdict(Dict of DataFrames)- subzone values
+        kwargs:
+            do_xlabel(boolean)- default False
+            legend_loc(see pyplot)- 'upper right' etc
+    """
+    #Relative contribution mode
+    if not do_percent:
+        ax.fill_between(times, mp['Virial Volume Total [nT]'],
+                           color='lightgrey')
+        value_key = 'Virial Volume Total [nT]'
+    else:
+        value_key = 'Virial Contribution [%]'
+    for ms in msdict.items():
+        ax.plot(times, ms[1][value_key],
+                   label=ms[0])
+    if kwargs.get('do_xlabel',False):
+        ax.set_xlabel(r'Time $\left[ UTC\right]$')
+    ax.set_ylabel(ylabel)
+    ax.legend(loc=kwargs.get('legend_loc',None))
+
+def get_interzone_stats(mpdict, msdict, **kwargs):
+    """Function finds percent contributions and missing amounts
+    Inputs
+        mpdict(DataFrame)-
+        msdict(Dict of DataFrames)-
+    Returns
+        [MODIFIED] mpdict(Dict of DataFrames)
+        [MODIFIED] msdict(Dict of DataFrames)
+    """
+    for mp in mpdict.values():
+        mp['Virial Volume Total [J]'] = (mp['Virial Ub [J]']+
+                                          mp['Virial 2x Uk [J]'])
+        mp['Virial Volume Total [nT]'] = (mp['Virial Ub [nT]']+
+                                          mp['Virial 2x Uk [nT]'])
+    for ms in msdict.values():
+        ms['Virial Volume Total [J]'] = (ms['Virial Ub [J]']+
+                                          ms['Virial 2x Uk [J]'])
+        ms['Virial Volume Total [nT]'] = (ms['Virial Ub [nT]']+
+                                          ms['Virial 2x Uk [nT]'])
+    #Quantify amount missing from sum of all subzones
+    missing_volume = pd.DataFrame()
+    for key in [m for m in msdict.values()][0].keys():
+        fullvolume = [m for m in mpdict.values()][0][key]
+        added = [m for m in msdict.values()][0][key]
+        for sub in [m for m in msdict.values()][1::]:
+            added = added+sub[key]
+        missing_volume[key] = fullvolume-added
+    msdict.update({'missed':missing_volume})
+    #Identify percentage contribution from each piece
+    for ms in msdict.values():
+        ms['Virial Contribution [%]'] = (ms['Virial Volume Total [J]']/
+            [m for m in mpdict.values()][0]['Virial Volume Total [J]']*100)
+    return mpdict, msdict
 
 if __name__ == "__main__":
-    datapath = sys.argv[1::]
-    figureout = datapath[-1]+'figures/'
+    datapath = sys.argv[-1]
+    figureout = datapath+'figures/'
     plt.rcParams.update({
         "text.usetex": True,
         "font.family": "sans-serif",
         "font.size": 18,
         "font.sans-serif": ["Helvetica"]})
-    energeticslist = chopends_time(energetics_list,cuttoffstart,
-                                   cuttoffend, 'Time [UTC]', shift=True)
-    mplist=[]
-    for df in energetics_list:
-        if df['name'].iloc[-1].find('mp_')!=-1:
-            mplist.append(df)
-    mp=mplist[0]
+    [swmf_index, swmf_log, swmf_sw,_,__]= read_indices(datapath,
+                                                       read_supermag=False,
+                                                       read_omni=False)
+    cuttoffstart = dt.datetime(2014,2,18,6,0)
+    cuttoffend = dt.datetime(2014,2,20,0,0)
+    simdata = [swmf_index, swmf_log, swmf_sw]
+    [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
+                                      cuttoffend, 'Time [UTC]', shift=True)
+    store = pd.HDFStore(datapath+'energetics.h5')
+    times = store['Times']
+    mpdict = {'ms_full':store['/mp_iso_betastar']}
+    mp = [m for m in mpdict.values()][0]
+    msdict = {'nlobe':store['/ms_nlobe'],
+              'slobe':store['/ms_slobe'],
+              'rc':store['/ms_rc'],
+              'ps':store['/ms_ps'],
+              'qDp':store['/ms_qDp']}
+    mpdict, msdict = get_interzone_stats(mpdict, msdict)
+    #Construct "grouped" set of subzones
+    msgrouped1 = {'lobes':store['/ms_nlobe']+store['/ms_slobe'],
+                  'rc':store['/ms_rc'],
+                  'closedRegion':store['/ms_ps']+store['/ms_qDp']}
+    _, msgrouped1 = get_interzone_stats(mpdict, msgrouped1)
+    mslobes = {'nlobe':store['/ms_nlobe'],
+               'slobe':store['/ms_slobe'],
+               'remaining':store['/ms_rc']+store['/ms_ps']+store['/ms_qDp']}
+    _, mslobes = get_interzone_stats(mpdict, mslobes)
+    store.close()
+    #Begin plots
+    #Fist grouping, 'all pieces'
     ######################################################################
-    #Virial contributions
-    if True:
-        figname = 'VirialMultipanel'
-        asym=[ag for ag in agglist if ag['name'].iloc[-1].find('asym')!=-1]
-        power,(ax1,ax2,ax3,ax4)=plt.subplots(nrows=4, ncols=1,sharex=True,
-             figsize=[14,15],gridspec_kw={'height_ratios':[1,2,1,1]})
-        #Time
-        timekey = 'Time [UTC]'
-        y1label = r'$P_{\textit{ram}} \left[ nPa\right]$'
-        y2label = r'\textit{Integrated  $\mathbf{K}$ Power} $\left[ TW\right]$'
-        y3label = r'\textit{Volume} $\left[ R_{e}^3\right]$'
-        y4label = r'$\Huge{\mathbf{\rho}}\left[R_e\right]$'
-        plot_swflowP(ax1, [swmf_sw], timekey, y1label)
-        ax1.set_xlabel(None)
-        #plot_Power(ax2, [mp], timekey, y2label, use_surface=True,
-        #           ylim=[-1e13, 1e13])
-        ax2.plot(mp[timekey],mp['K_net [W]']/1e12,
-                 label=r'\textit{Net static $+$ motional}',
-                 linewidth=1, linestyle=None, color='silver')
-        ax2.fill_between(mp[timekey], mp['K_net [W]']/1e12,color='silver')
-        ax2.fill_between(mp[timekey], mp['Utot_net [W]']/1e12,color='magenta')
-        ax2.plot(mp[timekey],mp['Utot_net [W]']/1e12,
-                 label=r'\textit{Net motional}',
-                 linewidth=1, linestyle=None, color='darkmagenta')
-        ax2.set_ylabel(y2label)
-        ax2.set_ylim([-6,6])
-        ax2.yaxis.set_minor_locator(AutoMinorLocator(5))
-        ax2.legend()
-        plot_Volume(ax3, [mp,swmf_sw], timekey, y3label)
-        plot_Asymmetry(ax4, [asym[0],swmf_sw], timekey, y4label)
-        for ax in [ax1,ax2,ax3,ax4]:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-            ax.tick_params(which='major', length=7)
-            ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-            mark_times(ax)
-        ax4.set_xlabel(r'\textit{Time [UTC]}')
-        power.tight_layout(pad=1)
-        power.savefig(figureout+'{}.eps'.format(figname))
-        power.savefig(figureout+'{}.tiff'.format(figname))
+    #Line plots
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=[14,8])
+    y1label = r'Virial Dst $\left[ nT\right]$'
+    y2label = r'$\%$ Contribution'
+    plot_raw_virial_contributions(ax[0], times, mp, msdict, y1label)
+    plot_raw_virial_contributions(ax[1], times, mp, msdict, y2label,
+                                  do_percent=True, do_xlabel=True)
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'viriallineplot_raw_allpieces.png')
+    plt.close(fig)
+    #Stack plot
+    fig2, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=[14,8])
+    y1label = r'Virial Dst $\left[ nT\right]$'
+    y2label = r'$\%$ Contribution'
+    plot_stack_virial_contrib(ax[0], times, mp, msdict, y1label)
+    plot_stack_virial_contrib(ax[1], times, mp, msdict, y2label,
+                              do_percent=True, do_xlabel=True)
+    fig2.tight_layout(pad=1)
+    fig2.savefig(figureout+'viriallineplot_stack_allpieces.png')
+    plt.close(fig2)
+
+    #Second grouping, 'lobes, rc, closed'
     ######################################################################
+    #Line plots
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=[14,8])
+    y1label = r'Virial Dst $\left[ nT\right]$'
+    y2label = r'$\%$ Contribution'
+    plot_raw_virial_contributions(ax[0],times,mp,msgrouped1,y1label)
+    plot_raw_virial_contributions(ax[1],times,mp,msgrouped1,y2label,
+                                  do_percent=True, do_xlabel=True)
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'viriallineplot_raw_3piece.png')
+    plt.close(fig)
+    #Stack plot
+    fig2, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=[14,8])
+    y1label = r'Virial Dst $\left[ nT\right]$'
+    y2label = r'$\%$ Contribution'
+    plot_stack_virial_contrib(ax[0], times, mp, msgrouped1, y1label)
+    plot_stack_virial_contrib(ax[1], times, mp, msgrouped1, y2label,
+                              do_percent=True, do_xlabel=True)
+    fig2.tight_layout(pad=1)
+    fig2.savefig(figureout+'viriallineplot_stack_3piece.png')
+    plt.close(fig2)
+
+    #Third grouping, 'lobe v lobe'
+    mslobes.pop('remaining')
+    mslobes.pop('missed')
+    ######################################################################
+    #Line plots
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=[14,8])
+    y1label = r'Virial Dst $\left[ nT\right]$'
+    y2label = r'$\%$ Contribution'
+    plot_raw_virial_contributions(ax[0],times,mp,mslobes,y1label)
+    plot_raw_virial_contributions(ax[1],times,mp,mslobes,y2label,
+                                  do_percent=True, do_xlabel=True)
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'viriallineplot_raw_Lobes.png')
+    plt.close(fig)
