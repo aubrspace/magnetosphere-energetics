@@ -10,6 +10,8 @@ from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import swmfpy
 import spacepy
 from spacepy import coordinates as coord
@@ -56,6 +58,32 @@ def plot_stack_virial_contrib(ax, times, mp, msdict, ylabel, *,
     ax.set_ylabel(ylabel)
     ax.legend(loc=kwargs.get('legend_loc',None))
 
+def plot_raw_bios_contributions(ax, times, mp, msdict, ylabel, *,
+                                  do_percent=False, **kwargs):
+    """Plots contribution of subzone to virial Dst
+    Inputs
+        mp(DataFrame)- total magnetosphere values
+        msdict(Dict of DataFrames)- subzone values
+        kwargs:
+            do_xlabel(boolean)- default False
+            legend_loc(see pyplot)- 'upper right' etc
+    """
+    #Relative contribution mode
+    if not do_percent:
+        ax.fill_between(times, mp['BioS full'],
+                           color='lightgrey')
+    else:
+        value_key = 'BioS Contribution [%]'
+    for ms in msdict.items():
+        if not do_percent:
+            value_key = ms[1].keys()[-1]
+        ax.plot(times, ms[1][value_key],
+                   label=ms[0])
+    if kwargs.get('do_xlabel',False):
+        ax.set_xlabel(r'Time $\left[ UTC\right]$')
+    ax.set_ylabel(ylabel)
+    ax.legend(loc=kwargs.get('legend_loc',None))
+
 def plot_raw_virial_contributions(ax, times, mp, msdict, ylabel, *,
                                   do_percent=False, **kwargs):
     """Plots contribution of subzone to virial Dst
@@ -74,6 +102,7 @@ def plot_raw_virial_contributions(ax, times, mp, msdict, ylabel, *,
     else:
         value_key = 'Virial Contribution [%]'
     for ms in msdict.items():
+        print(ms[0])
         ax.plot(times, ms[1][value_key],
                    label=ms[0])
     if kwargs.get('do_xlabel',False):
@@ -103,16 +132,22 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
     #Quantify amount missing from sum of all subzones
     missing_volume = pd.DataFrame()
     for key in [m for m in msdict.values()][0].keys():
-        fullvolume = [m for m in mpdict.values()][0][key]
-        added = [m for m in msdict.values()][0][key]
-        for sub in [m for m in msdict.values()][1::]:
-            added = added+sub[key]
-        missing_volume[key] = fullvolume-added
+        if key in [m for m in mpdict.values()][0].keys():
+            fullvolume = [m for m in mpdict.values()][0][key]
+            added = [m for m in msdict.values()][0][key]
+            for sub in [m for m in msdict.values()][1::]:
+                added = added+sub[key]
+            missing_volume[key] = fullvolume-added
     msdict.update({'missed':missing_volume})
     #Identify percentage contribution from each piece
     for ms in msdict.values():
         ms['Virial Contribution [%]'] = (ms['Virial Volume Total [J]']/
             [m for m in mpdict.values()][0]['Virial Volume Total [J]']*100)
+    if 'BioS full' in [m for m in mpdict.values()][0].keys():
+        for ms in msdict.values():
+            bioskey = ms.keys()[-1]
+            ms['BioS Contribution [%]'] = (ms[bioskey]/
+               [m for m in mpdict.values()][0]['BioS mp_iso_betastar']*100)
     return mpdict, msdict
 
 if __name__ == "__main__":
@@ -131,7 +166,24 @@ if __name__ == "__main__":
     simdata = [swmf_index, swmf_log, swmf_sw]
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=True)
-    store = pd.HDFStore(datapath+'energetics.h5')
+    #Extract biot-savart information
+    store2 = pd.HDFStore(datapath+'partial_viralBioS.h5')
+    bios_mpdict = {'ms_full':store2['/mp_iso_betastar']}
+    bios_mp = [m for m in bios_mpdict.values()][0]
+    bios_msdict = {'nlobe':store2['/ms_nlobe'],
+              'slobe':store2['/ms_slobe'],
+              'rc':store2['/ms_rc'],
+              'ps':store2['/ms_ps'],
+              'qDp':store2['/ms_qDp']}
+    biostimes = [m for m in bios_mpdict.values()][0]['Time [UTC]']
+    for df in bios_mpdict.values():
+        df.drop(columns='Time [UTC]',inplace=True)
+    for df in bios_msdict.values():
+        df.drop(columns='Time [UTC]',inplace=True)
+    bios_mpdict, bios_msdict = get_interzone_stats(bios_mpdict, bios_msdict)
+    store2.close()
+    #Extract virial information
+    store = pd.HDFStore(datapath+'virial_only.h5')
     times = store['Times']
     mpdict = {'ms_full':store['/mp_iso_betastar']}
     mp = [m for m in mpdict.values()][0]
@@ -151,6 +203,23 @@ if __name__ == "__main__":
                'remaining':store['/ms_rc']+store['/ms_ps']+store['/ms_qDp']}
     _, mslobes = get_interzone_stats(mpdict, mslobes)
     store.close()
+    #Calculate 2nd order central difference for mass omission
+    f_c =mp['Mr^2 [kgm^2]']; f_f=f_c.copy(); f_b=f_c.copy()
+    f_b.index=f_b.index+1; f_f.index=f_f.index-1
+    f_b = f_b.drop(index=[f_b.index[-1]])
+    f_f = f_f.drop(index=[-1])
+    mp['d2dt2 Mr^2 [J]'] = (f_f-2*f_c+f_b)/60**2
+    '''
+    f_n =mp['Mr^2 [kgm^2]']
+    f_n2=f_n.copy()
+    f_n1=f_n.copy()
+    f_n1.index=f_n1.index-1
+    f_n2.index=f_n2.index-2
+    f_n1 = f_n1.drop(index=[f_n1.index[-1]])
+    f_n2 = f_n2.drop(index=[-1])
+    mp['d2dt2 Mr^2 [J]'] = (f_n-2*f_n1+f_n2)/60**2
+    '''
+    mp['d2dt2 Mr^2 [nT]'] = mp['d2dt2 Mr^2 [J]']/8e13
     #Begin plots
     #Fist grouping, 'all pieces'
     ######################################################################
@@ -212,3 +281,36 @@ if __name__ == "__main__":
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'viriallineplot_raw_Lobes.png')
     plt.close(fig)
+
+    #Biot Savart all pieces
+    ######################################################################
+    #Line plots
+    fig, ax = plt.subplots(nrows=2, ncols=1, sharex=True, figsize=[14,8])
+    y1label = r'Biot Savart Dst $\left[ nT\right]$'
+    y2label = r'$\%$ Contribution'
+    plot_raw_bios_contributions(ax[0],biostimes,bios_mp,bios_msdict,y1label)
+    ax[0].set_ylim([-600,100])
+    plot_raw_bios_contributions(ax[1],biostimes,bios_mp,bios_msdict,y2label,
+                                  do_percent=True, do_xlabel=True)
+    ax[1].set_ylim([-300,300])
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'bioslineplot_raw_allpieces.png')
+    plt.close(fig)
+
+    #Omitted terms
+    ######################################################################
+    omits, ax1 = plt.subplots(nrows=1,ncols=1,sharex=True, figsize=[14,6])
+    label = r'$1/2\frac{\partial}{\partial{dt}}Mr^2$'
+    ax1.plot(times, 0.5*mp['d2dt2 Mr^2 [nT]'], label=label)
+    plot_dst(ax1, [swmf_log], 'Time [UTC]', '', Color='black',ls='--')
+    zoomleft = dt.datetime(2014,2,19,9,0)
+    zoomright = dt.datetime(2014,2,19,13,0)
+    ax1.set_xlim([zoomleft, zoomright])
+    #ax1.set_ylim([-100, 100])
+    ax1.set_ylabel(r'$Dst_{contrib} \left[nT\right]$')
+    ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+    ax1.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax1.set_xlabel(r'Time $\left[UTC\right]$')
+    ax1.legend(loc='lower right')
+    omits.tight_layout(pad=1)
+    omits.savefig(figureout+'omit_Mr2.png')

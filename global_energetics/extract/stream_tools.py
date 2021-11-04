@@ -1219,6 +1219,17 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     eq('{Bmag [nT]} =sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
         value_location=ValueLocation.CellCentered)
     ######################################################################
+    #Fieldlinemaping
+    if ('OCFLB' in analysis_type or analysis_type=='all') and kwargs.get('is3D',True):
+        eq('{Xd [R]}= {mhat_x}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
+        eq('{Zd [R]}= {mhat_z}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
+        eq('{phi} = atan2({Y [R]}, {Xd [R]})')
+        eq('{req} = 2.7/(cos({lambda})**2)')
+        eq('{lambda2} =sqrt(acos(1/{req}))')
+        eq('{X_r1project} = 1*cos({phi})*sin(pi/2-{lambda2})')
+        eq('{Y_r1project} = 1*sin({phi})*sin(pi/2-{lambda2})')
+        eq('{Z_r1project} = 1*cos(pi/2-{lambda2})')
+    ######################################################################
     #Virial only intermediate terms
     if 'virial' in analysis_type or analysis_type=='all':
         #Density times velocity between now and next timestep
