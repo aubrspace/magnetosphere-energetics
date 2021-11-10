@@ -1,5 +1,5 @@
 ### macOS.gitignore
-.DS_Store
+*.DS_Store
 
 ### tecplot.gitignore
 #datafiles
