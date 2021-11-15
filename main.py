@@ -59,9 +59,9 @@ if __name__ == "__main__":
         mesh, data = magnetosphere.get_magnetosphere(field_data,
                                     outputpath=OUTPATH,
                                     analysis_type='virial_vs_biotsavart',
-                                    tail_cap=-60,
-                                    integrate_surface=True,
-                                    integrate_volume=True)
+                                    tail_cap=-20,
+                                    integrate_surface=False,
+                                    integrate_volume=False)
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'

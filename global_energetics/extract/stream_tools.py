@@ -1629,17 +1629,20 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
                                               'ms_qDp_L='+lshelllim).index
 
 
-def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell'):
+def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell', **kwargs):
     """Function creates eq for region containing ring currents within the
         confines of closed field line surface indicated by closed_var
     Inputs
         closed_var- variable name for magnetopause zone
         lshsellmax- dipolar coord l shell limit
+        kwargs:
+            rmin(str)- minimum radius for inner boundary
     Return
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
     eq('{ms_rc_L='+lshellmax+'} = if({'+closed_var+'}==1&&'+
+                                   '{r [R]}>'+kwargs.get('rmin','3')+'&&'+
                                     '{'+Lvar+'}<'+lshellmax+',1,0)')
     return tp.active_frame().dataset.variable('ms_rc_L='+lshellmax).index
 

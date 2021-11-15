@@ -119,6 +119,11 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
         [MODIFIED] mpdict(Dict of DataFrames)
         [MODIFIED] msdict(Dict of DataFrames)
     """
+    #Add total energy
+    for m in mpdict.values():
+        m['Utot [J]'] = m['uBtot [J]']+m['KE [J]']+m['Etherm [J]']
+    for m in msdict.values():
+        m['Utot [J]'] = m['uBtot [J]']+m['KE [J]']+m['Etherm [J]']
     #Remove time column and rename biot savart columns
     for m in mpdict.values():
         m.drop(columns=['Time [UTC]'],inplace=True, errors='ignore')
@@ -255,5 +260,36 @@ if __name__ == "__main__":
             fig[1].tight_layout(pad=1)
             fig[1].savefig(figureout+'virial_stack_'+fig[0]+combo[0]+'.png')
             plt.close(fig[1])
-    #Second type: specific 
+    #Second type: distribution of types of energy in the system
     ######################################################################
+    y1labels = [r'Total Magnetic Energy $\left[J\right]$',
+                r'Disturbance Magnetic Energy $\left[J\right]$',
+                r'Dipole Magnetic Energy $\left[J\right]$',
+                r'Kinetic Energy $\left[J\right]$',
+                r'Thermal Energy $\left[J\right]$',
+                r'Total Energy $\left[J\right]$']
+    y2label = r'Energy fraction $\left[\%\right]$'
+    energies = ['uBtot','uB_dist','uB_dipole','KE','Etherm','Utot']
+    fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    fig4,ax4 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    fig5,ax5 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    fig6,ax6 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    fig7,ax7 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    print(msdict['rc'].keys())
+    ax = [ax1,ax2,ax3,ax4,ax5,ax6]
+    for fig in enumerate([fig1, fig2, fig3, fig4, fig5, fig6]):
+        plot_contributions(ax[fig[0]][0],times,mp,msdict_3zone,
+                       y1labels[fig[0]], value_key=energies[fig[0]]+' [J]')
+        plot_contributions(ax[fig[0]][1], times, mp, msdict_3zone, y2label,
+                           value_key=energies[fig[0]]+' [%]')
+        fig[1].tight_layout(pad=1)
+        fig[1].savefig(figureout+energies[fig[0]]+'_line.png')
+        plt.close(fig[1])
+    plot_contributions(ax7[0], times, mp, msdict_3zone,
+                    r'Volume $\left[R_e\right]$',value_key='Volume [Re^3]')
+    plot_contributions(ax7[1], times, mp, msdict_3zone,
+               r'Volume fraction $\left[\%\right]$',value_key='Volume [%]')
+    fig7.tight_layout(pad=1)
+    fig7.savefig(figureout+'Volume_line.png')
