@@ -328,9 +328,11 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
-    mp_mesh = pd.DataFrame()
+    mp_mesh = {}
     data_to_write={}
-    savemeshvars = []
+    savemeshvars = {}
+    for mode in modes:
+        savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
         #integrate power on main surface
@@ -348,11 +350,11 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 var_length = len(field_data.zone(zonelist[0]).values(
                                   name.split(' ')[0]+'*').as_numpy_array())
                 if var_length==cc_length:
-                    savemeshvars.append(name)
+                    savemeshvars[modes[0]].append(name)
         if do_1Dsw and save_mesh:
             for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                             '1DExB_net [W/Re^2]']:
-                savemeshvars.append(name)
+                savemeshvars[modes[0]].append(name)
         if mode=='iso_betastar':
             #integrate power on innerboundary surface
             inner_mesh = pd.DataFrame()
@@ -367,7 +369,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             if save_mesh:
                 #save inner boundary mesh to the mesh file
                 inner_index =(field_data.zone('*innerbound*').index.real)
-                for var in savemeshvars:
+                for var in savemeshvars[modes[0]]:
                     inner_mesh[var] = field_data.zone(inner_index).values(
                                     var.split(' ')[0]+'*').as_numpy_array()
         print('\nMagnetopause Power Terms\n{}'.format(mp_powers))
@@ -383,12 +385,22 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                      deltatime, tail_analysis_cap, hmin)
             energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name:energies})
+            for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
+                        'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
+                usename = var.split(' ')[0]+'_cc'
+                tp.data.operate.execute_equation('{'+usename+'}={'+var+'}',
+            zones=[region.index],value_location=ValueLocation.CellCentered)
+                savemeshvars[modes[state_index[0]]].append(usename)
     ################################################################
     if save_mesh:
         #save mesh to hdf file
-        for var in savemeshvars:
-            mp_mesh[var] = field_data.zone(zonelist[0]
-                           ).values(var.split(' ')[0]+'*').as_numpy_array()
+        for state_index in enumerate(state_indices):
+            region = field_data.zone(zonelist[state_index[0]])
+            meshvalues = pd.DataFrame()
+            for var in [m for m in savemeshvars.values()][state_index[0]]:
+                usename = var.split(' ')[0]+'*'
+                meshvalues[var] = region.values(usename).as_numpy_array()
+            mp_mesh.update({region.name:meshvalues})
     ################################################################
     if integrate_volume and integrate_surface and(
                       'virial' in analysis_type or analysis_type=='all'):
@@ -399,6 +411,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     #Add time and x_subsolar
     mp_powers['Time [UTC]'] = eventtime
+    mp_mesh.update({'Time [UTC]':pd.DataFrame({'Time [UTC]':[eventtime]})})
     mp_powers['X_subsolar [Re]'] = float(aux['x_subsolar'])
     region = field_data.zone(zonelist[0])
     for key in mp_powers:
@@ -407,8 +420,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                       str(eventtime.minute))
-        write_mesh(outputpath+'/meshdata/mesh_'+datestring+'.h5',
-                    zone.name, pd.Series(eventtime), mp_mesh)
+        write_to_hdf(outputpath+'/meshdata/mesh_'+datestring+'.h5',mp_mesh)
         write_to_hdf(outputpath+'/energeticsdata/energetics_'+
                         datestring+'.h5', data_to_write)
     if disp_result:

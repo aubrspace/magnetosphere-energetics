@@ -1263,9 +1263,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     eq('{Pth [J/Re^3]} = {P [nPa]}*6371**3',
         value_location=ValueLocation.CellCentered)
     #Kinetic energy per volume
-    eq('{KE [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                      '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)'+
-                      '*1e6*1.6605e-27*1e6*1e9*6371**3',
+    eq('{KE [J/Re^3]} = {Dp [nPa]}/2*6371**3',
         value_location=ValueLocation.CellCentered)
     if 'virial' in analysis_type or analysis_type=='all':
         #Dipole magnetic Energy
@@ -1278,12 +1276,12 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                              '({B_z [nT]}-{Bdz})**2)'+
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                           value_location=ValueLocation.CellCentered)
-    if 'energy' in analysis_type or analysis_type=='all':
-        #Hydrodynamic Energy Density
-        eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+    #if 'energy' in analysis_type or analysis_type=='all':
+    #Hydrodynamic Energy Density
+    eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
                           value_location=ValueLocation.CellCentered)
-        #Total Energy Density
-        eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
+    #Total Energy Density
+    eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
                           value_location=ValueLocation.CellCentered)
     if ('biotsavart' in analysis_type) or analysis_type=='all':
         eq('{dB_x [nT]} = -({Y [R]}*{J_z [uA/m^2]}-'+
