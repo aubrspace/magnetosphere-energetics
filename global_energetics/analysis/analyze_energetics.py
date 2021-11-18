@@ -1510,13 +1510,13 @@ def plot_swbz(axis, dflist, timekey, ylabel, *,
             axis.plot(data[timekey],data[qtkey],
                       label='SWMF input (WIND)',
                       linewidth=Size, linestyle=ls,
-                      color='lightsteelblue')
+                      color='black')
         elif name == 'omni':
             qtkey = 'bz'
             axis.plot(data[timekey],data[qtkey],
                       label='OMNI',
                       linewidth=Size, linestyle=ls,
-                      color='coral')
+                      color='tab:pink')
         else:
             qtkey = None
     if xlim!=None:
@@ -1553,7 +1553,7 @@ def plot_swflowP(axis, dflist, timekey, ylabel, *,
             qtkey = 'Pdyn'
             axis.plot(data[timekey],data[qtkey],
                       label='SWMF input (WIND)',
-                      linewidth=Size, linestyle=ls,
+                      linewidth=Size, linestyle='--',
                       color='black')
         elif name == 'omni':
             convert = 1.6726e-27*1e6*(1e3)**2*1e9
@@ -1562,7 +1562,7 @@ def plot_swflowP(axis, dflist, timekey, ylabel, *,
             axis.plot(data[timekey],data[qtkey],
                       label='OMNI',
                       linewidth=Size, linestyle=ls,
-                      color='coral')
+                      color='tab:orange')
         else:
             qtkey = None
     if xlim!=None:

@@ -20,7 +20,158 @@ from spacepy import time as spacetime
 from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.proc_temporal import read_energetics
 from global_energetics.analysis.analyze_energetics import (chopends_time,
+                                                  plot_swflowP,plot_swbz,
                                                            plot_dst)
+
+def pyplotsetup(*, mode='presentation', **kwargs):
+    """Creates dictionary to send to rcParams for pyplot defaults
+    Inputs
+        mode(str)- default is "presentation"
+        kwargs:
+    """
+    #Always
+    settings={"text.usetex": True,
+              "font.family": "sans-serif",
+              "font.size": 18,
+              "font.sans-serif": ["Helvetica"]}
+    if 'presentation' in mode:
+        #increase lineweights
+        settings.update({'lines.linewidth': 3})
+    if 'print' in mode:
+        #Change colorcycler
+        colorwheel = plt.cycler('color',
+                ['tab:blue', 'tab:orange', 'tab:pink', 'tab:brown',
+                 'tab:olive','tab:cyan'])
+        settings.update({'axes.prop_cycle': colorwheel})
+    elif 'digital' in mode:
+        #make non white backgrounds, adjust borders accordingly
+        settings.update({'axes.edgecolor': 'white',
+                         'axes.facecolor': 'grey'})
+        #Change colorcycler
+        colorwheel = plt.cycler('color',
+                   ['cyan', 'magenta', 'peachpuff', 'chartreuse', 'wheat',
+                    'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
+        settings.update({'axes.prop_cycle': colorwheel})
+    return settings
+
+def general_plot_settings(ax, ylabel, **kwargs):
+    """Sets a bunch of general settings
+    Inputs
+        ax
+        kwargs:
+            do_xlabel(boolean)- default False
+            color(str)- see matplotlib named colors
+            legend_loc(see pyplot)- 'upper right' etc
+    """
+    if kwargs.get('do_xlabel',False):
+        ax.set_xlabel(r'Time $\left[ UTC\right]$')
+    #if kwargs.get('ylim',None) is not None:
+    ax.set_ylim(kwargs.get('ylim',None))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+    ax.tick_params(which='major', length=9)
+    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.set_ylabel(ylabel)
+    ax.legend(loc=kwargs.get('legend_loc',None))
+
+def plot_single(ax, times, mp, msdict, ylabel, **kwargs):
+    """Plots energy or dst contribution in particular zone
+    Inputs
+        mp(DataFrame)- total magnetosphere values
+        msdict(Dict of DataFrames)- subzone values
+        kwargs:
+            do_xlabel(boolean)- default False
+            legend_loc(see pyplot)- 'upper right' etc
+            subzone(str)- 'ms_full' is default
+            value_key(str)- 'Virial_Dst [nT]' default
+            color(str)- see matplotlib named colors
+    """
+    #Gather info
+    subzone = kwargs.get('subzone', 'ms_full')
+    value = kwargs.get('value_key', 'Virial Volume Total [nT]')
+    #Set data
+    if 'ms_full' in subzone: data = mp
+    else: data = msdict[subzone]
+    #Set label
+    if 'Virial' in value:
+        label='Virial'
+        if 'closedRegion' in subzone or 'lobes' in subzone:
+            label=label+' (mod)'
+    elif 'BioS' in value: label='Biot Savart'
+    else: label = None
+    #Plot
+    if value in data.keys():
+        ax.plot(times, data[value], label=label,
+                color=kwargs.get('color',None))
+    #General plot settings
+    general_plot_settings(ax, ylabel, **kwargs)
+
+def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
+    """Plots distribution of energies in particular zone
+    Inputs
+        mp(DataFrame)- total magnetosphere values
+        msdict(Dict of DataFrames)- subzone values
+        kwargs:
+            do_xlabel(boolean)- default False
+            legend_loc(see pyplot)- 'upper right' etc
+            subzone(str)- 'ms_full' is default
+            value_set(str)- 'Virialvolume', 'Energy', etc
+            ylim(tuple or list)- None
+    """
+    #Figure out value_keys and subzone
+    subzone = kwargs.get('subzone', 'ms_full')
+    if 'ms_full' in subzone:
+        data = mp
+    else:
+        data = msdict[subzone]
+    value_set = kwargs.get('value_set','Virialvolume')
+    values = {'Virialvolume':['Virial 2x Uk [nT]', 'Virial Ub [nT]'],
+              'Energy':['uB_dist [J]', 'KE [J]', 'Etherm [J]'],
+              'Virialvolume%':['Virial 2x Uk [%]', 'Virial Ub [%]'],
+              'Energy%':['uB_dist [%]', 'KE [%]', 'Etherm [%]']}
+    #Get % within specific subvolume
+    if '%' in value_set:
+        for value in values[''.join(value_set.split('%'))]:
+                #find total
+                if 'Virial' in value_set:
+                    if 'volume' in value_set:
+                        total = data['Virial Volume Total [nT]']
+                    else:
+                        total = data['Virial_Dst [nT]']
+                elif 'Energy' in value_set:
+                    total = (data['Utot [J]']-data['uBtot [J]']+
+                             data['uB_dist [J]'])
+                data[value.split('[')[0]+'[%]'] = data[value]/total*100
+    #Optional layers depending on value_key
+    if not '%' in value_set:
+        if 'BioS' in value_set:
+            ax.fill_between(times, mp['BioS full [nT]'], color='olive')
+            ax.plot(times, mp['Virial_Dst [nT]'], color='black', ls='--',
+                    label='Virial')
+            try:
+                ax.plot(omni['Time [UTC]'],omni['sym_h'],
+                        color='seagreen',
+                        ls='--', label='OMNI obs')
+            except NameError:
+                print('omni not loaded! No obs comparisons!')
+        if 'Virial' in value_set:
+            if 'volume' in value_set:
+                ax.fill_between(times, data['Virial Volume Total [nT]'],
+                                color='lightgrey')
+            else:
+                ax.fill_between(times, data['Virial_Dst [nT]'],
+                                color='lightgrey')
+        elif 'Energy' in value_set:
+                total = (data['Utot [J]']-data['uBtot [J]']+
+                         data['uB_dist [J]'])
+                ax.fill_between(times, total, color='lightgrey')
+    #Plot line plots
+    for value in values[value_set]:
+        if value in data.keys():
+            safelabel = ' '.join(value.split('_')).split('[%]')[0]
+            ax.plot(times, data[value], label=safelabel)
+    #General plot settings
+    general_plot_settings(ax, ylabel, **kwargs)
 
 def plot_stack_contrib(ax, times, mp, msdict, ylabel, **kwargs):
     """Plots contribution of subzone to virial Dst
@@ -59,15 +210,8 @@ def plot_stack_contrib(ax, times, mp, msdict, ylabel, **kwargs):
     #Optional plot settings
     if ('BioS' in value_key) and ('%' in value_key):
         ax.set_ylim([-100,100])
-    if kwargs.get('do_xlabel',False):
-        ax.set_xlabel(r'Time $\left[ UTC\right]$')
     #General plot settings
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-    ax.tick_params(which='major', length=9)
-    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_ylabel(ylabel)
-    ax.legend(loc=kwargs.get('legend_loc',None))
+    general_plot_settings(ax, ylabel, **kwargs)
 
 def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     """Plots contribution of subzone to virial Dst
@@ -84,15 +228,20 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     #Optional layers depending on value_key
     if not '%' in value_key:
         if 'BioS' in value_key:
-            ax.fill_between(times, mp['BioS full [nT]'], color='olive')
-            ax.plot(times, mp['Virial_Dst [nT]'], color='black', ls='--',
-                    label='Virial')
-            try:
-                ax.plot(omni['Time [UTC]'],omni['sym_h'],color='cyan',
-                        ls='--', label='OMNI obs')
-            except NameError:
-                print('omni not loaded! No obs comparisons!')
-        ax.fill_between(times, mp[value_key], color='lightgrey')
+            #ax.fill_between(times, mp['BioS full [nT]'], color='olive')
+            #ax.plot(times, mp['Virial_Dst [nT]'], color='tab:red', ls='--',
+            #        label='Virial')
+            ax.fill_between(times, mp[value_key], color='gainsboro')
+        elif 'Virial' in value_key:
+            #ax.plot(times, mp['BioS [nT]'], color='tab:cyan', ls='--',
+            #        label='Biot Savart')
+            ax.fill_between(times, mp[value_key], color='gainsboro')
+        try:
+            ax.plot(omni['Time [UTC]'],omni['sym_h'],color='seagreen',
+                    ls='--', label='OMNI obs')
+        except NameError:
+            print('omni not loaded! No obs comparisons!')
+        #ax.fill_between(times, mp[value_key], color='lightgrey')
     #Plot line plots
     for ms in msdict.items():
         if value_key in ms[1].keys():
@@ -100,15 +249,8 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     #Optional plot settings
     if ('BioS' in value_key) and ('%' in value_key):
         ax.set_ylim([-100,100])
-    if kwargs.get('do_xlabel',False):
-        ax.set_xlabel(r'Time $\left[ UTC\right]$')
     #General plot settings
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-    ax.tick_params(which='major', length=9)
-    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.set_ylabel(ylabel)
-    ax.legend(loc=kwargs.get('legend_loc',None))
+    general_plot_settings(ax, ylabel, **kwargs)
 
 def get_interzone_stats(mpdict, msdict, **kwargs):
     """Function finds percent contributions and missing amounts
@@ -158,11 +300,7 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
 if __name__ == "__main__":
     datapath = sys.argv[-1]
     figureout = datapath+'figures/'
-    plt.rcParams.update({
-        "text.usetex": True,
-        "font.family": "sans-serif",
-        "font.size": 18,
-        "font.sans-serif": ["Helvetica"]})
+    plt.rcParams.update(pyplotsetup(mode='print_presentation'))
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
     cuttoffstart = dt.datetime(2014,2,18,6,0)
@@ -171,7 +309,8 @@ if __name__ == "__main__":
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=True)
     store = pd.HDFStore(datapath+'energetics.h5')
-    times = store[store.keys()[0]]['Time [UTC]']
+    #store = pd.HDFStore(datapath+'halfbaked.h5')
+    times = store[store.keys()[0]]['Time [UTC]']+dt.timedelta(minutes=45)
     #Clean up and gather statistics
     mpdict = {'ms_full':store['/mp_iso_betastar']}
     mp = [m for m in mpdict.values()][0]
@@ -277,13 +416,12 @@ if __name__ == "__main__":
     fig5,ax5 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
     fig6,ax6 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
     fig7,ax7 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    print(msdict['rc'].keys())
     ax = [ax1,ax2,ax3,ax4,ax5,ax6]
     for fig in enumerate([fig1, fig2, fig3, fig4, fig5, fig6]):
         plot_contributions(ax[fig[0]][0],times,mp,msdict_3zone,
                        y1labels[fig[0]], value_key=energies[fig[0]]+' [J]')
         plot_contributions(ax[fig[0]][1], times, mp, msdict_3zone, y2label,
-                           value_key=energies[fig[0]]+' [%]')
+                         value_key=energies[fig[0]]+' [%]', do_xlabel=True)
         fig[1].tight_layout(pad=1)
         fig[1].savefig(figureout+energies[fig[0]]+'_line.png')
         plt.close(fig[1])
@@ -293,3 +431,126 @@ if __name__ == "__main__":
                r'Volume fraction $\left[\%\right]$',value_key='Volume [%]')
     fig7.tight_layout(pad=1)
     fig7.savefig(figureout+'Volume_line.png')
+    plt.close(fig7)
+    #Third type: distrubiton of virial and types of energy within subzone
+    ######################################################################
+    y2label = r'Fraction $\left[\%\right]$'
+    valset = ['Virialvolume','Energy']
+    for vals in valset:
+        if 'Virial' in vals:
+            fig2ylabels = {'rc':r'Ring Current Dst $\left[nT\right]$',
+                    'closedRegion':r'Closed Region Dst $\left[nT\right]$',
+                           'lobes':r'Lobes Dst $\left[nT\right]$'}
+        elif 'Energy' in vals:
+            fig2ylabels = {'rc':r'Ring Current Energy $\left[J\right]$',
+                    'closedRegion':r'Closed Region Energy $\left[J\right]$',
+                           'lobes':r'Lobes Energy $\left[J\right]$'}
+        y1labels = ['Full MS '+vals+' Distribution']
+        fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+        fig2,ax2 = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,14])
+        plot_distr(ax1[0],times,mp,msdict_3zone,y1labels[0],value_set=vals)
+        plot_distr(ax1[1], times, mp, msdict_3zone, y2label,
+                   value_set=vals+'%', do_xlabel=True)
+        fig1.tight_layout(pad=1)
+        fig1.savefig(figureout+'distr_'+vals+'_fullMS_line.png')
+        for subzone in enumerate([k for k in msdict_3zone.keys()][0:-1]):
+            y1labels = [subzone[1]+' '+vals+' Distribution']
+            fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+            plot_distr(ax[0],times,mp,msdict_3zone,y1labels[0],
+                       value_set=vals, subzone=subzone[1])
+            plot_distr(ax[1], times, mp, msdict_3zone, y2label,
+                   value_set=vals+'%', do_xlabel=True, subzone=subzone[1])
+            plot_distr(ax2[subzone[0]],times,mp,msdict_3zone,
+                fig2ylabels[subzone[1]],value_set=vals,subzone=subzone[1],
+                       ylim=[0,8e15])
+                       #do_xlabel=(subzone[0] is len(msdict_3zone)-2))
+            fig.tight_layout(pad=1)
+            fig.savefig(figureout+'distr_'+vals+subzone[1]+'_line.png')
+            plt.close(fig)
+        plot_swbz(ax2[3],[swmf_sw],'Time [UTC]',r'$B_z \left[nT\right]$')
+        plot_swflowP(ax2[3].twinx(),[swmf_sw],'Time [UTC]',
+                     r'$P_{ram} \left[nT\right]$')
+        ax2[3].set_xlabel(r'Time $\left[ UTC\right]$')
+        ax2[3].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax2[3].tick_params(which='major', length=9)
+        ax2[3].xaxis.set_minor_locator(AutoMinorLocator(6))
+        fig2.tight_layout(pad=1)
+        fig2.savefig(figureout+'distr_'+vals+'eachzone_line.png')
+        plt.close(fig2)
+    #Fourth type: virial vs Biot Savart stand alones
+    ######################################################################
+    ylabels = {'rc':r'Ring Current Dst $\left[nT\right]$',
+               'closedRegion':r'Closed Region Dst $\left[nT\right]$',
+               'lobes':r'Lobes Dst $\left[nT\right]$',
+               'missing':r'Unaccounted Dst $\left[nT\right]$'}
+    fig, ax = plt.subplots(nrows=len(msdict_3zone), ncols=1, sharex=True,
+                           figsize=[14,4*len(msdict_3zone)])
+    #Hotfix, create "modified" virial contributions with volumetric
+    # proportions of surface total contributions
+    wetted_volumes = (msdict_3zone['closedRegion']['Volume [Re^3]']+
+                      msdict_3zone['lobes']['Volume [Re^3]'])
+    msdict_3zone['closedRegion']['Virial Volume Total_mod'] = (
+                msdict_3zone['closedRegion']['Virial Volume Total [nT]']+
+                mp['Virial Surface Total [nT]']*
+              msdict_3zone['closedRegion']['Volume [Re^3]']/wetted_volumes)
+    msdict_3zone['lobes']['Virial Volume Total_mod'] = (
+                        msdict_3zone['lobes']['Virial Volume Total [nT]']+
+                mp['Virial Surface Total [nT]']*
+                    msdict_3zone['lobes']['Volume [Re^3]']/wetted_volumes)
+    '''
+    msdict_3zone['closedRegion']['Virial Volume Total_mod'] = (
+                msdict_3zone['closedRegion']['Virial Volume Total [nT]'])
+    msdict_3zone['lobes']['Virial Volume Total_mod'] = (
+                        msdict_3zone['lobes']['Virial Volume Total [nT]']+
+                mp['Virial Surface Total [nT]'])
+    '''
+    msdict_3zone['rc']['Virial Volume Total_mod'] = (
+                            msdict_3zone['rc']['Virial Volume Total [nT]'])
+    msdict_3zone['missing']['Virial Volume Total_mod'] = (
+                       msdict_3zone['missing']['Virial Volume Total [nT]'])
+    mp['Virial Volume Total_mod'] = (mp['Virial Volume Total [nT]']+
+                                      mp['Virial Surface Total [nT]'])
+    for subzone in enumerate(msdict_3zone):
+        plot_single(ax[subzone[0]], times, mp, msdict_3zone,
+                   ylabels[subzone[1]],
+                   subzone=subzone[1],value_key='Virial Volume Total_mod')
+        plot_single(ax[subzone[0]], times, mp, msdict_3zone,
+             ylabels[subzone[1]], subzone=subzone[1],value_key='BioS [nT]',
+                    do_xlabel=(subzone[0] is len(msdict_3zone)-1))
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'compare_Total_line.png')
+    plt.close(fig)
+    #Fifth type: virial vs Biot Savart one nice imag with obs dst
+    ######################################################################
+    y1label = r'Virial $\Delta B\left[ nT\right]$'
+    y2label = r'Biot Savart law $\Delta B\left[ nT\right]$'
+    fig,ax = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+    '''
+    msdict_3zone.pop('missing')
+    plot_contributions(ax[1], times,mp,msdict_3zone,y2label,
+                               value_key='BioS [nT]', do_xlabel=True)
+    ax[0].plot(times,
+               msdict_3zone['closedRegion']['Virial Volume Total [nT]'],
+               label='Closed region')
+    ax[0].plot(times,msdict_3zone['lobes']['Virial Volume Total [nT]'],
+               label='lobes')
+    msdict_3zone.pop('lobes')
+    msdict_3zone.pop('closedRegion')
+    plot_contributions(ax[0], times,mp,msdict_3zone,y1label,
+                               value_key='Virial Volume Total_mod',
+                               legend_loc='lower left')
+    ax[0].plot(times,mp['Virial Surface Total [nT]'],
+               label='Surface')
+    '''
+    msdict_3zone.pop('missing')
+    plot_contributions(ax[0], times,mp,msdict_3zone,y1label,
+                               value_key='Virial Volume Total_mod',
+                               legend_loc='lower left')
+    plot_contributions(ax[1], times,mp,msdict_3zone,y2label,
+                               value_key='BioS [nT]', do_xlabel=True)
+    ax[0].set_ylim([-125,50])
+    ax[1].set_ylim([-125,50])
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'pretty_Dst_line.png')
+    plt.close(fig)
+

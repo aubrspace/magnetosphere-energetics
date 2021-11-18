@@ -1198,10 +1198,13 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
         aux = field_data.zone('global_field').aux_data
         #Dipolar coordinate variables
-        eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
-        eq('{mhat_y} = 0')
-        eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
-        eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
+        eq('{mXhat_x} = sin(('+aux['BTHETATILT']+'+90)*pi/180)')
+        eq('{mXhat_y} = 0')
+        eq('{mXhat_z} = -1*cos(('+aux['BTHETATILT']+'+90)*pi/180)')
+        eq('{mZhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
+        eq('{mZhat_y} = 0')
+        eq('{mZhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
+        eq('{lambda}=asin(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})')
         eq('{Lshell} = {r [R]}/cos({lambda})**2')
     else:
         eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)')
@@ -1221,7 +1224,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     ######################################################################
     #Fieldlinemaping
     if ('OCFLB' in analysis_type or analysis_type=='all') and kwargs.get('is3D',True):
-        eq('{Xd [R]}= {mhat_x}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
+        eq('{Xd [R]}= {mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})')
         eq('{Zd [R]}= {mhat_z}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
         eq('{phi} = atan2({Y [R]}, {Xd [R]})')
         eq('{req} = 2.7/(cos({lambda})**2)')
@@ -1342,6 +1345,24 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
                           value_location=ValueLocation.CellCentered)
     ######################################################################
+    if 'reconnect' in analysis_type:
+        eq('{minus_uxB_x}=-({U_y [km/s]}*{B_z [nT]}-'+
+                           '{U_z [km/s]}*{B_y [nT]})')
+        eq('{minus_uxB_y}=-({U_z [km/s]}*{B_x [nT]}-'+
+                           '{U_x [km/s]}*{B_z [nT]})')
+        eq('{minus_uxB_z}=-({U_x [km/s]}*{B_y [nT]}-'+
+                           '{U_y [km/s]}*{B_x [nT]})')
+        eq('{E [uV/m]} = sqrt({minus_uxB_x}**2+'+
+                             '{minus_uxB_y}**2+{minus_uxB_z}**2)')
+        eq('{J [uA/m^2]} = sqrt({J_x [uA/m^2]}**2+'+
+                               '{J_y [uA/m^2]}**2+{J_z [uA/m^2]}**2)')
+        eq('{eta [m/S]} = IF({J [uA/m^2]}>0.002,'+
+                            '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)')
+        eq('{eta [Re/S]} = {eta [m/S]}/(6371*1000)')
+        eq('{Cell Size [Re]} = {Cell Volume}**(1/3)')
+        eq('{Reynolds_m_cell} = 4*pi*1e-4*'+
+               'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
+                                 '{Cell Size [Re]}/({eta [Re/S]}+1e-9)')
     if analysis_type=='all':
         eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                                     '(({U_x [km/s]}*{unitbx})**2+'+

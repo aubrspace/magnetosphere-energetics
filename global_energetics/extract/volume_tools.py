@@ -148,7 +148,8 @@ def volume_analysis(frame, state_var, analysis_type, do_1Dsw, do_cms,
             data.append(Total)
         if volume:
             #integrate volume size
-            eq('{Volume '+state_var+'} =IF({'+state_var+'}<1,0,1)')
+            eq('{Volume '+state_var+'} =IF({'+state_var+'}>0,'+
+                                                    '{'+state_var+'},0)')
             keys.append('Volume [Re^3]')
             Vol_index = int(field_data.variable('Volume '+state_var).index)
             Vol = integrate_volume(Vol_index, zone_index)

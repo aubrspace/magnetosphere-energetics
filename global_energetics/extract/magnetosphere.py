@@ -414,9 +414,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     mp_mesh.update({'Time [UTC]':pd.DataFrame({'Time [UTC]':[eventtime]})})
     mp_powers['X_subsolar [Re]'] = float(aux['x_subsolar'])
     region = field_data.zone(zonelist[0])
-    for key in mp_powers:
-        data_to_write[region.name][key] = mp_powers[key]
     if write_data:
+        for key in mp_powers:
+            data_to_write[region.name][key] = mp_powers[key]
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                       str(eventtime.minute))
