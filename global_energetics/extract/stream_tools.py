@@ -742,16 +742,12 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                                             'ID'].values
     field_data.zone(futureindex).values('SectorID')[::]=future_mesh[
                                                             'ID'].values
-
-def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
-                          *, find_DFT=True, do_cms=False, dt=60):
-    """Function calculated variables for a specific 3D surface
+def get_surf_geom_variables(zone):
+    """Function calculates variables for new zone based only on geometry,
+        independent of what analysis will be performed on surface
     Inputs
-        field_data, zone_name
-    Outputs
-        hmin- useful for global field data to know where tail inlets are
+        zone(Zone)- tecplot zone to calculate variables
     """
-    zone_index = field_data.zone(zone_name).index
     #Get grid dependent variables
     tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
@@ -761,30 +757,21 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
                                       'CALCULATE FUNCTION = '+
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
-    eq = tp.data.operate.execute_equation
-    eq('{x_cc}={X [R]}', value_location=ValueLocation.CellCentered)
-    eq('{y_cc}={Y [R]}', value_location=ValueLocation.CellCentered)
-    eq('{z_cc}={Z [R]}', value_location=ValueLocation.CellCentered)
-    eq('{r_cc}={r [R]}', value_location=ValueLocation.CellCentered)
-    eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
-    eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
-    eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
-    if 'energy' in analysis_type or analysis_type == 'all':
-        eq('{Utot_cc}={Utot [J/Re^3]}',
-                         value_location=ValueLocation.CellCentered)
-    eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{By_cc}={B_y [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered)
-    #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
-    eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
-    xvalues = field_data.zone(zone_name).values('x_cc').as_numpy_array()
-    xnormals = field_data.zone(zone_name).values(
-                                  'X GRID K Unit Normal').as_numpy_array()
-    df = pd.DataFrame({'x':xvalues,'normal':xnormals})
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    #Generate cellcentered versions of postitional variables
+    for var in ['X [R]','Y [R]','Z [R]','r [R]']:
+        newvar = var.split(' ')[0].lower()+'_cc'
+        eq('{'+newvar+'}={'+var+'}', value_location=CC)
+    #Create a DataFrame for easy manipulations
+    x_ccvalues =zone.values('x_cc').as_numpy_array()
+    xnormals = zone.values('X GRID K Unit Normal').as_numpy_array()
+    xvals = zone.values('X *').as_numpy_array()
+    hvals = zone.values('h').as_numpy_array()
+    df = pd.DataFrame({'x_cc':x_ccvalues,'normal':xnormals})
     #Check that surface normals are pointing outward from surface
     #Spherical inner boundary surface case (want them to point inwards)
-    if zone_name.find('innerbound') != -1:
-        if df[df['x']==df['x'].min()]['normal'].mean() < 0:
+    if 'innerbound' in zone.name:
+        if df[df['x_cc']==df['x_cc'].min()]['normal'].mean() < 0:
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
@@ -794,8 +781,8 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
             eq('{surface_normal_z} = {Z Grid K Unit Normal}')
     else:
         #Look at tail cuttoff plane for other cases
-        if (len(df[(df['x']==df['x'].min())&(df['normal']>0)]) >
-            len(df[(df['x']==df['x'].min())&(df['normal']<0)])):
+        if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
+            len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']<0)])):
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
@@ -803,32 +790,78 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
             eq('{surface_normal_x} = {X Grid K Unit Normal}')
             eq('{surface_normal_y} = {Y Grid K Unit Normal}')
             eq('{surface_normal_z} = {Z Grid K Unit Normal}')
-    if zone_name.find('mp')!=-1 and zone_name.find('innerbound')==-1:
-        ##############################################################
-        #Day, flank, tail definitions
-            #2-dayside
-            #1-flank
-            #0-tail
-        eq('{Day} = IF({x_cc}>0,1,0)',
+    #Store a helpful 'htail' value in aux data for potential later use
+    zone.aux_data.update({'hmin':
+               hvals[np.where(np.logical_and(xvals<-5,xvals>-8))].min()})
+
+def get_day_flank_tail(zone):
+    """Function assigns variables to represent dayside, flank, and tail,
+        typically for the magnetopause zone
+    Inputs
+        zone(Zone)- tecplot Zone object to do calculation
+    """
+    eq = tp.data.operate.execute_equation
+    #Check that geometry variables have already been calculated
+    tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
+    eq('{Day} = IF({X [R]}>0,1,0)', zones=[zone.index])
+    eq('{Tail} = IF(({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
+             '({X [R]}<-10&&{h}<'+str(tail_h)+'),1,0)',zones=[zone.index])
+    eq('{Flank} = IF({Day}==0&&{Tail}==0,1,0)', zones=[zone.index])
+    '''
+    ##############################################################
+    #Day, flank, tail definitions
+    #2-dayside
+    #1-flank
+    #0-tail
+    eq('{Day} = IF({x_cc}>0,1,0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-        ds = tp.active_frame().dataset
-        h_vals = ds.zone(zone_index).values('h').as_numpy_array()
-        x_vals = ds.zone(zone_index).values('X*').as_numpy_array()
-        hmin = h_vals[
-                     np.where(np.logical_and(x_vals<-5,x_vals>-10))].min()
-        eq('{Tail} = IF({X [R]}<-5 && '+
+                zones=[zone.index])
+    ds = tp.active_frame().dataset
+    h_vals = ds.zone(zone.index).values('h').as_numpy_array()
+    x_vals = ds.zone(zone.index).values('X*').as_numpy_array()
+    hmin =h_vals[np.where(np.logical_and(x_vals<-5,x_vals>-10))].min()
+    eq('{Tail} = IF({X [R]}<-5 && '+
                      '({surface_normal_x}<-.8 || {h}<'+str(hmin)+'),1,0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-        eq('{Flank} = IF({Day}==0 && {Tail}==0, 1, 0)',
+                zones=[zone.index])
+    eq('{Flank} = IF({Day}==0 && {Tail}==0, 1, 0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-        eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
+                zones=[zone.index])
+    eq('{DayFlankTail} = IF({Day}==1,2,IF({Flank}==1,1,0))',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-    else:
-        hmin=0
+                zones=[zone.index])
+    '''
+    pass
+
+def get_surface_variables(zone, analysis_type, **kwargs):
+    """Function calculated variables for a specific 3D surface
+    Inputs
+        zone(Zone)- tecplot Zone object to expand data
+        kwargs:
+            find_DFT(bool) - False,
+            do_cms(bool) - False,
+            dt(float) - 60
+    """
+    eq = tp.data.operate.execute_equation
+    #Check that geometry variables have already been calculated
+    assert 'hmin' in zone.aux_data.as_dict(), ('Surface geometry not'+
+                                               'calculated!')
+    eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
+    eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
+    eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
+    if 'energy' in analysis_type or analysis_type == 'all':
+        eq('{Utot_cc}={Utot [J/Re^3]}',
+                         value_location=ValueLocation.CellCentered)
+    eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered)
+    eq('{By_cc}={B_y [nT]}', value_location=ValueLocation.CellCentered)
+    eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered)
+    eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered)
+    #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
+    eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
+    if (('mp' in zone.name and 'innerbound' not in zone.name) or
+                                            kwargs.get('find_DFT',False)):
+        get_day_flank_tail(zone)
+        get_day_flank_tail(zone.dataset.zone(0))
     '''
     dt = str(dt)
     Old surface velocity calculation
@@ -838,9 +871,9 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
         '{x_cc}/sqrt({x_cc}**2+{y_cc}**2+{z_cc}**2))'+
             '*6371*{d_cc}/'+dt+'*(1+{Expansion_cc})/2',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+                zones=[zone.index])
     '''
-    if 'virial' in analysis_type or analysis_type == 'all':
+    if 'virial' in analysis_type:
         eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
         eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
         eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
@@ -849,7 +882,7 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
             eq(term, value_location=ValueLocation.CellCentered)
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
-    if 'energy' in analysis_type or analysis_type == 'all':
+    if 'energy' in analysis_type:
         prefixlist = ['']
         for add in prefixlist:
             ##############################################################
@@ -858,7 +891,7 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
                                 '({U_y [km/s]}*{surface_normal_y})**2+'+
                                 '({U_z [km/s]}*{surface_normal_z})**2)',
                             value_location=ValueLocation.CellCentered,
-                            zones=[zone_index])
+                            zones=[zone.index])
             ##############################################################
             #Normal Poynting Flux
             eq('{'+add+'ExB_net [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
@@ -874,14 +907,14 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
                                         '{B_z [nT]}*{surface_normal_z})'+
                                             '/(4*pi*1e-7)*1e-9*6371**2',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+                zones=[zone.index])
             #Split into + and - flux
-            eq('{'+add+'ExB_escape} = max({'+add+'ExB_net [W/Re^2]},0)',
+            eq('{'+add+'ExB_escape [W/Re^2]} = max({'+add+'ExB_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{'+add+'ExB_injection} = min({'+add+'ExB_net [W/Re^2]},0)',
+                zones=[zone.index])
+            eq('{'+add+'ExB_injection [W/Re^2]} = min({'+add+'ExB_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+                zones=[zone.index])
             ##############################################################
             #Normal Total Pressure Flux
             eq('{'+add+'P0_net [W/Re^2]} = (1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
@@ -890,27 +923,30 @@ def get_surface_variables(field_data, zone_name, analysis_type, do_1Dsw,
                                         '+{U_y [km/s]}*{surface_normal_y}'+
                                         '+{U_z [km/s]}*{surface_normal_z})',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+                zones=[zone.index])
             #Split into + and - flux
-            eq('{'+add+'P0_escape} = max({'+add+'P0_net [W/Re^2]},0)',
+            eq('{'+add+'P0_escape [W/Re^2]} ='+
+                        'max({'+add+'P0_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{'+add+'P0_injection} = min({'+add+'P0_net [W/Re^2]},0)',
+                zones=[zone.index])
+            eq('{'+add+'P0_injection [W/Re^2]} ='+
+                        'min({'+add+'P0_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+                zones=[zone.index])
             ##############################################################
             #Normal Total Energy Flux
-            eq('{'+add+'K_net [W/Re^2]}={P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
+            eq('{'+add+'K_net [W/Re^2]}='+
+                   '{P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
+                zones=[zone.index])
             #Split into + and - flux
-            eq('{'+add+'K_escape} = max({'+add+'K_net [W/Re^2]},0)',
+            eq('{'+add+'K_escape [W/Re^2]}=max({'+add+'K_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-            eq('{'+add+'K_injection} = min({'+add+'K_net [W/Re^2]},0)',
+                zones=[zone.index])
+            eq('{'+add+'K_injection [W/Re^2]} ='+
+                         'min({'+add+'K_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone_index])
-        return hmin
+                zones=[zone.index])
 
 
 def get_1D_sw_variables(field_data, xmax, xmin, nx):
@@ -1225,7 +1261,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     #Fieldlinemaping
     if ('OCFLB' in analysis_type or analysis_type=='all') and kwargs.get('is3D',True):
         eq('{Xd [R]}= {mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})')
-        eq('{Zd [R]}= {mhat_z}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
+        eq('{Zd [R]}= {mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})')
         eq('{phi} = atan2({Y [R]}, {Xd [R]})')
         eq('{req} = 2.7/(cos({lambda})**2)')
         eq('{lambda2} =sqrt(acos(1/{req}))')
@@ -1279,7 +1315,6 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                              '({B_z [nT]}-{Bdz})**2)'+
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                           value_location=ValueLocation.CellCentered)
-    #if 'energy' in analysis_type or analysis_type=='all':
     #Hydrodynamic Energy Density
     eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
                           value_location=ValueLocation.CellCentered)
@@ -1293,7 +1328,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                            '{X [R]}*{J_z [uA/m^2]})*637.1/{r [R]}**3')
         eq('{dB_z [nT]} = -({X [R]}*{J_y [uA/m^2]}-'+
                            '{Y [R]}*{J_x [uA/m^2]})*637.1/{r [R]}**3')
-        eq('{dB [nT]} = {dB_x [nT]}*{mhat_x}+{dB_z [nT]}*{mhat_z}')
+        eq('{dB [nT]} = {dB_x [nT]}*{mZhat_x}+{dB_z [nT]}*{mZhat_z}')
 
     ######################################################################
     if 'energy' in analysis_type or analysis_type=='all':
@@ -1384,21 +1419,21 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                               '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
                           value_location=ValueLocation.CellCentered)
 
-def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
+def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
     Inputs
-        var_index- variable to be integrated
-        zone_index- index of the zone to perform integration
+        var(Variable)- variable to be integrated
+        zone(Zone)- zone to perform integration
         VariableOption- default scalar, can choose others
     Output
         integrated_total from result dataframe
     """
     #setup integration command
-    integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
+    integrate_command=("Integrate [{:d}] ".format(zone.index+1)+
                          "VariableOption="+VariableOption+" ")
     if VariableOption == 'Scalar':
         integrate_command = (integrate_command+
-                         "ScalarVar={:d} ".format(var_index+1))
+                         "ScalarVar={:d} ".format(var.index+1))
     integrate_command = (integrate_command+
                          "XVariable=1 "+
                          "YVariable=2 "+
@@ -1406,36 +1441,6 @@ def integrate_surface(var_index, zone_index, *, VariableOption='Scalar'):
                          "ExcludeBlanked='T' "+
                          " PlotResults='F' ")
     #integrate
-    tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
-                                      command=integrate_command)
-    #access data via aux data variable that saves last total integr qty
-    result = float(tp.active_frame().aux_data['CFDA.INTEGRATION_TOTAL'])
-    return result
-
-def integrate_volume(var_index, zone_index, *, VariableOption='Scalar'):
-    """Function to calculate integral of variable within a 3D volume
-    Inputs
-        var_index- variable to be integrated
-        zone_index- index of the zone to perform integration
-        VariableOption- default scalar, can choose others
-    Output
-        integral
-    """
-    #Setup macrofunction command
-    integrate_command=("Integrate [{:d}] ".format(zone_index+1)+
-                       "VariableOption={} ".format(VariableOption))
-    if VariableOption == 'Scalar':
-        integrate_command = (integrate_command+
-                       "ScalarVar={:d} ".format(var_index+1))
-    integrate_command = (integrate_command+
-                       "XVariable=1 "+
-                       "YVariable=2 "+
-                       "ZVariable=3 "+
-                       "ExcludeBlanked='T' "+
-                       "IntegrateOver='Cells' "+
-                       "IntegrateBy='Zones' "+
-                       "PlotResults='F' ")
-    #Perform integration and extract resultant value
     tp.macro.execute_extended_command(command_processor_id='CFDAnalyzer4',
                                       command=integrate_command)
     #access data via aux data variable that saves last total integr qty
@@ -1557,7 +1562,7 @@ def calc_state(mode, sourcezone, **kwargs):
                                      kwargs.get('box_ymin',-5),
                                      kwargs.get('box_zmax',5),
                                      kwargs.get('box_zmin',-5))
-    elif mode.find('shue') != -1:
+    elif 'shue' in mode:
         if mode =='shue97':
             zonename = 'shu97'
         else:
@@ -1565,31 +1570,31 @@ def calc_state(mode, sourcezone, **kwargs):
         state_index = calc_shue_state(tp.active_frame().dataset, mode,
                                       kwargs.get('x_subsolar'),
                                       kwargs.get('tail_cap', -20))
-    elif mode.find('lcb') != -1:
+    elif 'lcb' in mode:
         assert kwargs.get('do_trace',False) == False, (
                             "lcb mode only works with do_trace==False!")
         assert kwargs.get('closed_zone').index != None, (
                                     'No closed_zone present! Cant do lcb')
         zonename = kwargs.get('closed_zone').name
         state_index = tp.active_frame().dataset.variable(zonename).index
-    elif mode.find('lobe') != -1:
-        mpvar = kwargs.get('mpvar', None)
+    elif 'lobe' in mode:
+        mpvar = kwargs.get('mpvar', sourcezone.dataset.variable('mp*'))
         assert kwargs.get('do_trace',False) == False, (
                             "lobe mode only works with do_trace==False!")
-        assert mpvar != None,('magnetopause variable not found'+
-                              'cannot calculate lobe zone!')
+        assert mpvar is not None,('magnetopause variable not found'+
+                                  'cannot calculate lobe zone!')
         zonename = 'ms_'+mode
         if mode.lower().find('s') != -1:
-            state_index = calc_lobe_state(mpvar, 'south')
+            state_index = calc_lobe_state(mpvar.name, 'south')
         else:
-            state_index = calc_lobe_state(mpvar, 'north')
-    elif mode.find('rc') != -1:
+            state_index = calc_lobe_state(mpvar.name, 'north')
+    elif 'rc' in mode:
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
                                        ' closed_zone present! Cant do rc')
         zonename = 'ms_'+mode
         state_index = calc_rc_state(kwargs.get('closed_zone').name,
                                     str(kwargs.get('lshelllim',7)))
-    elif mode.find('ps') != -1:
+    elif 'ps' in mode:
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
                                        ' closed_zone present! Cant do rc')
         zonename = 'ms_'+mode
@@ -1597,7 +1602,7 @@ def calc_state(mode, sourcezone, **kwargs):
                                         kwargs.get('closed_zone').name,
                                         str(kwargs.get('lshelllim',7)),
                                         str(kwargs.get('bxmax',10)))
-    elif mode.find('qDp') != -1:
+    elif 'qDp' in mode:
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
                                        ' closed_zone present! Cant do rc')
         zonename = 'ms_'+mode
@@ -1615,6 +1620,7 @@ def calc_state(mode, sourcezone, **kwargs):
         zone, innerzone = setup_isosurface(1, state_index, zonename,
                                            keep_condition='sphere',
                                   keep_cond_value=kwargs.get('inner_r',3))
+    get_surf_geom_variables(zone)
     return zone, innerzone, state_index
 
 def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
@@ -1744,7 +1750,6 @@ def calc_delta_state(t0state, t1state):
     eq('{delta_volume} = IF({'+t1state+'}==1 && {'+t0state+'}==0, 1,'+
                         'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
                         value_location=ValueLocation.CellCentered)
-    return tp.active_frame().dataset.variable('delta_volume').index
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
     """Function creates equation in tecplot representing surface

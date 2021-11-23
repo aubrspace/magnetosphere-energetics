@@ -99,7 +99,7 @@ def prep_field_data(field_data, **kwargs):
     #pass along some kwargs from get_magnetopause
     analysis_type = kwargs.get('analysis_type', 'energy')
     do_trace = kwargs.get('do_trace', False)
-    do_cms = kwargs.get('do_cms', False)
+    do_cms = kwargs.get('do_cms', True)
     do_1Dsw = kwargs.get('do_1Dsw', False)
     tail_cap = kwargs.get('tail_cap', -20)
     lon_bounds = kwargs.get('lon_bounds', 10)
@@ -113,7 +113,8 @@ def prep_field_data(field_data, **kwargs):
     #Auxillary data from tecplot file
     aux = field_data.zone('global_field').aux_data
     if do_cms:
-        future_aux = field_data.zone(futurezonename).aux_data
+        futurezone = field_data.zone('future*')
+        future_aux = futurezone.aux_data
     #set frame name and calculate global variables
     if field_data.variable_names.count('r [R]') ==0:
         main_frame = tp.active_frame()
@@ -249,10 +250,12 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     write_data = kwargs.get('write_data', True)
     disp_result = kwargs.get('disp_result', True)
     verbose = kwargs.get('verbose', True)
-    do_cms = kwargs.get('do_cms', False)
+    do_cms = kwargs.get('do_cms', 'energy' in analysis_type)
     do_blank = kwargs.get('do_blank', False)
-    blank_variable = kwargs.get('blank_variable', 'W *')
-    blank_value = kwargs.get('blank_value', 50)
+    blank_variable = kwargs.get('blank_variable', 'r *')
+    blank_value = kwargs.get('blank_value', 3)
+    blank_operator = kwargs.get('blank_operator', RelOp.LessThan)
+    extra_surf_terms = kwargs.get('customTerms', {})
     do_1Dsw = kwargs.get('do_1Dsw', False)
     globalzone = field_data.zone('global_field')
     futurezone = field_data.zone('future*')
@@ -314,17 +317,15 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if zone_rename != None:
             zone.name = zone_rename+'_'+m
-        if do_cms:
-            future_zone, _, future_state_index= calc_state(m, futurezone,
-                                                           **kwargs)
-            if zone_rename != None:
-                zone.name = zone_rename+'_'+m
-            #get state variable representing acquisitions/forfeitures
-            delta_index = calc_delta_state(state_index, future_state_index)
-        zonelist.append(zone.index.real)
+        zonelist.append(zone)
         state_indices.append(state_index)
-        #Assign magnetopause variable if exists
+    #Assign magnetopause variable if exists
+    if field_data.variable('mp*') is not None:
         kwargs.update({'mpvar':field_data.variable('mp*').name})
+    if do_cms:
+        future_mp,_,future_state_index=calc_state(mode,futurezone,**kwargs)
+        #get state variable representing acquisitions/forfeitures
+        calc_delta_state(zonelist[0].name, future_mp.name)
     ################################################################
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
@@ -336,18 +337,11 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if integrate_surface:
         #integrate power on main surface
-        mp_powers, hmin = surface_analysis(main_frame,
-                                        field_data.zone(zonelist[0]).name,
-                                           analysis_type, do_cms, do_1Dsw,
-                                           do_blank,
-                                       kwargs.get('blank_variable', 'W *'),
-                                           kwargs.get('blank_value', 50),
-                                           deltatime)
+        mp_powers = surface_analysis(zonelist[0],**kwargs)
         if save_mesh:
-            cc_length = len(field_data.zone(zonelist[0]).values(
-                                                  'x_cc').as_numpy_array())
+            cc_length = len(zonelist[0].values('x_cc').as_numpy_array())
             for name in field_data.variable_names:
-                var_length = len(field_data.zone(zonelist[0]).values(
+                var_length = len(zonelist[0].values(
                                   name.split(' ')[0]+'*').as_numpy_array())
                 if var_length==cc_length:
                     savemeshvars[modes[0]].append(name)
@@ -358,12 +352,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         if mode=='iso_betastar':
             #integrate power on innerboundary surface
             inner_mesh = pd.DataFrame()
-            innerbound_powers, _ = surface_analysis(main_frame,
-                                    field_data.zone('*innerbound*').name,
-                                                    analysis_type, do_cms,
-                                                    do_1Dsw, False,
-                                                    blank_variable,
-                                                    blank_value, deltatime)
+            innerbound_powers=surface_analysis(field_data,
+                                           field_data.zone('*innerbound*'),
+                                           **kwargs)
             innerbound_powers = innerbound_powers.add_prefix('inner')
             print('\nInnerbound surface power calculated')
             if save_mesh:
@@ -373,29 +364,26 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     inner_mesh[var] = field_data.zone(inner_index).values(
                                     var.split(' ')[0]+'*').as_numpy_array()
         print('\nMagnetopause Power Terms\n{}'.format(mp_powers))
-    else:
-        hmin = do_cms
     ################################################################
     if integrate_volume:
         for state_index in enumerate(state_indices):
-            region = field_data.zone(zonelist[state_index[0]])
-            energies = volume_analysis(main_frame,
-                                  field_data.variable(state_index[1]).name,
-                                     analysis_type, do_1Dsw, do_cms,
-                                     deltatime, tail_analysis_cap, hmin)
+            region = zonelist[state_index[0]]
+            print('Working on: '+region.name)
+            energies = volume_analysis(field_data.variable(state_index[1]),
+                                       **kwargs)
             energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name:energies})
             for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                         'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
                 usename = var.split(' ')[0]+'_cc'
                 tp.data.operate.execute_equation('{'+usename+'}={'+var+'}',
-            zones=[region.index],value_location=ValueLocation.CellCentered)
+                  zones=[region],value_location=ValueLocation.CellCentered)
                 savemeshvars[modes[state_index[0]]].append(usename)
     ################################################################
     if save_mesh:
         #save mesh to hdf file
         for state_index in enumerate(state_indices):
-            region = field_data.zone(zonelist[state_index[0]])
+            region = zonelist[state_index[0]]
             meshvalues = pd.DataFrame()
             for var in [m for m in savemeshvars.values()][state_index[0]]:
                 usename = var.split(' ')[0]+'*'
@@ -405,7 +393,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if integrate_volume and integrate_surface and(
                       'virial' in analysis_type or analysis_type=='all'):
         #Complete virial predicted Dst
-        region = field_data.zone(zonelist[0])
+        region = zonelist[0]
         mp_powers['Virial_Dst [nT]']=(mp_powers['Virial Surface Total [J]']+
              data_to_write[region.name]['Virial Volume Total [J]'])/(-8e13)
     ################################################################
@@ -413,7 +401,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     mp_powers['Time [UTC]'] = eventtime
     mp_mesh.update({'Time [UTC]':pd.DataFrame({'Time [UTC]':[eventtime]})})
     mp_powers['X_subsolar [Re]'] = float(aux['x_subsolar'])
-    region = field_data.zone(zonelist[0])
+    region = zonelist[0]
     if write_data:
         for key in mp_powers:
             data_to_write[region.name][key] = mp_powers[key]
@@ -427,7 +415,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                             outputpath+'/energeticsdata/energetics_'+
                             datestring+'.h5',
-                            [field_data.zone(zn).name for zn in zonelist])
+                            [zn.name for zn in zonelist])
     return mp_mesh, data_to_write
 
 # Must list .plt that script is applied for proper execution

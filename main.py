@@ -58,10 +58,11 @@ if __name__ == "__main__":
     with tp.session.suspend():
         mesh, data = magnetosphere.get_magnetosphere(field_data,
                                     outputpath=OUTPATH,
-                                    analysis_type='virial_vs_biotsavart',
+                                 analysis_type='energy_virial',
                                     tail_cap=-20,
-                                    integrate_surface=False,
-                                    integrate_volume=False)
+                                    save_mesh=False,
+                                    integrate_surface=True,
+                                    integrate_volume=True)
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
@@ -87,6 +88,7 @@ if __name__ == "__main__":
             view_set.display_single_iso(frame[1], mhddatafile,
                                         mode=mode[frame[0]],
                                         save_img=save,
+                                        verbose=True,
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=True,
                                         show_contour=False)
