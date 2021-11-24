@@ -138,6 +138,8 @@ def get_virial_dict(zone):
         virial_dict.update({'virial_scalardelta_uB':
                                                   'Virial ScalarPbin [J]'})
         virial_dict.update({'virial_Magb':'Virial b Stress [J]'})
+    print('inside get _virial terrms')
+    from IPython import embed; embed()
     return virial_dict
 
 def surface_analysis(zone, **kwargs):
@@ -165,9 +167,42 @@ def surface_analysis(zone, **kwargs):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
     #initialize empty dictionary that will make up the results of calc
+    integrands, results, eq = {}, {}, tp.data.operate.execute_equation
+    ###################################################################
+    #Core integral terms
+    if 'virial' in analysis_type:
+        integrands.update(get_virial_dict(zone))
+    if 'energy' in analysis_type:
+        integrands.update(get_energy_dict())
+    integrands.update(kwargs.get('customTerms', {}))
+    ###################################################################
+    #Integral bounds modifications spatially parsing results
+    integrands.update(get_dft_integrands(global_zone, integrands))
+    integrands.update(get_open_close_integrands(global_zone, integrands))
+    ###################################################################
+    #Evaluate integrals
+    for term in integrands.items():
+        results.update(calc_integral(term, global_zone))
+        if kwargs.get('verbose',False):
+            print(stat_var.name+term[1]+' integration done')
+    ###################################################################
+    #Non scalar integrals (empty integrands)
+    if kwargs.get('doSurfaceArea', True):
+        results.update(calc_integral((' ','Area [Re^2]'), zone,
+                        VariableOption='LengthAreaVolume'))
+        if kwargs.get('verbose',False):
+            print(zone.name+' Surface Area integration done')
+    ###################################################################
+    #Post integration manipulations
+    if 'virial' in analysis_type:
+        results.update(virial_post_integr(results))
+    if 'energy' in analysis_type:
+        results.update(energy_post_integr(results, **kwargs))
+    return pd.DataFrame(results)
+    '''
     results = {}
     if kwargs.get('do_1Dsw', False):
-        ##Different prefixes allow for calculation of surface fluxes using 
+        ##Different prefixes allow for calculation of surface fluxes using
         #   multiple sets of flowfield variables (denoted by the prefix)
         prefix = '1D'
         #OUTDATED! Need to update to be compatible with refactoring
@@ -196,12 +231,6 @@ def surface_analysis(zone, **kwargs):
             if kwargs.get('verbose',False):
                 print(zone.name+' '+energyterm[1]+' integration done')
     ###################################################################
-    if kwargs.get('doSurfaceArea', True):
-        results.update(calc_integral((' ','Area [Re^2]'), zone,
-                        VariableOption='LengthAreaVolume'))
-        if kwargs.get('verbose',False):
-            print(zone.name+' Surface Area integration done')
-    ###################################################################
     if len(kwargs.get('customTerms', {}))!=0:
         for term in kwargs.get('customTerms', {}):
             results.update(calc_integral(term, zone))
@@ -214,3 +243,4 @@ def surface_analysis(zone, **kwargs):
     frame = kwargs.get('frame', tp.active_frame())
     frame.plot().value_blanking.active = False
     return surface_power
+    '''

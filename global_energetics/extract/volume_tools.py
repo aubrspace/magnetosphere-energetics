@@ -20,6 +20,38 @@ from global_energetics.extract.stream_tools import (integrate_tecplot,
                                                     get_day_flank_tail,
                                                       dump_to_pandas)
 
+def energy_post_integr(results, **kwargs):
+    """Creates dictionary of key:value combos of existing results
+    Inputs
+        results(dict{str:[value]})
+        kwargs:
+            do_cms
+    Outputs
+        newterms(dict{str:[value]})
+    """
+    newterms = {}
+    #Virial volume terms
+    newterms.update({'uHydro [J]':[results['Pth [J]'][0]+
+                                        results['KE [J]'][0]]})
+    newterms.update({'Utot [J]':[newterms['uHydro [J]'][0]+
+                                      results['uB [J]'][0]]})
+    if kwargs.get('do_cms', False):
+        for direction in ['_acqu', '_forf']:
+            newterms.update({'uHydro'+direction+' [W]':
+                                      [results['Pth'+direction+' [W]'][0]+
+                                       results['KE'+direction+' [W]'][0]]})
+            newterms.update({'Utot'+direction+'[W]':
+                                  [newterms['uHydro'+direction+' [W]'][0]+
+                                    results['uB'+direction+' [W]'][0]]})
+            for loc in['Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']:
+                newterms.update({'uHydro'+direction+loc+' [W]':
+                                [results['Pth'+direction+loc+' [W]'][0]+
+                                 results['KE'+direction+loc+' [W]'][0]]})
+                newterms.update({'Utot'+direction+'[W]':
+                                [newterms['uHydro'+direction+loc+' [W]'][0]+
+                                 results['uB'+direction+loc+' [W]'][0]]})
+    return newterms
+
 def virial_post_integr(results):
     """Creates dictionary of key:value combos of existing results
     Inputs
@@ -84,8 +116,7 @@ def get_energy_integrands(state_var):
     eq = tp.data.operate.execute_equation
     existing_variables = state_var.dataset.variable_names
     #Integrands
-    integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]',
-                  'uHydro [J/Re^3]', 'Utot [J/Re^3]']
+    integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
     for term in integrands:
         name = term.split(' ')[0]
         if name+state not in existing_variables:
@@ -108,7 +139,8 @@ def get_mobile_integrands(zone, integrands, tdelta):
     """
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
     for term in integrands.items():
-        if ('Ub' not in term[0]) and ('Uk' not in term[0]):
+        if (('Ub' not in term[0]) and ('Uk' not in term[0]) and
+            ('bioS' not in term[1])):
             name = term[0].split(' [')[0]
             outputname = term[1].split(' [')[0]
             units = '['+term[1].split('[')[1].split(']')[0]+']'
@@ -193,5 +225,14 @@ def volume_analysis(state_var, **kwargs):
     #Post integration manipulations
     if 'virial' in analysis_type:
         results.update(virial_post_integr(results))
+    if 'energy' in analysis_type:
+        results.update(energy_post_integr(results, **kwargs))
+        if kwargs.get('do_cms', False):
+            for direction in ['_acqu', '_forf','_net']:
+                results.pop('Pth'+direction+' [W]')
+                results.pop('KE'+direction+' [W]')
+                for loc in['Day','Flank','Tail','OpenN','OpenS','Closed']:
+                    results.pop('Pth'+direction+loc+' [W]')
+                    results.pop('KE'+direction+loc+' [W]')
     return pd.DataFrame(results)
 

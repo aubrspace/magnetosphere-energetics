@@ -890,9 +890,7 @@ def get_surface_variables(zone, analysis_type, **kwargs):
         eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
         eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
         eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
-        virial_term_list = get_virials()
-        for term in virial_term_list:
-            eq(term, value_location=ValueLocation.CellCentered)
+        get_virials()
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
     if 'energy' in analysis_type:
@@ -1124,44 +1122,33 @@ def get_virials():
     """Function constructs strings representing virial boundary terms
     Inputs
         None: TBD evaluate/get current variable names for robustness
-    Outputs
-        termlist- list object with strings for each equation
     """
-    terms = []
-    dt = '60'
+    terms, eq = [], tp.data.operate.execute_equation
     #Create shorthand objects for readability
     dSx='{surface_normal_x}';rx='{X [R]}'
     dSy='{surface_normal_y}';ry='{Y [R]}'
     dSz='{surface_normal_z}';rz='{Z [R]}'
     #Scalar pressures at radial distance
-    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}',
-                 '{delta_uB [J/Re^3]}']
-    signs = ['-1*','-1*','', '-1*']
+    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}']
+    signs = ['-1*','-1*','']
     for p in enumerate(pressures):
         ptag = p[1].split(' ')[0].split('{')[-1]
-        term=('{virial_scalar'+ptag+'}='+signs[p[0]]+'('+dSx+'*'+rx+'+'+
+        termP=('{virial_scalar'+ptag+'}='+signs[p[0]]+'('+dSx+'*'+rx+'+'+
                                              dSy+'*'+ry+'+'+
                                              dSz+'*'+rz+')'+'*'+p[1])
-        terms.append(term)
+        terms.append(termP)
     #Momentum advection
-    termA1 = ('{virial_advect1}=-1*({r_cc}**2*6371*('+dSx+'*{drhoUx_cc}+'+
-                                                 dSy+'*{drhoUy_cc}+'+
-                                        dSz+'*{drhoUz_cc})/(2*'+dt+'))*'+
-             '1.6605*6371**3*1e-6')
-    terms.append(termA1)
-    termA2 = ('{virial_advect2}=-1*(({rhoUx_cc}*'+dSx+
+    termA = ('{virial_advect}=-1*(({rhoUx_cc}*'+dSx+
                                    '+{rhoUy_cc}*'+dSy+
                                    '+{rhoUz_cc}*'+dSz+')*'+
              '({ux_cc}*'+rx+'+{uy_cc}*'+ry+'+{uz_cc}*'+rz+'))*'+
              '1.6605*6371**3*1e-6')
-    terms.append(termA2)
+    terms.append(termA)
     #Magnetic stress non scalar contributions
     magstressors = [['{B_x [nT]}', '{B_y [nT]}', '{B_z [nT]}'],
-                    ['{Bdx}', '{Bdy}', '{Bdz}'],
-                    ['({B_x [nT]}-{Bdx})','({B_y [nT]}-{Bdy})',
-                     '({B_z [nT]}-{Bdz})']]
-    tags = ['B_','Bd','b']
-    signs = ['','-1*','']
+                    ['{Bdx}', '{Bdy}', '{Bdz}']]
+    tags = ['B_','Bd']
+    signs = ['','-1*']
     for b in enumerate(magstressors):
         termM=('{virial_Mag'+tags[b[0]]+'}='+signs[b[0]]+
                                                  '('+dSx+'*'+b[1][0]+'+'+
@@ -1180,13 +1167,21 @@ def get_virials():
                               '*1e-9*6371**3/(2*4*pi*1e-7)')
     terms.append(termb)
     #Total surface contribution
-    termcopy = terms.copy()
-    termcopy.remove(term); termcopy.remove(termM) #last used is inner
+    #termcopy = terms.copy()
+    #termcopy.remove(term); termcopy.remove(termM) #last used is inner
     term_titles = ['{'+term.split('{')[1].split('}')[0]+'}'
-                                                     for term in termcopy]
+                                                     for term in terms]
     total = ('{virial_surfTotal}='+'+'.join(term_titles))
     terms.append(total)
-    return terms
+    total_adv=('{virial_Fadv [J/Re^2]}={virial_scalarPth}+{virial_advect}')
+    terms.append(total_adv)
+    total_adv=('{virial_Floz [J/Re^2]}={virial_scalaruB}+{virial_MagB_}+'+
+                                      '{virial_scalaruB_dipole}+'+
+                                      '{virial_MagBd}+{virial_BBd}')
+    terms.append(total_adv)
+    for term in terms:
+        eq(term)
+
 def get_dipole_field(auxdata, *, B0=31000):
     """Function calculates dipole field in given coordinate system based on
         current time in UTC
@@ -1284,7 +1279,6 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     ######################################################################
     #Virial only intermediate terms
     if 'virial' in analysis_type or analysis_type=='all':
-        '''
         #Density times velocity between now and next timestep
         eq('{rhoUx_cc}={Rho [amu/cm^3]}*{U_x [km/s]}',
                          value_location=ValueLocation.CellCentered)
@@ -1292,16 +1286,6 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                          value_location=ValueLocation.CellCentered)
         eq('{rhoUz_cc}={Rho [amu/cm^3]}*{U_z [km/s]}',
                          value_location=ValueLocation.CellCentered)
-        currentzone = field_data.zone('global_field')
-        futurezone = field_data.zone('future')
-        temporal_FD_variable(currentzone, futurezone, 'rhoUx_cc')
-        temporal_FD_variable(currentzone, futurezone, 'rhoUy_cc')
-        temporal_FD_variable(currentzone, futurezone, 'rhoUz_cc')
-        #Density weighted by r^2
-        eq('{rho r^2 [kgm^2/Re^3]} = {rho [amu/cm^3]}*{r [R]}**2'+
-                                   '*1e6*1.6605e-27*(6371*1e3)**5',
-                          value_location=ValueLocation.CellCentered)
-        '''
         #Advection term
         eq('{rhoU_r [Js/Re^3]} = {Rho [amu/cm^3]}*1.6605e6*6.371**4*('+
                                               '{U_x [km/s]}*{X [R]}+'+
@@ -1562,7 +1546,6 @@ def calc_state(mode, sourcezone, **kwargs):
         zonename = 'mp_'+mode
         if 'future' in sourcezone.name:
             zonename = 'future_'+mode
-            print('\nFuture Recognized!\n')
             closed_zone = kwargs.get('future_closed_zone')
         else:
             closed_zone = kwargs.get('closed_zone')

@@ -58,12 +58,12 @@ if __name__ == "__main__":
     with tp.session.suspend():
         mesh, data = magnetosphere.get_magnetosphere(field_data,
                                     outputpath=OUTPATH,
-                                 analysis_type='biotsavart',
+                                 analysis_type='virial',
                                     tail_cap=-20,
                                     do_cms=True,
                                     save_mesh=False,
-                                    integrate_surface=False,
-                                    integrate_volume=True)
+                                    integrate_surface=True,
+                                    integrate_volume=False)
     if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
