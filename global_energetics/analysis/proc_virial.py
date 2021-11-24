@@ -97,7 +97,7 @@ def plot_single(ax, times, mp, msdict, ylabel, **kwargs):
         label='Virial'
         if 'closedRegion' in subzone or 'lobes' in subzone:
             label=label+' (mod)'
-    elif 'BioS' in value: label='Biot Savart'
+    elif 'bioS' in value: label='Biot Savart'
     else: label = None
     #Plot
     if value in data.keys():
@@ -126,9 +126,9 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
         data = msdict[subzone]
     value_set = kwargs.get('value_set','Virialvolume')
     values = {'Virialvolume':['Virial 2x Uk [nT]', 'Virial Ub [nT]'],
-              'Energy':['uB_dist [J]', 'KE [J]', 'Etherm [J]'],
+              'Energy':['uB_dist [J]', 'KE [J]', 'Pth [J]'],
               'Virialvolume%':['Virial 2x Uk [%]', 'Virial Ub [%]'],
-              'Energy%':['uB_dist [%]', 'KE [%]', 'Etherm [%]']}
+              'Energy%':['uB_dist [%]', 'KE [%]', 'Pth [%]']}
     #Get % within specific subvolume
     if '%' in value_set:
         for value in values[''.join(value_set.split('%'))]:
@@ -139,13 +139,13 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
                     else:
                         total = data['Virial_Dst [nT]']
                 elif 'Energy' in value_set:
-                    total = (data['Utot [J]']-data['uBtot [J]']+
+                    total = (data['Utot [J]']-data['uB [J]']+
                              data['uB_dist [J]'])
                 data[value.split('[')[0]+'[%]'] = data[value]/total*100
     #Optional layers depending on value_key
     if not '%' in value_set:
-        if 'BioS' in value_set:
-            ax.fill_between(times, mp['BioS full [nT]'], color='olive')
+        if 'bioS' in value_set:
+            ax.fill_between(times, mp['bioS full [nT]'], color='olive')
             ax.plot(times, mp['Virial_Dst [nT]'], color='black', ls='--',
                     label='Virial')
             try:
@@ -162,7 +162,7 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
                 ax.fill_between(times, data['Virial_Dst [nT]'],
                                 color='lightgrey')
         elif 'Energy' in value_set:
-                total = (data['Utot [J]']-data['uBtot [J]']+
+                total = (data['Utot [J]']-data['uB [J]']+
                          data['uB_dist [J]'])
                 ax.fill_between(times, total, color='lightgrey')
     #Plot line plots
@@ -188,7 +188,7 @@ def plot_stack_contrib(ax, times, mp, msdict, ylabel, **kwargs):
     starting_value = 0
     if not '%' in value_key:
         ax.plot(times, mp[value_key], color='black')
-        if (not 'BioS' in value_key) and ('Volume Total' in value_key):
+        if (not 'bioS' in value_key) and ('Volume Total' in value_key):
             #include the contribution from surface terms
             ax.fill_between(times, mp['Virial Surface Total [nT]'],
                             0, color='grey', label='Surface')
@@ -208,7 +208,7 @@ def plot_stack_contrib(ax, times, mp, msdict, ylabel, **kwargs):
         stack_value = stack_value+ [m for m in msdict.values()][ms[0]+1][
                                                                  value_key]
     #Optional plot settings
-    if ('BioS' in value_key) and ('%' in value_key):
+    if ('bioS' in value_key) and ('%' in value_key):
         ax.set_ylim([-100,100])
     #General plot settings
     general_plot_settings(ax, ylabel, **kwargs)
@@ -227,13 +227,13 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     value_key = kwargs.get('value_key','Virial Volume Total [nT]')
     #Optional layers depending on value_key
     if not '%' in value_key:
-        if 'BioS' in value_key:
-            #ax.fill_between(times, mp['BioS full [nT]'], color='olive')
+        if 'bioS' in value_key:
+            #ax.fill_between(times, mp['bioS full [nT]'], color='olive')
             #ax.plot(times, mp['Virial_Dst [nT]'], color='tab:red', ls='--',
             #        label='Virial')
             ax.fill_between(times, mp[value_key], color='gainsboro')
         elif 'Virial' in value_key:
-            #ax.plot(times, mp['BioS [nT]'], color='tab:cyan', ls='--',
+            #ax.plot(times, mp['bioS [nT]'], color='tab:cyan', ls='--',
             #        label='Biot Savart')
             ax.fill_between(times, mp[value_key], color='gainsboro')
         try:
@@ -247,7 +247,7 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
         if value_key in ms[1].keys():
             ax.plot(times, ms[1][value_key], label=ms[0])
     #Optional plot settings
-    if ('BioS' in value_key) and ('%' in value_key):
+    if ('bioS' in value_key) and ('%' in value_key):
         ax.set_ylim([-100,100])
     #General plot settings
     general_plot_settings(ax, ylabel, **kwargs)
@@ -263,27 +263,34 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
     """
     #Add total energy
     for m in mpdict.values():
-        m['Utot [J]'] = m['uBtot [J]']+m['KE [J]']+m['Etherm [J]']
+        m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Pth [J]']
     for m in msdict.values():
-        m['Utot [J]'] = m['uBtot [J]']+m['KE [J]']+m['Etherm [J]']
+        m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Pth [J]']
     #Remove time column and rename biot savart columns
     for m in mpdict.values():
         m.drop(columns=['Time [UTC]'],inplace=True, errors='ignore')
-        m.rename(columns={'BioS mp_iso_betastar':'BioS [nT]'},inplace=True)
-        m.rename(columns={'BioS full':'BioS full [nT]'},inplace=True)
+        m.rename(columns={'rho r^2 [kgm^2]':'Mr^2 [kgm^2]'}, inplace=True)
+        m.rename(columns={'delta_uB [J]':'uB_dist [J]'}, inplace=True)
+        for key in m.keys():
+            if ('Volume ' in key) and ('Virial' not in key):
+                m.rename(columns={key:'Volume [Re^3]'},inplace=True)
     for m in msdict.values():
+        m.rename(columns={'rho r^2 [kgm^2]':'Mr^2 [kgm^2]'}, inplace=True)
+        m.rename(columns={'delta_uB [J]':'uB_dist [J]'}, inplace=True)
         m.drop(columns=['Time [UTC]'], inplace=True, errors='ignore')
-        m.drop(columns=['BioS mp_iso_betastar',
-                        'BioS full', 'X_subsolar [Re]'],inplace=True)
+        m.drop(columns=['bioS_full [nT]', 'X_subsolar [Re]',
+                        'Volume mp_iso_betastar'], inplace=True)
         for key in m.keys():
             if all(m[key].isna()):
                 m.drop(columns=[key], inplace=True)
-            if 'BioS' in key:
-                m.rename(columns={key:'BioS [nT]'},inplace=True)
+            if ('Volume ' in key) and ('Virial' not in key):
+                print(key)
+                m.rename(columns={key:'Volume [Re^3]'},inplace=True)
     #Quantify amount missing from sum of all subzones
     missing_volume = pd.DataFrame()
     for key in [m for m in msdict.values()][0].keys():
         if key in [m for m in mpdict.values()][0].keys():
+            print(key)
             fullvolume = [m for m in mpdict.values()][0][key]
             added = [m for m in msdict.values()][0][key]
             for sub in [m for m in msdict.values()][1::]:
@@ -355,6 +362,7 @@ if __name__ == "__main__":
     mp['d2dt2 Mr^2 [J]'] = (f_f-2*f_c+f_b)/60**2
     mp['d2dt2 Mr^2 [nT]'] = mp['d2dt2 Mr^2 [J]']/8e13
     '''
+    """
     #Begin plots
     #Fist type: line and stacks of various groupings of terms
     ######################################################################
@@ -364,7 +372,7 @@ if __name__ == "__main__":
                 r'Magnetic Virial Dst $\left[ nT\right]$',
                 r'Biot Savart Dst $\left[ nT\right]$']
     y2label =   r'$\%$ Contribution'
-    value_keys=['Virial Volume Total ','Virial 2x Uk ','Virial Ub ','BioS ']
+    value_keys=['Virial Volume Total ','Virial 2x Uk ','Virial Ub ','bioS ']
     #Line plots- total virial, plasma, disturbance, and Biot savart
     for combo in {'allPiece':msdict,'3zone':msdict_3zone,
                   'lobes':msdict_lobes}.items():
@@ -378,7 +386,7 @@ if __name__ == "__main__":
             plot_contributions(ax[1][1], times, mp, combo[1], y2label,
                           value_key=value_keys[ax[0]]+'[%]',do_xlabel=True)
         for fig in{'total':fig1,'plasma':fig2,'mag_perturb':fig3,
-                   'BioS':fig4}.items():
+                   'bioS':fig4}.items():
             fig[1].tight_layout(pad=1)
             fig[1].savefig(figureout+'virial_line_'+fig[0]+combo[0]+'.png')
             plt.close(fig[1])
@@ -395,7 +403,7 @@ if __name__ == "__main__":
             plot_stack_contrib(ax[1][1], times, mp, combo[1], y2label,
                           value_key=value_keys[ax[0]]+'[%]',do_xlabel=True)
         for fig in{'total':fig1,'plasma':fig2,'mag_perturb':fig3,
-                   'BioS':fig4}.items():
+                   'bioS':fig4}.items():
             fig[1].tight_layout(pad=1)
             fig[1].savefig(figureout+'virial_stack_'+fig[0]+combo[0]+'.png')
             plt.close(fig[1])
@@ -408,7 +416,7 @@ if __name__ == "__main__":
                 r'Thermal Energy $\left[J\right]$',
                 r'Total Energy $\left[J\right]$']
     y2label = r'Energy fraction $\left[\%\right]$'
-    energies = ['uBtot','uB_dist','uB_dipole','KE','Etherm','Utot']
+    energies = ['uB','uB_dist','uB_dipole','KE','Pth','Utot']
     fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
     fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
     fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
@@ -453,6 +461,7 @@ if __name__ == "__main__":
                    value_set=vals+'%', do_xlabel=True)
         fig1.tight_layout(pad=1)
         fig1.savefig(figureout+'distr_'+vals+'_fullMS_line.png')
+        plt.close(fig1)
         for subzone in enumerate([k for k in msdict_3zone.keys()][0:-1]):
             y1labels = [subzone[1]+' '+vals+' Distribution']
             fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
@@ -515,7 +524,7 @@ if __name__ == "__main__":
                    ylabels[subzone[1]],
                    subzone=subzone[1],value_key='Virial Volume Total_mod')
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
-             ylabels[subzone[1]], subzone=subzone[1],value_key='BioS [nT]',
+             ylabels[subzone[1]], subzone=subzone[1],value_key='bioS [nT]',
                     do_xlabel=(subzone[0] is len(msdict_3zone)-1))
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'compare_Total_line.png')
@@ -525,32 +534,39 @@ if __name__ == "__main__":
     y1label = r'Virial $\Delta B\left[ nT\right]$'
     y2label = r'Biot Savart law $\Delta B\left[ nT\right]$'
     fig,ax = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    '''
-    msdict_3zone.pop('missing')
-    plot_contributions(ax[1], times,mp,msdict_3zone,y2label,
-                               value_key='BioS [nT]', do_xlabel=True)
-    ax[0].plot(times,
-               msdict_3zone['closedRegion']['Virial Volume Total [nT]'],
-               label='Closed region')
-    ax[0].plot(times,msdict_3zone['lobes']['Virial Volume Total [nT]'],
-               label='lobes')
-    msdict_3zone.pop('lobes')
-    msdict_3zone.pop('closedRegion')
-    plot_contributions(ax[0], times,mp,msdict_3zone,y1label,
-                               value_key='Virial Volume Total_mod',
-                               legend_loc='lower left')
-    ax[0].plot(times,mp['Virial Surface Total [nT]'],
-               label='Surface')
-    '''
     msdict_3zone.pop('missing')
     plot_contributions(ax[0], times,mp,msdict_3zone,y1label,
                                value_key='Virial Volume Total_mod',
                                legend_loc='lower left')
     plot_contributions(ax[1], times,mp,msdict_3zone,y2label,
-                               value_key='BioS [nT]', do_xlabel=True)
+                               value_key='bioS [nT]', do_xlabel=True)
     ax[0].set_ylim([-125,50])
     ax[1].set_ylim([-125,50])
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'pretty_Dst_line.png')
     plt.close(fig)
-
+    """
+    #Just look at surface terms
+    ######################################################################
+    y1label = r'$\Delta B \left[nT\right]$'
+    fig,ax = plt.subplots(nrows=1,ncols=1,sharex=True,figsize=[14,4])
+    #Open closed
+    ax.fill_between(times,abs(mp['virial_surfTotalClosed [nT]'])+
+                          abs(mp['virial_surfTotalOpenN [nT]'])+
+                        abs(mp['virial_surfTotalOpenS [nT]']),color='grey')
+    ax.plot(times,abs(mp['virial_surfTotalClosed [nT]']),label='Closed')
+    ax.plot(times,abs(mp['virial_surfTotalOpenN [nT]']),label='North')
+    ax.plot(times,abs(mp['virial_surfTotalOpenS [nT]']),label='South')
+    '''
+    #Hydro vs Mag
+    ax.fill_between(times,abs(mp['Virial Surface Total [nT]']),color='grey')
+    ax.plot(times,abs(mp['Virial ScalarPmag [nT]'])+
+                  abs(mp['Virial B Stress [nT]'])+
+                  abs(mp['Virial Bd Stress [nT]'])+
+                  abs(mp['Virial BBd Stress [nT]']),label='Mag')
+    ax.plot(times,abs(mp['Virial ScalarPth [nT]'])+
+                  abs(mp['Virial Advection d/dt [nT]'])+
+                  abs(mp['Virial Advection 2 [nT]']),label='Hydro')
+    '''
+    general_plot_settings(ax, y1label, do_xlabel=True)
+    plt.show()
