@@ -21,6 +21,7 @@ from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     get_global_variables,
                                                     calc_state,
+                                                    get_surf_geom_variables,
                                                     setup_isosurface,
                                                     calc_closed_state,
                                                     calc_delta_state,
@@ -312,16 +313,18 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if 'virial' in analysis_type:
         modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
     else:
-        modes = [mode]
+        modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
+        #modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if zone_rename != None:
             zone.name = zone_rename+'_'+m
         zonelist.append(zone)
         state_indices.append(state_index)
-    #Assign magnetopause variable if exists
+    #Assign magnetopause variable and get geometry vars (others will ref)
     if field_data.variable('mp*') is not None:
         kwargs.update({'mpvar':field_data.variable('mp*').name})
+        get_surf_geom_variables(field_data.zone('mp*'))
     if do_cms:
         future_mp,_,future_state_index=calc_state(mode,futurezone,**kwargs)
         #get state variable representing acquisitions/forfeitures
@@ -352,9 +355,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         if mode=='iso_betastar':
             #integrate power on innerboundary surface
             inner_mesh = pd.DataFrame()
-            innerbound_powers=surface_analysis(field_data,
-                                           field_data.zone('*innerbound*'),
-                                           **kwargs)
+            innerbound_powers=surface_analysis(
+                                  field_data.zone('*innerbound*'),**kwargs)
             innerbound_powers = innerbound_powers.add_prefix('inner')
             print('\nInnerbound surface power calculated')
             if save_mesh:

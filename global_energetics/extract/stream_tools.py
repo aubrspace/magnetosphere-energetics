@@ -761,37 +761,50 @@ def get_surf_geom_variables(zone):
     #Generate cellcentered versions of postitional variables
     for var in ['X [R]','Y [R]','Z [R]','r [R]']:
         newvar = var.split(' ')[0].lower()+'_cc'
-        eq('{'+newvar+'}={'+var+'}', value_location=CC)
+        eq('{'+newvar+'}={'+var+'}', value_location=CC,zones=[zone.index])
     #Create a DataFrame for easy manipulations
     x_ccvalues =zone.values('x_cc').as_numpy_array()
     xnormals = zone.values('X GRID K Unit Normal').as_numpy_array()
-    xvals = zone.values('X *').as_numpy_array()
-    hvals = zone.values('h').as_numpy_array()
     df = pd.DataFrame({'x_cc':x_ccvalues,'normal':xnormals})
     #Check that surface normals are pointing outward from surface
     #Spherical inner boundary surface case (want them to point inwards)
     if 'innerbound' in zone.name:
         if df[df['x_cc']==df['x_cc'].min()]['normal'].mean() < 0:
-            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
-            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
-            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
+               zones=[zone.index])
         else:
-            eq('{surface_normal_x} = {X Grid K Unit Normal}')
-            eq('{surface_normal_y} = {Y Grid K Unit Normal}')
-            eq('{surface_normal_z} = {Z Grid K Unit Normal}')
+            eq('{surface_normal_x} = {X Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+               zones=[zone.index])
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
             len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']<0)])):
-            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}')
-            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}')
-            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}')
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
+               zones=[zone.index])
         else:
-            eq('{surface_normal_x} = {X Grid K Unit Normal}')
-            eq('{surface_normal_y} = {Y Grid K Unit Normal}')
-            eq('{surface_normal_z} = {Z Grid K Unit Normal}')
-    #Store a helpful 'htail' value in aux data for potential later use
-    zone.aux_data.update({'hmin':
+            eq('{surface_normal_x} = {X Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+               zones=[zone.index])
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+               zones=[zone.index])
+    if ('mp' in zone.name) and ('innerbound' not in zone.name):
+        #Store a helpful 'htail' value in aux data for potential later use
+        xvals = zone.values('X *').as_numpy_array()
+        hvals = zone.values('h').as_numpy_array()
+        zone.aux_data.update({'hmin':
                hvals[np.where(np.logical_and(xvals<-5,xvals>-8))].min()})
 
 def get_day_flank_tail(zone):
@@ -1271,6 +1284,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     ######################################################################
     #Virial only intermediate terms
     if 'virial' in analysis_type or analysis_type=='all':
+        '''
         #Density times velocity between now and next timestep
         eq('{rhoUx_cc}={Rho [amu/cm^3]}*{U_x [km/s]}',
                          value_location=ValueLocation.CellCentered)
@@ -1286,6 +1300,13 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         #Density weighted by r^2
         eq('{rho r^2 [kgm^2/Re^3]} = {rho [amu/cm^3]}*{r [R]}**2'+
                                    '*1e6*1.6605e-27*(6371*1e3)**5',
+                          value_location=ValueLocation.CellCentered)
+        '''
+        #Advection term
+        eq('{rhoU_r [Js/Re^3]} = {Rho [amu/cm^3]}*1.6605e6*6.371**4*('+
+                                              '{U_x [km/s]}*{X [R]}+'+
+                                              '{U_y [km/s]}*{Y [R]}+'+
+                                              '{U_z [km/s]}*{Z [R]})',
                           value_location=ValueLocation.CellCentered)
         #Dipole field (requires coordsys and UT information!!!)
         Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
@@ -1310,10 +1331,13 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                           value_location=ValueLocation.CellCentered)
         #Disturbance Magnetic Energy per volume
-        eq('{delta_uB [J/Re^3]}= (({B_x [nT]}-{Bdx})**2+'+
-                             '({B_y [nT]}-{Bdy})**2+'+
-                             '({B_z [nT]}-{Bdz})**2)'+
+        eq('{Virial Ub [J/Re^3]}= (({B_x [nT]}-{Bdx})**2+'+
+                                  '({B_y [nT]}-{Bdy})**2+'+
+                                  '({B_z [nT]}-{Bdz})**2)'+
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+                          value_location=ValueLocation.CellCentered)
+        #Special construction of hydrodynamic energy density for virial
+        eq('{Virial 2x Uk [J/Re^3]} = 2*{KE [J/Re^3]}+{Pth [J/Re^3]}',
                           value_location=ValueLocation.CellCentered)
     #Hydrodynamic Energy Density
     eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
@@ -1534,9 +1558,11 @@ def calc_state(mode, sourcezone, **kwargs):
     #       See ex use of 'assert' if any pre_recs are needed
     #####################################################################
     #Call calc_XYZ_state and return state_index and create zonename
-    if mode == 'iso_betastar':
+    if 'iso_betastar' in mode:
         zonename = 'mp_'+mode
-        if sourcezone.name.find('future')!=-1:
+        if 'future' in sourcezone.name:
+            zonename = 'future_'+mode
+            print('\nFuture Recognized!\n')
             closed_zone = kwargs.get('future_closed_zone')
         else:
             closed_zone = kwargs.get('closed_zone')
@@ -1613,14 +1639,13 @@ def calc_state(mode, sourcezone, **kwargs):
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
-    if mode != 'iso_betastar':
+    if 'mp' not in 'iso_betastar':
         zone, innerzone = setup_isosurface(1, state_index, zonename)
         innerzone = None
     else:
         zone, innerzone = setup_isosurface(1, state_index, zonename,
                                            keep_condition='sphere',
                                   keep_cond_value=kwargs.get('inner_r',3))
-    get_surf_geom_variables(zone)
     return zone, innerzone, state_index
 
 def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):

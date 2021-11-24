@@ -74,8 +74,9 @@ def work(mhddatafile):
     field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
-    magnetosphere.get_magnetosphere(field_data,
-                                    analysis_type='energy_virial_biotsavart',
+    magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+                                    do_cms=True,
+                                    analysis_type='energy',
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -145,7 +146,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                      key=makevideo.time_sort)[675:676]
+                                      key=makevideo.time_sort)[675:677]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
@@ -168,7 +169,7 @@ if __name__ == '__main__':
     else:
         solution_times = all_solution_times
     print(len(solution_times))
-    numproc = multiprocessing.cpu_count()-2
+    numproc = multiprocessing.cpu_count()-1
 
     # Set up the pool with initializing function and associated arguments
     num_workers = min(numproc, len(solution_times))

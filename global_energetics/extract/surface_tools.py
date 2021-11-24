@@ -14,9 +14,64 @@ import pandas as pd
 #interpackage modules, different path if running as main to test
 from global_energetics.extract.stream_tools import (integrate_tecplot,
                                                     get_surface_variables,
+                                                    get_day_flank_tail,
+                                                  get_surf_geom_variables,
                                             get_surface_velocity_estimate,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
+
+def get_dft_integrands(zone, integrands):
+    """Creates dictionary of terms to be integrated for energy analysis
+    Inputs
+        zone(Zone)- tecplot Zone
+        integrands(dict{str:str})- (static) in/output terms to calculate
+    Outputs
+        mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    dft_dict, eq = {}, tp.data.operate.execute_equation
+    #May need to get Day flank tail designations first
+    if not any(['Tail' in n for n in zone.dataset.variable_names]):
+        get_day_flank_tail(zone)
+    for term in integrands.items():
+        name = term[0].split(' [')[0]
+        outputname = term[1].split(' [')[0]
+        if ('Open' not in name) and ('Closed' not in name):
+            units = '['+term[1].split('[')[1].split(']')[0]+']'
+            eq('{'+name+'Day}={Day}*{'+term[0]+'}',zones=[zone])
+            eq('{'+name+'Flank}={Flank}*{'+term[0]+'}',zones=[zone])
+            eq('{'+name+'Tail}={Tail}*{'+term[0]+'}',zones=[zone])
+            dft_dict.update({name+'Day':outputname+'Day '+units,
+                             name+'Flank':outputname+'Flank '+units,
+                             name+'Tail':outputname+'Tail '+units})
+    return dft_dict
+
+def get_open_close_integrands(zone, integrands):
+    """Creates dictionary of terms to be integrated for energy analysis
+    Inputs
+        zone(Zone)- tecplot Zone
+        integrands(dict{str:str})- (static) in/output terms to calculate
+    Outputs
+        mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    openClose_dict, eq = {}, tp.data.operate.execute_equation
+    #May need to get Day flank tail designations first
+    if not any(['Tail' in n for n in zone.dataset.variable_names]):
+        get_day_flank_tail(zone)
+    for term in integrands.items():
+        name = term[0].split(' [')[0]
+        outputname = term[1].split(' [')[0]
+        if not any([n in name for n in ['Day','Flank','Tail']]):
+            units = '['+term[1].split('[')[1].split(']')[0]+']'
+            eq('{'+name+'Closed}=IF({Status}==3&&{Tail}==0,'+
+                                           '{'+term[0]+'},0)',zones=[zone])
+            eq('{'+name+'OpenN}=IF({Status}==2&&{Tail}==0,'+
+                                           '{'+term[0]+'},0)',zones=[zone])
+            eq('{'+name+'OpenS}=IF({Status}==1&&{Tail}==0,'+
+                                           '{'+term[0]+'},0)',zones=[zone])
+            openClose_dict.update({name+'Closed':outputname+'Closed '+units,
+                                  name+'OpenN':outputname+'OpenN ' +units,
+                                  name+'OpenS':outputname+'OpenS ' +units})
+    return openClose_dict
 
 def energy_to_dB(energy, *, conversion=-8e13):
     """Function converts energy term to magnetic perturbation term w factor
@@ -54,7 +109,7 @@ def get_energy_dict():
         energy_dict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     flux_suffixes = ['_escape','_net', '_injection']
-    units = ' [W]'
+    units = ' [W/Re^2]'
     postunits = ' [W]'
     energy_dict = {}
     for direction in flux_suffixes:
@@ -105,6 +160,9 @@ def surface_analysis(zone, **kwargs):
     #Calculate needed surface variables for integrations
     if 'analysis_type' in kwargs:
         analysis_type = kwargs.pop('analysis_type')
+    if not (('mp' in zone.name) and ('innerbound' not in zone.name) and
+            (zone.aux_data!=0)):
+        get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
     #initialize empty dictionary that will make up the results of calc
     results = {}
@@ -118,6 +176,9 @@ def surface_analysis(zone, **kwargs):
     ###################################################################
     if 'virial' in analysis_type:
         virialdict = get_virial_dict(zone)
+        #Add integration bound changes
+        virialdict.update(get_dft_integrands(zone, virialdict))
+        virialdict.update(get_open_close_integrands(zone, virialdict))
         for virialterm in virialdict.items():
             results.update(calc_integral(virialterm, zone))
             results.update(energy_to_dB((virialterm[1],
@@ -127,6 +188,9 @@ def surface_analysis(zone, **kwargs):
     ###################################################################
     if 'energy' in analysis_type:
         energydict = get_energy_dict()
+        #Add integration bound changes
+        energydict.update(get_dft_integrands(zone, energydict))
+        energydict.update(get_open_close_integrands(zone, energydict))
         for energyterm in energydict.items():
             results.update(calc_integral(energyterm, zone))
             if kwargs.get('verbose',False):

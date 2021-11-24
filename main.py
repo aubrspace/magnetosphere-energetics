@@ -32,8 +32,8 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
-    mhddatafile = '3d__var_1_e20140219-031700-018.plt'
-    future = '3d__var_1_e20140219-031800-036.plt'
+    mhddatafile = '3d__var_1_e20140219-090000-000.plt'
+    future = '3d__var_1_e20140219-090100-023.plt'
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
     OUTPUTNAME = 'testoutput1.png'
@@ -58,10 +58,11 @@ if __name__ == "__main__":
     with tp.session.suspend():
         mesh, data = magnetosphere.get_magnetosphere(field_data,
                                     outputpath=OUTPATH,
-                                 analysis_type='energy_virial',
+                                 analysis_type='biotsavart',
                                     tail_cap=-20,
+                                    do_cms=True,
                                     save_mesh=False,
-                                    integrate_surface=True,
+                                    integrate_surface=False,
                                     integrate_volume=True)
     if True:#manually switch on or off
         #adjust view settings
