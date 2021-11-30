@@ -8,7 +8,7 @@ import sys
 import time as sleeptime
 import numpy as np
 import datetime as dt
-import spacepy.time as spacetime
+#import spacepy.time as spacetime
 
 def get_time(filename):
     """Function gets time from file name and returns spacepy Ticktock obj
@@ -17,6 +17,7 @@ def get_time(filename):
     Output
         time- spacepy Ticktock object
     """
+    import spacepy.time as spacetime
     date_string = filename.split('/')[-1].split('-')[0]
     year = int(''.join(list(date_string)[-8:-4]))
     month = int(''.join(list(date_string)[-4:-2]))

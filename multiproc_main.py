@@ -11,7 +11,7 @@ import datetime as dt
 import glob
 import gzip
 import shutil
-import spacepy
+#import spacepy
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
@@ -76,7 +76,7 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
-                                    analysis_type='energy',
+                                    analysis_type='virial_energy_biotsavart',
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                      key=makevideo.time_sort)[675:677]
+                                      key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

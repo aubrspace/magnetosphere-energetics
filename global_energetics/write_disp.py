@@ -8,7 +8,7 @@ import glob
 import numpy as np
 import datetime as dt
 import pandas as pd
-import spacepy as sp
+#import spacepy as sp
 import tecplot as tp
 
 def write_mesh(filename, zonename, timedata, mesh):

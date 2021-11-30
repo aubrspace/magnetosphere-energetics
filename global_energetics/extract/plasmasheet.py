@@ -14,7 +14,7 @@ import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
 #custom packages
-from global_energetics.makevideo import get_time
+#from global_energetics.makevideo import get_time
 from global_energetics.extract import surface_construct
 from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import surface_analysis
@@ -46,7 +46,7 @@ def get_plasmasheet(field_data, datafile, *, outputpath='output/',
         nslice, nalpha- cylindrical points used for surface reconstruction
     """
     #get date and time info from datafile name
-    time = get_time(datafile)
+    #time = get_time(datafile)
     #set unique outputname
     outputname = datafile.split('e')[1].split('-000.')[0]+'-cps'
     print(field_data)

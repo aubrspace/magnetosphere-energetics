@@ -10,9 +10,9 @@ import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import scipy.spatial as space
-import spacepy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
+#import spacepy
+#from spacepy import coordinates as coord
+#from spacepy import time as spacetime
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
@@ -857,8 +857,9 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     """
     eq = tp.data.operate.execute_equation
     #Check that geometry variables have already been calculated
-    assert 'hmin' in zone.aux_data.as_dict(), ('Surface geometry not'+
-                                               'calculated!')
+    assert any([x!=0 for x in
+        zone.values('surface_normal_x').as_numpy_array()]), ('Surface '+
+                                              'geometry not calculated!')
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
@@ -874,7 +875,7 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     if (('mp' in zone.name and 'innerbound' not in zone.name) or
                                             kwargs.get('find_DFT',False)):
         get_day_flank_tail(zone)
-        get_day_flank_tail(zone.dataset.zone(0))
+        #get_day_flank_tail(zone.dataset.zone(0))
     '''
     dt = str(dt)
     Old surface velocity calculation
@@ -1171,7 +1172,7 @@ def get_virials():
     #termcopy.remove(term); termcopy.remove(termM) #last used is inner
     term_titles = ['{'+term.split('{')[1].split('}')[0]+'}'
                                                      for term in terms]
-    total = ('{virial_surfTotal}='+'+'.join(term_titles))
+    total = ('{virial_surfTotal [J/Re^2]}='+'+'.join(term_titles))
     terms.append(total)
     total_adv=('{virial_Fadv [J/Re^2]}={virial_scalarPth}+{virial_advect}')
     terms.append(total_adv)
@@ -1622,7 +1623,7 @@ def calc_state(mode, sourcezone, **kwargs):
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
-    if 'mp' not in 'iso_betastar':
+    if 'iso_betastar' not in mode:
         zone, innerzone = setup_isosurface(1, state_index, zonename)
         innerzone = None
     else:

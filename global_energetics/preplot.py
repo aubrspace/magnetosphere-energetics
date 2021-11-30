@@ -10,7 +10,7 @@ import sys
 from subprocess import check_output as read_out
 import tecplot as tp
 from tecplot.constant import *
-import spacepy
+#import spacepy
 #from spacepy import pybats as bats
 
 def IDL_to_hdf5(filepath, **kwargs):

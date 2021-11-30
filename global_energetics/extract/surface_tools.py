@@ -125,21 +125,9 @@ def get_virial_dict(zone):
     Outputs
         virialdict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
-    virial_dict = {'virial_scalarPth':'Virial ScalarPth [J]',
-                   'virial_scalaruB':'Virial ScalarPmag [J]',
-                   'virial_scalaruB_dipole':'Virial ScalarPdip [J]',
-                   'virial_advect1':'Virial Advection d/dt [J]',
-                   'virial_advect2':'Virial Advection 2 [J]',
-                   'virial_MagB_':'Virial B Stress [J]',
-                   'virial_MagBd':'Virial Bd Stress [J]',
-                   'virial_BBd':'Virial BBd Stress [J]',
-                   'virial_surfTotal':'Virial Surface Total [J]'}
-    if 'innerbound' in zone.name:
-        virial_dict.update({'virial_scalardelta_uB':
-                                                  'Virial ScalarPbin [J]'})
-        virial_dict.update({'virial_Magb':'Virial b Stress [J]'})
-    print('inside get _virial terrms')
-    from IPython import embed; embed()
+    virial_dict = {'virial_Fadv [J/Re^2]':'Virial Fadv [J]',
+                   'virial_Floz [J/Re^2]':'Virial Floz [J]',
+                   'virial_surfTotal [J/Re^2]':'Virial Surface Total [J]'}
     return virial_dict
 
 def surface_analysis(zone, **kwargs):
@@ -162,8 +150,7 @@ def surface_analysis(zone, **kwargs):
     #Calculate needed surface variables for integrations
     if 'analysis_type' in kwargs:
         analysis_type = kwargs.pop('analysis_type')
-    if not (('mp' in zone.name) and ('innerbound' not in zone.name) and
-            (zone.aux_data!=0)):
+    if ('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
     #initialize empty dictionary that will make up the results of calc
@@ -177,12 +164,13 @@ def surface_analysis(zone, **kwargs):
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications spatially parsing results
-    integrands.update(get_dft_integrands(global_zone, integrands))
-    integrands.update(get_open_close_integrands(global_zone, integrands))
+    if 'innerbound' not in zone.name:
+        integrands.update(get_dft_integrands(zone, integrands))
+    integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
     for term in integrands.items():
-        results.update(calc_integral(term, global_zone))
+        results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
             print(stat_var.name+term[1]+' integration done')
     ###################################################################
@@ -195,52 +183,7 @@ def surface_analysis(zone, **kwargs):
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:
-        results.update(virial_post_integr(results))
-    if 'energy' in analysis_type:
-        results.update(energy_post_integr(results, **kwargs))
+        for term in [{key:pair} for (key,pair) in results.items()
+                                                       if 'Virial' in key]:
+            results.update(energy_to_dB([t for t in term.items()][0]))
     return pd.DataFrame(results)
-    '''
-    results = {}
-    if kwargs.get('do_1Dsw', False):
-        ##Different prefixes allow for calculation of surface fluxes using
-        #   multiple sets of flowfield variables (denoted by the prefix)
-        prefix = '1D'
-        #OUTDATED! Need to update to be compatible with refactoring
-    if kwargs.get('do_cms', False):
-        pass #currently all handled in volume integrations
-    ###################################################################
-    if 'virial' in analysis_type:
-        virialdict = get_virial_dict(zone)
-        #Add integration bound changes
-        virialdict.update(get_dft_integrands(zone, virialdict))
-        virialdict.update(get_open_close_integrands(zone, virialdict))
-        for virialterm in virialdict.items():
-            results.update(calc_integral(virialterm, zone))
-            results.update(energy_to_dB((virialterm[1],
-                                         results[virialterm[1]])))
-            if kwargs.get('verbose',False):
-                print(zone.name+' '+virialterm[1]+' integration done')
-    ###################################################################
-    if 'energy' in analysis_type:
-        energydict = get_energy_dict()
-        #Add integration bound changes
-        energydict.update(get_dft_integrands(zone, energydict))
-        energydict.update(get_open_close_integrands(zone, energydict))
-        for energyterm in energydict.items():
-            results.update(calc_integral(energyterm, zone))
-            if kwargs.get('verbose',False):
-                print(zone.name+' '+energyterm[1]+' integration done')
-    ###################################################################
-    if len(kwargs.get('customTerms', {}))!=0:
-        for term in kwargs.get('customTerms', {}):
-            results.update(calc_integral(term, zone))
-            if kwargs.get('verbose',False):
-                print(zone.name+' '+term[1]+' integration done')
-    ###################################################################
-    #Package in pandas DataFrame
-    surface_power = pd.DataFrame(results)
-    #Turn off blanking
-    frame = kwargs.get('frame', tp.active_frame())
-    frame.plot().value_blanking.active = False
-    return surface_power
-    '''

@@ -310,7 +310,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     #Create isosurface zone depending on mode setting
     ################################################################
     zonelist, state_indices = [], []
-    if 'virial' in analysis_type:
+    if 'virial' in analysis_type and integrate_volume:
         modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
     else:
         #modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
@@ -340,7 +340,14 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if integrate_surface:
         #integrate power on main surface
-        mp_powers = surface_analysis(zonelist[0],**kwargs)
+        print('Working on: '+zonelist[0].name)
+        surf_results = surface_analysis(zonelist[0],**kwargs)
+        #Add time and x_subsolar
+        surf_results['Time [UTC]'] = eventtime
+        surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
+        mp_mesh.update({'Time [UTC]':
+                                 pd.DataFrame({'Time [UTC]':[eventtime]})})
+        data_to_write.update({zonelist[0].name+'_surface':surf_results})
         if save_mesh:
             cc_length = len(zonelist[0].values('x_cc').as_numpy_array())
             for name in field_data.variable_names:
@@ -352,20 +359,22 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                             '1DExB_net [W/Re^2]']:
                 savemeshvars[modes[0]].append(name)
-        if mode=='iso_betastar':
+        if 'iso_betastar' in modes:
             #integrate power on innerboundary surface
-            inner_mesh = pd.DataFrame()
-            innerbound_powers=surface_analysis(
-                                  field_data.zone('*innerbound*'),**kwargs)
-            innerbound_powers = innerbound_powers.add_prefix('inner')
-            print('\nInnerbound surface power calculated')
+            inner_mesh = {}
+            inner_zone = field_data.zone('*innerbound*')
+            print('Working on: '+inner_zone.name)
+            inner_surf_results = surface_analysis(inner_zone, **kwargs)
+            inner_surf_results['Time [UTC]'] = eventtime
+            data_to_write.update({zonelist[0].name+'_inner_surface':
+                                                       inner_surf_results})
             if save_mesh:
                 #save inner boundary mesh to the mesh file
-                inner_index =(field_data.zone('*innerbound*').index.real)
                 for var in savemeshvars[modes[0]]:
-                    inner_mesh[var] = field_data.zone(inner_index).values(
+                    inner_mesh[var]=inner_zone.values(
                                     var.split(' ')[0]+'*').as_numpy_array()
-        print('\nMagnetopause Power Terms\n{}'.format(mp_powers))
+                inner_mesh.update({'Time [UTC]':
+                                 pd.DataFrame({'Time [UTC]':[eventtime]})})
     ################################################################
     if integrate_volume:
         for state_index in enumerate(state_indices):
@@ -374,7 +383,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             energies = volume_analysis(field_data.variable(state_index[1]),
                                        **kwargs)
             energies['Time [UTC]'] = eventtime
-            data_to_write.update({region.name:energies})
+            data_to_write.update({region.name+'_volume':energies})
             for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                         'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
                 usename = var.split(' ')[0]+'_cc'
@@ -392,21 +401,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 meshvalues[var] = region.values(usename).as_numpy_array()
             mp_mesh.update({region.name:meshvalues})
     ################################################################
-    if integrate_volume and integrate_surface and(
-                      'virial' in analysis_type or analysis_type=='all'):
-        #Complete virial predicted Dst
-        region = zonelist[0]
-        mp_powers['Virial_Dst [nT]']=(mp_powers['Virial Surface Total [J]']+
-             data_to_write[region.name]['Virial Volume Total [J]'])/(-8e13)
-    ################################################################
-    #Add time and x_subsolar
-    mp_powers['Time [UTC]'] = eventtime
-    mp_mesh.update({'Time [UTC]':pd.DataFrame({'Time [UTC]':[eventtime]})})
-    mp_powers['X_subsolar [Re]'] = float(aux['x_subsolar'])
-    region = zonelist[0]
     if write_data:
-        for key in mp_powers:
-            data_to_write[region.name][key] = mp_powers[key]
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                       str(eventtime.minute))

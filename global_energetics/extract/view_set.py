@@ -8,7 +8,8 @@ import numpy as np
 import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from global_energetics.makevideo import get_time
+#from global_energetics.makevideo import get_time
+from global_energetics.extract.swmf_access import swmf_read_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import abs_to_timestamp
 
@@ -283,8 +284,9 @@ def add_timestamp(frame, filename, position):
         position- x, y tuple
     """
     #get text
-    ticks = get_time(filename)
-    time = ticks.UTC[0]+dt.timedelta(minutes=45)
+    #ticks = get_time(filename)
+    #time = ticks.UTC[0]+dt.timedelta(minutes=45)
+    time = swmf_read_time
     year = time.year
     month = time.month
     day = time.day

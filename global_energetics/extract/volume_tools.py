@@ -31,21 +31,21 @@ def energy_post_integr(results, **kwargs):
     """
     newterms = {}
     #Virial volume terms
-    newterms.update({'uHydro [J]':[results['Pth [J]'][0]+
+    newterms.update({'uHydro [J]':[results['Eth [J]'][0]+
                                         results['KE [J]'][0]]})
     newterms.update({'Utot [J]':[newterms['uHydro [J]'][0]+
                                       results['uB [J]'][0]]})
     if kwargs.get('do_cms', False):
-        for direction in ['_acqu', '_forf']:
+        for direction in ['_acqu', '_forf', '_net']:
             newterms.update({'uHydro'+direction+' [W]':
-                                      [results['Pth'+direction+' [W]'][0]+
+                                      [results['Eth'+direction+' [W]'][0]+
                                        results['KE'+direction+' [W]'][0]]})
             newterms.update({'Utot'+direction+'[W]':
                                   [newterms['uHydro'+direction+' [W]'][0]+
                                     results['uB'+direction+' [W]'][0]]})
             for loc in['Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']:
                 newterms.update({'uHydro'+direction+loc+' [W]':
-                                [results['Pth'+direction+loc+' [W]'][0]+
+                                [results['Eth'+direction+loc+' [W]'][0]+
                                  results['KE'+direction+loc+' [W]'][0]]})
                 newterms.update({'Utot'+direction+'[W]':
                                 [newterms['uHydro'+direction+loc+' [W]'][0]+
@@ -122,10 +122,11 @@ def get_energy_integrands(state_var):
         if name+state not in existing_variables:
             #Create variable for integrand that only exists in isolated zone
             if 'Pth' in term:
-                eq('{'+name+state+'}=IF({'+state+'}<1, 0, 1.5*{'+term+'})')
+                eq('{Eth'+state+'}=IF({'+state+'}<1, 0, 1.5*{'+term+'})')
+                energydict.update({'Eth'+state:'Eth [J]'})
             else:
                 eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})')
-            energydict.update({name+state:name+' [J]'})
+                energydict.update({name+state:name+' [J]'})
     return energydict
 
 def get_mobile_integrands(zone, integrands, tdelta):
@@ -229,10 +230,10 @@ def volume_analysis(state_var, **kwargs):
         results.update(energy_post_integr(results, **kwargs))
         if kwargs.get('do_cms', False):
             for direction in ['_acqu', '_forf','_net']:
-                results.pop('Pth'+direction+' [W]')
+                results.pop('Eth'+direction+' [W]')
                 results.pop('KE'+direction+' [W]')
                 for loc in['Day','Flank','Tail','OpenN','OpenS','Closed']:
-                    results.pop('Pth'+direction+loc+' [W]')
+                    results.pop('Eth'+direction+loc+' [W]')
                     results.pop('KE'+direction+loc+' [W]')
     return pd.DataFrame(results)
 
