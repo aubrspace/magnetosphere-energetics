@@ -23,7 +23,7 @@ from global_energetics.analysis.analyze_energetics import (chopends_time,
                                                   plot_swflowP,plot_swbz,
                                                            plot_dst)
 
-def pyplotsetup(*, mode='presentation', **kwargs):
+def pyplotsetup(*,mode='presentation',**kwargs):
     """Creates dictionary to send to rcParams for pyplot defaults
     Inputs
         mode(str)- default is "presentation"
@@ -83,20 +83,18 @@ def plot_single(ax, times, mp, msdict, ylabel, **kwargs):
             do_xlabel(boolean)- default False
             legend_loc(see pyplot)- 'upper right' etc
             subzone(str)- 'ms_full' is default
-            value_key(str)- 'Virial_Dst [nT]' default
+            value_key(str)- 'Virial [nT]' default
             color(str)- see matplotlib named colors
     """
     #Gather info
     subzone = kwargs.get('subzone', 'ms_full')
-    value = kwargs.get('value_key', 'Virial Volume Total [nT]')
+    value = kwargs.get('value_key', 'Virial [nT]')
     #Set data
     if 'ms_full' in subzone: data = mp
     else: data = msdict[subzone]
     #Set label
     if 'Virial' in value:
         label='Virial'
-        if 'closedRegion' in subzone or 'lobes' in subzone:
-            label=label+' (mod)'
     elif 'bioS' in value: label='Biot Savart'
     else: label = None
     #Plot
@@ -126,9 +124,9 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
         data = msdict[subzone]
     value_set = kwargs.get('value_set','Virialvolume')
     values = {'Virialvolume':['Virial 2x Uk [nT]', 'Virial Ub [nT]'],
-              'Energy':['uB_dist [J]', 'KE [J]', 'Pth [J]'],
+              'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
               'Virialvolume%':['Virial 2x Uk [%]', 'Virial Ub [%]'],
-              'Energy%':['uB_dist [%]', 'KE [%]', 'Pth [%]']}
+              'Energy%':['Virial Ub [%]', 'KE [%]', 'Eth [%]']}
     #Get % within specific subvolume
     if '%' in value_set:
         for value in values[''.join(value_set.split('%'))]:
@@ -137,16 +135,16 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
                     if 'volume' in value_set:
                         total = data['Virial Volume Total [nT]']
                     else:
-                        total = data['Virial_Dst [nT]']
+                        total = data['Virial [nT]']
                 elif 'Energy' in value_set:
                     total = (data['Utot [J]']-data['uB [J]']+
-                             data['uB_dist [J]'])
+                             data['Virial Ub [J]'])
                 data[value.split('[')[0]+'[%]'] = data[value]/total*100
     #Optional layers depending on value_key
     if not '%' in value_set:
         if 'bioS' in value_set:
-            ax.fill_between(times, mp['bioS full [nT]'], color='olive')
-            ax.plot(times, mp['Virial_Dst [nT]'], color='black', ls='--',
+            ax.fill_between(times, mp['bioS_full [nT]'], color='olive')
+            ax.plot(times, mp['Virial [nT]'], color='black', ls='--',
                     label='Virial')
             try:
                 ax.plot(omni['Time [UTC]'],omni['sym_h'],
@@ -159,11 +157,11 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
                 ax.fill_between(times, data['Virial Volume Total [nT]'],
                                 color='lightgrey')
             else:
-                ax.fill_between(times, data['Virial_Dst [nT]'],
+                ax.fill_between(times, data['Virial [nT]'],
                                 color='lightgrey')
         elif 'Energy' in value_set:
                 total = (data['Utot [J]']-data['uB [J]']+
-                         data['uB_dist [J]'])
+                         data['Virial Ub [J]'])
                 ax.fill_between(times, total, color='lightgrey')
     #Plot line plots
     for value in values[value_set]:
@@ -228,20 +226,24 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     #Optional layers depending on value_key
     if not '%' in value_key:
         if 'bioS' in value_key:
-            #ax.fill_between(times, mp['bioS full [nT]'], color='olive')
-            #ax.plot(times, mp['Virial_Dst [nT]'], color='tab:red', ls='--',
-            #        label='Virial')
+            #ax.fill_between(times, mp['bioS_full [nT]'], color='olive')
             ax.fill_between(times, mp[value_key], color='gainsboro')
         elif 'Virial' in value_key:
-            #ax.plot(times, mp['bioS [nT]'], color='tab:cyan', ls='--',
-            #        label='Biot Savart')
             ax.fill_between(times, mp[value_key], color='gainsboro')
         try:
             ax.plot(omni['Time [UTC]'],omni['sym_h'],color='seagreen',
                     ls='--', label='OMNI obs')
         except NameError:
             print('omni not loaded! No obs comparisons!')
-        #ax.fill_between(times, mp[value_key], color='lightgrey')
+        try:
+            ax.plot(swmf_log['Time [UTC]'], swmf_log['dst_sm'],
+                    color='tab:red', ls='--',
+                    label='SWMFLog BiotSavart')
+            ax.plot(swmf_log['Time [UTC]'], swmf_log['dstflx_R=3.0'],
+                    color='magenta', ls='--',
+                    label='SWMFLog Flux')
+        except NameError:
+            print('swmf log file not loaded! No obs comparisons!')
     #Plot line plots
     for ms in msdict.items():
         if value_key in ms[1].keys():
@@ -261,36 +263,35 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
         [MODIFIED] mpdict(Dict of DataFrames)
         [MODIFIED] msdict(Dict of DataFrames)
     """
-    #Add total energy
-    for m in mpdict.values():
-        m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Pth [J]']
-    for m in msdict.values():
-        m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Pth [J]']
-    #Remove time column and rename biot savart columns
-    for m in mpdict.values():
-        m.drop(columns=['Time [UTC]'],inplace=True, errors='ignore')
-        m.rename(columns={'rho r^2 [kgm^2]':'Mr^2 [kgm^2]'}, inplace=True)
-        m.rename(columns={'delta_uB [J]':'uB_dist [J]'}, inplace=True)
-        for key in m.keys():
-            if ('Volume ' in key) and ('Virial' not in key):
-                m.rename(columns={key:'Volume [Re^3]'},inplace=True)
-    for m in msdict.values():
-        m.rename(columns={'rho r^2 [kgm^2]':'Mr^2 [kgm^2]'}, inplace=True)
-        m.rename(columns={'delta_uB [J]':'uB_dist [J]'}, inplace=True)
-        m.drop(columns=['Time [UTC]'], inplace=True, errors='ignore')
-        m.drop(columns=['bioS_full [nT]', 'X_subsolar [Re]',
-                        'Volume mp_iso_betastar'], inplace=True)
-        for key in m.keys():
-            if all(m[key].isna()):
-                m.drop(columns=[key], inplace=True)
-            if ('Volume ' in key) and ('Virial' not in key):
-                print(key)
-                m.rename(columns={key:'Volume [Re^3]'},inplace=True)
+    mp = [m for m in mpdict.values()][0]
+    for m in msdict.items():
+        #Remove empty/uneccessary columns from subvolumes
+        if 'rhoU_r [Js]' in m[1].keys():
+            m[1].drop(columns=['rhoU_r [Js]'], inplace=True)
+        for key in m[1].keys():
+            if all(m[1][key].isna()):
+                m[1].drop(columns=[key], inplace=True)
+        #Total energy
+        if 'uB' in m[1].keys():
+            m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Eth [J]']
+        #Total virial contribution from surface and volume terms
+        if 'Virial' in m[1].keys():
+            if 'nlobe' in m[0]:
+                m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
+                                  mp['Virial Surface TotalOpenN [J]'])
+            elif 'slobe' in m[0]:
+                m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
+                                  mp['Virial Surface TotalOpenS [J]'])
+            elif 'qDp' in m[0]:
+                m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
+                                  mp['Virial Surface TotalClosed [J]'])
+            else:
+                m[1]['Virial [J]'] = m[1]['Virial Volume Total [J]']
+            m[1]['Virial [nT]'] = m[1]['Virial [J]']/(-8e13)
     #Quantify amount missing from sum of all subzones
     missing_volume = pd.DataFrame()
     for key in [m for m in msdict.values()][0].keys():
         if key in [m for m in mpdict.values()][0].keys():
-            print(key)
             fullvolume = [m for m in mpdict.values()][0][key]
             added = [m for m in msdict.values()][0][key]
             for sub in [m for m in msdict.values()][1::]:
@@ -304,6 +305,107 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
                                       [m for m in mpdict.values()][0][key])
     return mpdict, msdict
 
+def calculate_mass_term(df):
+    """Calculates the temporal derivative minus surface motion contribution
+        to virial term
+    Inputs
+        df(DataFrame)
+    Returns
+        df(DataFrame)- modified
+    """
+    #Forward difference of integrated positionally weighted density
+    df['Um_static [J]'] = -1*df['rhoU_r [Js]']/60
+    f_n0 = df['rhoU_r [Js]']
+    f_n1 = f_n0.copy()
+    f_n1.index=f_n1.index-1
+    f_n1 = f_n1.drop(index=[-1])
+    forward_diff = (f_n1-f_n0)/(60)
+    #Save as energy and as virial
+    df['Um_static [J]'] = -1*forward_diff
+    df['Um_static [nT]'] = -1*forward_diff/(-8e13)
+    #Get static + motional
+    df['Um [J]'] = df['Um_static [J]']+df['rhoU_r_net [J]']
+    df['Um [nT]'] = df['Um [J]']/(-8e13)
+    return df
+
+def virial_mods(df):
+    """Function returns DataFrame with modified virial columns
+    Inputs
+        df(DataFrame)
+    Returns
+        df(DataFrame)- modified
+    """
+    if 'rhoU_r_net [J]' in df.keys():
+        df = calculate_mass_term(df)
+    if (('Virial Volume Total [J]' in df.keys()) and
+        ('Virial Surface Total [J]' in df.keys())):
+        df['Virial [J]'] = (df['Virial Volume Total [J]']+
+                                   df['Virial Surface Total [J]'])
+    for key in df.keys():
+        if '[J]' in key and key.split(' [J]')[0]+' [nT]' not in df.keys():
+            df[key.split(' [J]')[0]+' [nT]'] = df[key]/(-8e13)
+    return df
+
+def magnetopause_energy_mods(mpdf):
+    """Function returns magnetopause DataFrame with modified energy columns
+    Inputs
+        mpdf(DataFrame)
+    Returns
+        mpdf(DataFrame)- modified
+    """
+    #One-off renames
+    if 'Utot_acqu[W]' in mpdf.keys():
+        mpdf.rename(columns={'Utot_acqu[W]':'Utot_acqu [W]',
+                             'Utot_forf[W]':'Utot_forf [W]',
+                             'Utot_net[W]':'Utot_net [W]'}, inplace=True)
+    #Define relevant pieces
+    fluxes, energies = ['K_','ExB_','P0_'], ['Utot_', 'uB_', 'uHydro_']
+    direct = ['injection', 'escape', 'net']
+    locations = ['', 'Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']
+    motion = ['acqu', 'forf', 'net']
+    u = ' [W]'#units
+    #One-off missing keys
+    if 'Utot_acquDay [W]' not in mpdf.keys():
+        for loc in locations:
+            for m in motion:
+                mpdf['Utot_'+m+loc+u] = (mpdf['uB_'+m+loc+u]+
+                                         mpdf['uHydro_'+m+loc+u])
+    #Surface Volume combinations
+    for flux in enumerate(fluxes):
+        for d in enumerate(direct):
+            for loc in locations:
+                #Rename to denote 'static' contribution only
+                mpdf.rename(columns={flux[1]+d[1]+loc+u:
+                                     flux[1]+d[1]+loc+'_static'+u},
+                                     inplace=True)
+                #Add in motional terms for proper total
+                static = mpdf[flux[1]+d[1]+loc+'_static'+u]
+                motional = mpdf[energies[flux[0]]+motion[d[0]]+loc+u]
+                mpdf[flux[1]+d[1]+loc+u] = static+motional
+    #Drop time column
+    mpdf.drop(columns=['Time [UTC]'],inplace=True, errors='ignore')
+    return mpdf
+
+def gather_magnetopause(outersurface, volume):
+    """Function combines surface and volume terms to construct single df
+        with all magnetopause (magnetosphere) terms
+    Inputs
+        outersurface(DataFrame)-
+        volume(DataFrame)-
+    Returns
+        combined(DataFrame)
+    """
+    combined = pd.DataFrame()
+    for df in [outersurface, volume]:
+        for key in df.keys():
+            if not all(df[key].isna()):
+                combined[key] = df[key]
+    if 'K_net [W]' in combined.keys():
+        combined = magnetopause_energy_mods(combined)
+    if 'Virial Volume Total [nT]' in combined.keys():
+        combined = virial_mods(combined)
+    return combined
+
 if __name__ == "__main__":
     datapath = sys.argv[-1]
     figureout = datapath+'figures/'
@@ -316,27 +418,25 @@ if __name__ == "__main__":
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=True)
     store = pd.HDFStore(datapath+'energetics.h5')
-    #store = pd.HDFStore(datapath+'halfbaked.h5')
     times = store[store.keys()[0]]['Time [UTC]']+dt.timedelta(minutes=45)
     #Clean up and gather statistics
-    mpdict = {'ms_full':store['/mp_iso_betastar']}
-    mp = [m for m in mpdict.values()][0]
-    msdict = {'nlobe':store['/ms_nlobe'].drop(columns=['Time [UTC]']),
-              'slobe':store['/ms_slobe'].drop(columns=['Time [UTC]']),
-              'rc':store['/ms_rc'].drop(columns=['Time [UTC]']),
-              'ps':store['/ms_ps'].drop(columns=['Time [UTC]']),
-              'qDp':store['/ms_qDp'].drop(columns=['Time [UTC]'])}
+    mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
+                             store['/mp_iso_betastar_volume'])
+    inner_mp = store['/mp_iso_betastar_inner_surface']
+    mpdict = {'ms_full':mp}
+    msdict = {}
+    for key in store.keys():
+        if 'ms' in key:
+            if any(['Virial' in k for k in store[key].keys()]):
+                cleaned_df = virial_mods(store[key])
+            else:
+                cleaned_df = store[key]
+            msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
+                                                  columns=['Time [UTC]'])})
     mpdict, msdict = get_interzone_stats(mpdict, msdict)
     store.close()
     #Construct "grouped" set of subzones
-    '''
-    msdict_3zone = {'rc':msdict['rc'],
-                    'closedRegion':msdict['ps']+msdict['qDp'],
-                    'lobes':msdict['nlobe']+msdict['slobe'],
-                    'missing':msdict['missed']}
-    '''
-    msdict_3zone = {
-                    'lobes':msdict['nlobe']+msdict['slobe'],
+    msdict_3zone = {'lobes':msdict['nlobe']+msdict['slobe'],
                     'closedRegion':msdict['ps']+msdict['qDp'],
                     'rc':msdict['rc'],
                     'missing':msdict['missed']}
@@ -344,111 +444,109 @@ if __name__ == "__main__":
                    'slobe':msdict['slobe'],
                    'remaining':msdict['rc']+msdict['ps']+msdict['qDp'],
                    'missing':msdict['missed']}
-    #Calculate 2nd order difference for mass omission
-    ######################################################################
-    #Define terms
-    f_n = mp['Mr^2 [kgm^2]']
-    f_n2 = f_n.copy(); f_n1 = f_n.copy() #Forward
-    f_n_1 = f_n.copy(); f_n_2 = f_n.copy() #Backward
-    f_n1.index=f_n1.index-1; f_n2.index=f_n2.index-2
-    f_n_1.index=f_n1.index+1; f_n_2.index=f_n2.index+2
-    f_n1 = f_n1.drop(index=[-1])
-    f_n2 = f_n2.drop(index=[-1,-2])
-    #Types of differences
-    central_diff = ((f_n1-2*f_n+f_n_1)/60**2) / (-8e13)
-    forward_diff = ((f_n-2*f_n1+f_n2)/60**2) / (-8e13)
-    central4_diff=((-f_n2+16*f_n1-30*f_n+16*f_n_1-f_n_2)/(12*60**2))/(-8e13)
-    '''
-    mp['d2dt2 Mr^2 [J]'] = (f_f-2*f_c+f_b)/60**2
-    mp['d2dt2 Mr^2 [nT]'] = mp['d2dt2 Mr^2 [J]']/8e13
-    '''
-    """
     #Begin plots
     #Fist type: line and stacks of various groupings of terms
     ######################################################################
-    #Label setup
-    y1labels = [r'Virial Dst $\left[ nT\right]$',
-                r'Plasma Virial Dst $\left[ nT\right]$',
-                r'Magnetic Virial Dst $\left[ nT\right]$',
-                r'Biot Savart Dst $\left[ nT\right]$']
-    y2label =   r'$\%$ Contribution'
-    value_keys=['Virial Volume Total ','Virial 2x Uk ','Virial Ub ','bioS ']
-    #Line plots- total virial, plasma, disturbance, and Biot savart
-    for combo in {'allPiece':msdict,'3zone':msdict_3zone,
-                  'lobes':msdict_lobes}.items():
-        fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        fig4,ax4 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        for ax in enumerate([ax1, ax2, ax3, ax4]):
-            plot_contributions(ax[1][0], times,mp,combo[1],y1labels[ax[0]],
-                               value_key=value_keys[ax[0]]+'[nT]')
-            plot_contributions(ax[1][1], times, mp, combo[1], y2label,
-                          value_key=value_keys[ax[0]]+'[%]',do_xlabel=True)
-        for fig in{'total':fig1,'plasma':fig2,'mag_perturb':fig3,
-                   'bioS':fig4}.items():
-            fig[1].tight_layout(pad=1)
-            fig[1].savefig(figureout+'virial_line_'+fig[0]+combo[0]+'.png')
-            plt.close(fig[1])
-    #Stack plots- total virial, plasma, disturbance, and Biot savart
-    for combo in {'allPiece':msdict,'3zone':msdict_3zone,
-                  'lobes':msdict_lobes}.items():
-        fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        fig4,ax4 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        for ax in enumerate([ax1, ax2, ax3, ax4]):
-            plot_stack_contrib(ax[1][0], times,mp,combo[1],y1labels[ax[0]],
-                          value_key=value_keys[ax[0]]+'[nT]')
-            plot_stack_contrib(ax[1][1], times, mp, combo[1], y2label,
-                          value_key=value_keys[ax[0]]+'[%]',do_xlabel=True)
-        for fig in{'total':fig1,'plasma':fig2,'mag_perturb':fig3,
-                   'bioS':fig4}.items():
-            fig[1].tight_layout(pad=1)
-            fig[1].savefig(figureout+'virial_stack_'+fig[0]+combo[0]+'.png')
-            plt.close(fig[1])
+    if 'Virial Volume Total [nT]' in mp.keys()and 'bioS [nT]' in mp.keys():
+        #Label setup
+        y1labels = [r'Virial $\Delta B\left[ nT\right]$',
+                    r'Plasma Virial $\Delta B\left[ nT\right]$',
+                    r'Magnetic Virial $\Delta B\left[ nT\right]$',
+                    r'Biot Savart $\Delta B\left[ nT\right]$']
+        y2label =   r'$\%$ Contribution'
+        value_keys=['Virial Volume Total ','Virial 2x Uk ',
+                    'Virial Ub ','bioS ']
+        #Line plots- total virial, plasma, disturbance, and Biot savart
+        for combo in {'allPiece':msdict,'3zone':msdict_3zone,
+                    'lobes':msdict_lobes}.items():
+            fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            fig4,ax4 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            for ax in enumerate([ax1, ax2, ax3, ax4]):
+                plot_contributions(ax[1][0], times,mp,combo[1],
+                                   y1labels[ax[0]],
+                                   value_key=value_keys[ax[0]]+'[nT]')
+                plot_contributions(ax[1][1], times, mp, combo[1], y2label,
+                                   value_key=value_keys[ax[0]]+'[%]',
+                                   do_xlabel=True)
+            for fig in{'total':fig1,'plasma':fig2,'mag_perturb':fig3,
+                    'bioS':fig4}.items():
+                fig[1].tight_layout(pad=1)
+                fig[1].savefig(figureout+'virial_line_'+fig[0]+
+                               combo[0]+'.png')
+                plt.close(fig[1])
+        #Stack plots- total virial, plasma, disturbance, and Biot savart
+        for combo in {'allPiece':msdict,'3zone':msdict_3zone,
+                    'lobes':msdict_lobes}.items():
+            fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            fig4,ax4 = plt.subplots(nrows=2,ncols=1,sharex=True,
+                                    figsize=[14,8])
+            for ax in enumerate([ax1, ax2, ax3, ax4]):
+                plot_stack_contrib(ax[1][0], times,mp,combo[1],
+                                   y1labels[ax[0]],
+                                   value_key=value_keys[ax[0]]+'[nT]')
+                plot_stack_contrib(ax[1][1], times, mp, combo[1], y2label,
+                                   value_key=value_keys[ax[0]]+'[%]',
+                                   do_xlabel=True)
+            for fig in{'total':fig1,'plasma':fig2,'mag_perturb':fig3,
+                    'bioS':fig4}.items():
+                fig[1].tight_layout(pad=1)
+                fig[1].savefig(figureout+'virial_stack_'+fig[0]+
+                               combo[0]+'.png')
+                plt.close(fig[1])
     #Second type: distribution of types of energy in the system
     ######################################################################
-    y1labels = [r'Total Magnetic Energy $\left[J\right]$',
-                r'Disturbance Magnetic Energy $\left[J\right]$',
-                r'Dipole Magnetic Energy $\left[J\right]$',
-                r'Kinetic Energy $\left[J\right]$',
-                r'Thermal Energy $\left[J\right]$',
-                r'Total Energy $\left[J\right]$']
+    term_labels = {'uB':r'Total Magnetic Energy $\left[J\right]$',
+               'Virial Ub':r'Disturbance Magnetic Energy $\left[J\right]$',
+                   'KE':r'Kinetic Energy $\left[J\right]$',
+                   'Eth':r'Thermal Energy $\left[J\right]$',
+                   'Utot':r'Total Energy $\left[J\right]$'}
     y2label = r'Energy fraction $\left[\%\right]$'
-    energies = ['uB','uB_dist','uB_dipole','KE','Pth','Utot']
-    fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    fig2,ax2 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    fig3,ax3 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    fig4,ax4 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    fig5,ax5 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    fig6,ax6 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    fig7,ax7 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-    ax = [ax1,ax2,ax3,ax4,ax5,ax6]
-    for fig in enumerate([fig1, fig2, fig3, fig4, fig5, fig6]):
-        plot_contributions(ax[fig[0]][0],times,mp,msdict_3zone,
-                       y1labels[fig[0]], value_key=energies[fig[0]]+' [J]')
-        plot_contributions(ax[fig[0]][1], times, mp, msdict_3zone, y2label,
-                         value_key=energies[fig[0]]+' [%]', do_xlabel=True)
-        fig[1].tight_layout(pad=1)
-        fig[1].savefig(figureout+energies[fig[0]]+'_line.png')
-        plt.close(fig[1])
-    plot_contributions(ax7[0], times, mp, msdict_3zone,
-                    r'Volume $\left[R_e\right]$',value_key='Volume [Re^3]')
-    plot_contributions(ax7[1], times, mp, msdict_3zone,
-               r'Volume fraction $\left[\%\right]$',value_key='Volume [%]')
-    fig7.tight_layout(pad=1)
-    fig7.savefig(figureout+'Volume_line.png')
-    plt.close(fig7)
+    for (term,label) in term_labels.items():
+        if term+' [J]' in mp.keys():
+            fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+            plot_contributions(ax[0],times,mp,msdict_3zone,label,
+                               value_key=term+' [J]')
+            plot_contributions(ax[1],times,mp,msdict_3zone,y2label,
+                               value_key=term+' [%]',
+                               do_xlabel=True)
+            fig.tight_layout(pad=1)
+            plt.show()
+            fig.savefig(figureout+term+'_line.png')
+            plt.close(fig)
+    if 'Volume [Re^3]' in mp.keys():
+        fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
+        plot_contributions(ax[0], times, mp, msdict_3zone,
+                           r'Volume $\left[R_e\right]$',
+                           value_key='Volume [Re^3]')
+        plot_contributions(ax[1], times, mp, msdict_3zone,
+                           r'Volume fraction $\left[\%\right]$',
+                           value_key='Volume [%]')
+        fig.tight_layout(pad=1)
+        fig.savefig(figureout+'Volume_line.png')
+        plt.close(fig)
     #Third type: distrubiton of virial and types of energy within subzone
     ######################################################################
+    term_labels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
+                'closedRegion':r'Closed Region $\Delta B\left[nT\right]$',
+                           'lobes':r'Lobes $\Delta B\left[nT\right]$'}
     y2label = r'Fraction $\left[\%\right]$'
-    valset = ['Virialvolume','Energy']
+    valset = ['Virial','Energy']
     for vals in valset:
         if 'Virial' in vals:
-            fig2ylabels = {'rc':r'Ring Current Dst $\left[nT\right]$',
-                    'closedRegion':r'Closed Region Dst $\left[nT\right]$',
-                           'lobes':r'Lobes Dst $\left[nT\right]$'}
+            fig2ylabels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
+                'closedRegion':r'Closed Region $\Delta B\left[nT\right]$',
+                           'lobes':r'Lobes $\Delta B\left[nT\right]$'}
         elif 'Energy' in vals:
             fig2ylabels = {'rc':r'Ring Current Energy $\left[J\right]$',
                     'closedRegion':r'Closed Region Energy $\left[J\right]$',
@@ -470,8 +568,7 @@ if __name__ == "__main__":
             plot_distr(ax[1], times, mp, msdict_3zone, y2label,
                    value_set=vals+'%', do_xlabel=True, subzone=subzone[1])
             plot_distr(ax2[subzone[0]],times,mp,msdict_3zone,
-                fig2ylabels[subzone[1]],value_set=vals,subzone=subzone[1],
-                       ylim=[0,8e15])
+                fig2ylabels[subzone[1]],value_set=vals,subzone=subzone[1])
                        #do_xlabel=(subzone[0] is len(msdict_3zone)-2))
             fig.tight_layout(pad=1)
             fig.savefig(figureout+'distr_'+vals+subzone[1]+'_line.png')
@@ -486,43 +583,19 @@ if __name__ == "__main__":
         fig2.tight_layout(pad=1)
         fig2.savefig(figureout+'distr_'+vals+'eachzone_line.png')
         plt.close(fig2)
+    from IPython import embed; embed()
     #Fourth type: virial vs Biot Savart stand alones
     ######################################################################
-    ylabels = {'rc':r'Ring Current Dst $\left[nT\right]$',
-               'closedRegion':r'Closed Region Dst $\left[nT\right]$',
-               'lobes':r'Lobes Dst $\left[nT\right]$',
-               'missing':r'Unaccounted Dst $\left[nT\right]$'}
+    ylabels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
+               'closedRegion':r'Closed Region $\Delta B\left[nT\right]$',
+               'lobes':r'Lobes $\Delta B\left[nT\right]$',
+               'missing':r'Unaccounted $\Delta B\left[nT\right]$'}
     fig, ax = plt.subplots(nrows=len(msdict_3zone), ncols=1, sharex=True,
                            figsize=[14,4*len(msdict_3zone)])
-    #Hotfix, create "modified" virial contributions with volumetric
-    # proportions of surface total contributions
-    wetted_volumes = (msdict_3zone['closedRegion']['Volume [Re^3]']+
-                      msdict_3zone['lobes']['Volume [Re^3]'])
-    msdict_3zone['closedRegion']['Virial Volume Total_mod'] = (
-                msdict_3zone['closedRegion']['Virial Volume Total [nT]']+
-                mp['Virial Surface Total [nT]']*
-              msdict_3zone['closedRegion']['Volume [Re^3]']/wetted_volumes)
-    msdict_3zone['lobes']['Virial Volume Total_mod'] = (
-                        msdict_3zone['lobes']['Virial Volume Total [nT]']+
-                mp['Virial Surface Total [nT]']*
-                    msdict_3zone['lobes']['Volume [Re^3]']/wetted_volumes)
-    '''
-    msdict_3zone['closedRegion']['Virial Volume Total_mod'] = (
-                msdict_3zone['closedRegion']['Virial Volume Total [nT]'])
-    msdict_3zone['lobes']['Virial Volume Total_mod'] = (
-                        msdict_3zone['lobes']['Virial Volume Total [nT]']+
-                mp['Virial Surface Total [nT]'])
-    '''
-    msdict_3zone['rc']['Virial Volume Total_mod'] = (
-                            msdict_3zone['rc']['Virial Volume Total [nT]'])
-    msdict_3zone['missing']['Virial Volume Total_mod'] = (
-                       msdict_3zone['missing']['Virial Volume Total [nT]'])
-    mp['Virial Volume Total_mod'] = (mp['Virial Volume Total [nT]']+
-                                      mp['Virial Surface Total [nT]'])
     for subzone in enumerate(msdict_3zone):
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
                    ylabels[subzone[1]],
-                   subzone=subzone[1],value_key='Virial Volume Total_mod')
+                   subzone=subzone[1],value_key='Virial [nT]')
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
              ylabels[subzone[1]], subzone=subzone[1],value_key='bioS [nT]',
                     do_xlabel=(subzone[0] is len(msdict_3zone)-1))
@@ -536,7 +609,7 @@ if __name__ == "__main__":
     fig,ax = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
     msdict_3zone.pop('missing')
     plot_contributions(ax[0], times,mp,msdict_3zone,y1label,
-                               value_key='Virial Volume Total_mod',
+                               value_key='Virial [nT]',
                                legend_loc='lower left')
     plot_contributions(ax[1], times,mp,msdict_3zone,y2label,
                                value_key='bioS [nT]', do_xlabel=True)
@@ -545,28 +618,37 @@ if __name__ == "__main__":
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'pretty_Dst_line.png')
     plt.close(fig)
-    """
     #Just look at surface terms
     ######################################################################
-    y1label = r'$\Delta B \left[nT\right]$'
-    fig,ax = plt.subplots(nrows=1,ncols=1,sharex=True,figsize=[14,4])
-    #Open closed
-    ax.fill_between(times,abs(mp['virial_surfTotalClosed [nT]'])+
-                          abs(mp['virial_surfTotalOpenN [nT]'])+
-                        abs(mp['virial_surfTotalOpenS [nT]']),color='grey')
-    ax.plot(times,abs(mp['virial_surfTotalClosed [nT]']),label='Closed')
-    ax.plot(times,abs(mp['virial_surfTotalOpenN [nT]']),label='North')
-    ax.plot(times,abs(mp['virial_surfTotalOpenS [nT]']),label='South')
-    '''
-    #Hydro vs Mag
-    ax.fill_between(times,abs(mp['Virial Surface Total [nT]']),color='grey')
-    ax.plot(times,abs(mp['Virial ScalarPmag [nT]'])+
-                  abs(mp['Virial B Stress [nT]'])+
-                  abs(mp['Virial Bd Stress [nT]'])+
-                  abs(mp['Virial BBd Stress [nT]']),label='Mag')
-    ax.plot(times,abs(mp['Virial ScalarPth [nT]'])+
-                  abs(mp['Virial Advection d/dt [nT]'])+
-                  abs(mp['Virial Advection 2 [nT]']),label='Hydro')
-    '''
-    general_plot_settings(ax, y1label, do_xlabel=True)
-    plt.show()
+    if False:
+        y1label = r'$\Delta B \left[nT\right]$'
+        fig,ax = plt.subplots(nrows=1,ncols=1,sharex=True,figsize=[14,4])
+    if False:
+        #Open closed
+        ax.fill_between(times,mp['Virial Surface TotalClosed [nT]']+
+                            mp['Virial Surface TotalOpenN [nT]']+
+                         mp['Virial Surface TotalOpenS [nT]'],color='grey')
+        ax.plot(times,mp['Virial Surface TotalClosed [nT]'],label='Closed')
+        ax.plot(times,mp['Virial Surface TotalOpenN [nT]'],label='North')
+        ax.plot(times,mp['Virial Surface TotalOpenS [nT]'],label='South')
+    if False:
+        #Lobes, closed field, RC
+        ax.fill_between(times,mp['Virial Surface Total [nT]']+
+                            mp['Virial Volume Total [nT]'],color='grey')
+        ax.plot(times,mp['Virial Surface TotalClosed [nT]']+
+                  msdict_3zone['closedRegion']['Virial Volume Total [nT]'],
+                    label='Closed')
+        ax.plot(times,mp['Virial Surface TotalOpenN [nT]']+
+                    mp['Virial Surface TotalOpenS [nT]']+
+                    msdict_3zone['lobes']['Virial Volume Total [nT]'],
+                    label='Lobes')
+        ax.plot(times,msdict_3zone['rc']['Virial Volume Total [nT]'],
+                    label='RingCurrent')
+    if False:
+        ax.fill_between(times,mp['Um [nT]'],color='grey')
+        ax.plot(times,mp['rhoU_r_acqu [J]']/(-8e13),label='Acquired')
+        ax.plot(times,mp['rhoU_r_forf [J]']/(-8e13),label='Forf')
+        ax.plot(times,mp['rhoU_r_net [J]']/(-8e13),label='Net')
+    if False:
+        general_plot_settings(ax, y1label, do_xlabel=True)
+        plt.show()
