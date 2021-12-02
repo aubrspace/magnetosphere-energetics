@@ -76,7 +76,7 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
-                                    analysis_type='virial_energy_biotsavart',
+                                    analysis_type='energy',
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
