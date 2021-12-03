@@ -123,19 +123,18 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
     else:
         data = msdict[subzone]
     value_set = kwargs.get('value_set','Virialvolume')
-    values = {'Virialvolume':['Virial 2x Uk [nT]', 'Virial Ub [nT]'],
+    values = {'Virial':['Virial 2x Uk [nT]', 'Virial Ub [nT]','Um [nT]',
+                        'Virial Surface Total [nT]'],
               'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
-              'Virialvolume%':['Virial 2x Uk [%]', 'Virial Ub [%]'],
+              'Virial%':['Virial 2x Uk [%]', 'Virial Ub [%]',
+                               'Virial Surface Total [%]'],
               'Energy%':['Virial Ub [%]', 'KE [%]', 'Eth [%]']}
     #Get % within specific subvolume
     if '%' in value_set:
         for value in values[''.join(value_set.split('%'))]:
                 #find total
                 if 'Virial' in value_set:
-                    if 'volume' in value_set:
-                        total = data['Virial Volume Total [nT]']
-                    else:
-                        total = data['Virial [nT]']
+                    total = data['Virial [nT]']
                 elif 'Energy' in value_set:
                     total = (data['Utot [J]']-data['uB [J]']+
                              data['Virial Ub [J]'])
@@ -153,12 +152,8 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
             except NameError:
                 print('omni not loaded! No obs comparisons!')
         if 'Virial' in value_set:
-            if 'volume' in value_set:
-                ax.fill_between(times, data['Virial Volume Total [nT]'],
-                                color='lightgrey')
-            else:
-                ax.fill_between(times, data['Virial [nT]'],
-                                color='lightgrey')
+            ax.fill_between(times, data['Virial [nT]'],
+                            color='lightgrey')
         elif 'Energy' in value_set:
                 total = (data['Utot [J]']-data['uB [J]']+
                          data['Virial Ub [J]'])
@@ -167,7 +162,8 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
     for value in values[value_set]:
         if value in data.keys():
             safelabel = ' '.join(value.split('_')).split('[%]')[0]
-            ax.plot(times, data[value], label=safelabel)
+            #ax.plot(times, data[value], label=safelabel)
+            ax.scatter(times, data[value], label=safelabel)
     #General plot settings
     general_plot_settings(ax, ylabel, **kwargs)
 
@@ -226,24 +222,25 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     #Optional layers depending on value_key
     if not '%' in value_key:
         if 'bioS' in value_key:
-            #ax.fill_between(times, mp['bioS_full [nT]'], color='olive')
-            ax.fill_between(times, mp[value_key], color='gainsboro')
+            ax.fill_between(times, mp['bioS_full [nT]'], color='olive')
         elif 'Virial' in value_key:
-            ax.fill_between(times, mp[value_key], color='gainsboro')
-        try:
-            ax.plot(omni['Time [UTC]'],omni['sym_h'],color='seagreen',
+            pass
+        if 'bioS' in value_key or 'Virial' in value_key:
+            try:
+                ax.plot(omni['Time [UTC]'],omni['sym_h'],color='seagreen',
                     ls='--', label='OMNI obs')
-        except NameError:
-            print('omni not loaded! No obs comparisons!')
-        try:
-            ax.plot(swmf_log['Time [UTC]'], swmf_log['dst_sm'],
+            except NameError:
+                print('omni not loaded! No obs comparisons!')
+            try:
+                ax.plot(swmf_log['Time [UTC]'], swmf_log['dst_sm'],
                     color='tab:red', ls='--',
                     label='SWMFLog BiotSavart')
-            ax.plot(swmf_log['Time [UTC]'], swmf_log['dstflx_R=3.0'],
+                ax.plot(swmf_log['Time [UTC]'], swmf_log['dstflx_R=3.0'],
                     color='magenta', ls='--',
                     label='SWMFLog Flux')
-        except NameError:
-            print('swmf log file not loaded! No obs comparisons!')
+            except NameError:
+                print('swmf log file not loaded!')
+        ax.fill_between(times, mp[value_key], color='gainsboro')
     #Plot line plots
     for ms in msdict.items():
         if value_key in ms[1].keys():
@@ -266,8 +263,6 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
     mp = [m for m in mpdict.values()][0]
     for m in msdict.items():
         #Remove empty/uneccessary columns from subvolumes
-        if 'rhoU_r [Js]' in m[1].keys():
-            m[1].drop(columns=['rhoU_r [Js]'], inplace=True)
         for key in m[1].keys():
             if all(m[1][key].isna()):
                 m[1].drop(columns=[key], inplace=True)
@@ -275,19 +270,29 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
         if 'uB' in m[1].keys():
             m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Eth [J]']
         #Total virial contribution from surface and volume terms
-        if 'Virial' in m[1].keys():
+        if 'Virial 2x Uk [J]' in m[1].keys():
             if 'nlobe' in m[0]:
+                m[1]['Virial Surface Total [J]'] = (
+                                       mp['Virial Surface TotalOpenN [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
-                                  mp['Virial Surface TotalOpenN [J]'])
+                                      m[1]['Virial Surface Total [J]'])
             elif 'slobe' in m[0]:
+                m[1]['Virial Surface Total [J]'] = (
+                                       mp['Virial Surface TotalOpenS [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
-                                  mp['Virial Surface TotalOpenS [J]'])
+                                      m[1]['Virial Surface Total [J]'])
             elif 'qDp' in m[0]:
+                m[1]['Virial Surface Total [J]'] = (
+                                      mp['Virial Surface TotalClosed [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
-                                  mp['Virial Surface TotalClosed [J]'])
+                                      m[1]['Virial Surface Total [J]'])
             else:
                 m[1]['Virial [J]'] = m[1]['Virial Volume Total [J]']
+                m[1]['Virial Surface Total [J]'] = 0
+            m[1]['Virial Surface Total [nT]'] = (
+                                  m[1]['Virial Surface Total [J]']/(-8e13))
             m[1]['Virial [nT]'] = m[1]['Virial [J]']/(-8e13)
+            msdict.update({m[0]:m[1]})
     #Quantify amount missing from sum of all subzones
     missing_volume = pd.DataFrame()
     for key in [m for m in msdict.values()][0].keys():
@@ -323,9 +328,13 @@ def calculate_mass_term(df):
     #Save as energy and as virial
     df['Um_static [J]'] = -1*forward_diff
     df['Um_static [nT]'] = -1*forward_diff/(-8e13)
-    #Get static + motional
-    df['Um [J]'] = df['Um_static [J]']+df['rhoU_r_net [J]']
-    df['Um [nT]'] = df['Um [J]']/(-8e13)
+    if 'rhoU_r_net [J]' in df.keys():
+        #Get static + motional
+        df['Um [J]'] = df['Um_static [J]']+df['rhoU_r_net [J]']
+        df['Um [nT]'] = df['Um [J]']/(-8e13)
+    else:
+        df['Um [J]'] = df['Um_static [J]']
+        df['Um [nT]'] = df['Um_static [nT]']
     return df
 
 def virial_mods(df):
@@ -335,8 +344,14 @@ def virial_mods(df):
     Returns
         df(DataFrame)- modified
     """
-    if 'rhoU_r_net [J]' in df.keys():
+    #!!Correct pressure term: should be 3x current value (trace of P=3p)
+    df['Virial 2x Uk [J]'] = 3*df['Virial 2x Uk [J]']
+    if 'rhoU_r [Js]' in df.keys():
         df = calculate_mass_term(df)
+        df['Virial Volume Total [J]'] = (df['Virial Volume Total [J]']+
+                                         df['Um [J]'])
+        df['Virial Volume Total [nT]'] = (df['Virial Volume Total [J]']/
+                                                                   (-8e13))
     if (('Virial Volume Total [J]' in df.keys()) and
         ('Virial Surface Total [J]' in df.keys())):
         df['Virial [J]'] = (df['Virial Volume Total [J]']+
@@ -417,7 +432,7 @@ if __name__ == "__main__":
     simdata = [swmf_index, swmf_log, swmf_sw]
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=True)
-    store = pd.HDFStore(datapath+'energetics.h5')
+    store = pd.HDFStore(datapath+'partial.h5')
     times = store[store.keys()[0]]['Time [UTC]']+dt.timedelta(minutes=45)
     #Clean up and gather statistics
     mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
@@ -521,7 +536,6 @@ if __name__ == "__main__":
                                value_key=term+' [%]',
                                do_xlabel=True)
             fig.tight_layout(pad=1)
-            plt.show()
             fig.savefig(figureout+term+'_line.png')
             plt.close(fig)
     if 'Volume [Re^3]' in mp.keys():
@@ -537,9 +551,6 @@ if __name__ == "__main__":
         plt.close(fig)
     #Third type: distrubiton of virial and types of energy within subzone
     ######################################################################
-    term_labels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
-                'closedRegion':r'Closed Region $\Delta B\left[nT\right]$',
-                           'lobes':r'Lobes $\Delta B\left[nT\right]$'}
     y2label = r'Fraction $\left[\%\right]$'
     valset = ['Virial','Energy']
     for vals in valset:
@@ -583,7 +594,6 @@ if __name__ == "__main__":
         fig2.tight_layout(pad=1)
         fig2.savefig(figureout+'distr_'+vals+'eachzone_line.png')
         plt.close(fig2)
-    from IPython import embed; embed()
     #Fourth type: virial vs Biot Savart stand alones
     ######################################################################
     ylabels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
@@ -652,3 +662,4 @@ if __name__ == "__main__":
     if False:
         general_plot_settings(ax, y1label, do_xlabel=True)
         plt.show()
+    from IPython import embed; embed()
