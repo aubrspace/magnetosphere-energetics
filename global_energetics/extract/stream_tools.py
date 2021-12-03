@@ -1146,39 +1146,30 @@ def get_virials():
              '1.6605*6371**3*1e-6')
     terms.append(termA)
     #Magnetic stress non scalar contributions
-    magstressors = [['{B_x [nT]}', '{B_y [nT]}', '{B_z [nT]}'],
-                    ['{Bdx}', '{Bdy}', '{Bdz}']]
-    tags = ['B_','Bd']
-    signs = ['','-1*']
-    for b in enumerate(magstressors):
-        termM=('{virial_Mag'+tags[b[0]]+'}='+signs[b[0]]+
-                                                 '('+dSx+'*'+b[1][0]+'+'+
-                                                     dSy+'*'+b[1][1]+'+'+
-                                                     dSz+'*'+b[1][2]+')*'+
-                                     '('+rx+'*'+b[1][0]+'+'+
-                                         ry+'*'+b[1][1]+'+'+
-                                         rz+'*'+b[1][2]+')'+
-                              '*1e-9*6371**3/(4*pi*1e-7)')
-        terms.append(termM)
-    #Complete the square term from b(0) derivation
-    termb = ('{virial_BBd}=('+dSx+'*{B_x [nT]}+'+
+    termBB = ('{virial_BB}=('+dSx+'*{B_x [nT]}+'+
+                              dSy+'*{B_y [nT]}+'+
+                              dSz+'*{B_z [nT]})*'+
+                           '('+rx+'*{B_x [nT]}+'+
+                               ry+'*{B_y [nT]}+'+
+                               rz+'*{B_z [nT]})'+
+                              '*1e-9*6371**3/(2*4*pi*1e-7)')
+    termBBd = ('{virial_BBd}=-1*('+dSx+'*{B_x [nT]}+'+
                               dSy+'*{B_y [nT]}+'+
                               dSz+'*{B_z [nT]})*'+
                            '('+rx+'*{Bdx}+'+ry+'*{Bdy}+'+rz+'*{Bdz})'+
                               '*1e-9*6371**3/(2*4*pi*1e-7)')
-    terms.append(termb)
+    terms.append(termBB)
+    terms.append(termBBd)
     #Total surface contribution
-    #termcopy = terms.copy()
-    #termcopy.remove(term); termcopy.remove(termM) #last used is inner
     term_titles = ['{'+term.split('{')[1].split('}')[0]+'}'
                                                      for term in terms]
     total = ('{virial_surfTotal [J/Re^2]}='+'+'.join(term_titles))
     terms.append(total)
     total_adv=('{virial_Fadv [J/Re^2]}={virial_scalarPth}+{virial_advect}')
     terms.append(total_adv)
-    total_adv=('{virial_Floz [J/Re^2]}={virial_scalaruB}+{virial_MagB_}+'+
+    total_adv=('{virial_Floz [J/Re^2]}={virial_scalaruB}+{virial_BB}+'+
                                       '{virial_scalaruB_dipole}+'+
-                                      '{virial_MagBd}+{virial_BBd}')
+                                      '{virial_BBd}')
     terms.append(total_adv)
     for term in terms:
         eq(term)
