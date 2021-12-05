@@ -1152,25 +1152,34 @@ def get_virials():
                            '('+rx+'*{B_x [nT]}+'+
                                ry+'*{B_y [nT]}+'+
                                rz+'*{B_z [nT]})'+
-                              '*1e-9*6371**3/(2*4*pi*1e-7)')
-    termBBd = ('{virial_BBd}=-1*('+dSx+'*{B_x [nT]}+'+
+                              '*1e-9*6371**3/(4*pi*1e-7)')
+    termBdBd = ('{virial_BdBd}=-0.5*('+dSx+'*{Bdx}+'+
+                              dSy+'*{Bdy}+'+
+                              dSz+'*{Bdz})*'+
+                           '('+rx+'*{Bdx}+'+
+                               ry+'*{Bdy}+'+
+                               rz+'*{Bdz})'+
+                              '*1e-9*6371**3/(4*pi*1e-7)')
+    termBBd = ('{virial_BBd}=-0.5*('+dSx+'*{B_x [nT]}+'+
                               dSy+'*{B_y [nT]}+'+
                               dSz+'*{B_z [nT]})*'+
                            '('+rx+'*{Bdx}+'+ry+'*{Bdy}+'+rz+'*{Bdz})'+
-                              '*1e-9*6371**3/(2*4*pi*1e-7)')
+                              '*1e-9*6371**3/(4*pi*1e-7)')
     terms.append(termBB)
+    terms.append(termBdBd)
     terms.append(termBBd)
     #Total surface contribution
     term_titles = ['{'+term.split('{')[1].split('}')[0]+'}'
                                                      for term in terms]
-    total = ('{virial_surfTotal [J/Re^2]}='+'+'.join(term_titles))
-    terms.append(total)
     total_adv=('{virial_Fadv [J/Re^2]}={virial_scalarPth}+{virial_advect}')
     terms.append(total_adv)
-    total_adv=('{virial_Floz [J/Re^2]}={virial_scalaruB}+{virial_BB}+'+
+    total_loz=('{virial_Floz [J/Re^2]}={virial_scalaruB}+{virial_BB}+'+
                                       '{virial_scalaruB_dipole}+'+
-                                      '{virial_BBd}')
-    terms.append(total_adv)
+                                      '{virial_BBd}+{virial_BdBd}')
+    terms.append(total_loz)
+    total = ('{virial_surfTotal [J/Re^2]}={virial_Fadv [J/Re^2]}+'+
+                                         '{virial_Floz [J/Re^2]}')
+    terms.append(total)
     for term in terms:
         eq(term)
 
@@ -1313,7 +1322,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                           value_location=ValueLocation.CellCentered)
         #Special construction of hydrodynamic energy density for virial
-        eq('{Virial 2x Uk [J/Re^3]} = 2*{KE [J/Re^3]}+{Pth [J/Re^3]}',
+        eq('{Virial 2x Uk [J/Re^3]} = 2*{KE [J/Re^3]}+2*{Pth [J/Re^3]}',
                           value_location=ValueLocation.CellCentered)
     #Hydrodynamic Energy Density
     eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',

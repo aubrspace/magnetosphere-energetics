@@ -16,7 +16,8 @@ from tecplot.exception import *
 import pandas as pd
 #interpackage modules
 from global_energetics.extract import swmf_access
-from global_energetics.extract.surface_tools import surface_analysis
+from global_energetics.extract.surface_tools import (surface_analysis,
+                                                     calc_integral)
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     get_global_variables,
@@ -312,9 +313,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     zonelist, state_indices = [], []
     if 'virial' in analysis_type and integrate_volume:
         modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
-    else:
-        modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
         #modes = [mode]
+    else:
+        #modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
+        modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if zone_rename != None:
@@ -390,6 +392,41 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 tp.data.operate.execute_equation('{'+usename+'}={'+var+'}',
                   zones=[region],value_location=ValueLocation.CellCentered)
                 savemeshvars[modes[state_index[0]]].append(usename)
+    '''
+    #Debugging
+    global_zone = field_data.zone(0)
+    mpzone = zonelist[0]
+    vollist = [('Virial 2x Uk [J/Re^3]','Uk'),
+               ('uB [J/Re^3]', 'UB')]
+    surflist = [('virial_BB','BB'),
+                ('virial_scalarPth','Pth'),
+                ('virial_scalaruB','uB'),
+                ('virial_advect','Adv')]
+    dipVol = [('uB_dipole [J/Re^3]', 'UBd')]
+    dipSur = [('virial_BdBd', 'BdBd'),
+              ('virial_scalaruB_dipole','uBd')]
+    crossSur = [('virial_BBd', 'BBd')]
+    results,innerresults,dipole,indipole,cross,incross={},{},{},{},{},{}
+    for term in vollist:
+        results.update(calc_integral(term, global_zone))
+    for term in dipVol:
+        dipole.update(calc_integral(term, global_zone))
+    for term in surflist:
+        results.update(calc_integral(term, mpzone))
+        innerresults.update(calc_integral(term, inner_zone))
+    for term in dipSur:
+        dipole.update(calc_integral(term, mpzone))
+        indipole.update(calc_integral(term, inner_zone))
+    for term in crossSur:
+        cross.update(calc_integral(term, mpzone))
+        incross.update(calc_integral(term, inner_zone))
+    print('outer_field {}'.format(results))
+    print('inner_field {}'.format(innerresults))
+    print('outer_dipole {}'.format(dipole))
+    print('inner_dipole {}'.format(indipole))
+    print('cross {}'.format(cross))
+    from IPython import embed; embed()
+    '''
     ################################################################
     if save_mesh:
         #save mesh to hdf file
