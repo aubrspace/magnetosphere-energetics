@@ -100,7 +100,8 @@ def plot_single(ax, times, mp, msdict, ylabel, **kwargs):
     #Plot
     if value in data.keys():
         ax.plot(times, data[value], label=label,
-                color=kwargs.get('color',None))
+                color=kwargs.get('color',None),
+                ls=kwargs.get('ls',None))
     #General plot settings
     general_plot_settings(ax, ylabel, **kwargs)
 
@@ -122,7 +123,7 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
         data = mp
     else:
         data = msdict[subzone]
-    value_set = kwargs.get('value_set','Virialvolume')
+    value_set = kwargs.get('value_set','Virial')
     values = {'Virial':['Virial 2x Uk [nT]', 'Virial Ub [nT]','Um [nT]',
                         'Virial Surface Total [nT]'],
               'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
@@ -151,7 +152,7 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
                         ls='--', label='OMNI obs')
             except NameError:
                 print('omni not loaded! No obs comparisons!')
-        if 'Virial' in value_set:
+        elif 'Virial' in value_set:
             ax.fill_between(times, data['Virial [nT]'],
                             color='lightgrey')
         elif 'Energy' in value_set:
@@ -251,7 +252,7 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
     #General plot settings
     general_plot_settings(ax, ylabel, **kwargs)
 
-def get_interzone_stats(mpdict, msdict, **kwargs):
+def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
     """Function finds percent contributions and missing amounts
     Inputs
         mpdict(DataFrame)-
@@ -261,6 +262,10 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
         [MODIFIED] msdict(Dict of DataFrames)
     """
     mp = [m for m in mpdict.values()][0]
+    mp['Virial Surface Total [nT]'] = (mp['Virial Surface Total [nT]']+
+                   inner_mp['Virial Fadv [nT]']+inner_mp['Virial b^2 [nT]'])
+    mp['Virial [nT]'] = (mp['Virial [nT]'] + inner_mp['Virial Fadv [nT]']+
+                         inner_mp['Virial b^2 [nT]'])
     for m in msdict.items():
         #Remove empty/uneccessary columns from subvolumes
         for key in m[1].keys():
@@ -273,16 +278,22 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
         if 'Virial 2x Uk [J]' in m[1].keys():
             if 'nlobe' in m[0]:
                 m[1]['Virial Surface Total [J]'] = (
+                                       inner_mp['Virial FadvOpenN [J]']+
+                                       inner_mp['Virial b^2OpenN [J]']+
                                        mp['Virial Surface TotalOpenN [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
                                       m[1]['Virial Surface Total [J]'])
             elif 'slobe' in m[0]:
                 m[1]['Virial Surface Total [J]'] = (
+                                       inner_mp['Virial FadvOpenS [J]']+
+                                       inner_mp['Virial b^2OpenS [J]']+
                                        mp['Virial Surface TotalOpenS [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
                                       m[1]['Virial Surface Total [J]'])
             elif 'qDp' in m[0]:
                 m[1]['Virial Surface Total [J]'] = (
+                                       inner_mp['Virial FadvClosed [J]']+
+                                       inner_mp['Virial b^2Closed [J]']+
                                       mp['Virial Surface TotalClosed [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
                                       m[1]['Virial Surface Total [J]'])
@@ -310,7 +321,7 @@ def get_interzone_stats(mpdict, msdict, **kwargs):
                                       [m for m in mpdict.values()][0][key])
     return mpdict, msdict
 
-def calculate_mass_term(df):
+def calculate_mass_term(df,times):
     """Calculates the temporal derivative minus surface motion contribution
         to virial term
     Inputs
@@ -318,13 +329,18 @@ def calculate_mass_term(df):
     Returns
         df(DataFrame)- modified
     """
+    #Get time delta for each step
+    ftimes = times.copy()
+    ftimes.index=ftimes.index-1
+    ftimes.drop(index=[-1],inplace=True)
+    dtimes = ftimes-times
     #Forward difference of integrated positionally weighted density
     df['Um_static [J]'] = -1*df['rhoU_r [Js]']/60
     f_n0 = df['rhoU_r [Js]']
     f_n1 = f_n0.copy()
     f_n1.index=f_n1.index-1
     f_n1 = f_n1.drop(index=[-1])
-    forward_diff = (f_n1-f_n0)/(60)
+    forward_diff = (f_n1-f_n0)/[d.seconds for d in dtimes]
     #Save as energy and as virial
     df['Um_static [J]'] = -1*forward_diff
     df['Um_static [nT]'] = -1*forward_diff/(-8e13)
@@ -337,7 +353,7 @@ def calculate_mass_term(df):
         df['Um [nT]'] = df['Um_static [nT]']
     return df
 
-def virial_mods(df):
+def virial_mods(df, times):
     """Function returns DataFrame with modified virial columns
     Inputs
         df(DataFrame)
@@ -347,7 +363,7 @@ def virial_mods(df):
     #!!Correct pressure term: should be 3x current value (trace of P=3p)
     df['Virial 2x Uk [J]'] = 3*df['Virial 2x Uk [J]']
     if 'rhoU_r [Js]' in df.keys():
-        df = calculate_mass_term(df)
+        df = calculate_mass_term(df,times)
         df['Virial Volume Total [J]'] = (df['Virial Volume Total [J]']+
                                          df['Um [J]'])
         df['Virial Volume Total [nT]'] = (df['Virial Volume Total [J]']/
@@ -356,6 +372,7 @@ def virial_mods(df):
         ('Virial Surface Total [J]' in df.keys())):
         df['Virial [J]'] = (df['Virial Volume Total [J]']+
                                    df['Virial Surface Total [J]'])
+        df['Virial [nT]'] = df['Virial [J]']/(-8e13)
     for key in df.keys():
         if '[J]' in key and key.split(' [J]')[0]+' [nT]' not in df.keys():
             df[key.split(' [J]')[0]+' [nT]'] = df[key]/(-8e13)
@@ -401,7 +418,7 @@ def magnetopause_energy_mods(mpdf):
     mpdf.drop(columns=['Time [UTC]'],inplace=True, errors='ignore')
     return mpdf
 
-def gather_magnetopause(outersurface, volume):
+def gather_magnetopause(outersurface, volume, times):
     """Function combines surface and volume terms to construct single df
         with all magnetopause (magnetosphere) terms
     Inputs
@@ -418,8 +435,27 @@ def gather_magnetopause(outersurface, volume):
     if 'K_net [W]' in combined.keys():
         combined = magnetopause_energy_mods(combined)
     if 'Virial Volume Total [nT]' in combined.keys():
-        combined = virial_mods(combined)
+        combined = virial_mods(combined, times)
     return combined
+
+def BIGMOD(mpdict,msdict,inner_mp,fix=None):
+    """Function makes correction to virial data
+    Inputs
+        mp, msdict, inner_mp
+    Returns
+        modified(mp, msdict, inner_mp)
+    """
+    mp = [m for m in mpdict.values()][0]
+    if 'doublePth' in fix:
+        mp['Virial Volume Total [nT]'] = (mp['Virial Volume Total [nT]']+
+                                          mp['Pth [nT]'])
+        mp['Virial [nT]'] = (mp['Virial [nT]']+mp['Pth [nT]'])
+        for ms in msdict.items():
+            ms[1]['Virial Volume Total [nT]']=(ms[1]['Pth [nT]']+
+                                         ms[1]['Virial Volume Total [nT]'])
+            ms[1]['Virial [nT]'] = (ms[1]['Virial [nT]']+ms[1]['Pth [nT]'])
+            msdict.update({ms[0]:ms[1]})
+    return mp, msdict, inner_mp
 
 if __name__ == "__main__":
     datapath = sys.argv[-1]
@@ -432,23 +468,24 @@ if __name__ == "__main__":
     simdata = [swmf_index, swmf_log, swmf_sw]
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=True)
-    store = pd.HDFStore(datapath+'partial.h5')
+    store = pd.HDFStore(datapath+'quickrun_virial.h5')
     times = store[store.keys()[0]]['Time [UTC]']+dt.timedelta(minutes=45)
     #Clean up and gather statistics
     mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
-                             store['/mp_iso_betastar_volume'])
+                             store['/mp_iso_betastar_volume'], times)
     inner_mp = store['/mp_iso_betastar_inner_surface']
     mpdict = {'ms_full':mp}
     msdict = {}
     for key in store.keys():
         if 'ms' in key:
             if any(['Virial' in k for k in store[key].keys()]):
-                cleaned_df = virial_mods(store[key])
+                cleaned_df = virial_mods(store[key], times)
             else:
                 cleaned_df = store[key]
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
                                                   columns=['Time [UTC]'])})
-    mpdict, msdict = get_interzone_stats(mpdict, msdict)
+    mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
+    mpdict, msdict, inner_mp=BIGMOD(mpdict,msdict,inner_mp,fix='doublePth')
     store.close()
     #Construct "grouped" set of subzones
     msdict_3zone = {'lobes':msdict['nlobe']+msdict['slobe'],
@@ -552,7 +589,8 @@ if __name__ == "__main__":
     #Third type: distrubiton of virial and types of energy within subzone
     ######################################################################
     y2label = r'Fraction $\left[\%\right]$'
-    valset = ['Virial','Energy']
+    #valset = ['Virial','Energy']
+    valset = ['Virial']
     for vals in valset:
         if 'Virial' in vals:
             fig2ylabels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
@@ -604,11 +642,12 @@ if __name__ == "__main__":
                            figsize=[14,4*len(msdict_3zone)])
     for subzone in enumerate(msdict_3zone):
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
-                   ylabels[subzone[1]],
+                   ylabels[subzone[1]],ylim=[-10,10],
                    subzone=subzone[1],value_key='Virial [nT]')
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
              ylabels[subzone[1]], subzone=subzone[1],value_key='bioS [nT]',
-                    do_xlabel=(subzone[0] is len(msdict_3zone)-1))
+                    do_xlabel=(subzone[0] is len(msdict_3zone)-1),
+                    ylim=[-100,30])
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'compare_Total_line.png')
     plt.close(fig)
@@ -628,6 +667,8 @@ if __name__ == "__main__":
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'pretty_Dst_line.png')
     plt.close(fig)
+    #AGU image: virial biot savart
+    ######################################################################
     #Just look at surface terms
     ######################################################################
     if False:
