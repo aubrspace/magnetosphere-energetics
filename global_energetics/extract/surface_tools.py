@@ -45,6 +45,26 @@ def get_dft_integrands(zone, integrands):
                              name+'Tail':outputname+'Tail '+units})
     return dft_dict
 
+def get_low_lat_integrands(zone, integrands):
+    """Creates dictionary of terms to integrated for virial of inner
+        surface to indicate portion found at low latitude
+    Inputs
+        zone(Zone)- tecplot Zone
+        integrands(dict{str:str})- (static) in/output terms to calculate
+    Outputs
+        mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    lowlat_dict, eq = {}, tp.data.operate.execute_equation
+    for term in integrands.items():
+        name = term[0].split(' [')[0]
+        outputname = term[1].split(' [')[0]
+        if not any([n in name for n in ['Open','Closed']]):
+            units = '['+term[1].split('[')[1].split(']')[0]+']'
+            eq('{'+name+'Lowlat}=IF({Lshell}<7,'+
+                                           '{'+term[0]+'},0)',zones=[zone])
+            lowlat_dict.update({name+'Lowlat':outputname+'Lowlat '+units})
+    return lowlat_dict
+
 def get_open_close_integrands(zone, integrands):
     """Creates dictionary of terms to be integrated for energy analysis
     Inputs
@@ -54,19 +74,16 @@ def get_open_close_integrands(zone, integrands):
         mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     openClose_dict, eq = {}, tp.data.operate.execute_equation
-    #May need to get Day flank tail designations first
-    if not any(['Tail' in n for n in zone.dataset.variable_names]):
-        get_day_flank_tail(zone)
     for term in integrands.items():
         name = term[0].split(' [')[0]
         outputname = term[1].split(' [')[0]
-        if not any([n in name for n in ['Day','Flank','Tail']]):
+        if not any([n in name for n in ['Day','Flank','Tail','Lowlat']]):
             units = '['+term[1].split('[')[1].split(']')[0]+']'
-            eq('{'+name+'Closed}=IF({Status}==3&&{Tail}==0,'+
+            eq('{'+name+'Closed}=IF({Status}==3,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            eq('{'+name+'OpenN}=IF({Status}==2&&{Tail}==0,'+
+            eq('{'+name+'OpenN}=IF({Status}==2,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            eq('{'+name+'OpenS}=IF({Status}==1&&{Tail}==0,'+
+            eq('{'+name+'OpenS}=IF({Status}==1,'+
                                            '{'+term[0]+'},0)',zones=[zone])
             openClose_dict.update({name+'Closed':outputname+'Closed '+units,
                                   name+'OpenN':outputname+'OpenN ' +units,
@@ -127,7 +144,16 @@ def get_virial_dict(zone):
     """
     virial_dict = {'virial_Fadv [J/Re^2]':'Virial Fadv [J]',
                    'virial_Floz [J/Re^2]':'Virial Floz [J]',
+                   'Virial Ub [J/Re^3]':'Virial b^2 [J]',
                    'virial_surfTotal [J/Re^2]':'Virial Surface Total [J]'}
+    #Debug:
+    '''
+    virial_dict = {'virial_Fadv [J/Re^2]':'Virial Fadv [J]',
+                   'virial_Floz [J/Re^2]':'Virial Floz [J]',
+                   'Virial Ub [J/Re^2]':'Virial b^2 [J]',
+                   'virial_surfTotal [J/Re^2]':'Virial Surface Total [J]',
+                   'example_surface [#/Re^2]':'example_surface [#]'}
+    '''
     return virial_dict
 
 def surface_analysis(zone, **kwargs):
@@ -162,17 +188,21 @@ def surface_analysis(zone, **kwargs):
     if 'energy' in analysis_type:
         integrands.update(get_energy_dict())
     integrands.update(kwargs.get('customTerms', {}))
+    #Debug:
     ###################################################################
     #Integral bounds modifications spatially parsing results
     if 'innerbound' not in zone.name:
         integrands.update(get_dft_integrands(zone, integrands))
+    else:
+        integrands.update(get_low_lat_integrands(zone, integrands))
     integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
     for term in integrands.items():
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
-            print(stat_var.name+term[1]+' integration done')
+            print(zone.name+term[1]+' integration done')
+    #Debug:
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doSurfaceArea', True):

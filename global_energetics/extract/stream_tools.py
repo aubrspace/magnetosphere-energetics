@@ -759,9 +759,12 @@ def get_surf_geom_variables(zone):
                                       'CELLCENTERED')
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     #Generate cellcentered versions of postitional variables
-    for var in ['X [R]','Y [R]','Z [R]','r [R]']:
-        newvar = var.split(' ')[0].lower()+'_cc'
-        eq('{'+newvar+'}={'+var+'}', value_location=CC,zones=[zone.index])
+    for var in ['X [R]','Y [R]','Z [R]','r [R]',
+                'B_x [nT]','B_y [nT]','B_z [nT]','Bdx','Bdy','Bdz']:
+        if var in zone.dataset.variable_names:
+            newvar = var.split(' ')[0].lower()+'_cc'
+            eq('{'+newvar+'}={'+var+'}', value_location=CC,
+                                        zones=[zone.index])
     #Create a DataFrame for easy manipulations
     x_ccvalues =zone.values('x_cc').as_numpy_array()
     xnormals = zone.values('X GRID K Unit Normal').as_numpy_array()
@@ -771,35 +774,35 @@ def get_surf_geom_variables(zone):
     if 'innerbound' in zone.name:
         if df[df['x_cc']==df['x_cc'].min()]['normal'].mean() < 0:
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
             len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']<0)])):
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index])
+               zones=[zone.index], value_location=CC)
     if ('mp' in zone.name) and ('innerbound' not in zone.name):
         #Store a helpful 'htail' value in aux data for potential later use
         xvals = zone.values('X *').as_numpy_array()
@@ -1126,12 +1129,13 @@ def get_virials():
     """
     terms, eq = [], tp.data.operate.execute_equation
     #Create shorthand objects for readability
-    dSx='{surface_normal_x}';rx='{X [R]}'
-    dSy='{surface_normal_y}';ry='{Y [R]}'
-    dSz='{surface_normal_z}';rz='{Z [R]}'
+    dSx='{surface_normal_x}';rx='{x_cc}'
+    dSy='{surface_normal_y}';ry='{y_cc}'
+    dSz='{surface_normal_z}';rz='{z_cc}'
     #Scalar pressures at radial distance
-    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}']
-    signs = ['-1*','-1*','']
+    pressures = ['{Pth [J/Re^3]}', '{uB [J/Re^3]}','{uB_dipole [J/Re^3]}',
+                 '{Virial Ub [J/Re^3]}']
+    signs = ['-1*','-1*','', '']
     for p in enumerate(pressures):
         ptag = p[1].split(' ')[0].split('{')[-1]
         termP=('{virial_scalar'+ptag+'}='+signs[p[0]]+'('+dSx+'*'+rx+'+'+
@@ -1146,25 +1150,39 @@ def get_virials():
              '1.6605*6371**3*1e-6')
     terms.append(termA)
     #Magnetic stress non scalar contributions
-    termBB = ('{virial_BB}=('+dSx+'*{B_x [nT]}+'+
-                              dSy+'*{B_y [nT]}+'+
-                              dSz+'*{B_z [nT]})*'+
-                           '('+rx+'*{B_x [nT]}+'+
-                               ry+'*{B_y [nT]}+'+
-                               rz+'*{B_z [nT]})'+
-                              '*1e-9*6371**3/(4*pi*1e-7)')
-    termBdBd = ('{virial_BdBd}=-0.5*('+dSx+'*{Bdx}+'+
-                              dSy+'*{Bdy}+'+
-                              dSz+'*{Bdz})*'+
-                           '('+rx+'*{Bdx}+'+
-                               ry+'*{Bdy}+'+
-                               rz+'*{Bdz})'+
-                              '*1e-9*6371**3/(4*pi*1e-7)')
-    termBBd = ('{virial_BBd}=-0.5*('+dSx+'*{B_x [nT]}+'+
-                              dSy+'*{B_y [nT]}+'+
-                              dSz+'*{B_z [nT]})*'+
-                           '('+rx+'*{Bdx}+'+ry+'*{Bdy}+'+rz+'*{Bdz})'+
-                              '*1e-9*6371**3/(4*pi*1e-7)')
+    termBB = ('{virial_BB}=('
+     +dSx+'*({B_x_cc}*{B_x_cc}*{x_cc}+'+
+            '{B_x_cc}*{B_y_cc}*{y_cc}+'+
+            '{B_x_cc}*{B_z_cc}*{z_cc})+'+
+     dSy+'*({B_y_cc}*{B_x_cc}*{x_cc}+'+
+            '{B_y_cc}*{B_y_cc}*{y_cc}+'+
+            '{B_y_cc}*{B_z_cc}*{z_cc})+'+
+     dSz+'*({B_z_cc}*{B_x_cc}*{x_cc}+'+
+            '{B_z_cc}*{B_y_cc}*{y_cc}+'+
+            '{B_z_cc}*{B_z_cc}*{z_cc}))'+
+                     '*1e-9*6371**3/(4*pi*1e-7)')
+    termBdBd = ('{virial_BdBd}=0*('
+     +dSx+'*({Bdx_cc}*{Bdx_cc}*{x_cc}+'+
+            '{Bdx_cc}*{Bdy_cc}*{y_cc}+'+
+            '{Bdx_cc}*{Bdz_cc}*{z_cc})+'+
+     dSy+'*({Bdy_cc}*{Bdx_cc}*{x_cc}+'+
+            '{Bdy_cc}*{Bdy_cc}*{y_cc}+'+
+            '{Bdy_cc}*{Bdz_cc}*{z_cc})+'+
+     dSz+'*({Bdz_cc}*{Bdx_cc}*{x_cc}+'+
+            '{Bdz_cc}*{Bdy_cc}*{y_cc}+'+
+            '{Bdz_cc}*{Bdz_cc}*{z_cc}))'+
+                     '*1e-9*6371**3/(4*pi*1e-7)')
+    termBBd = ('{virial_BBd}=-1*('
+     +dSx+'*({B_x_cc}*{Bdx_cc}*{x_cc}+'+
+            '{B_x_cc}*{Bdy_cc}*{y_cc}+'+
+            '{B_x_cc}*{Bdz_cc}*{z_cc})+'+
+     dSy+'*({B_y_cc}*{Bdx_cc}*{x_cc}+'+
+            '{B_y_cc}*{Bdy_cc}*{y_cc}+'+
+            '{B_y_cc}*{Bdz_cc}*{z_cc})+'+
+     dSz+'*({B_z_cc}*{Bdx_cc}*{x_cc}+'+
+            '{B_z_cc}*{Bdy_cc}*{y_cc}+'+
+            '{B_z_cc}*{Bdz_cc}*{z_cc}))'+
+                     '*1e-9*6371**3/(4*pi*1e-7)')
     terms.append(termBB)
     terms.append(termBdBd)
     terms.append(termBBd)
@@ -1180,8 +1198,17 @@ def get_virials():
     total = ('{virial_surfTotal [J/Re^2]}={virial_Fadv [J/Re^2]}+'+
                                          '{virial_Floz [J/Re^2]}')
     terms.append(total)
+    #Debug
+    '''
+    test_volume = ('{example_volume [#/Re^3]}=1')
+    test_surface = ('{example_surface [#/Re^2]}=-1*('+dSx+'*'+rx+'+'+
+                                                      dSy+'*'+ry+'+'+
+                                                      dSz+'*'+rz+')')
+    terms.append(test_volume)
+    terms.append(test_surface)
+    '''
     for term in terms:
-        eq(term)
+        eq(term, value_location=ValueLocation.CellCentered)
 
 def get_dipole_field(auxdata, *, B0=31000):
     """Function calculates dipole field in given coordinate system based on
@@ -1322,7 +1349,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                         '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                           value_location=ValueLocation.CellCentered)
         #Special construction of hydrodynamic energy density for virial
-        eq('{Virial 2x Uk [J/Re^3]} = 2*{KE [J/Re^3]}+2*{Pth [J/Re^3]}',
+        eq('{Virial 2x Uk [J/Re^3]} = 2*{KE [J/Re^3]}+{Pth [J/Re^3]}',
                           value_location=ValueLocation.CellCentered)
     #Hydrodynamic Energy Density
     eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',

@@ -96,7 +96,13 @@ def get_virial_integrands(state_var):
     existing_variables = state_var.dataset.variable_names
     #Integrands
     integrands = ['Virial Ub [J/Re^3]','Virial 2x Uk [J/Re^3]',
-                  'rhoU_r [Js/Re^3]']
+                  'rhoU_r [Js/Re^3]', 'Pth [J/Re^3]']
+    #Debug:
+    '''
+    integrands = ['Virial Ub [J/Re^3]','Virial 2x Uk [J/Re^3]',
+                  'rhoU_r [Js/Re^3]','uB [J/Re^3]', 'uB_dipole [J/Re^3]']
+    '''
+
     for term in integrands:
         name = term.split(' [')[0]
         units = '['+term.split('[')[1].split('/Re^3')[0]+']'
@@ -129,7 +135,7 @@ def get_energy_integrands(state_var):
                 energydict.update({name+state:name+' [J]'})
     return energydict
 
-def get_mobile_integrands(zone, integrands, tdelta):
+def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
     """Creates dict of integrands for surface motion effects
     Inputs
         zone(Zone)- tecplot Zone
@@ -140,8 +146,7 @@ def get_mobile_integrands(zone, integrands, tdelta):
     """
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
     for term in integrands.items():
-        if (('Ub' not in term[0]) and ('Uk' not in term[0]) and
-            ('bioS' not in term[1])):
+        if ('energy' in analysis_type) or ('rhoU_r' in term[0]):
             name = term[0].split(' [')[0]
             outputname = term[1].split(' [')[0]
             units = '['+term[1].split('[')[1].split(']')[0]+']'
@@ -192,12 +197,14 @@ def volume_analysis(state_var, **kwargs):
     if 'biotsavart' in analysis_type:
         integrands.update(get_biotsavart_integrands(state_var))
     integrands.update(kwargs.get('customTerms', {}))
+    #Debug
     ###################################################################
     #Integral bounds modifications THIS ACCOUNTS FOR SURFACE MOTION
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
                                         ('energy' in analysis_type)):
         mobile_terms = get_mobile_integrands(global_zone,integrands,
-                                             kwargs.get('deltatime',60))
+                                             kwargs.get('deltatime',60),
+                                             analysis_type)
         if 'mp' in state_var.name:
             #Integral bounds for spatially parsing results
             mobile_terms.update(get_dft_integrands(global_zone,
@@ -211,6 +218,7 @@ def volume_analysis(state_var, **kwargs):
         results.update(calc_integral(term, global_zone))
         if kwargs.get('verbose',False):
             print(stat_var.name+term[1]+' integration done')
+    #Debug
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):

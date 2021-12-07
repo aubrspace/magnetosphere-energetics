@@ -392,40 +392,46 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 tp.data.operate.execute_equation('{'+usename+'}={'+var+'}',
                   zones=[region],value_location=ValueLocation.CellCentered)
                 savemeshvars[modes[state_index[0]]].append(usename)
-    '''
     #Debugging
-    global_zone = field_data.zone(0)
+    '''
     mpzone = zonelist[0]
-    vollist = [('Virial 2x Uk [J/Re^3]','Uk'),
-               ('uB [J/Re^3]', 'UB')]
     surflist = [('virial_BB','BB'),
                 ('virial_scalarPth','Pth'),
                 ('virial_scalaruB','uB'),
                 ('virial_advect','Adv')]
-    dipVol = [('uB_dipole [J/Re^3]', 'UBd')]
     dipSur = [('virial_BdBd', 'BdBd'),
               ('virial_scalaruB_dipole','uBd')]
     crossSur = [('virial_BBd', 'BBd')]
     results,innerresults,dipole,indipole,cross,incross={},{},{},{},{},{}
-    for term in vollist:
-        results.update(calc_integral(term, global_zone))
-    for term in dipVol:
-        dipole.update(calc_integral(term, global_zone))
     for term in surflist:
         results.update(calc_integral(term, mpzone))
+        results.update({term[1]+'[nT]':results[term[1]][0]/(-8e13)})
         innerresults.update(calc_integral(term, inner_zone))
+        innerresults.update({term[1]+'[nT]':innerresults[term[1]][0]/(-8e13)})
     for term in dipSur:
         dipole.update(calc_integral(term, mpzone))
+        dipole.update({term[1]+'[nT]':dipole[term[1]][0]/(-8e13)})
         indipole.update(calc_integral(term, inner_zone))
+        indipole.update({term[1]+'[nT]':indipole[term[1]][0]/(-8e13)})
     for term in crossSur:
         cross.update(calc_integral(term, mpzone))
+        cross.update({term[1]+'[nT]':cross[term[1]][0]/(-8e13)})
         incross.update(calc_integral(term, inner_zone))
+        incross.update({term[1]+'[nT]':incross[term[1]][0]/(-8e13)})
     print('outer_field {}'.format(results))
     print('inner_field {}'.format(innerresults))
     print('outer_dipole {}'.format(dipole))
     print('inner_dipole {}'.format(indipole))
     print('cross {}'.format(cross))
-    from IPython import embed; embed()
+    print('volume {}'.format(energies))
+    uBd = energies['uB_dipole [J]']/(-8e13)
+    err = (uBd + dipole['uBd[nT]']+dipole['BdBd[nT]']+indipole['uBd[nT]']+
+          indipole['BdBd[nT]'])
+    err2 = (uBd + dipole['uBd[nT]']+dipole['BdBd[nT]']-indipole['uBd[nT]']-
+            indipole['BdBd[nT]'])
+    print('err {}'.format(err))
+    print('ex:volume {}'.format(energies['example_volume [#]']))
+    print('ex:surface {}'.format(surf_results['example_surface [#]']))
     '''
     ################################################################
     if save_mesh:
