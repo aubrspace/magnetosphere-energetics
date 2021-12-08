@@ -79,11 +79,11 @@ def get_open_close_integrands(zone, integrands):
         outputname = term[1].split(' [')[0]
         if not any([n in name for n in ['Day','Flank','Tail','Lowlat']]):
             units = '['+term[1].split('[')[1].split(']')[0]+']'
-            eq('{'+name+'Closed}=IF({Status}==3,'+
+            eq('{'+name+'Closed}=IF(Round({Status})==3,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            eq('{'+name+'OpenN}=IF({Status}==2,'+
+            eq('{'+name+'OpenN}=IF(Round({Status})==2,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            eq('{'+name+'OpenS}=IF({Status}==1,'+
+            eq('{'+name+'OpenS}=IF(Round({Status})==1,'+
                                            '{'+term[0]+'},0)',zones=[zone])
             openClose_dict.update({name+'Closed':outputname+'Closed '+units,
                                   name+'OpenN':outputname+'OpenN ' +units,

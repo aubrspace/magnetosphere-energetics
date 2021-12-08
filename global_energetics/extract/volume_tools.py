@@ -223,8 +223,9 @@ def volume_analysis(state_var, **kwargs):
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):
         eq('{Volume '+state_var.name+'}=IF({'+state_var.name+'}<1, 0,1)')
-        results.update(calc_integral((' ','Volume [Re^3]'), global_zone,
-                                  **{'VariableOption':'LengthAreaVolume'}))
+        results.update(calc_integral(('Volume '+state_var.name,
+                                      'Volume [Re^3]'), global_zone))
+                                  #**{'VariableOption':'LengthAreaVolume'}))
         if kwargs.get('do_cms',False):
             results.update(calc_integral(('delta_volume','dVolume [Re^3]'),
                                          global_zone))
