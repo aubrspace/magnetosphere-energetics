@@ -128,7 +128,7 @@ if __name__ == "__main__":
                                             zone_hidekeys=zone_hidekeys,
                                             show_timestamp=True,
                                             show_contour=False)
-        tp.new_layout()
+        #tp.new_layout()
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

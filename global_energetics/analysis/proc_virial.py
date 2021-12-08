@@ -46,10 +46,15 @@ def pyplotsetup(*,mode='presentation',**kwargs):
     elif 'digital' in mode:
         #make non white backgrounds, adjust borders accordingly
         settings.update({'axes.edgecolor': 'white',
-                         'axes.facecolor': 'grey'})
+                         'axes.labelcolor': 'white',
+                         'axes.facecolor': '#375e95',
+                         'figure.facecolor':'#375e95',
+                         'text.color':'white',
+                         'ytick.color':'white',
+                         'xtick.color':'white'})
         #Change colorcycler
         colorwheel = plt.cycler('color',
-                   ['cyan', 'magenta', 'peachpuff', 'chartreuse', 'wheat',
+                   ['yellow', 'magenta', 'peru', 'chartreuse', 'wheat',
                     'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
         settings.update({'axes.prop_cycle': colorwheel})
     return settings
@@ -149,7 +154,7 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
             try:
                 ax.plot(omni['Time [UTC]'],omni['sym_h'],
                         color='seagreen',
-                        ls='--', label='OMNI obs')
+                        ls='--', label='SYM-H')
             except NameError:
                 print('omni not loaded! No obs comparisons!')
         elif 'Virial' in value_set:
@@ -164,7 +169,7 @@ def plot_distr(ax, times, mp, msdict, ylabel, **kwargs):
         if value in data.keys():
             safelabel = ' '.join(value.split('_')).split('[%]')[0]
             #ax.plot(times, data[value], label=safelabel)
-            ax.scatter(times, data[value], label=safelabel)
+            ax.plot(times, data[value], label=safelabel)
     #General plot settings
     general_plot_settings(ax, ylabel, **kwargs)
 
@@ -233,12 +238,13 @@ def plot_contributions(ax, times, mp, msdict, ylabel, **kwargs):
             except NameError:
                 print('omni not loaded! No obs comparisons!')
             try:
-                ax.plot(swmf_log['Time [UTC]'], swmf_log['dst_sm'],
-                    color='tab:red', ls='--',
-                    label='SWMFLog BiotSavart')
-                ax.plot(swmf_log['Time [UTC]'], swmf_log['dstflx_R=3.0'],
-                    color='magenta', ls='--',
-                    label='SWMFLog Flux')
+                pass
+                #ax.plot(swmf_log['Time [UTC]'], swmf_log['dst_sm'],
+                #    color='tab:red', ls='--',
+                #    label='SWMFLog')
+                #ax.plot(swmf_log['Time [UTC]'], swmf_log['dstflx_R=3.0'],
+                #    color='magenta', ls='--',
+                #    label='SWMFLog Flux')
             except NameError:
                 print('swmf log file not loaded!')
         ax.fill_between(times, mp[value_key], color='gainsboro')
@@ -263,7 +269,7 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
     """
     mp = [m for m in mpdict.values()][0]
     mp['Virial Surface Total [nT]'] = (mp['Virial Surface Total [nT]']+
-                   inner_mp['Virial Fadv [nT]']+inner_mp['Virial b^2 [nT]'])
+                  inner_mp['Virial Fadv [nT]']+inner_mp['Virial b^2 [nT]'])
     mp['Virial [nT]'] = (mp['Virial [nT]'] + inner_mp['Virial Fadv [nT]']+
                          inner_mp['Virial b^2 [nT]'])
     for m in msdict.items():
@@ -292,11 +298,18 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
                                       m[1]['Virial Surface Total [J]'])
             elif 'qDp' in m[0]:
                 m[1]['Virial Surface Total [J]'] = (
-                                       inner_mp['Virial FadvClosed [J]']+
-                                       inner_mp['Virial b^2Closed [J]']+
+                                       inner_mp['Virial FadvClosed [J]']-
+                                       inner_mp['Virial FadvLowlat [J]']+
+                                       inner_mp['Virial b^2Closed [J]']-
+                                       inner_mp['Virial b^2Lowlat [J]']+
                                       mp['Virial Surface TotalClosed [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
                                       m[1]['Virial Surface Total [J]'])
+            elif 'rc' in m[0]:
+                m[1]['Virial [J]'] = m[1]['Virial Volume Total [J]']
+                m[1]['Virial Surface Total [J]'] = (
+                                       inner_mp['Virial FadvLowlat [J]']+
+                                       inner_mp['Virial b^2Lowlat [J]'])
             else:
                 m[1]['Virial [J]'] = m[1]['Virial Volume Total [J]']
                 m[1]['Virial Surface Total [J]'] = 0
@@ -305,7 +318,7 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
             m[1]['Virial [nT]'] = m[1]['Virial [J]']/(-8e13)
             msdict.update({m[0]:m[1]})
     #Quantify amount missing from sum of all subzones
-    missing_volume = pd.DataFrame()
+    missing_volume, summed_volume = pd.DataFrame(), pd.DataFrame()
     for key in [m for m in msdict.values()][0].keys():
         if key in [m for m in mpdict.values()][0].keys():
             fullvolume = [m for m in mpdict.values()][0][key]
@@ -313,7 +326,9 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
             for sub in [m for m in msdict.values()][1::]:
                 added = added+sub[key]
             missing_volume[key] = fullvolume-added
+            summed_volume[key] = added
     msdict.update({'missed':missing_volume})
+    msdict.update({'summed':summed_volume})
     #Identify percentage contribution from each piece
     for ms in msdict.values():
         for key in ms.keys():
@@ -335,7 +350,7 @@ def calculate_mass_term(df,times):
     ftimes.drop(index=[-1],inplace=True)
     dtimes = ftimes-times
     #Forward difference of integrated positionally weighted density
-    df['Um_static [J]'] = -1*df['rhoU_r [Js]']/60
+    df['Um_static [J]'] = -1*df['rhoU_r [Js]']/[d.seconds for d in dtimes]
     f_n0 = df['rhoU_r [Js]']
     f_n1 = f_n0.copy()
     f_n1.index=f_n1.index-1
@@ -360,8 +375,6 @@ def virial_mods(df, times):
     Returns
         df(DataFrame)- modified
     """
-    #!!Correct pressure term: should be 3x current value (trace of P=3p)
-    df['Virial 2x Uk [J]'] = 3*df['Virial 2x Uk [J]']
     if 'rhoU_r [Js]' in df.keys():
         df = calculate_mass_term(df,times)
         df['Virial Volume Total [J]'] = (df['Virial Volume Total [J]']+
@@ -455,12 +468,24 @@ def BIGMOD(mpdict,msdict,inner_mp,fix=None):
                                          ms[1]['Virial Volume Total [nT]'])
             ms[1]['Virial [nT]'] = (ms[1]['Virial [nT]']+ms[1]['Pth [nT]'])
             msdict.update({ms[0]:ms[1]})
-    return mp, msdict, inner_mp
+    if 'scaled' in fix:
+        #Find biot savart extrema and scaled virial to match
+        scale = mp['bioS [nT]'].min()/mp['Virial [nT]'].min()
+        for key in mp.keys():
+            if 'Virial' in key and '[nT]' in key:
+                mp[key] = mp[key]*scale
+        for ms in msdict.items():
+            for key in ms[1].keys():
+                if 'Virial' in key and '[nT]' in key:
+                    ms[1][key] = ms[1][key]*scale
+    else:
+        scale = 1
+    return mp, msdict, inner_mp, scale
 
 if __name__ == "__main__":
     datapath = sys.argv[-1]
     figureout = datapath+'figures/'
-    plt.rcParams.update(pyplotsetup(mode='print_presentation'))
+    plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
     cuttoffstart = dt.datetime(2014,2,18,6,0)
@@ -468,7 +493,7 @@ if __name__ == "__main__":
     simdata = [swmf_index, swmf_log, swmf_sw]
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=True)
-    store = pd.HDFStore(datapath+'quickrun_virial.h5')
+    store = pd.HDFStore(datapath+'warp_speed_virial.h5')
     times = store[store.keys()[0]]['Time [UTC]']+dt.timedelta(minutes=45)
     #Clean up and gather statistics
     mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
@@ -484,9 +509,11 @@ if __name__ == "__main__":
                 cleaned_df = store[key]
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
                                                   columns=['Time [UTC]'])})
-    mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
-    mpdict, msdict, inner_mp=BIGMOD(mpdict,msdict,inner_mp,fix='doublePth')
     store.close()
+    mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
+    mpdict,msdict,inner_mp,scale=BIGMOD(mpdict,msdict,inner_mp,
+                                        fix='')
+    print('\nSCALE:\n{}\n'.format(scale))
     #Construct "grouped" set of subzones
     msdict_3zone = {'lobes':msdict['nlobe']+msdict['slobe'],
                     'closedRegion':msdict['ps']+msdict['qDp'],
@@ -496,6 +523,9 @@ if __name__ == "__main__":
                    'slobe':msdict['slobe'],
                    'remaining':msdict['rc']+msdict['ps']+msdict['qDp'],
                    'missing':msdict['missed']}
+    for key in msdict['summed'].keys():
+        print(key)
+        mp[key] = msdict['summed'][key]
     #Begin plots
     #Fist type: line and stacks of various groupings of terms
     ######################################################################
@@ -639,15 +669,15 @@ if __name__ == "__main__":
                'lobes':r'Lobes $\Delta B\left[nT\right]$',
                'missing':r'Unaccounted $\Delta B\left[nT\right]$'}
     fig, ax = plt.subplots(nrows=len(msdict_3zone), ncols=1, sharex=True,
-                           figsize=[14,4*len(msdict_3zone)])
+                           figsize=[14,2*len(msdict_3zone)])
     for subzone in enumerate(msdict_3zone):
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
-                   ylabels[subzone[1]],ylim=[-10,10],
+                   ylabels[subzone[1]],
                    subzone=subzone[1],value_key='Virial [nT]')
         plot_single(ax[subzone[0]], times, mp, msdict_3zone,
              ylabels[subzone[1]], subzone=subzone[1],value_key='bioS [nT]',
-                    do_xlabel=(subzone[0] is len(msdict_3zone)-1),
-                    ylim=[-100,30])
+                    do_xlabel=(subzone[0] is len(msdict_3zone)-1))
+                    #ylim=[-100,30])
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'compare_Total_line.png')
     plt.close(fig)
@@ -661,7 +691,7 @@ if __name__ == "__main__":
                                value_key='Virial [nT]',
                                legend_loc='lower left')
     plot_contributions(ax[1], times,mp,msdict_3zone,y2label,
-                               value_key='bioS [nT]', do_xlabel=True)
+                               value_key='bioS [nT]', do_xlabel=False)
     ax[0].set_ylim([-125,50])
     ax[1].set_ylim([-125,50])
     fig.tight_layout(pad=1)
@@ -703,4 +733,3 @@ if __name__ == "__main__":
     if False:
         general_plot_settings(ax, y1label, do_xlabel=True)
         plt.show()
-    from IPython import embed; embed()
