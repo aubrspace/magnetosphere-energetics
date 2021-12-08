@@ -312,7 +312,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     zonelist, state_indices = [], []
     if 'virial' in analysis_type and integrate_volume:
-        modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
+        #modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
+        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
         #modes = [mode]
     else:
         #modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']

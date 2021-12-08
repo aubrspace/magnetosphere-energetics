@@ -1633,7 +1633,7 @@ def calc_state(mode, sourcezone, **kwargs):
                                     str(kwargs.get('lshelllim',7)))
     elif 'ps' in mode:
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
-                                       ' closed_zone present! Cant do rc')
+                                       ' closed_zone present! Cant do ps')
         zonename = 'ms_'+mode
         state_index = calc_ps_qDp_state('ps',
                                         kwargs.get('closed_zone').name,
@@ -1641,7 +1641,15 @@ def calc_state(mode, sourcezone, **kwargs):
                                         str(kwargs.get('bxmax',10)))
     elif 'qDp' in mode:
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
-                                       ' closed_zone present! Cant do rc')
+                                      ' closed_zone present! Cant do qDp')
+        zonename = 'ms_'+mode
+        state_index = calc_ps_qDp_state('qDp',
+                                        kwargs.get('closed_zone').name,
+                                        str(kwargs.get('lshelllim',7)),
+                                        str(kwargs.get('bxmax',10)))
+    elif 'closed' in mode:
+        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+                                   ' closed_zone present! Cant do closed')
         zonename = 'ms_'+mode
         state_index = calc_ps_qDp_state('qDp',
                                         kwargs.get('closed_zone').name,
@@ -1672,24 +1680,24 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
     """
     eq = tp.data.operate.execute_equation
     if ps_qDp == 'ps':
-        eq('{ms_ps_L='+lshelllim+'} = if({'+closed_var+'}==1&&'+
+        eq('{ms_ps_L>'+lshelllim+'} = if({'+closed_var+'}==1&&'+
                                         '{'+Lvar+'}>'+lshelllim+'&&'+
                                         'abs({B_x [nT]})<'+bxmax+'&&'+
                                         '{X [R]}<0,1,0)')
         return tp.active_frame().dataset.variable(
-                                               'ms_ps_L='+lshelllim).index
+                                               'ms_ps_L>'+lshelllim).index
     elif ps_qDp == 'qDp':
-        eq('{ms_qDp_L='+lshelllim+'} = if({'+closed_var+'}>0&&'+
+        eq('{ms_qDp_L>'+lshelllim+'} = if({'+closed_var+'}>0&&'+
                                          '{'+Lvar+'}>'+lshelllim+'&&'+
                                          '(abs({B_x [nT]})>'+bxmax+'||'+
                                          '{X [R]}>0),1,0)')
-        eqstr=('{ms_qDp_L='+lshelllim+'} = if({'+closed_var+'}>0&&'+
-                                         '{'+Lvar+'}>'+lshelllim+'&&'+
-                                         '(abs({B_x [nT]})>'+bxmax+'||'+
-                                         '{X [R]}>0),1,0)')
-        print(eqstr)
         return tp.active_frame().dataset.variable(
-                                              'ms_qDp_L='+lshelllim).index
+                                              'ms_qDp_L>'+lshelllim).index
+    elif ps_qDp == 'closed':
+        eq('{ms_closed_L>'+lshelllim+'} = if({'+closed_var+'}>0&&'+
+                                         '{'+Lvar+'}>'+lshelllim+',1,0)')
+        return tp.active_frame().dataset.variable(
+                                           'ms_closed_L>'+lshelllim).index
 
 
 def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell', **kwargs):
