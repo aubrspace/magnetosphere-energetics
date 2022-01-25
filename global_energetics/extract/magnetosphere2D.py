@@ -26,7 +26,7 @@ if __name__ == "__main__":
     inputfiles = glob.glob('/Users/ngpdl/pngs/'+
         'y=0_var_1_e20130430-040200-000_20130501-220200-000/*.out')
     with tp.session.suspend():
-        for infile in inputfiles:
+        for infile in inputfiles[0:1]:
             #Load files in
             tp.new_layout()
             hdffile = IDL_to_hdf5(infile)
@@ -35,6 +35,7 @@ if __name__ == "__main__":
             ds = tp.active_frame().dataset
             #Triangulate data from unstructured to FE 2D zone
             zone = tp.data.extract.triangulate(ds.zone(0))
+            zone.name='initial_triangulation'
             #Calculate standard variables:
             get_global_variables(ds, '2DMagnetopause', is3D=False)
             #Find last "closed" fieldline in XZ, turn  into an area zone
@@ -42,10 +43,12 @@ if __name__ == "__main__":
                                                   10, 30, 3, 100, 0.1)
             day_closed_zone=tp.data.extract.triangulate(
                                                    ds.zone(day_streamzone))
+            day_closed_zone.name='day_streamtrace_triangulation'
             night_streamzone = streamfind_bisection(ds,'inner_magXZ', None,
                                                     10, -30, -3, 100, 0.1)
             night_closed_zone = tp.data.extract.triangulate(
                                                  ds.zone(night_streamzone))
+            night_closed_zone.name='night_streamtrace_triangulation'
             eq = tp.data.operate.execute_equation
             eq(equation='{closed} = 1', zones=[day_closed_zone])
             eq(equation='{closed} = 1', zones=[night_closed_zone])

@@ -246,7 +246,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     zone_rename = kwargs.get('zone_rename', None)
     analysis_type = kwargs.get('analysis_type', 'energy')
     integrate_surface = kwargs.get('integrate_surface', True)
-    tail_analysis_cap = kwargs.get('tail_analysis_cap', -20)
+    tail_analysis_cap = kwargs.get('tail_analysis_cap',
+                                   kwargs.get('tail_cap',-20))
     integrate_volume = kwargs.get('integrate_volume', True)
     save_mesh = kwargs.get('save_mesh', True)
     write_data = kwargs.get('write_data', True)
@@ -312,12 +313,12 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     zonelist, state_indices = [], []
     if 'virial' in analysis_type and integrate_volume:
-        #modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
-        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
+        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe', 'bs']
         #modes = [mode]
     else:
-        #modes = [mode, 'ps', 'qDp', 'rc', 'nlobe', 'slobe']
-        modes = [mode]
+        modes = [mode, 'bs', 'closed', 'rc', 'nlobe', 'slobe']
+        #modes = [mode, 'bs']
+        #modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if zone_rename != None:
@@ -328,6 +329,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if field_data.variable('mp*') is not None:
         kwargs.update({'mpvar':field_data.variable('mp*').name})
         get_surf_geom_variables(field_data.zone('mp*'))
+        get_surf_geom_variables(field_data.zone('ext_bs*'))
     if do_cms:
         future_mp,_,future_state_index=calc_state(mode,futurezone,**kwargs)
         #get state variable representing acquisitions/forfeitures
@@ -342,26 +344,27 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
-        #integrate power on main surface
-        print('Working on: '+zonelist[0].name)
-        surf_results = surface_analysis(zonelist[0],**kwargs)
-        #Add time and x_subsolar
-        surf_results['Time [UTC]'] = eventtime
-        surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
-        mp_mesh.update({'Time [UTC]':
+        for zone in zonelist[0:2]:
+            #integrate power on main surface
+            print('Working on: '+zone.name)
+            surf_results = surface_analysis(zone,**kwargs)
+            #Add time and x_subsolar
+            surf_results['Time [UTC]'] = eventtime
+            surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
+            mp_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
-        data_to_write.update({zonelist[0].name+'_surface':surf_results})
-        if save_mesh:
-            cc_length = len(zonelist[0].values('x_cc').as_numpy_array())
-            for name in field_data.variable_names:
-                var_length = len(zonelist[0].values(
+            data_to_write.update({zone.name+'_surface':surf_results})
+            if save_mesh:
+                cc_length =len(zone.values('x_cc').as_numpy_array())
+                for name in field_data.variable_names:
+                    var_length = len(zone.values(
                                   name.split(' ')[0]+'*').as_numpy_array())
-                if var_length==cc_length:
+                    if var_length==cc_length:
+                        savemeshvars[modes[0]].append(name)
+            if do_1Dsw and save_mesh:
+                for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
+                                '1DExB_net [W/Re^2]']:
                     savemeshvars[modes[0]].append(name)
-        if do_1Dsw and save_mesh:
-            for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
-                            '1DExB_net [W/Re^2]']:
-                savemeshvars[modes[0]].append(name)
         if 'iso_betastar' in modes:
             #integrate power on innerboundary surface
             inner_mesh = {}

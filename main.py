@@ -44,20 +44,22 @@ if __name__ == "__main__":
     files4 = ('3d__var_1_e20140219-060000-000.plt',
               '3d__var_1_e20140219-060100-014.plt')
 
+    files5 = ('3d__var_1_e20140219-091400-015.plt',
+              '3d__var_1_e20140219-091500-012.plt')
+
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
     OUTPUTNAME = 'testoutput1.png'
 
     '''
-1947849 2014 02 19 03 17 00 018  3.93901E-002  2.56463E+000 -1.70966E-015  1.69500E-017 -2.75944E-018  1.04916E-002  3.64284E+000 -4.80667E-001 -9.16607E+000  1.42366E-005  1.81455E+001 -4.43327E+001 -4.90226E+001  1.18495E+002  9.75989E+001
-
     #load from file
     tp.load_layout('/Users/ngpdl/Desktop/volume_diff_sandbox/visual_starter/blank_visuals.lay')
     field_data = tp.active_frame().dataset
     '''
+    mhddatafile = files5[0]
 
     #for point in [files1, files2, files3, files4]:
-    for point in [files1]:
+    for point in [files5]:
         #python objects
         field_data = tp.data.load_tecplot([point[0],point[1]])
         field_data.zone(0).name = 'global_field'
@@ -67,15 +69,16 @@ if __name__ == "__main__":
 
         #Caclulate initial surface
         #for mode in ['iso_betastar', 'ps','qDp','rc','nlobe','slobe']:
-        #with tp.session.suspend():
-        mesh, data = magnetosphere.get_magnetosphere(field_data,
-                                        outputpath=OUTPATH,
-                                    analysis_type='virial_biotsavart',
-                                        do_cms=True,
-                                        save_mesh=False,
-                                        integrate_surface=True,
-                                        integrate_volume=True)
-        '''
+        with tp.session.suspend():
+            mesh, data = magnetosphere.get_magnetosphere(field_data,
+                                                    outputpath=OUTPATH,
+                                                    analysis_type='energy_virial',
+                                                    do_cms=True,
+                                                    tail_cap=-40,
+                                                    save_mesh=False,
+                                                    integrate_surface=True,
+                                                    integrate_volume=False)
+        """
         vol = data['mp_iso_betastar_volume']
         surf = data['mp_iso_betastar_surface']
         inner = data['mp_iso_betastar_inner_surface']
@@ -98,8 +101,9 @@ if __name__ == "__main__":
         print('Scaled: {}'.format(total*1.5))
         print('BioS: {}'.format(biot))
         print('Ratio: {}'.format(biot/total))
-        '''
-        if False:#manually switch on or off
+        """
+    with tp.session.suspend():
+        if True:#manually switch on or off
             #adjust view settings
             proc = 'Multi Frame Manager'
             cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
@@ -108,8 +112,7 @@ if __name__ == "__main__":
             #mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
             mode = ['iso_day']
             save=False
-            zone_hidekeys = ['sphere', 'box','lcb','shue','future',
-                            'mp_iso_betastar']
+            zone_hidekeys = ['sphere', 'box','lcb','shue','future']
             for frame in enumerate(tp.frames()):
                 frame[1].activate()
                 if frame[0]==0:
@@ -125,6 +128,8 @@ if __name__ == "__main__":
                                             mode=mode[frame[0]],
                                             save_img=save,
                                             verbose=True,
+                                            transluc=60,
+                                            show_slice=False,
                                             zone_hidekeys=zone_hidekeys,
                                             show_timestamp=True,
                                             show_contour=False)

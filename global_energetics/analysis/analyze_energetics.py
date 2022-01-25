@@ -1144,16 +1144,14 @@ def plot_al(axis, dflist, timekey, ylabel, *,
         elif name == 'swmf_index':
             qtkey = 'AL'
             axis.plot(data[timekey],data[qtkey],
-                      label='AL swmf',
-                      linewidth=Size, linestyle=ls,
-                      color='magenta')
+                      label='SWMF',
+                      linewidth=Size, linestyle=ls)
         elif name == 'omni':
             qtkey = 'al'
             legend_loc = 'lower left'
             axis.plot(data[timekey],data[qtkey],
-                      label='AL OMNI',
-                      linewidth=Size, linestyle=ls,
-                      color='black')
+                      label='Obs',
+                      linewidth=Size, linestyle=ls)
         else:
             qtkey = None
     if xlim!=None:
@@ -1508,9 +1506,8 @@ def plot_swbz(axis, dflist, timekey, ylabel, *,
                                       ('GSE','car'), ('GSM','car'))
             qtkey = 'bzGSM'
             axis.plot(data[timekey],data[qtkey],
-                      label='SWMF input (WIND)',
-                      linewidth=Size, linestyle=ls,
-                      color='black')
+                      label=r'$B_z$',
+                      linewidth=Size, linestyle=ls)
         elif name == 'omni':
             qtkey = 'bz'
             axis.plot(data[timekey],data[qtkey],
@@ -1523,7 +1520,7 @@ def plot_swbz(axis, dflist, timekey, ylabel, *,
         axis.set_xlim(xlim)
     if ylim!=None:
         axis.set_ylim(ylim)
-    axis.axhline(0, color='black')
+    #axis.axhline(0, color='black')
     axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
 
@@ -1552,9 +1549,7 @@ def plot_swflowP(axis, dflist, timekey, ylabel, *,
             data['Pdyn'] = data['dens']*data['v']**2*convert
             qtkey = 'Pdyn'
             axis.plot(data[timekey],data[qtkey],
-                      label='SWMF input (WIND)',
-                      linewidth=Size, linestyle='--',
-                      color='black')
+                      linewidth=Size)
         elif name == 'omni':
             convert = 1.6726e-27*1e6*(1e3)**2*1e9
             data['Pdyn'] = data['density']*data['v']**2*convert

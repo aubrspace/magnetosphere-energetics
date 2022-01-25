@@ -16,13 +16,16 @@ def swmf_read_time(*, zoneindex=0, key='TIMEEVENT' ):
     """
     #make dict of aux data
     aux_data = tp.active_frame().dataset.zone(zoneindex).aux_data
-    timestring = aux_data[key]
-    year = int(timestring.split('/')[0])
-    month = int(timestring.split('/')[1])
-    day = int(timestring.split('/')[2].split(' ')[0])
-    hour = int(timestring.split('/')[2].split(' ')[-1].split(':')[0])
-    minute = int(timestring.split('/')[2].split(' ')[-1].split(':')[1])
-    second = int(
-       timestring.split('/')[2].split(' ')[-1].split(':')[2].split('.')[0])
-    return dt.datetime(year,month,day,hour,minute,second)
+    if aux_data.as_dict() != {}:
+        timestring = aux_data[key]
+        year = int(timestring.split('/')[0])
+        month = int(timestring.split('/')[1])
+        day = int(timestring.split('/')[2].split(' ')[0])
+        hour = int(timestring.split('/')[2].split(' ')[-1].split(':')[0])
+        minute = int(timestring.split('/')[2].split(' ')[-1].split(':')[1])
+        second = int(timestring.split(
+                        '/')[2].split(' ')[-1].split(':')[2].split('.')[0])
+        return dt.datetime(year,month,day,hour,minute,second)
+    else:
+        return dt.datetime(2000,1,1,0,0,0)
 

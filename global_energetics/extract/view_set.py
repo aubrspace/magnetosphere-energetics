@@ -286,7 +286,9 @@ def add_timestamp(frame, filename, position):
     #get text
     #ticks = get_time(filename)
     #time = ticks.UTC[0]+dt.timedelta(minutes=45)
-    time = swmf_read_time
+    dateinfo='-'.join(filename.split('e')[1].split('.')[0].split('-')[0:-1])
+    time = dt.datetime.strptime(dateinfo,'%Y%m%d-%H%M%S')
+    #time = swmf_read_time()
     year = time.year
     month = time.month
     day = time.day
@@ -382,7 +384,7 @@ def set_camera(frame, *, setting='iso_day'):
     set_orientation_axis(frame, position=oa_position)
 
 def set_3Daxes(frame, *,
-                  xmax=20, xmin=-65, ymax=35, ymin=-35, zmax=35, zmin=-35,
+                  xmax=10, xmin=-25, ymax=20, ymin=-20, zmax=20, zmin=-20,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
     Inputs
@@ -487,16 +489,18 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
     plt = frame.plot()
     show_list = []
     hide_keys = zone_hidekeys
-    shadings = {'mp_iso_betastar':Color.Custom1,
+    shadings = {'mp_iso_betastar':Color.Cyan,
                 'mp_iso_betastarinnerbound':Color.Custom11,
                 'plasmasheet':Color.Custom9,
-                'ms_nlobe':Color.Custom12,
-                'ms_slobe':Color.Cyan,
-                'ms_rc':Color.Blue,
+                'ms_nlobe':Color.Yellow,
+                'ms_slobe':Color.Yellow,
+                'ms_rc':Color.Custom32,
                 'ms_ps':Color.Purple,
+                'ms_closed':Color.Custom23,
                 'ms_qDp':Color.Custom19,
                 'shue97':Color.Custom8,
-                'shue98':Color.Custom7}
+                'shue98':Color.Custom7,
+                'ext_bs':Color.Custom10}
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
@@ -512,13 +516,16 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
                 plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
                 plt.fieldmap(map_index).contour.flood_contour_group_index=(
                                                                 cont_num)
-                plt.fieldmap(map_index).shade.color = shadings.get(
-                                                         zone.name, "Grey")
+                plt.fieldmap(map_index).shade.color=shadings.get(zone.name,
+                                                             Color.Custom2)
                 show_list.append(zone.name)
     #Transluceny and shade settings
+    '''
     transluc = dict()
     for name in enumerate(fracnames):
         transluc.update({name[1]:int(100-energyfracs[name[0]]*100)})
+    '''
+    transluc = {}
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
@@ -665,7 +672,8 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     ###Always included
     path = os.getcwd()+'/energetics.map'
     tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
-    frame.background_color = Color.Custom17
+    #frame.background_color = Color.Custom46
+    frame.background_color = Color.Black
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     ###DEFAULTS for genaric mode###
     default = {'transluc': 1,           #zone settings
@@ -800,7 +808,7 @@ def display_2D_contours(frame, **kwargs):
     #Blanking 1- magnetopause boundary trace
     blank = plot.value_blanking
     blank.active=True
-    #blank.constraint(0).active=True
+    blank.constraint(0).active=True
     blank.constraint(0).variable_index=mp_index
     blank.cell_mode=ValueBlankCellMode.TrimCells
     blank.constraint(0).show_line=True
@@ -816,6 +824,7 @@ def display_2D_contours(frame, **kwargs):
     blank.constraint(1).line_pattern=LinePattern.Dashed
     #Copy zone so outline shows up on top of contours
     ds.copy_zones([1])
+    ds.zone(-1).name='copy_initial_triangulation'
     plot.fieldmaps(1).effects.value_blanking=False
     #Put 1Re circle and 2.5Re boundary
     tp.macro.execute_command('''$!AttachGeom 
