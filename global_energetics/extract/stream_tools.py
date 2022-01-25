@@ -786,6 +786,23 @@ def get_surf_geom_variables(zone):
                zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
                zones=[zone.index], value_location=CC)
+    elif 'bs' in zone.name:
+        #Look at dayside max plane for bowshock
+        if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)]) <
+            len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)])):
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+        else:
+            eq('{surface_normal_x} = {X Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
@@ -1284,6 +1301,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
         value_location=ValueLocation.CellCentered)
+    #Sonic speed
+    eq('{Cs [km/s]} = sqrt(5/3*{P [nPa]}/{Rho [amu/cm^3]}/6.022)*10**3')
     #Plasma Beta
     eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9')
@@ -1486,7 +1505,9 @@ def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, keep_condition=None,
                                               keep_cond_value=0,
-                                              global_key='global_field'):
+                                              global_key='global_field',
+                                              blankvar='',blankvalue=2,
+                                              blankop=RelOp.LessThan):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
         iso_value
@@ -1517,10 +1538,21 @@ def setup_isosurface(iso_value, varindex, zonename, *,
                                     frame.dataset.variable(varindex).name,
                                     iso_value))
     orig_nzones = frame.dataset.num_zones
+    #Check for blanking conditions
+    if blankvar != '':
+        plt.value_blanking.active = True
+        blank = plt.value_blanking.constraint(1)
+        blank.active = True
+        blank.variable = frame.dataset.variable(blankvar)
+        blank.comparison_operator = blankop
+        blank.comparison_value = blankvalue
     tp.macro.execute_command('$!ExtractIsoSurfaces Group = {:d} '.format(
                                                               isoindex+1)+
                              'ExtractMode = OneZonePerConnectedRegion')
     iso.show = False
+    #Turn off blanking
+    if blankvar != '':
+        plt.value_blanking.active = False
     #only keep zone with the highest number of elements, or meet condition
     nelements = 0
     for i in range(orig_nzones, frame.dataset.num_zones):
@@ -1651,10 +1683,26 @@ def calc_state(mode, sourcezone, **kwargs):
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
                                    ' closed_zone present! Cant do closed')
         zonename = 'ms_'+mode
-        state_index = calc_ps_qDp_state('qDp',
+        state_index = calc_ps_qDp_state('closed',
                                         kwargs.get('closed_zone').name,
                                         str(kwargs.get('lshelllim',7)),
                                         str(kwargs.get('bxmax',10)))
+    elif 'bs' in mode:
+        zonename = 'ext_'+mode
+        state_index = calc_bs_state(kwargs.get('sonicspeed',34),
+                                    kwargs.get('betastarblank',2),
+                                    kwargs.get('tail_cap',-20),
+                                    mpexists=('mpvar' in kwargs.keys()))
+        #TEMPORARY REROUTE FOR BOW SHOCK MODE, SEEMS TO BE GRID RES ISSUE
+        #state_index = tp.active_frame().dataset.variable('Cs *').index
+        #zone, innerzone = setup_isosurface(kwargs.get('sonicspeed',34),
+        #                    state_index, zonename, blankvar = 'beta_star',
+        #                    blankvalue=kwargs.get('betastarblank',2))
+        zone, innerzone = setup_isosurface(kwargs.get('sonicspeed',34),
+                            state_index, zonename, blankvar = 'X *',
+                            blankvalue=kwargs.get('tail_cap',-20))
+        innerzone = None
+        return zone, innerzone, state_index
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
@@ -1666,6 +1714,26 @@ def calc_state(mode, sourcezone, **kwargs):
                                            keep_condition='sphere',
                                   keep_cond_value=kwargs.get('inner_r',3))
     return zone, innerzone, state_index
+
+def calc_bs_state(sonicspeed, betastarblank, xtail, mpexists=False):
+    """Function creates equation for the bow shock region
+    Inputs
+        sonicspeed- gas dynamics speed of sound: sqrt(gamma*P/rho)[km/s]
+        betastarblank- blanking condition for betastar
+        mpexists(boolean)- used to define the back end condition
+    Return
+        index- index for the created variable
+    """
+    eq = tp.data.operate.execute_equation
+    if not mpexists:
+        eq('{ext_bs_Cs}=if({beta_star}>'+str(betastarblank)+',{Cs [km/s]}'
+                                               +','+str(2*sonicspeed)+')')
+    else:
+        #UPDATE
+        eq('{ext_bs_Cs}=if({X [R]}=='+str(xtail)+','+str(sonicspeed)+','+
+                       'if({beta_star}>'+str(betastarblank)+'&&'+
+                          '{X [R]}>'+str(xtail)+',{Cs [km/s]},0))')
+    return tp.active_frame().dataset.variable('ext_bs_Cs').index
 
 def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
     """Function creates equation for the plasmasheet or quasi diploar
