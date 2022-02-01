@@ -74,9 +74,9 @@ def work(mhddatafile):
     field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
-    magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=True,
-                                    analysis_type='virial_biotsavart',
+    magnetosphere.get_magnetosphere(field_data,save_mesh=True,
+                                    do_cms=True,integrate_volume=False,
+                                analysis_type='energy_virial_biotsavart',
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                            key=makevideo.time_sort)[::15]
+                                key=makevideo.time_sort)[::15]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

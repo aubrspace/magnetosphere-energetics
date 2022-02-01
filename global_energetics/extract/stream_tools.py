@@ -341,7 +341,8 @@ def streamfind_bisection(field_data, method,
                          *, rcheck=7, time=None,
                          field_key_x='B_x*', global_key='global_field',
                          disp_search=False):
-    """Generalized function for generating streamlines for a 'last closed'          condition based on a bisection algorithm
+    """Generalized function for generating streamlines for a 'last closed'
+        condition based on a bisection algorithm
     Inputs
         General
             field_data- Tecplot Dataset with flowfield information
@@ -1750,6 +1751,7 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
     if ps_qDp == 'ps':
         eq('{ms_ps_L>'+lshelllim+'} = if({'+closed_var+'}==1&&'+
                                         '{'+Lvar+'}>'+lshelllim+'&&'+
+                                        '{r [R]}>3&&'+
                                         'abs({B_x [nT]})<'+bxmax+'&&'+
                                         '{X [R]}<0,1,0)')
         return tp.active_frame().dataset.variable(
@@ -1757,13 +1759,15 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
     elif ps_qDp == 'qDp':
         eq('{ms_qDp_L>'+lshelllim+'} = if({'+closed_var+'}>0&&'+
                                          '{'+Lvar+'}>'+lshelllim+'&&'+
+                                         '{r [R]}>3&&'+
                                          '(abs({B_x [nT]})>'+bxmax+'||'+
                                          '{X [R]}>0),1,0)')
         return tp.active_frame().dataset.variable(
                                               'ms_qDp_L>'+lshelllim).index
     elif ps_qDp == 'closed':
         eq('{ms_closed_L>'+lshelllim+'} = if({'+closed_var+'}>0&&'+
-                                         '{'+Lvar+'}>'+lshelllim+',1,0)')
+                                         '{'+Lvar+'}>'+lshelllim+'&&'+
+                                         '{r [R]}>3,1,0)')
         return tp.active_frame().dataset.variable(
                                            'ms_closed_L>'+lshelllim).index
 

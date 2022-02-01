@@ -81,7 +81,8 @@ def get_biotsavart_integrands(state_var):
     eq('{BioS '+state_var.name+'}=IF({'+state_var.name+'}<1,0,{dB [nT]})')
     biots_dict.update({'BioS '+state_var.name:'bioS [nT]'})
     if 'mp' in state_var.name:
-        biots_dict.update({'dB [nT]':'bioS_full [nT]'})
+        eq('{BioS_full'+state_var.name+'}=IF({r [R]}<3,0,{dB [nT]})')
+        biots_dict.update({'BioS_full'+state_var.name:'bioS_full [nT]'})
     return biots_dict
 
 def get_virial_integrands(state_var):
@@ -125,14 +126,13 @@ def get_energy_integrands(state_var):
     integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
     for term in integrands:
         name = term.split(' ')[0]
-        if name+state not in existing_variables:
-            #Create variable for integrand that only exists in isolated zone
-            if 'Pth' in term:
-                eq('{Eth'+state+'}=IF({'+state+'}<1, 0, 1.5*{'+term+'})')
-                energydict.update({'Eth'+state:'Eth [J]'})
-            else:
-                eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})')
-                energydict.update({name+state:name+' [J]'})
+        if 'Pth' in term:
+            eq('{Eth'+state+'}=IF({'+state+'}<1, 0, 1.5*{'+term+'})')
+            energydict.update({'Eth'+state:'Eth [J]'})
+        elif name+state not in existing_variables:
+        #Create variable for integrand that only exists in isolated zone
+            eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})')
+            energydict.update({name+state:name+' [J]'})
     return energydict
 
 def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
