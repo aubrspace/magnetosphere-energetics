@@ -7,9 +7,11 @@ import sys
 import time
 import datetime as dt
 import numpy as np
+from numpy import cos, sin, pi, matmul, deg2rad
 import matplotlib.pyplot as plt
 from cdasws import CdasWs
 cdas = CdasWs()
+import swmfpy
 from spacepy import time as spacetime
 
 def read_MFI_SWE_WIND(filename):
@@ -116,10 +118,10 @@ def add_swmf_vars(df):
                 minu.append(entry.minute)
                 sec.append(entry.second)
                 msec.append(entry.microsecond/1000)
-            df['yr'] = yr
-            df['mn'] = mm
-            df['dy'] = dy
-            df['hr'] = hr
+            df['year'] = yr
+            df['month'] = mm
+            df['day'] = dy
+            df['hour'] = hr
             df['min'] = minu
             df['sec'] = sec
             df['msec'] = msec
@@ -127,15 +129,11 @@ def add_swmf_vars(df):
     #Calculate average shift
     #d = df['xgse']-15
     #dave = d.mean()
-    dave = 238-15
+    dave = 238-15#distance from L1=238Re to 15Re just upstream of shock
     vxave = df['vx'].mean()
     shift = dt.timedelta(minutes=-1*dave*6371/vxave/60)
-    print(shift)
-    #shift = dt.timedelta(minutes=15)
-    print(df['Time_UTC'])
-    #quarter shift matches the best with previous run!
+    print('Propagation calculated: '+str(shift)+' min')
     df['Time_UTC'] = df['Time_UTC']+shift
-    print(df['Time_UTC'])
     return df
 
 def save_to_csv(df, coordinates, outpath):
@@ -144,15 +142,16 @@ def save_to_csv(df, coordinates, outpath):
         df
         outpath
     """
-    data = df[['yr','mn','dy','hr','min', 'sec', 'msec',
+    data = df[['year','month','day','hour','min', 'sec', 'msec',
                'bx','by','bz','vx','vy','vz', 'dens', 'temp']]
-    data.to_csv('IMF_new.dat', sep=' ', index=False)
-    with open('IMF_new.dat', 'r') as base:
+    data.to_csv('IMF.dat', sep=' ', index=False)
+    with open('IMF.dat', 'r') as base:
         header = base.readline()
         basefile = base.read()
-    with open('IMF_new.dat', 'w') as final:
+    with open('IMF.dat', 'w') as final:
         final.write(header+'#COOR\n'+coordinates+'\n\n#START\n'+
                     basefile)
+    print('File created, saved to '+outpath+'IMF.dat')
 
 def plot_comparison(ori_df, df, outpath):
     """Function plots original and new solar wind data
@@ -179,40 +178,103 @@ def plot_comparison(ori_df, df, outpath):
             axcount += 1
     fig.savefig(outpath+'{}.png'.format(figname))
 
+def collect_wind(start, end, **kwargs):
+    """Function calls CDAweb with specifics for wind satellite to obtain
+        solar wind data
+    Inputs
+        start, end (datetime.datetime)- start and end times of collection
+        kwargs:
+            mfilist (list(str))- magnetic field instrument variables
+            swelist (list(str))-
+            varlist (list(str))- variable list for specific measurements
+    Return
+        df (DataFrame)- collected and processed data
+    """
+    #Instruments keys
+    dat_key = 'WI_H1_SWE'
+    mfi_key = 'WI_H0_MFI'
+    swe_key = 'WI_K0_SWE'
+    #Use "cdas.get_variables('WI_H1_SWE')" to see options
+    mfilist = kwargs.get('mfilist',['BGSM'])
+    swelist = kwargs.get('swelist',
+                              ['V_GSM', 'THERMAL_SPD', 'Np', 'SC_pos_GSM'])
+    varlist = kwargs.get('varlist',
+               ['Proton_VX_moment', 'Proton_VY_moment', 'Proton_VZ_moment',
+                'BX', 'BY', 'BZ', 'Proton_Np_moment', 'Proton_W_moment',
+                'xgse'])#note xGSE = xGSM
+    status,data =cdas.get_data(dat_key,varlist,start-dt.timedelta(1),end)
+    status,mfi =cdas.get_data(mfi_key,mfilist,start-dt.timedelta(1),end)
+    swestatus,swe =cdas.get_data(swe_key,swelist,start-dt.timedelta(1),end)
+    df_mfi = pd.DataFrame(mfi['BGSM'], columns=['bx','by','bz'],
+                          index=mfi['Epoch'])
+    df_mfi.resample('60S').asfreq()
+    df_mfi = df_mfi.interpolate()
+    df_swe = pd.DataFrame(swe['V_GSM'], columns=['vx','vy','vz'],
+                          index=swe['Epoch'])
+    df = pd.DataFrame(data)
+    df = add_swmf_vars(df)
+    df = df[(df['Time_UTC']>start) & (df['Time_UTC']<end)]
+    save_to_csv(df, 'GSM', outpath)
+    assert 'gsm' in mfilist[0].lower(), ('File created with GSM'+
+                        'coordinates, but mfi is not in GSM coordinates!!')
+    return df
+
+def collect_cluster(start, end, **kwargs):
+    """Function pulls cluster trajectory and orbit data from cdaweb
+    Inputs
+        satkey (str)- themis, cluster, geotail, etc.
+        start, end (datetime.datetime)- start and end times of collection
+    Returns
+        df (DataFrame)- collected and processed data
+    """
+    #Instrument keys
+    instrument = kwargs.get('instrument','CL_SP_AUX')
+    gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
+    gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
+    gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in [1,2,3,4]]
+    status,data = cdas.get_data(instrument,gse_keys.append(gseref_key),
+                                start,end)
+    #th = data[gsmgse_key]
+    rot_matrix = [[[1,                0,                0,],
+                   [0, cos(deg2rad(th)),-sin(deg2rad(th)),],
+                   [0, sin(deg2rad(th)), cos(deg2rad(th)) ]]
+                                                for th in data[gsmgse_key]]
+    for sc in gse_keys[0:-1]:#drop appended ref key
+        scpos_gse = (data[sc]+data[gseref_key])/6371 #confirm units are km
+        scpos=[matmul(m[1],scpos_gse[m[0]]) for m in enumerate(rot_matrix)]
+        df = pd.DataFrame(scpos, columns=['x','y','z'],
+                          index=data['Epoch__CL_SP_AUX'])
+    return df
+
 
 #Main program
 if __name__ == '__main__':
     #############################USER INPUTS HERE##########################
-    path_to_ori_file = './IMF.dat'
-    start = dt.datetime(2013,9,17,0,0)
-    end = dt.datetime(2013,9,20,0,0)
+    path_to_ori_file = None
+    #start = dt.datetime(2019,5,13,12,0)
+    #end = dt.datetime(2019,5,15,12,0)
+    start = dt.datetime(2021,9,16,18,0)
+    end = dt.datetime(2021,9,18,18,0)
     outpath = './'
-    #Use "cdas.get_variables('WI_H1_SWE')" to see options
-    mfilist = ['BGSE']
-    swelist = ['V_GSE', 'THERMAL_SPD', 'Np', 'SC_pos_gse']
-    varlist = ['xgse',
-               'Proton_VX_moment', 'Proton_VY_moment', 'Proton_VZ_moment',
-               'BX', 'BY', 'BZ', 'Proton_Np_moment', 'Proton_W_moment']
+    plot_data = True
     #######################################################################
 
-    ori_df = read_SWMF_IMF(path_to_ori_file)
-    status,data =cdas.get_data('WI_H1_SWE',varlist,start-dt.timedelta(1),
-                                           end)
-    status,mfi =cdas.get_data('WI_H0_MFI',mfilist,start-dt.timedelta(1),
-                                           end)
-    swestatus,swe =cdas.get_data('WI_K0_SWE',swelist,start-dt.timedelta(1),
-                                           end)
-    df_mfi = pd.DataFrame(mfi['BGSE'], columns=['bx','by','bz'],
-                          index=mfi['Epoch'])
-    df_mfi.resample('60S').asfreq()
-    df_mfi = df_mfi.interpolate()
-    df_swe = pd.DataFrame(swe['V_GSE'], columns=['vx','vy','vz'],
-                          index=swe['Epoch'])
-    df2 = read_MFI_SWE_WIND('scratch_WIND.dat')
-    df = pd.DataFrame(data)
-    df = add_swmf_vars(df2)
-    df = df[(df['Time_UTC']>start) & (df['Time_UTC']<end)]
-    print(ori_df)
-    print(df)
-    save_to_csv(df, 'GSE', outpath)
-    plot_comparison(ori_df, df, outpath)
+    wind = collect_wind(start, end)
+    cluster = collect_cluster(start, end)
+    omni = swmfpy.web.get_omni_data(start,end)
+
+    #Additional options
+    if path_to_ori_file is not None:
+        ori_df = read_SWMF_IMF(path_to_ori_file)
+        if not ori_df.empty:
+            plot_comparison(ori_df, df, outpath)
+    if plot_data:
+        try:
+            from plotSW import plot_solarwind as plotsw
+        except ModuleNotFoundError:
+            print("Unable to plot, can't find plotSW.py!")
+        else:
+            plotsw(WIND=wind, CLUSTER=cluster, OMNI=omni)
+            #plt.show()
+            plt.figure(1).savefig('IMF.png')
+            print('Figure saved to IMF.png')
