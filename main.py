@@ -44,8 +44,8 @@ if __name__ == "__main__":
     files4 = ('3d__var_1_e20140219-060000-000.plt',
               '3d__var_1_e20140219-060100-014.plt')
 
-    files5 = ('3d__var_1_e20140219-091400-015.plt',
-              '3d__var_1_e20140219-091500-012.plt')
+    files5 = ('3d__var_1_e20140218-060700-011.plt',
+              '3d__var_1_e20140218-060900-002.plt')
 
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
@@ -72,9 +72,11 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath=OUTPATH,
-                                                    analysis_type='energy_virial',
+                                                    analysis_type='energy',
+                                                    mode='lcb',
+                                                    zone_rename='mp_lcb',
                                                     do_cms=True,
-                                                    tail_cap=-40,
+                                                    tail_cap=-20,
                                                     save_mesh=False,
                                                     integrate_surface=True,
                                                     integrate_volume=False)
@@ -112,7 +114,8 @@ if __name__ == "__main__":
             #mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
             mode = ['iso_day']
             save=False
-            zone_hidekeys = ['sphere', 'box','lcb','shue','future']
+            #zone_hidekeys = ['sphere', 'box','lcb','shue','future']
+            zone_hidekeys = ['sphere', 'box','shue','future']
             for frame in enumerate(tp.frames()):
                 frame[1].activate()
                 if frame[0]==0:
@@ -128,11 +131,11 @@ if __name__ == "__main__":
                                             mode=mode[frame[0]],
                                             save_img=save,
                                             verbose=True,
-                                            transluc=60,
+                                            transluc=30,
                                             show_slice=False,
                                             zone_hidekeys=zone_hidekeys,
                                             show_timestamp=True,
-                                            show_contour=False)
+                                            show_contour=True)
         #tp.new_layout()
     #timestamp
     ltime = time.time()-start_time

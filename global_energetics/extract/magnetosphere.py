@@ -47,7 +47,7 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
         do_trace- could by forced True if no Status variable
     """
     approved= ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere',
-               'lcb', 'nlobe', 'slobe', 'rc', 'ps', 'qDp']
+               'lcb', 'nlobe', 'slobe', 'rc', 'ps', 'qDp','closed']
     if not any([mode == match for match in approved]):
         assert False, ('Magnetopause mode "{}" not recognized!!'.format(
                                                                     mode)+
@@ -262,6 +262,12 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     do_1Dsw = kwargs.get('do_1Dsw', False)
     globalzone = field_data.zone('global_field')
     futurezone = field_data.zone('future*')
+    #
+    inner_cond = kwargs.get('inner_cond', 'sphere')
+    inner_r = kwargs.get('inner_r', 3)
+    mpbetastar = kwargs.get('mpbetastar', 0.7)
+    tail_cap = kwargs.get('tail_cap', -20)
+    '''
     if mode == 'iso_betastar':
         inner_cond = kwargs.get('inner_cond', 'sphere')
         inner_r = kwargs.get('inner_r', 3)
@@ -269,6 +275,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if any([mode==match for match in ['iso_betastar', 'shue97', 'shue98',
                                       'shue']]):
         tail_cap = kwargs.get('tail_cap', -20)
+    '''
     if mode == 'sphere':
         sp_x = kwargs.get('sp_x', 0)
         sp_y = kwargs.get('sp_y', 0)
@@ -316,8 +323,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         modes = [mode, 'closed', 'rc', 'nlobe', 'slobe', 'bs']
         #modes = [mode]
     else:
-        modes = [mode, 'bs', 'closed', 'rc', 'nlobe', 'slobe']
-        #modes = [mode, 'bs']
+        #modes = [mode, 'bs', 'closed', 'rc', 'nlobe', 'slobe']
+        modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if zone_rename != None:
@@ -328,11 +335,19 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if field_data.variable('mp*') is not None:
         kwargs.update({'mpvar':field_data.variable('mp*').name})
         get_surf_geom_variables(field_data.zone('mp*'))
-        get_surf_geom_variables(field_data.zone('ext_bs*'))
+        #get_surf_geom_variables(field_data.zone('ext_bs*'))
+    else:
+        #field_data.zone(mode).name = 'mp_'+mode
+        #field_data.variable(state_index).name = ('mp_'+
+        #                             field_data.variable(state_index).name)
+        kwargs.update({'mpvar':field_data.variable(state_index).name})
+        get_surf_geom_variables(zonelist[0])
     if do_cms:
         future_mp,_,future_state_index=calc_state(mode,futurezone,**kwargs)
         #get state variable representing acquisitions/forfeitures
-        calc_delta_state(zonelist[0].name, future_mp.name)
+        #calc_delta_state(zonelist[0].name, future_mp.name)
+        calc_delta_state(field_data.variable(state_index).name,
+                         field_data.variable(future_state_index).name)
     ################################################################
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()

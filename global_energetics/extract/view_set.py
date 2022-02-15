@@ -673,7 +673,8 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     path = os.getcwd()+'/energetics.map'
     tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
     #frame.background_color = Color.Custom46
-    frame.background_color = Color.Black
+    #frame.background_color = Color.Black
+    frame.background_color = Color.Custom17
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     ###DEFAULTS for genaric mode###
     default = {'transluc': 1,           #zone settings

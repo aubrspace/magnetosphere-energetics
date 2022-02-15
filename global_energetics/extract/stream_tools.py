@@ -1645,8 +1645,14 @@ def calc_state(mode, sourcezone, **kwargs):
                             "lcb mode only works with do_trace==False!")
         assert kwargs.get('closed_zone').index != None, (
                                     'No closed_zone present! Cant do lcb')
-        zonename = kwargs.get('closed_zone').name
-        state_index = tp.active_frame().dataset.variable(zonename).index
+        if 'future' in sourcezone.name:
+            zonename = 'future_mp_'+kwargs.get('closed_zone').name
+            state_index = tp.active_frame().dataset.variable(
+                              kwargs.get('future_closed_zone').name).index
+        else:
+            zonename = kwargs.get('closed_zone').name
+            state_index = tp.active_frame().dataset.variable(
+                                     kwargs.get('closed_zone').name).index
     elif 'lobe' in mode:
         mpvar = kwargs.get('mpvar', sourcezone.dataset.variable('mp*'))
         assert kwargs.get('do_trace',False) == False, (
