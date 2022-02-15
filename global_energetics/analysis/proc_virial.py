@@ -154,7 +154,7 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
                 data[value.split('[')[0]+'[%]'] = data[value]/total*100
     #Optional layers depending on value_key
     starting_value = 0
-    if not '%' in value_set:
+    if (not '%' in value_set) and (not 'Energy' in value_set):
         ax.plot(times, data['Virial Surface Total [nT]'], color='#05BC54',
                 linewidth=4,label='Boundary Stress')#light green color
         starting_value = data['Virial Surface Total [nT]']
@@ -708,8 +708,8 @@ if __name__ == "__main__":
     #Third type: distrubiton of virial and types of energy within subzone
     ######################################################################
     y2label = r'Fraction $\left[\%\right]$'
-    #valset = ['Virial','Energy']
-    valset = ['Virial']
+    valset = ['Virial','Energy']
+    #valset = ['Virial']
     for vals in valset:
         if 'Virial' in vals:
             fig2ylabels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
