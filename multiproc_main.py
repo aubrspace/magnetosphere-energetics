@@ -76,19 +76,20 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=True,
                                     do_cms=True,integrate_volume=False,
-                                analysis_type='energy_virial_biotsavart',
+                                analysis_type='energy',
+                                    mode='lcb',zone_rename='mp_lcb',
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
     #                              CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
-    if False:#manually switch on or off
+    if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
         tp.macro.execute_extended_command(command_processor_id=proc,
                                           command=cmd)
         mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
-        zone_hidekeys = ['sphere', 'box','lcb','shue','future',
+        zone_hidekeys = ['sphere', 'box','shue','future',
                          'mp_iso_betastar']
         timestamp=True
         for frame in enumerate(tp.frames()):
@@ -107,7 +108,7 @@ def work(mhddatafile):
                                         pngpath=CONTEXT['PNGPATH'],
                                         outputname=OUTPUTNAME,
                                         IDstr=str(CONTEXT['id']),
-                                        show_contour=False,
+                                        show_contour=True,
                                         timestamp_pos=[4,20],
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
@@ -127,7 +128,7 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     RUNDIR = 'Energetics1'
-    MHDDIR = os.path.join(RUNDIR, 'GM', 'IO2','partB')
+    MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
@@ -146,7 +147,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[::15]
+                                key=makevideo.time_sort)[0:4]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
