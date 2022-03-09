@@ -252,10 +252,10 @@ def plot_swclock(axis, dflist, timekey, ylabel, *,
         if name == 'supermag':
             qtkey = 'Clock Angle GSM (deg.)'
         elif name == 'swmf_sw':
-            data = df_coord_transform(data, 'times', ['bx','by','bz'],
-                                      ('GSE','car'), ('GSM','car'))
-            data['clock'] = np.rad2deg(np.arctan2(data['byGSM'],
-                                                  data['bzGSM']))
+            #data = df_coord_transform(data, 'times', ['bx','by','bz'],
+            #                          ('GSE','car'), ('GSM','car'))
+            data['clock'] = np.rad2deg(np.arctan2(data['by'],
+                                                  data['bz']))
             qtkey = 'clock'
         elif name == 'omni':
             data['clock'] = np.rad2deg(np.arctan2(data['by'],
@@ -291,10 +291,10 @@ def plot_swbybz(axis, dflist, timekey, ylabel, *,
             qtkey1 = 'ByGSM (nT)'
             qtkey2 = 'BzGSM (nT)'
         elif name == 'swmf_sw':
-            data = df_coord_transform(data, 'times', ['bx','by','bz'],
-                                      ('GSE','car'), ('GSM','car'))
-            qtkey1 = 'byGSM'
-            qtkey2 = 'bzGSM'
+            #data = df_coord_transform(data, 'times', ['bx','by','bz'],
+            #                          ('GSE','car'), ('GSM','car'))
+            qtkey1 = 'by'
+            qtkey2 = 'bz'
         elif name == 'omni':
             qtkey1 = 'by'
             qtkey2 = 'bz'
@@ -386,9 +386,9 @@ def plot_swvxvyvz(axis, dflist, timekey, ylabel, *,
         elif name == 'swmf_sw':
             qtkey1 = 'vx'
             qtkey2 = 'vy'
-            data = df_coord_transform(data, 'times', ['vx','vy','vz'],
-                                      ('GSE','car'), ('GSM','car'))
-            qtkey3 = 'vzGSM'
+            #data = df_coord_transform(data, 'times', ['vx','vy','vz'],
+            #                          ('GSE','car'), ('GSM','car'))
+            qtkey3 = 'vz'
         elif name == 'omni':
             qtkey1 = 'vx_gse'
             qtkey2 = 'vy_gse'
@@ -469,12 +469,18 @@ def get_swmf_data(datapath):
         parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True)
-    swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[1,2,3,4],
-        parse_dates={'Time [UTC]':['yr','mn','dy','hr','min','sec','msec']},
+    swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[0,1,2,4,5,6,7],
+        parse_dates={'Time [UTC]':['year','month','day',
+                                   'hour','min','sec','msec']},
         date_parser=datetimeparser,
-        infer_datetime_format=True, keep_date_col=True)
+        infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
     swdata=swdata[swdata['Time [UTC]']<geoindexdata['Time [UTC]'].iloc[-1]]
     swdata =swdata[swdata['Time [UTC]']>geoindexdata['Time [UTC]'].iloc[0]]
+    #times Time [UTC]
+    geoindexdata['times'] = geoindexdata['Time [UTC]']
+    swmflogdata['times'] = swmflogdata['Time [UTC]']
+    swdata['times'] = swdata['Time [UTC]']
+    swdata['dens'] = swdata['density']
     #attach names to each dataset
     geoindexdata = geoindexdata.append(pd.Series({'name':'swmf_index'}),
                                        ignore_index=True)
@@ -573,8 +579,8 @@ def get_expanded_sw(start, end, data_path):
     omni['Time [UTC]'] = omni['times']
     return supermag, omni
 
-def read_indices(data_path, *, read_swmf=True, read_supermag=True,
-                               read_omni=True,
+def read_indices(data_path, *, read_swmf=True, read_supermag=False,
+                               read_omni=False,
                                start=dt.datetime(2014,2,18,6,0),
                                end=dt.datetime(2014,2,20,0,0)):
     """Top level function handles time varying magnetopause data and
@@ -633,4 +639,5 @@ if __name__ == "__main__":
         "font.sans-serif": ["Helvetica"]})
         datapath = sys.argv[1]
         print('processing indices output at {}'.format(datapath))
-        process_indices(datapath,datapath+'indices/')
+        value = read_indices(datapath)
+        prepare_figures(value[0],value[1],value[2],value[3],value[4],'./output/starlink/')

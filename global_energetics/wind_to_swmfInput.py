@@ -106,35 +106,57 @@ def add_swmf_vars(df):
         #Temperature
         elif ((key[1].lower().find('w')!=-1) or
               (key[1].lower().find('th')!=-1)):
-            df['temp'] = df[key[1]]**2*1.6726e2/1.3807/2
-        #Time
-        elif key[1].lower().find('epoch')!=-1:
-            yr,mm,dy,hr,minu,sec,msec = [],[],[],[],[],[],[]
-            for entry in df[key[1]]:
-                yr.append(entry.year)
-                mm.append(entry.month)
-                dy.append(entry.day)
-                hr.append(entry.hour)
-                minu.append(entry.minute)
-                sec.append(entry.second)
-                msec.append(entry.microsecond/1000)
-            df['year'] = yr
-            df['month'] = mm
-            df['day'] = dy
-            df['hour'] = hr
-            df['min'] = minu
-            df['sec'] = sec
-            df['msec'] = msec
-            df = df.rename(columns={key[1]:'Time_UTC'})
-    #Calculate average shift
-    #d = df['xgse']-15
-    #dave = d.mean()
-    dave = 238-15#distance from L1=238Re to 15Re just upstream of shock
+            #temp = vth^2 * m_sw/2 / k, m = 1.04*mp
+            df['temp'] = df[key[1]]**2*1.04*1.6726e2/1.3807/2
+    ###Time
+    #Calculate average shift, use 15Re as rough average bowshock loc
+    d = df['x [km]']-15*6371
+    dave = d.mean()
+    #dave = 238-15#distance from L1=238Re to 15Re just upstream of shock
     vxave = df['vx'].mean()
-    shift = dt.timedelta(minutes=-1*dave*6371/vxave/60)
+    shift = dt.timedelta(minutes=-1*dave/vxave/60)
     print('Propagation calculated: '+str(shift)+' min')
     df['Time_UTC'] = df['Time_UTC']+shift
+
+    #Split into specific columns that will go into the swmf input file
+    yr,mm,dy,hr,minu,sec,msec = [],[],[],[],[],[],[]
+    for entry in df['Time_UTC']:
+        yr.append(entry.year)
+        mm.append(entry.month)
+        dy.append(entry.day)
+        hr.append(entry.hour)
+        minu.append(entry.minute)
+        sec.append(entry.second)
+        msec.append(entry.microsecond/1000)
+    df['year'] = yr
+    df['month'] = mm
+    df['day'] = dy
+    df['hour'] = hr
+    df['min'] = minu
+    df['sec'] = sec
+    df['msec'] = msec
     return df
+
+def toIMFdict(df, **kwargs):
+    """Function converts pandas DataFrame back to dictionary
+    Inputs
+        df (DataFrame)
+        kwargs
+            keep_keys (list[str])
+    Returns
+        imf_dict (dict)
+    """
+    imf_dict = {}
+    #df['times'] = df['Time_UTC']
+    for key in kwargs.get('keep_keys',['year','month','day','hour',
+                                       'min','sec', 'msec',
+                                       'bx','by','bz','vx','vy','vz',
+                                       'dens', 'temp']):
+        imf_dict[key] = df[key].values
+    imf_dict['times'] = swmfpy.io.gather_times(imf_dict)
+    imf_dict['density'] = imf_dict['dens']
+    imf_dict['temperature'] = imf_dict['temp']
+    return imf_dict
 
 def save_to_csv(df, coordinates, outpath):
     """Function saves data from df to csv in correct SWMF input format
@@ -178,6 +200,41 @@ def plot_comparison(ori_df, df, outpath):
             axcount += 1
     fig.savefig(outpath+'{}.png'.format(figname))
 
+def clean_data(df, **checks):
+    """Function cleans up obvious non physical values
+    Inputs
+        df (DataFrame)- dataset of values
+        checks:
+            checks (dict{str:float})- eg. {'vx':-5e4}
+    Returns
+        df (DataFrame)- same format, but modified
+    """
+    #Time be in the index, lets make a column instead so we can reset
+    df['Time_UTC'] = df.index
+    df.reset_index(drop=True,inplace=True)
+
+    #Defaults
+    checks['vx'] = checks.get('vx',5e4)
+    checks['vy'] = checks.get('vy',250)
+    checks['vz'] = checks.get('vz',250)
+    checks['bx'] = checks.get('bx',1e5)
+    checks['by'] = checks.get('by',1e5)
+    checks['bz'] = checks.get('bz',1e5)
+    checks['Np'] = checks.get('Np',50)
+    checks['Vth'] =checks.get('Vth',np.sqrt(600000*2*1.3807/1.6726e2/1.04))
+    for (checkvar,checkval) in checks.items():
+        assert checkvar in df.keys(), (checkvar+
+                    ' not in data but being used as check for clean data!')
+        #Check data against threshold
+        for loc in df[abs(df[checkvar])>checkval].index:
+            if loc != 0:
+                df.iloc[loc]=df.iloc[loc-1] #Keep last value
+            else: #Find the first good value (hopefully there are lots!)
+                first_good_loc = df[abs(df[checkvar])<checkval].index[0]
+                df.iloc[loc] = df.iloc[first_good_loc]
+    return df
+
+
 def collect_wind(start, end, **kwargs):
     """Function calls CDAweb with specifics for wind satellite to obtain
         solar wind data
@@ -190,31 +247,49 @@ def collect_wind(start, end, **kwargs):
     Return
         df (DataFrame)- collected and processed data
     """
+
     #Instruments keys
     dat_key = 'WI_H1_SWE'
     mfi_key = 'WI_H0_MFI'
     swe_key = 'WI_K0_SWE'
+
     #Use "cdas.get_variables('WI_H1_SWE')" to see options
+    #Set up variables needed
     mfilist = kwargs.get('mfilist',['BGSM'])
     swelist = kwargs.get('swelist',
                               ['V_GSM', 'THERMAL_SPD', 'Np', 'SC_pos_GSM'])
-    varlist = kwargs.get('varlist',
-               ['Proton_VX_moment', 'Proton_VY_moment', 'Proton_VZ_moment',
-                'BX', 'BY', 'BZ', 'Proton_Np_moment', 'Proton_W_moment',
-                'xgse'])#note xGSE = xGSM
-    status,data =cdas.get_data(dat_key,varlist,start-dt.timedelta(1),end)
-    status,mfi =cdas.get_data(mfi_key,mfilist,start-dt.timedelta(1),end)
-    swestatus,swe =cdas.get_data(swe_key,swelist,start-dt.timedelta(1),end)
+    #Query the data using CDAS, padtime because a shift will happen
+    status,mfi =cdas.get_data(mfi_key,mfilist,
+                      start-dt.timedelta(minutes=kwargs.get('padtime',360)),
+                      end  +dt.timedelta(minutes=kwargs.get('padtime',360)))
+    swestatus,swe =cdas.get_data(swe_key,swelist,
+                      start-dt.timedelta(minutes=kwargs.get('padtime',360)),
+                      end  +dt.timedelta(minutes=kwargs.get('padtime',360)))
+
+    #Store data in pandas data frames bc types are weird otherwise
     df_mfi = pd.DataFrame(mfi['BGSM'], columns=['bx','by','bz'],
                           index=mfi['Epoch'])
-    df_mfi.resample('60S').asfreq()
-    df_mfi = df_mfi.interpolate()
     df_swe = pd.DataFrame(swe['V_GSM'], columns=['vx','vy','vz'],
                           index=swe['Epoch'])
-    df = pd.DataFrame(data)
-    df = add_swmf_vars(df)
+    df_swe['Vth'] = swe['THERMAL_SPD']
+    df_swe['Np'] = swe['Np']
+    df_swe['x [km]'] = swe['SC_pos_GSM'][:,0]
+
+    #Interpolate so two streams can combine, seems mfi has nicer cadence
+    for v in df_swe.keys():
+        df_mfi[v] = np.interp(df_mfi.index,df_swe.index,df_swe[v])
+
+    #Call functions to manipulate raw variables into SWMF variables
+    df_clean = clean_data(df_mfi)
+    df = add_swmf_vars(df_clean)
+
+    #Trim data for on the original period of interest
     df = df[(df['Time_UTC']>start) & (df['Time_UTC']<end)]
-    save_to_csv(df, 'GSM', outpath)
+
+    #Save to a file, first  convert to dict, then use swmfpy
+    imf_dict = toIMFdict(df,**kwargs)
+    swmfpy.io.write_imf_input(imf_dict,coords='GSM')
+    print('File created at IMF.dat')
     assert 'gsm' in mfilist[0].lower(), ('File created with GSM'+
                         'coordinates, but mfi is not in GSM coordinates!!')
     return df
@@ -246,6 +321,38 @@ def collect_cluster(start, end, **kwargs):
                           index=data['Epoch__CL_SP_AUX'])
     return df
 
+def collect_themis(start, end, **kwargs):
+    """Function pulls themis trajectory and orbit data from cdaweb
+    Inputs
+        satkey (str)- themis, cluster, geotail, etc.
+        start, end (datetime.datetime)- start and end times of collection
+    Returns
+        df (DataFrame)- collected and processed data
+    """
+    #Probe keys
+    probe_keys = kwargs.get('probe_keys',['THA_','THB_','THC_',
+                                                            'THD_','THE_'])
+    '''
+    #Instrument keys
+    instrument = kwargs.get('instrument','CL_SP_AUX')
+    gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
+    gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
+    gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in [1,2,3,4]]
+    status,data = cdas.get_data(instrument,gse_keys.append(gseref_key),
+                                start,end)
+    #th = data[gsmgse_key]
+    rot_matrix = [[[1,                0,                0,],
+                   [0, cos(deg2rad(th)),-sin(deg2rad(th)),],
+                   [0, sin(deg2rad(th)), cos(deg2rad(th)) ]]
+                                                for th in data[gsmgse_key]]
+    for sc in gse_keys[0:-1]:#drop appended ref key
+        scpos_gse = (data[sc]+data[gseref_key])/6371 #confirm units are km
+        scpos=[matmul(m[1],scpos_gse[m[0]]) for m in enumerate(rot_matrix)]
+        df = pd.DataFrame(scpos, columns=['x','y','z'],
+                          index=data['Epoch__CL_SP_AUX'])
+    '''
+    return df
+
 
 #Main program
 if __name__ == '__main__':
@@ -253,8 +360,8 @@ if __name__ == '__main__':
     path_to_ori_file = None
     #start = dt.datetime(2019,5,13,12,0)
     #end = dt.datetime(2019,5,15,12,0)
-    start = dt.datetime(2022,2,10,0,0)
-    end = dt.datetime(2022,2,11,23,0)
+    start = dt.datetime(2014,2,18,4,0)
+    end = dt.datetime(2014,2,25,0,0)
     outpath = './'
     plot_data = True
     #######################################################################
@@ -275,6 +382,7 @@ if __name__ == '__main__':
             print("Unable to plot, can't find plotSW.py!")
         else:
             plotsw(WIND=wind, CLUSTER=cluster, OMNI=omni)
+            #plotsw(WIND=wind)
             #plt.show()
             plt.figure(1).savefig('IMF.png')
             print('Figure saved to IMF.png')

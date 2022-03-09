@@ -10,7 +10,7 @@ import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+from matplotlib.ticker import (MultipleLocator,AutoLocator,AutoMinorLocator)
 import swmfpy
 from swmfpy.io import read_imf_input, gather_times
 
@@ -27,8 +27,9 @@ def plot_Temp(ax, data, ylabel, **kwargs):
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    #ax.xaxis.set_major_locator(AutoLocator(12))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     if kwargs.get('do_xlabel',False):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax.set_xlabel(kwargs.get('xlabel',None))
 
 def plot_Rho(ax, data, ylabel, **kwargs):
@@ -44,8 +45,8 @@ def plot_Rho(ax, data, ylabel, **kwargs):
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     if kwargs.get('do_xlabel',False):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax.set_xlabel(kwargs.get('xlabel',None))
 
 def plot_V(ax, data, ylabel, **kwargs):
@@ -69,9 +70,9 @@ def plot_V(ax, data, ylabel, **kwargs):
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     ax.legend(loc=kwargs.get('legend_loc',None))
     if kwargs.get('do_xlabel',False):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax.set_xlabel(kwargs.get('xlabel',None))
 
 def plot_B(ax, data, ylabel, **kwargs):
@@ -92,9 +93,10 @@ def plot_B(ax, data, ylabel, **kwargs):
     ax.set_ylabel(ylabel)
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     ax.legend(loc=kwargs.get('legend_loc',None))
     if kwargs.get('do_xlabel',False):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax.set_xlabel(kwargs.get('xlabel',None))
 
 def plot_symh(ax, omni, ylabel, **kwargs):
@@ -110,9 +112,10 @@ def plot_symh(ax, omni, ylabel, **kwargs):
     ax.set_ylabel(ylabel)
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     ax.legend(loc=kwargs.get('legend_loc',None))
     if kwargs.get('do_xlabel',False):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax.set_xlabel(kwargs.get('xlabel',None))
 
 def plot_al(ax, omni, ylabel, **kwargs):
@@ -126,9 +129,10 @@ def plot_al(ax, omni, ylabel, **kwargs):
     ax.set_ylabel(ylabel)
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
+    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     ax.legend(loc=kwargs.get('legend_loc',None))
     if kwargs.get('do_xlabel',False):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         ax.set_xlabel(kwargs.get('xlabel',None))
 
 def plot_satellite(ax, satname, data, labels, **kwargs):
@@ -177,6 +181,7 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
             imf_dic[key] = imf[key].values
         imf_dic['times'] = gather_times(imf_dic,**kwargs)
         imf = imf_dic
+    xlabel =  r'Time $\left[ UTC\right]$'
     y1label = r'$B \left(nT\right)$'
     y2label = r'$V \left(km/s\right)$'
     y3label = r'$\rho \left(amu/cc\right)$'
@@ -188,6 +193,7 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
         y5label = r'$\Delta B\left(nT\right)$'
         y6label = r'$\Delta B\left(nT\right)$'
         rows+=2
+        doX = False
     if any([s in kwargs for s in satlist]):
         y7label = r'$Z \left(R_e\right)$'
         y8label = r'$Y \left(R_e\right)$'
@@ -203,22 +209,22 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
             ax.append(plt.subplot(rows,1,i))
         ax.append(plt.subplot(rows/2,2,rows-1))
         ax.append(plt.subplot(rows/2,2,rows))
-        doX = True
     plot_B(ax[0], imf, y1label,do_xlabel=doX)
     plot_V(ax[1], imf, y2label,do_xlabel=doX)
     plot_Rho(ax[2], imf, y3label,do_xlabel=doX)
     plot_Temp(ax[3], imf, y4label,do_xlabel=doX)
     if check_omni or ('OMNI' in kwargs):
         plot_symh(ax[4], omni, y5label,do_xlabel=doX)
-        plot_al(ax[5], omni, y6label,do_xlabel=doX)
+        plot_al(ax[5], omni, y6label,do_xlabel=True, xlabel=xlabel)
+    #if not doX:
+    #    ax[-1].set_xlabel(r'Time $\left[ UTC\right]$')
+    #    ax[-1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+    #    ax[-1].xaxis.set_minor_locator(AutoMinorLocator(6))
+    #Plot satellites
     if any([s in kwargs for s in satlist]):
         for s in satlist:
             if s in kwargs:
                 plot_satellite(ax[6:8],s,kwargs[s],[y7label,y8label])
-    if not doX:
-        ax[-1].set_xlabel(r'Time $\left[ UTC\right]$')
-        ax[-1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-        ax[-1].xaxis.set_minor_locator(AutoMinorLocator(6))
 
 #Main program
 if __name__ == '__main__':

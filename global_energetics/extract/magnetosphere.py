@@ -31,6 +31,82 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
 from global_energetics.write_disp import (write_mesh, write_to_hdf,
                                           display_progress)
 
+def todimensional(dataset, **kwargs):
+    """Function modifies dimensionless variables -> dimensional variables
+    Inputs
+        dataset (frame.dataset)- tecplot dataset object
+        kwargs:
+    """
+    eq = tp.data.operate.execute_equation
+    proton_mass = 1.6605e-27
+    cMu = pi*4e-7
+    #SWMF sets up two conversions to go between
+    # No (nondimensional) Si (SI) and Io (input output),
+    # what we want is No2Io = No2Si_V / Io2Si_V
+    #Find these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
+    No2Si = {'X':6371*1e3,                             #planet radius
+             'Y':6371*1e3,
+             'Z':6371*1e3,
+             'Rho':1e6*proton_mass,                    #proton mass
+             'U_x':6371*1e3,                           #planet radius
+             'U_y':6371*1e3,
+             'U_z':6371*1e3,
+             'P':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
+             'B_x':6371*1e3*sqrt(cMu*1e6*proton_mass), #U * sqrt(M*rho)
+             'B_y':6371*1e3*sqrt(cMu*1e6*proton_mass),
+             'B_z':6371*1e3*sqrt(cMu*1e6*proton_mass),
+             'J_x':(sqrt(cMu*1e6*proton_mass)/cMu),    #B/(X*cMu)
+             'J_y':(sqrt(cMu*1e6*proton_mass)/cMu),
+             'J_z':(sqrt(cMu*1e6*proton_mass)/cMu)
+            }
+    #Find these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
+    Io2Si = {'X':6371*1e3,                  #planet radius
+             'Y':6371*1e3,                  #planet radius
+             'Z':6371*1e3,                  #planet radius
+             'Rho':1e6*proton_mass,         #Mp/cm^3
+             'U_x':1e3,                     #km/s
+             'U_y':1e3,                     #km/s
+             'U_z':1e3,                     #km/s
+             'P':1e-9,                      #nPa
+             'B_x':1e-9,                    #nT
+             'B_y':1e-9,                    #nT
+             'B_z':1e-9,                    #nT
+             'J_x':1e-6,                    #microA/m^2
+             'J_y':1e-6,                    #microA/m^2
+             'J_z':1e-6,                    #microA/m^2
+             'theta_1':pi/180,              #degrees
+             'theta_2':pi/180,              #degrees
+             'phi_1':pi/180,                #degrees
+             'phi_2':pi/180                 #degrees
+            }
+    units = {'X':'[R]','Y':'[R]','Z':'[R]',
+             'Rho':'[amu/cm^3]',
+             'U_x':'[km/s]','U_y':'[km/s]','U_z':'[km/s]',
+             'P':'[nPa]',
+             'B_x':'[nT]','B_y':'[nT]','B_z':'[nT]',
+             'J_x':'[uA/m^2]','J_y':'[uA/m^2]','J_z':'[uA/m^2]',
+             'theta_1':'[deg]',
+             'theta_2':'[deg]',
+             'phi_1':'[deg]',
+             'phi_2':'[deg]'
+            }
+    for var in dataset.variable_names:
+        if 'status' not in var.lower() and '[' not in var:
+            if var in units.keys():
+                unit = units[var]
+                conversion = No2Si[var]/Io2Si[var]
+                print('Changing '+var+' by multiplying by '+str(conversion))
+                eq('{'+var+' '+unit+'} = {'+var+'}*'+str(conversion))
+                print('Removing '+var)
+                dataset.delete_variables([dataset.variable(var).index])
+            else:
+                print('unable to convert '+var+' not in dictionary!')
+        elif 'status' in var.lower():
+            dataset.variable(var).name = 'Status'
+    #Reset XYZ variables so 3D plotting makes sense
+    dataset.frame.plot().axes.x_axis.variable = dataset.variable('X *')
+    dataset.frame.plot().axes.y_axis.variable = dataset.variable('Y *')
+    dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
 
 def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
                      do_trace):
@@ -75,6 +151,11 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
             deltatime = (futuretime-eventtime).seconds
         else:
             deltatime=0
+    #Check to make sure that dimensional variables are given
+    if ('X' in field_data.variable_names and
+        'X [R]' not in field_data.variable_names):
+        print('dimensionless variables given! converting to dimensional...')
+        todimensional(field_data)
     #assert not badsettings, ('Bad input settings! Check file(s) and mode'+
     #                         'selection compatibility')
     return do_trace, eventtime, deltatime
@@ -320,7 +401,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     zonelist, state_indices = [], []
     if 'virial' in analysis_type and integrate_volume:
-        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe', 'bs']
+        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
         #modes = [mode]
     else:
         #modes = [mode, 'bs', 'closed', 'rc', 'nlobe', 'slobe']
