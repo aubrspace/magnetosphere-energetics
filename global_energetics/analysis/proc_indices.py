@@ -11,9 +11,6 @@ import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
 import swmfpy
-import spacepy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
 
 def datetimeparser(datetimestring):
     #maybe move this somewhere to call a diff parser depending on file
@@ -48,6 +45,9 @@ def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
     Outputs
         df- dataframe containing transformed keylist vars+[yr,mo,dy...]
     """
+    #import spacepy
+    from spacepy import coordinates as coord
+    from spacepy import time as spacetime
     #break datetime into components (weird way to getaround a type issue)
     df['yr'] = [entry.year for entry in df[timekey]]
     df['mn'] = [entry.month for entry in df[timekey]]

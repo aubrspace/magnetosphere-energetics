@@ -402,7 +402,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     zonelist, state_indices = [], []
     if 'virial' in analysis_type and integrate_volume:
         modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
-        #modes = [mode]
+        #modes = [mode, 'Jpar+']
     else:
         #modes = [mode, 'bs', 'closed', 'rc', 'nlobe', 'slobe']
         modes = [mode]
@@ -439,7 +439,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
-        for zone in zonelist[0:2]:
+        for zone in zonelist[0:1]:
             #integrate power on main surface
             print('Working on: '+zone.name)
             surf_results = surface_analysis(zone,**kwargs)

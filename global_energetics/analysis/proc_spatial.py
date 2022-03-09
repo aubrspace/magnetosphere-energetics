@@ -17,9 +17,6 @@ import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
-import spacepy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
 #interpackage
 from global_energetics.analysis import proc_temporal
 from global_energetics import write_disp

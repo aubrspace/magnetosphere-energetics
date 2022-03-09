@@ -286,8 +286,10 @@ def add_timestamp(frame, filename, position):
     #get text
     #ticks = get_time(filename)
     #time = ticks.UTC[0]+dt.timedelta(minutes=45)
-    dateinfo='-'.join(filename.split('e')[1].split('.')[0].split('-')[0:-1])
+    dateinfo='-'.join(filename.split('/')[-1].split(
+                                       'e')[1].split('.')[0].split('-')[0:-1])
     time = dt.datetime.strptime(dateinfo,'%Y%m%d-%H%M%S')
+    time = time+dt.timedelta(minutes=45)
     #time = swmf_read_time()
     year = time.year
     month = time.month
@@ -447,7 +449,7 @@ def set_3Daxes(frame, *,
         yblank.variable = frame.dataset.variable('Y *')
         yblank.comparison_operator = RelOp.GreaterThan
         yblank.comparison_value = ymax
-        #x
+        #z
         zblank = frame.plot().value_blanking.constraint(5)
         zblank.active = True
         zblank.variable = frame.dataset.variable('Z *')
@@ -703,6 +705,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
                'show_slice': True,       #slice settings
                'slicetype': 'jy',
                'show_fieldline': False,
+               'show_slegend': True,
                'add_clock': False,       #overlay settings
                'show_timestamp': True,
                'timestamp_pos': [4,15],
@@ -728,7 +731,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     zones_shown= manage_zones(frame,default['mpslice'],default['transluc'],
                             default['contourmap'],default['zone_hidekeys'],
                             default['energyfracs'],default['fracnames'])
-    set_3Daxes(frame, xmin=default['xtail'], do_blanking=False)
+    set_3Daxes(frame, xmin=default['xtail'], do_blanking=True)
     set_camera(frame, setting=mode)
     if default['show_contour']:
         add_energy_contour(frame,default['energyrange'],
@@ -738,13 +741,13 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     if default['show_slice']:
         if default['slicetype']=='jy':
             add_jy_slice(frame, frame.dataset.variable('J_y *').index,
-                         default['show_legend'])
+                         default['show_slegend'])
         elif default['slicetype']=='jz':
             add_jz_slice(frame, frame.dataset.variable('J_z *').index,
-                         showleg=default['show_legend'])
+                         showleg=default['show_slegend'])
         elif slicetype=='betastar':
             add_Bstar_slice(frame,frame.dataset.variable('beta_star').index,
-                            showleg=default['show_legend'])
+                            showleg=default['show_slegend'])
     if default['show_fieldline']:
         add_fieldlines(frame)
     if default['show_shade_legend']:

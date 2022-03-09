@@ -2,7 +2,7 @@
 """Functions for identifying surfaces from field data
 """
 import logging as log
-import os
+import os, warnings
 import sys
 import time
 from array import array
@@ -1296,6 +1296,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{mZhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
         eq('{lambda}=asin(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})')
         eq('{Lshell} = {r [R]}/cos({lambda})**2')
+        eq('{theta [deg]} = -180/pi*{lambda}')
     else:
         eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)')
     #Dynamic Pressure
@@ -1390,12 +1391,20 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     if 'energy' in analysis_type or analysis_type=='all':
         #Energy Flux terms
         #Magnetic field unit vectors
-        eq('{unitbx} ={B_x [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-        eq('{unitby} ={B_y [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
-        eq('{unitbz} ={B_z [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)')
+        eq('{unitbx} ={B_x [nT]}/MAX(1e-15,'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+                          value_location=ValueLocation.CellCentered)
+        eq('{unitby} ={B_y [nT]}/MAX(1e-15,'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+                          value_location=ValueLocation.CellCentered)
+        eq('{unitbz} ={B_z [nT]}/MAX(1e-15,'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+                          value_location=ValueLocation.CellCentered)
+        #Field Aligned Current Magntitude
+        eq('{J_par [uA/m^2]} = {unitbx}*{J_x [uA/m^2]} + '+
+                              '{unitby}*{J_y [uA/m^2]} + '+
+                              '{unitbz}*{J_z [uA/m^2]}',
+                          value_location=ValueLocation.CellCentered)
         #Poynting Flux
         eq('{ExB_x [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
                               '{U_x [km/s]})-{B_x [nT]}*'+
@@ -1600,7 +1609,7 @@ def calc_state(mode, sourcezone, **kwargs):
     #   This is where new subzones/surfaces can be put in
     #       Simply create a function calc_MYNEWSURF_state and call it
     #       Recommend: zonename as input so variable name is automated
-    #       See ex use of 'assert' if any pre_recs are needed
+    #       See example use of 'assert' if any pre_recs are needed
     #####################################################################
     #Call calc_XYZ_state and return state_index and create zonename
     if 'iso_betastar' in mode:
@@ -1710,6 +1719,19 @@ def calc_state(mode, sourcezone, **kwargs):
                             blankvalue=kwargs.get('tail_cap',-20))
         innerzone = None
         return zone, innerzone, state_index
+    elif 'Jpar' in mode:
+        #Make sure we have a place to find the regions of intense FAC's
+        assert any(
+                ['inner' in zn for zn in sourcezone.dataset.zone_names]),(
+                                        'No inner boundary zone created, '
+                                            +'unclear where to calc FAC!')
+        #Warn user if there is multiple valid "inner" zone targets
+        if (['inner' in zn for zn in
+                           sourcezone.dataset.zone_names].count(True) >1):
+            warnings.warn("multiple 'inner' zones found, "+
+                                   "default to first listed!",UserWarning)
+        zonename = 'ms_'+mode
+        state_index = calc_Jpar_state(mode, sourcezone)
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
@@ -1721,6 +1743,171 @@ def calc_state(mode, sourcezone, **kwargs):
                                            keep_condition='sphere',
                                   keep_cond_value=kwargs.get('inner_r',3))
     return zone, innerzone, state_index
+
+def extrema(array,factor):
+    """Function to get mean+factor*sigma
+    Input
+        array
+        factor
+        sigma
+    Returns
+        extrema
+    """
+    return np.mean(array)+np.sign(np.mean(array))*factor*np.std(array)
+
+def foot_dist(foot,target,tol):
+    """Function returns True if foot (2 items) is near target (2 items)
+    """
+    return np.sqrt((foot[0]-target[0])**2+(foot[1]-target[1])**2)<tol
+
+def calc_Jpar_state(mode, sourcezone, **kwargs):
+    """Function creates equation for region of projected Jparallel (field
+      aligned current density). Typically found on an inner coupling boundary
+      between GMand IE.
+    Inputs
+        mode (str)- 'Jpar+' or 'Jpar-' looking for intense positive/neg values
+        sourcezone (Zone)- zone which as field data
+        kwargs
+            j+sigma
+            j-sigma
+            projection_tol (float)- tolerance in deg for footmatch
+    Returns
+        zone
+    """
+    #Initialize state variable
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    eq('{'+mode+'}=0', zones=[sourcezone])
+    tol = kwargs.get('projection_tol', 2)
+    state = sourcezone.values(mode).as_numpy_array()
+    #pull footpoint values from entire domain into arrays
+    #global_th1 = sourcezone.values('theta_1 *').as_numpy_array()
+    #global_th2 = sourcezone.values('theta_2 *').as_numpy_array()
+    #global_phi1 = sourcezone.values('phi_1 *').as_numpy_array()
+    #global_phi2 = sourcezone.values('phi_2 *').as_numpy_array()
+
+    #define zone that will be used to find current densities
+    zone = sourcezone.dataset.zone('*inner*')
+    lat = zone.values('theta *').as_numpy_array()
+    Jpar = zone.values('J_par *').as_numpy_array()
+
+    #split Jpar values by hemisphere
+    ns_flag = [lat>0, lat<0]
+    '''
+    ns_indices = [np.where(lat>0), np.where(lat<0)]
+    Jpar_dict = {'north':Jpar[ns_indices[0]],
+                 'south':Jpar[ns_indices[1]]}
+    '''
+    thetas = kwargs.get('thetas',['theta_1 *','theta_2 *'])
+    phis = kwargs.get('phis',['phi_1 *','phi_2 *'])
+    #for hemisph in enumerate(['north','south']):
+    for hemisph in enumerate(['north']):
+        #Pull tecplot into numpy arrays
+        th, phi = thetas[hemisph[0]], phis[hemisph[0]]
+        latitude=zone.values(th).as_numpy_array()
+        longitude=zone.values(phi).as_numpy_array()
+        '''
+        latitude=zone.values(th).as_numpy_array()[ns_indices[hemisph[0]]]
+        longitude=zone.values(phi).as_numpy_array()[ns_indices[hemisph[0]]]
+        '''
+
+        #Calc indices of extreme values, based on +/- sign and hemisphere
+        if '+' in mode:
+            JparLim = extrema(Jpar[(Jpar>0) &
+                                   (ns_flag[hemisph[0]]) &
+                                   (latitude>0)],
+                              kwargs.get('sigma',1))
+            target_indices=((Jpar>JparLim) & (ns_flag[hemisph[0]])
+                           &(latitude>0))
+        elif '-' in mode:
+            JparLim = extrema(Jpar[(Jpar<0) &
+                                   (ns_flag[hemisph[0]]) &
+                                   (latitude<0)],
+                              kwargs.get('sigma',1))
+            target_indices=((Jpar>JparLim) & (ns_flag[hemisph[0]])
+                           &(latitude<0))
+
+        #list of location coordinattes: [latitude, longitude]
+        targets = np.reshape([latitude[target_indices],
+                              longitude[target_indices]],
+                             [len(latitude[target_indices]),2])
+        '''
+        #Define global registry of indexes that meet footpoint list
+        global_index =np.linspace(0,len(state)-1,num=len(state),dtype=int)
+        global_th = sourcezone.values(th).as_numpy_array()
+        global_phi = sourcezone.values(phi).as_numpy_array()
+        #global_feet = np.reshape([sourcezone.values(th).as_numpy_array(),
+        #                          sourcezone.values(phi).as_numpy_array()],
+        #                         [len(state),2])
+        valid_indices =global_index[(global_th>0) & (global_phi>0)]
+        #Calculate min distance for each point
+
+        from IPython import embed; embed()
+        state = any([np.sqrt((global_th[i]-t[0])**2 +
+                                    (global_phi[i]-t[1])**2) < tol
+                                                   for t in targets]).real
+        for i in valid_indices:
+            state[i] = any([np.sqrt((global_th[i]-t[0])**2 +
+                                    (global_phi[i]-t[1])**2) < tol
+                                                   for t in targets]).real
+        from IPython import embed; embed()
+        state[proj_indices] = 1
+        sourcezone.values(mode)[::] = state
+
+        '''
+        th_str = th.split('*')[0]+'[deg]'
+        phi_str= phi.split('*')[0]+'[deg]'
+        from IPython import embed; embed()
+        xmax = 15
+        ymax = 30
+        zmax = 30
+        xmin = -30
+        ymin = -30
+        zmin = -30
+        plot = tp.active_frame().plot()
+        plot.value_blanking.active = True
+        #x
+        xblank = plot.value_blanking.constraint(1)
+        xblank.active = True
+        xblank.variable = zone.dataset.variable('X *')
+        xblank.comparison_operator = RelOp.LessThan
+        xblank.comparison_value = xmin
+        xblank = plot.value_blanking.constraint(2)
+        xblank.active = True
+        xblank.variable = zone.dataset.variable('X *')
+        xblank.comparison_operator = RelOp.GreaterThan
+        xblank.comparison_value = xmax
+        #y
+        yblank = plot.value_blanking.constraint(3)
+        yblank.active = True
+        yblank.variable = zone.dataset.variable('Y *')
+        yblank.comparison_operator = RelOp.LessThan
+        yblank.comparison_value = ymin
+        yblank = plot.value_blanking.constraint(4)
+        yblank.active = True
+        yblank.variable = zone.dataset.variable('Y *')
+        yblank.comparison_operator = RelOp.GreaterThan
+        yblank.comparison_value = ymax
+        #z
+        zblank = plot.value_blanking.constraint(5)
+        zblank.active = True
+        zblank.variable = zone.dataset.variable('Z *')
+        zblank.comparison_operator = RelOp.LessThan
+        zblank.comparison_value = zmin
+        zblank = plot.value_blanking.constraint(6)
+        zblank.active = True
+        zblank.variable = zone.dataset.variable('Z *')
+        zblank.comparison_operator = RelOp.GreaterThan
+        zblank.comparison_value = zmax
+        for (latP,lonP) in targets:
+            #Each iteration projects valid locations through domain
+            eq('{'+mode+'}=if(('+
+                'abs({'+th_str+'}-'+str(latP)+') < '+str(tol)+')&&('+
+                'abs({'+phi_str+'}-'+str(lonP)+')<'+str(tol)+'),1,'+
+                                                            '{'+mode+'})',
+                                                        value_location=CC,
+                                                        zones=[sourcezone])
+        from IPython import embed; embed()
+    return zone.dataset.variable(mode).index
 
 def calc_bs_state(sonicspeed, betastarblank, xtail, mpexists=False):
     """Function creates equation for the bow shock region

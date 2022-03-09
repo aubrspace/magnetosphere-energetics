@@ -10,8 +10,6 @@ import sys
 from subprocess import check_output as read_out
 import tecplot as tp
 from tecplot.constant import *
-#import spacepy
-from spacepy import pybats as bats
 
 def IDL_to_hdf5(filepath, **kwargs):
     """Function uses spacepy package to open and write 'IDL' formatted swmf
@@ -21,6 +19,8 @@ def IDL_to_hdf5(filepath, **kwargs):
     Return
         hdf5file
     """
+    #import spacepy
+    from spacepy import pybats as bats
     fil = bats.IdlFile(filepath)
     hdffile = filepath.split('/')[-1].split('.out')[0]+'.h5'
     fil.toHDF5(os.getcwd()+'/'+hdffile)

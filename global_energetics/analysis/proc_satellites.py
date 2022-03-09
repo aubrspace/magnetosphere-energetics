@@ -14,9 +14,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import swmfpy
-import spacepy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
 import verify
 from verify import Contingency2x2 as conting
 #interpackage imports

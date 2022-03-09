@@ -11,9 +11,6 @@ from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
-import spacepy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
 from progress.bar import Bar
 
 def plot_all_runs_1Qty(axis, dflist, timekey, qtkey, ylabel, *,

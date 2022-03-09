@@ -17,7 +17,10 @@ def get_time(filename):
     Output
         time- spacepy Ticktock object
     """
-    import spacepy.time as spacetime
+    date_string = filename.split('/')[-1].split('e')[-1].split('.')[0]
+    time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+    '''
+    #import spacepy.time as spacetime
     date_string = filename.split('/')[-1].split('-')[0]
     year = int(''.join(list(date_string)[-8:-4]))
     month = int(''.join(list(date_string)[-4:-2]))
@@ -27,8 +30,9 @@ def get_time(filename):
     minute = int(np.mod(time_string/100, 100))
     second = int(np.mod(time_string, 100))
     time_dt = dt.datetime(year, month, day, hour, minute, second)
-    time = spacetime.Ticktock(time_dt,'UTC')
-    return time
+    #time = spacetime.Ticktock(time_dt,'UTC')
+    '''
+    return time_dt
 
 def time_sort(filename):
     """Function returns absolute time in seconds for use in sorting
@@ -38,7 +42,7 @@ def time_sort(filename):
         total_seconds
     """
     time = get_time(filename)
-    relative_time = time.UTC[0]-dt.datetime(1800, 1, 1)
+    relative_time = time-dt.datetime(1800, 1, 1)
     return (relative_time.days*86400 + relative_time.seconds)
 
 def convert_pdf(folder, res):

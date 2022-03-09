@@ -18,9 +18,6 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 from labellines import labelLines
 import swmfpy
-import spacepy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
 #interpackage imports
 from global_energetics.extract.shue import (r0_alpha_1998, r_shue)
 from global_energetics.analysis.proc_temporal import read_energetics

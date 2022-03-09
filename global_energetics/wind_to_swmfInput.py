@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 from cdasws import CdasWs
 cdas = CdasWs()
 import swmfpy
-from spacepy import time as spacetime
 
 def read_MFI_SWE_WIND(filename):
     """Reads specific type of file output https://wind.nasa.gov/mfi_swe_plot.php
@@ -25,6 +24,7 @@ def read_MFI_SWE_WIND(filename):
                        date_parser=datetimeparser2,
                        infer_datetime_format=True, keep_date_col=True)
           """)
+    from spacepy import time as spacetime
     df = pd.read_csv(filename,sep='\s+',header=1,skiprows=[2])
     month, day = spacetime.doy2date(df['Year'],df['DOY'])
     df['mn'] = month; df['dy'] = day

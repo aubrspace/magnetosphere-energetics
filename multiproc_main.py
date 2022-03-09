@@ -75,9 +75,8 @@ def work(mhddatafile):
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=True,
-                                    do_cms=True,integrate_volume=False,
-                                analysis_type='energy',
-                                    mode='lcb',zone_rename='mp_lcb',
+                                    do_cms=True,integrate_volume=True,
+                                    analysis_type='energyvirialbiotsavart',
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -90,25 +89,40 @@ def work(mhddatafile):
                                           command=cmd)
         mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
         zone_hidekeys = ['sphere', 'box','shue','future',
-                         'mp_iso_betastar']
+                         'lcb']
         timestamp=True
         for frame in enumerate(tp.frames()):
             frame[1].activate()
             if frame[0]==0:
-                pass
-            if frame[0]==1:
-                pass
-            if frame[0]==2:
-                pass
-            if frame[0]==3:
-                save = True
+                legend = False
                 timestamp = True
+                doslice = True
+                slicelegend = False
+            if frame[0]==1:
+                legend = True
+                timestamp = False
+                doslice = True
+                slicelegend = False
+            if frame[0]==2:
+                legend = False
+                timestamp = False
+                doslice = True
+                slicelegend = True
+            if frame[0]==3:
+                legend = True
+                save = True
+                timestamp = False
+                doslice = False
+                slicelegend = False
             view_set.display_single_iso(frame[1], mhddatafile,
                                         mode=mode[frame[0]],
                                         pngpath=CONTEXT['PNGPATH'],
                                         outputname=OUTPUTNAME,
                                         IDstr=str(CONTEXT['id']),
                                         show_contour=True,
+                                        show_legend=legend,
+                                        show_slegend=slicelegend,
+                                        show_slice=doslice,
                                         timestamp_pos=[4,20],
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
@@ -127,7 +141,7 @@ if __name__ == '__main__':
         raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    RUNDIR = 'Energetics1'
+    RUNDIR = 'starlink'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
@@ -147,7 +161,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[0:4]
+                                key=makevideo.time_sort)[22:28]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
