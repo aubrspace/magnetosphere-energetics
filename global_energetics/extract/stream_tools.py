@@ -1266,6 +1266,25 @@ def get_dipole_field(auxdata, *, B0=31000):
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
+def mag2cart(lat,lon,btheta):
+    """
+    """
+    #find xyz_mag
+    x_mag, y_mag, z_mag = sph_to_cart(1,lat,lon)
+    #find new basis vectors (back from mag to cart)
+    mXcar_x = sin((-btheta+90)*pi/180)
+    mXcar_y = 0
+    mXcar_z = -1*cos(-btheta*pi/180)
+    mZcar_x = sin(-btheta*pi/180)
+    mZcar_y = 0
+    mZcar_z = -1*cos(-btheta*pi/180)
+    #convert xyz_mag to xyz_cart
+    x_car = x_mag*mXcar_x + y_mag*mXcar_y + z_mag*mXcar_z
+    y_car = y_mag
+    z_car = x_mag*mXcar_x + y_mag*mZcar_y + z_mag*mZcar_z
+    return x_car, y_car, z_car
+
+
 def get_global_variables(field_data, analysis_type, **kwargs):
     """Function calculates values for energetics tracing
     Inputs

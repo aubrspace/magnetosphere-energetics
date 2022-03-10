@@ -5,13 +5,15 @@ import os
 import tecplot as tp
 from tecplot.constant import *
 import numpy as np
+from numpy import deg2rad, linspace
 import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 #from global_energetics.makevideo import get_time
 from global_energetics.extract.swmf_access import swmf_read_time
 from global_energetics.extract import stream_tools
-from global_energetics.extract.stream_tools import abs_to_timestamp
+from global_energetics.extract.stream_tools import (abs_to_timestamp,
+                                                    mag2cart)
 
 def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
                   strID):
@@ -50,7 +52,7 @@ def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
     bar = fig.add_subplot(121, facecolor='gray', frame_on=False)
     bar.bar(0,pdyn,color='magenta')
     bar.set_xlim([-0.5,0.5])
-    bar.set_ylim([0,20])
+    bar.set_ylim([0,10])
     bar.set_title('\nPdyn (nPa)\n'.format(coordsys), fontsize=40,
                   color='white')
     bar.tick_params(axis='x',          # changes apply to the x-axis
@@ -124,7 +126,7 @@ def set_orientation_axis(frame, *, position=[91,7]):
     plt.axes.orientation_axis.position = position
     plt.axes.orientation_axis.color = Color.White
 
-def add_fieldlines(frame):
+def add_fieldlines(frame, mode='supermag'):
     """adds streamlines
     Inputs
         frame- frame to add to
@@ -136,6 +138,21 @@ def add_fieldlines(frame):
     plt.vector.v_variable = ds.variable('B_y *')
     plt.vector.w_variable = ds.variable('B_z *')
     plt.show_streamtraces = True
+    if mode=='supermag':
+        #read in the station locations
+        #with open('supermag.dat','r') as s:
+        import pandas as pd
+        stations_df = pd.read_csv('supermag.dat', delimiter='\t',
+                                  skiprows=[0,1,2,4])
+        latlons = stations_df[['MAGLAT','MAGLON']].values
+        btilt = float(ds.zone(0).aux_data['BTHETATILT'])
+    else:
+        lons = np.linspace(0,360,36,endpoint=False)
+        lats = np.zeros(len(lons))+80
+        latlons = [l for l in zip(lats,lons)]
+    for lat,lon in latlons:
+        plt.streamtraces.add(mag2cart(lat,lon,btilt),Streamtrace.VolumeLine)
+    """
     plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
@@ -151,6 +168,7 @@ def add_fieldlines(frame):
     plt.streamtraces.add_rake([10,30,0],[-40,30,0],Streamtrace.VolumeLine)
     plt.streamtraces.add_rake([10,-30,0],[-40,-30,0],Streamtrace.VolumeLine)
     '''
+    """
     plt.streamtraces.obey_source_zone_blanking = False
     plt.streamtraces.color = plt.contour(3)
     plt.contour(3).variable_index = frame.dataset.variable('Status').index
@@ -731,7 +749,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     zones_shown= manage_zones(frame,default['mpslice'],default['transluc'],
                             default['contourmap'],default['zone_hidekeys'],
                             default['energyfracs'],default['fracnames'])
-    set_3Daxes(frame, xmin=default['xtail'], do_blanking=True)
+    set_3Daxes(frame, xmin=default['xtail'], do_blanking=False)
     set_camera(frame, setting=mode)
     if default['show_contour']:
         add_energy_contour(frame,default['energyrange'],
