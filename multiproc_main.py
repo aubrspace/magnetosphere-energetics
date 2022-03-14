@@ -75,8 +75,9 @@ def work(mhddatafile):
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=True,
-                                    do_cms=True,integrate_volume=True,
-                                    analysis_type='energyvirialbiotsavart',
+                                    do_cms=False,integrate_volume=False,
+                                    analysis_type='energy',
+                                    mpbetastar=0.6,
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -87,8 +88,8 @@ def work(mhddatafile):
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
         tp.macro.execute_extended_command(command_processor_id=proc,
                                           command=cmd)
-        mode = ['iso_day', 'other_iso', 'iso_tail', 'inside_from_tail']
-        zone_hidekeys = ['sphere', 'box','shue','future',
+        mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
+        zone_hidekeys = ['sphere', 'box','shue','future','innerbound',
                          'lcb']
         timestamp=True
         for frame in enumerate(tp.frames()):
@@ -98,32 +99,43 @@ def work(mhddatafile):
                 timestamp = True
                 doslice = True
                 slicelegend = False
+                fieldlegend = True
+                fieldline=True
             if frame[0]==1:
                 legend = True
                 timestamp = False
                 doslice = True
                 slicelegend = False
+                fieldlegend = False
+                fieldline=True
             if frame[0]==2:
                 legend = False
                 timestamp = False
                 doslice = True
                 slicelegend = True
+                fieldlegend = False
+                fieldline=False
             if frame[0]==3:
                 legend = True
                 save = True
                 timestamp = False
                 doslice = False
                 slicelegend = False
+                fieldlegend = False
+                fieldline=True
+                zone_hidekeys = ['sphere', 'box','shue','future','lcb']
             view_set.display_single_iso(frame[1], mhddatafile,
                                         mode=mode[frame[0]],
                                         pngpath=CONTEXT['PNGPATH'],
                                         outputname=OUTPUTNAME,
                                         IDstr=str(CONTEXT['id']),
                                         show_contour=True,
+                                        show_fieldline=fieldline,
                                         show_legend=legend,
                                         show_slegend=slicelegend,
+                                        show_flegend=fieldlegend,
                                         show_slice=doslice,
-                                        timestamp_pos=[4,20],
+                                        timestamp_pos=[4,5],
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
     else:
@@ -132,6 +144,7 @@ def work(mhddatafile):
     #Remove unzipped copies now that work is done for that file
     for f in temp_files:
         os.remove(f)
+    print(time.ctime())
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -161,7 +174,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[22:28]
+                                key=makevideo.time_sort)
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

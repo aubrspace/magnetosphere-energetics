@@ -3,6 +3,7 @@
 """
 import os
 import tecplot as tp
+import time as realtime
 from tecplot.constant import *
 import numpy as np
 from numpy import deg2rad, linspace
@@ -10,6 +11,7 @@ import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 #from global_energetics.makevideo import get_time
+from global_energetics.makevideo import get_time
 from global_energetics.extract.swmf_access import swmf_read_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import (abs_to_timestamp,
@@ -126,7 +128,7 @@ def set_orientation_axis(frame, *, position=[91,7]):
     plt.axes.orientation_axis.position = position
     plt.axes.orientation_axis.color = Color.White
 
-def add_fieldlines(frame, mode='supermag'):
+def add_fieldlines(frame, filename, showleg=False, mode='not_supermag'):
     """adds streamlines
     Inputs
         frame- frame to add to
@@ -138,6 +140,7 @@ def add_fieldlines(frame, mode='supermag'):
     plt.vector.v_variable = ds.variable('B_y *')
     plt.vector.w_variable = ds.variable('B_z *')
     plt.show_streamtraces = True
+    btilt = float(ds.zone(0).aux_data['BTHETATILT'])
     if mode=='supermag':
         #read in the station locations
         #with open('supermag.dat','r') as s:
@@ -145,9 +148,10 @@ def add_fieldlines(frame, mode='supermag'):
         stations_df = pd.read_csv('supermag.dat', delimiter='\t',
                                   skiprows=[0,1,2,4])
         latlons = stations_df[['MAGLAT','MAGLON']].values
-        btilt = float(ds.zone(0).aux_data['BTHETATILT'])
     else:
-        lons = np.linspace(0,360,36,endpoint=False)
+        localtime = get_time(filename)
+        tshift = (localtime.hour+localtime.minute/60) * (360/24)
+        lons = (np.linspace(0,360,36,endpoint=False) + tshift)%360
         lats = np.zeros(len(lons))+80
         latlons = [l for l in zip(lats,lons)]
     for lat,lon in latlons:
@@ -175,7 +179,11 @@ def add_fieldlines(frame, mode='supermag'):
     plt.contour(3).colormap_name='Large Rainbow'
     plt.contour(3).colormap_filter.reversed=True
     plt.contour(3).levels.reset_levels([-1,0,1,2,3])
-    plt.contour(3).legend.show = False
+    plt.contour(3).legend.show = showleg
+    plt.contour(3).legend.position[1] = 98
+    plt.contour(3).legend.position[0] = 98
+    plt.contour(3).legend.box.box_type = TextBox.Filled
+    plt.contour(3).legend.box.fill_color = Color.Custom2
     plt.streamtraces.line_thickness = 0.2
 
 def add_jy_slice(frame, jyindex, showleg):
@@ -307,7 +315,7 @@ def add_timestamp(frame, filename, position):
     dateinfo='-'.join(filename.split('/')[-1].split(
                                        'e')[1].split('.')[0].split('-')[0:-1])
     time = dt.datetime.strptime(dateinfo,'%Y%m%d-%H%M%S')
-    time = time+dt.timedelta(minutes=45)
+    #time = time+dt.timedelta(minutes=45)
     #time = swmf_read_time()
     year = time.year
     month = time.month
@@ -323,7 +331,7 @@ def add_timestamp(frame, filename, position):
     #add timestamp
     timebox= frame.add_text(time_text)
     timebox.position = position
-    timebox.font.size = 28
+    timebox.font.size = 20
     timebox.font.bold = False
     timebox.font.typeface = 'Helvetica'
     timebox.color = Color.White
@@ -366,13 +374,14 @@ def set_camera(frame, *, setting='iso_day'):
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0, 240, 64)
         view.position = (1960, 1140, 1100)
-        view.magnification = 4.7
+        #view.magnification = 4.7
+        view.magnification = 6.7
         oa_position = [91,7]
     elif setting == 'iso_tail':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
         view.alpha, view.theta, view.psi = (0,137,64)
-        view.position = (-490,519,328)
-        view.magnification = 6.470
+        view.position = (-500,509,333)
+        view.magnification = 7.470
         oa_position = [95,7]
     elif setting == 'other_iso':
         view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
@@ -392,6 +401,12 @@ def set_camera(frame, *, setting='iso_day'):
         view.position = (-342,694,122)
         view.magnification = 2.603
         oa_position = [95,7]
+    elif setting == 'hood_open_north':
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (-1.75,92,44)
+        view.position = (-1770,62.5,1828)
+        view.magnification = 15.73
+        oa_position = [12,85]
     else:
         print('Camera setting {} not developed!'.format(setting))
     #light source settings
@@ -404,7 +419,7 @@ def set_camera(frame, *, setting='iso_day'):
     set_orientation_axis(frame, position=oa_position)
 
 def set_3Daxes(frame, *,
-                  xmax=10, xmin=-25, ymax=20, ymin=-20, zmax=20, zmin=-20,
+                  xmax=20, xmin=-25, ymax=20, ymin=-20, zmax=20, zmin=-20,
                   do_blanking=True):
     """Function sets axes in 3D and blanks data outside of axes range
     Inputs
@@ -496,7 +511,7 @@ def variable_blank(frame, variable_str, value, *,
     blank.comparison_value = value
 
 def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
-                 energyfracs, fracnames, *,
+                 energyfracs, fracnames, mode, *,
                  approved_zones=None):
     """Function shows/hides zones, sets shading and translucency
     Inputs
@@ -524,6 +539,8 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
     #hide all other zones
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
+            if 'inner' in zone.name:
+                cont_num=2
             if zone.name == 'global_field':
                 plt.fieldmap(map_index).surfaces.surfaces_to_plot = None
             elif any([zone.name.find(key)!=-1 for key in hide_keys]):
@@ -535,7 +552,7 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
                 plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
                 plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
                 plt.fieldmap(map_index).contour.flood_contour_group_index=(
-                                                                cont_num)
+                                                                    cont_num)
                 plt.fieldmap(map_index).shade.color=shadings.get(zone.name,
                                                              Color.Custom2)
                 show_list.append(zone.name)
@@ -545,7 +562,18 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
     for name in enumerate(fracnames):
         transluc.update({name[1]:int(100-energyfracs[name[0]]*100)})
     '''
-    transluc = {}
+    transluc = {'mp_iso_betastar':translucency,
+                'mp_iso_betastarinnerbound':1,
+                'plasmasheet':translucency,
+                'ms_nlobe':translucency,
+                'ms_slobe':translucency,
+                'ms_rc':translucency,
+                'ms_ps':translucency,
+                'ms_closed':translucency,
+                'ms_qDp':translucency,
+                'shue97':translucency,
+                'shue98':translucency,
+                'ext_bs':translucency}
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
@@ -723,10 +751,11 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
                'show_slice': True,       #slice settings
                'slicetype': 'jy',
                'show_fieldline': False,
+               'show_flegend': False,
                'show_slegend': True,
                'add_clock': False,       #overlay settings
                'show_timestamp': True,
-               'timestamp_pos': [4,15],
+               'timestamp_pos': [4,5],
                'show_shade_legend': False,
                'shade_legend_pos': [5,70],
                'shade_markersize': 3}
@@ -736,10 +765,15 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
         default['xtail'] = -15
         default['show_slice'] = False
         default['transluc'] = 40
+    elif mode=='hood_open_north':
+        default['show_slice']=False
+        default['transluc'] = 50
+        variable_blank(frame, 'Z *', 5, operator=RelOp.GreaterThan)
     elif mode == 'iso_tail' or mode=='zoomed_out':
         default['transluc'] = 60
     elif mode == 'other_iso' or mode=='zoomed_out':
         default['add_clock'] = True
+        default['transluc'] = 30
     ###############################
     ###Overwrite w/ kwargs###
     for inkey in kwargs:
@@ -748,13 +782,16 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     #Produce image
     zones_shown= manage_zones(frame,default['mpslice'],default['transluc'],
                             default['contourmap'],default['zone_hidekeys'],
-                            default['energyfracs'],default['fracnames'])
+                            default['energyfracs'],default['fracnames'],mode)
     set_3Daxes(frame, xmin=default['xtail'], do_blanking=False)
     set_camera(frame, setting=mode)
     if default['show_contour']:
         add_energy_contour(frame,default['energyrange'],
                            default['contour_key'], default['contourmap'],
                            default['show_legend'])
+        if mode == 'hood_open_north':
+            add_energy_contour(frame, 0.01,'J_par *',2,True,
+                               colormap='cmocean - balance')
     frame.plot().show_contour = default['show_contour']
     if default['show_slice']:
         if default['slicetype']=='jy':
@@ -767,7 +804,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
             add_Bstar_slice(frame,frame.dataset.variable('beta_star').index,
                             showleg=default['show_slegend'])
     if default['show_fieldline']:
-        add_fieldlines(frame)
+        add_fieldlines(frame, filename, showleg=default['show_flegend'])
     if default['show_shade_legend']:
         add_shade_legend(frame, zones_shown, default['shade_legend_pos'],
                          default['shade_markersize'])
@@ -789,6 +826,10 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
         pdyn= float(frame.dataset.zone('global_field').aux_data['sw_pdyn'])
         add_IMF_clock(frame, clock, coordsys, bmag, pdyn, (0,0), 30,
                       default['IDstr'])
+    frame.plot().contour(4).legend.show = False
+    frame.plot().contour(5).legend.show = False
+    frame.plot().contour(6).legend.show = False
+    frame.plot().contour(7).legend.show = False
     if default['save_img']:
         #multiframe image (default)
         tp.export.save_png(os.getcwd()+'/'+default['pngpath']+'/'+
