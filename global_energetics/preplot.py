@@ -32,21 +32,29 @@ def load_hdf5_data(filepath, **kwargs):
     Inputs
         filepath
         kwargs:
-                variable_names- what is contained in the file
+                in_variables- what is contained in the file
+                variable_name_list- new total set of variables
                 readertype- what loader is used default is HDF5
                 initial_plottype- default Cartesian2D
     """
     default_vars= ['/x','/z','/Bx','/By','/Bz','/jx','/jy','/jz','/P',
                         '/Rho','/Ux','/Uy','/Uz','/b1x','/b1y','/b1z']
     command=("""$!ReadDataSet  '\"-F\" \"1\" """+'\"'+filepath+'" \"-D\" \"'
-             +str(len(kwargs.get('variable_names',default_vars)))+'\" ')
-    for variable in kwargs.get('variable_names',default_vars):
+             +str(len(kwargs.get('in_variables',default_vars)))+'\" ')
+    for variable in kwargs.get('in_variables',default_vars):
         command = command+'\"'+variable+'\" '
     command = command+"""\"-K\" \"1\" \"1\" \"1\"'"""
     command = (command+"""
   DataSetReader = '"""+kwargs.get('readertype','HDF5 Loader')+"'")
+    if 'variable_name_list' in kwargs:
+        command = (command+"""
+  VarNameList = '""")
+    for var in kwargs.get('variable_name_list',[]):
+        command = command+'\"'+var+'\" '
+    if 'variable_name_list' in kwargs:
+        command = ' '.join(command.split(' '))[0:-1]+"'"
     command = (command+"""
-  ReadDataOption = New
+  ReadDataOption = Append
   ResetStyle = Yes
   AssignStrandIDs = No
   InitialPlotType = """+kwargs.get('initial_plottype','Cartesian2D')+"""

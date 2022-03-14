@@ -102,7 +102,8 @@ def combine_hdfs(datapath, outputpath):
                 if any([localkey == key for localkey in store.keys()]):
                     energetics = energetics.append(store.get(key),
                                                 ignore_index=True)
-        energetics = energetics.sort_values(by=['Time [UTC]'])
+        timekey=[key for key in energetics.keys()if'time' in key.lower()][0]
+        energetics = energetics.sort_values(by=[timekey])
         energetics = energetics.reset_index(drop=True)
         print(energetics)
         with pd.HDFStore(outputpath+'/energetics.h5') as store:

@@ -846,6 +846,7 @@ def display_2D_contours(frame, **kwargs):
     Inputs
         frame
         kwargs:
+            keeps (list)- indices of fieldmaps to show, hide all others
     """
     #Initialization
     ds = frame.dataset
@@ -889,6 +890,11 @@ def display_2D_contours(frame, **kwargs):
     ds.copy_zones([1])
     ds.zone(-1).name='copy_initial_triangulation'
     plot.fieldmaps(1).effects.value_blanking=False
+    #Hide other zones to only have one set of lines
+    keeps = kwargs.get('keeps',[1,6])
+    for fmap in plot.fieldmaps():
+        if fmap.index not in keeps:
+            fmap.show=False
     #Put 1Re circle and 2.5Re boundary
     tp.macro.execute_command('''$!AttachGeom 
   GeomType = Circle
