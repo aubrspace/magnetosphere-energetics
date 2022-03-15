@@ -83,7 +83,8 @@ def display_progress(meshfile, integralfile, zonename):
     print(result)
     print('**************************************************************')
 
-def combine_hdfs(datapath, outputpath):
+def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
+                                          progress=True):
     """Function combines all .h5 files at the given datapath, cleans and
         sorts data
     Inputs
@@ -106,10 +107,11 @@ def combine_hdfs(datapath, outputpath):
         energetics = energetics.sort_values(by=[timekey])
         energetics = energetics.reset_index(drop=True)
         print(energetics)
-        with pd.HDFStore(outputpath+'/energetics.h5') as store:
+        with pd.HDFStore(outputpath+'/'+combo_name) as store:
             store[key] = energetics
-    display_progress(outputpath+'/meshdata/*.h5',
-                     outputpath+'/energetics.h5', 'Combined_zones')
+    if progress:
+        display_progress(outputpath+'/meshdata/*.h5',
+                        outputpath+'/energetics.h5', 'Combined_zones')
 
 if __name__ == "__main__":
     DATA = sys.argv[1]

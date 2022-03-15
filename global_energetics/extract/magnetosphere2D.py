@@ -6,6 +6,7 @@ import os
 import glob
 import time
 import numpy as np
+from numpy import pi, sin, cos
 import pandas as pd
 import tecplot as tp
 from tecplot.data.extract import triangulate
@@ -15,6 +16,7 @@ from tecplot.constant import *
 #interpackage
 from global_energetics.makevideo import get_time
 from global_energetics.preplot import load_hdf5_data, IDL_to_hdf5
+from global_energetics.extract import shue
 from global_energetics.extract.stream_tools import standardize_vars
 from global_energetics.extract.stream_tools import get_global_variables
 from global_energetics.extract.stream_tools import streamfind_bisection
@@ -44,13 +46,50 @@ def save_tofile(infile,timestamp,*,outputdir='localdbug/2Dcuts/',xloc=-10,
     """
     df = pd.DataFrame(points)
     df['time']=timestamp
-    df = df.add_suffix('X_'+str(xloc))
+    ds = tp.active_frame().dataset
+    df = df.add_suffix('_X_'+str(xloc)+'_B*'+ds.aux_data['betastar'])
     #output filename
     outfile = infile.split('/')[-1].split('e')[-1].split('.out')[0]
     if 'hdf' in filetype:
         df.to_hdf(outputdir+outfile+'.h5', key='mp_points')
     if 'ascii' in filetype:
         df.to_csv(outputdir+outfile+'.dat',sep=' ',index=False)
+
+def get_local_shue(zone, **kwargs):
+    """function calculates shue model values and returns nose and flank
+    Inputs
+        zone (Zone)- where data is
+        kwargs:
+            xloc=20
+            xflank=-10
+    Returns
+        shue_nose, shue_flank
+    """
+    probe_result = probe(kwargs.get('xloc',20),0,zones=[zone])
+    sw = dict(zip(zone.dataset.variable_names,probe_result.data))
+    #calculate Pdyn
+    convert = 1.6726e-27*1e6*(1e3)**2*1e9
+    vsw=np.sqrt(sw['U_x [km/s]']**2+sw['U_y [km/s]']**2+sw['U_z [km/s]']**2)
+    Pdyn = sw['Rho [amu/cm^3]'] * vsw**2 * convert
+    r0, alpha = shue.r0_alpha_1998(sw['B_z [nT]'],Pdyn)
+    shue_nose = r0
+    #bisect to find r-> x=X
+    theta_l, theta_r, done = pi/2, pi*0.9, False
+    threshold, nstep, nmax = 0.01, 0, 100
+    while not done:
+        theta_m = (theta_l+theta_r)/2
+        r = r0*cos(theta_m/2)**(-2*alpha)
+        x_m = r*cos(theta_m)
+        if abs(x_m)<abs(kwargs.get('xflank',-10)):
+            theta_l=theta_m
+        else:
+            theta_r=theta_m
+        if (abs(kwargs.get('xflank',-10)-x_m)<threshold) or (nstep>nmax):
+            done=True
+            nstep+=1
+    shue_flank = r
+    return shue_nose, shue_flank
+
 
 def get_local_newell(zone,xloc,**kwargs):
     """function calculates newell function given upstream solar wind
@@ -89,12 +128,12 @@ def get_night_mp_points(zone,xloc,**kwargs):
         rmax,rmin (float,float)- locations of magnetopause
     """
     #Copy data to numpy arrays
-    mp = ds.zone(zone).values(kwargs.get('mpvar','mpXZ')).as_numpy_array()
-    X = ds.zone(zone).values('X *').as_numpy_array()
+    mp = zone.values(kwargs.get('mpvar','mpXZ')).as_numpy_array()
+    X = zone.values('X *').as_numpy_array()
     if kwargs.get('plane','XZ')=='XZ':
-        R = ds.zone(zone).values('Z *').as_numpy_array()
+        R = zone.values('Z *').as_numpy_array()
     elif kwargs.get('plane','XZ')=='XY':
-        R = ds.zone(zone).values('Y *').as_numpy_array()
+        R = zone.values('Y *').as_numpy_array()
     rvals = R[(abs(X-xloc)<kwargs.get('tol',1)) & (mp==1)]
     if len(rvals)==0:
         return 'None','None'
@@ -108,13 +147,13 @@ def get_nose(zone,**kwargs):
         kwargs:
     """
     #Copy data to numpy arrays
-    mp = ds.zone(zone).values(kwargs.get('mpvar','mpXZ')).as_numpy_array()
-    X = ds.zone(zone).values('X *').as_numpy_array()
+    mp = zone.values(kwargs.get('mpvar','mpXZ')).as_numpy_array()
+    X = zone.values('X *').as_numpy_array()
     nose = X[(mp==1)].max()
     #Save the field strength and nose value on the dayside for later
     B = zone.values('B_z *').as_numpy_array()
-    ds.aux_data['daysideB'] = B[(X==nose)&(mp==1)].max()
-    ds.aux_data['nose'] = nose
+    zone.dataset.aux_data['daysideB'] = B[(X==nose)&(mp==1)].max()
+    zone.dataset.aux_data['nose'] = nose
     return X[(mp==1)].max()
 
 def get_XY_magnetopause(ds,**kwargs):
@@ -138,19 +177,23 @@ def get_XY_magnetopause(ds,**kwargs):
                        zones=[1])
     else:
         eq('{closedXY}==IF({B_z [nT]}>50&&{X [R]}>0&&{X [R]}<10,1,0)')
-    eq('{mpXY} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<0.7 ||'+
-                                                    '{closedXY}==1),1,0)')
+    eq('{mpXY} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<'+
+                                         str(kwargs.get('betastar',0.7))+
+                                                '||{closedXY}==1),1,0)')
 
 def get_XZ_magnetopause(ds,**kwargs):
     """Function finds magnetopause in XZ plane given 2D data
     Inputs
         ds (Dataset)- tecplot dataset object
         kwargs:
+            betastar (float)- default 0.7
     """
     #Triangulate data from unstructured to FE 2D zone
     set_yaxis()
     zone = triangulate(ds.zone(kwargs.get('XZ_zone_index',0)))
     zone.name = 'XZTriangulation'
+    #Record betastar value in aux data
+    ds.aux_data['betastar'] = kwargs.get('betastar',0.7)
     #Calculate standard variables:
     get_global_variables(ds, '2DMagnetopause', is3D=False)
     #Find last "closed" fieldline in XZ, turn  into an area zone
@@ -169,8 +212,9 @@ def get_XZ_magnetopause(ds,**kwargs):
                          source_zones=[day_closed_zone, night_closed_zone],
                                    variables=[ds.variable('closed').index])
     #Create magnetopause state variable
-    eq('{mpXZ} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<0.7 ||'+
-                                                    '{closed}==1),1,0)')
+    eq('{mpXZ} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<'+
+                                         str(kwargs.get('betastar',0.7))+
+                                                     '||{closed}==1),1,0)')
 
 if __name__ == "__main__":
     inputfiles = []

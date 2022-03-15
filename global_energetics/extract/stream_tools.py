@@ -447,7 +447,8 @@ def streamfind_bisection(field_data, method,
             cartesian = True
         #Create initial max/min to lines
         x1, x2, x3, rchk, lin_type = getseed(rmax)
-        print(x1,x2,x3,rchk,lin_type)
+        if disp_search:
+            print(x1,x2,x3,rchk,lin_type)
         create_stream_zone(field_data, x1, x2, x3,
                             'max line',
                             cart_given=cartesian)
@@ -464,11 +465,13 @@ def streamfind_bisection(field_data, method,
                                 field_data.zone('max*'))
         if max_closed and min_closed:
             notfound = False
-            print('Warning: line closed at {}'.format(rmax))
+            if disp_search:
+                print('Warning: line closed at {}'.format(rmax))
             x1, x2, x3, rchk, lin_type = getseed(rmax)
         elif not max_closed and not min_closed:
             notfound = False
-            print('Warning: line open at {}'.format(rmin))
+            if disp_search:
+                print('Warning: line open at {}'.format(rmin))
             x1, x2, x3, rchk, lin_type = getseed(rmin)
         else:
             rmid = (rmax+rmin)/2
@@ -504,7 +507,8 @@ def streamfind_bisection(field_data, method,
     for seed in seedlist:
         if cartesian == False:
             seed = sph_to_cart(seed[0],seed[1],seed[2])
-        print(seed)
+        if disp_search:
+            print(seed)
         if method!='daysideXZ' and method!='inner_magXZ':
             streamtrace.add(seed_point=seed,
                        stream_type=Streamtrace.VolumeLine,
