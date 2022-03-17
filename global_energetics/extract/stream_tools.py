@@ -1571,9 +1571,13 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         blank.variable = frame.dataset.variable(blankvar)
         blank.comparison_operator = blankop
         blank.comparison_value = blankvalue
-    tp.macro.execute_command('$!ExtractIsoSurfaces Group = {:d} '.format(
-                                                              isoindex+1)+
-                             'ExtractMode = OneZonePerConnectedRegion')
+    try:
+        tp.macro.execute_command('$!ExtractIsoSurfaces Group = {:d} '.format(
+                                                                  isoindex+1)+
+                                    'ExtractMode = OneZonePerConnectedRegion')
+    except TecplotMacroError:
+        print('Unable to create '+zonename+'!')
+        return None, None
     iso.show = False
     #Turn off blanking
     if blankvar != '':
@@ -1608,6 +1612,7 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         newzone2 = frame.dataset.zone(newzone2_key)
         newzone2.name = zonename+'innerbound'
         return newzone, newzone2
+
 def calc_state(mode, sourcezone, **kwargs):
     """Function selects which state calculation method to use
     Inputs

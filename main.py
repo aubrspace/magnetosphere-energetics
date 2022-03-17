@@ -76,13 +76,13 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath=OUTPATH,
-                                    analysis_type='energy',
-                                                    do_cms=False,
+                                    analysis_type='energyvirialbiotsavart',
+                                                    do_cms=True,
                                                     mpbetastar=0.6,
                                                     tail_cap=-20,
                                                     save_mesh=False,
                                                     integrate_surface=True,
-                                                    integrate_volume=False)
+                                                    integrate_volume=True)
         """
         vol = data['mp_iso_betastar_volume']
         surf = data['mp_iso_betastar_surface']
@@ -107,9 +107,8 @@ if __name__ == "__main__":
         print('BioS: {}'.format(biot))
         print('Ratio: {}'.format(biot/total))
         """
-    #with tp.session.suspend():
-    if True:
-        if True:#manually switch on or off
+    with tp.session.suspend():
+        if False:#manually switch on or off
             #adjust view settings
             proc = 'Multi Frame Manager'
             cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

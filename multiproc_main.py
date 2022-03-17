@@ -74,15 +74,15 @@ def work(mhddatafile):
     field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
     #Caclulate surfaces
-    magnetosphere.get_magnetosphere(field_data,save_mesh=True,
-                                    do_cms=False,integrate_volume=False,
-                                    analysis_type='energy',
+    magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+                                    do_cms=True,integrate_volume=True,
+                                    analysis_type='virialbiotsavart',
                                     mpbetastar=0.6,
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
     #                              CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
-    if True:#manually switch on or off
+    if False:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
