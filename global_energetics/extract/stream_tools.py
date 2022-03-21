@@ -1474,6 +1474,10 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{eta [m/S]} = IF({J [uA/m^2]}>0.002,'+
                             '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)')
         eq('{eta [Re/S]} = {eta [m/S]}/(6371*1000)')
+        tp.macro.execute_extended_command('CFDAnalyzer3',
+                                          'CALCULATE FUNCTION = '+
+                                          'CELLVOLUME VALUELOCATION = '+
+                                          'CELLCENTERED')
         eq('{Cell Size [Re]} = {Cell Volume}**(1/3)')
         eq('{Reynolds_m_cell} = 4*pi*1e-4*'+
                'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+

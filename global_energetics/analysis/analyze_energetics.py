@@ -22,8 +22,7 @@ import swmfpy
 from global_energetics.extract.shue import (r0_alpha_1998, r_shue)
 from global_energetics.analysis.proc_temporal import read_energetics
 from global_energetics.analysis.proc_indices import (read_indices,
-                                                     get_expanded_sw,
-                                                     df_coord_transform)
+                                                     get_expanded_sw)
 
 def shade_plot(axis, *, do_full=False):
     """Credit Qusai from NSF proposal:
@@ -788,10 +787,10 @@ def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
     legend_loc = 'lower right'
     for data in dflist:
         name = data['name'].iloc[-1]
-        total = 'Total [J]'
+        total = 'Utot [J]'
         for qtkey in [total]:
             if name.find('mp')!=-1:
-                data['correct_Total'] =(data['Total [J]']-data['uE [J]']+
+                data['correct_Total'] =(data['Utot [J]']-data['uE [J]']+
                                         data['KEpar [J]']+
                                         0.5*data['Etherm [J]'])
                 axis.plot(data[timekey],-1*data['correct_Total']/1e15,
@@ -1192,12 +1191,12 @@ def plot_newell(axis, dflist, timekey, ylabel, *,
             qtkey='Newell'
             Color='blue'
         elif name == 'swmf_sw':
-            data = df_coord_transform(data, timekey, ['bx','by','bz'],
-                                      ('GSE','car'), ('GSM','car'))
+            #data = df_coord_transform(data, timekey, ['bx','by','bz'],
+            #                          ('GSE','car'), ('GSM','car'))
             vsw = 1000*np.sqrt(data['vx']**2+data['vy']**2+data['vz']**2)
-            clock = np.arctan2(data['byGSM'],data['bzGSM'])
-            By = data['byGSM']*1e-9
-            Bz = data['bzGSM']*1e-9
+            clock = np.arctan2(data['by'],data['bz'])
+            By = data['by']*1e-9
+            Bz = data['bz']*1e-9
             Cmp = 1000 #Followed
             #https://supermag.jhuapl.edu/info/data.php?page=swdata
             #term comes from Cai and Clauer[2013].
@@ -1316,7 +1315,7 @@ def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
     for simdata in dflist:
         simname = simdata['name'].iloc[-1]
         if simname.find('mp')!=-1:
-            total = simdata['Total [J]']
+            total = simdata['Utot [J]']
             uB = simdata['uB [J]']
             uE = simdata['uE [J]']
             uKperp = simdata['KEperp [J]']
@@ -1389,18 +1388,18 @@ def plot_akasofu(axis, dflist, timekey, ylabel, *,
         elif name == 'swmf_sw':
             bsquared_units = 1e-9**2 / (4*np.pi*1e-7)
             l = 7*6371*1000
-            data = df_coord_transform(data, timekey, ['bx','by','bz'],
-                                      ('GSE','car'), ('GSM','car'))
+            #data = df_coord_transform(data, timekey, ['bx','by','bz'],
+            #                          ('GSE','car'), ('GSM','car'))
             data['v'] = 1000*np.sqrt(data['vx']**2+data['vy']**2+
                                      data['vz']**2)
             data['B^2'] = (data['bx']**2+data['by']**2+data['bz']**2)*(
                                                             bsquared_units)
             data['clock (GSE)'] = np.arctan2(data['by'],data['bz'])
-            data['clock (GSM)'] = np.arctan2(data['byGSM'],data['bzGSM'])
+            #data['clock (GSM)'] = np.arctan2(data['byGSM'],data['bzGSM'])
             data['eps(GSE) [W]'] = (data['B^2']*data['v']*
                                     np.sin(data['clock (GSE)']/2)**4*l**2)
-            data['eps(GSM) [W]'] = (data['B^2']*data['v']*
-                                    np.sin(data['clock (GSM)']/2)**4*l**2)
+            #data['eps(GSM) [W]'] = (data['B^2']*data['v']*
+            #                        np.sin(data['clock (GSM)']/2)**4*l**2)
             qtkey = 'eps(GSE) [W]'
             axis.plot(data[timekey],data[qtkey]/1e12,
                       label=r'$\displaystyle \epsilon$',
@@ -1423,7 +1422,7 @@ def plot_akasofu(axis, dflist, timekey, ylabel, *,
     #axis.legend(loc='upper right')
 
 def plot_pearson_r(axis, dflist, ydf, xlabel, ylabel, *,
-                   qtkeyX='dst',qtkeyY='Total [J]',
+                   qtkeyX='dst',qtkeyY='Utot [J]',
                    xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
@@ -1499,9 +1498,9 @@ def plot_swbz(axis, dflist, timekey, ylabel, *,
                       linewidth=Size, linestyle='--',
                       color='black')
         elif name == 'swmf_sw':
-            data = df_coord_transform(data, timekey, ['bx','by','bz'],
-                                      ('GSE','car'), ('GSM','car'))
-            qtkey = 'bzGSM'
+            #data = df_coord_transform(data, timekey, ['bx','by','bz'],
+            #                          ('GSE','car'), ('GSM','car'))
+            qtkey = 'bz'
             axis.plot(data[timekey],data[qtkey],
                       label=r'$B_z$',
                       linewidth=Size, linestyle=ls)
@@ -1754,9 +1753,9 @@ if __name__ == "__main__":
     #[supermag,omni] = chopends_time(obsdata, cuttoffstart, cuttoffend,
     #                                'Time [UTC]')
     [swmf_index,swmf_log,swmf_sw,] = chopends_time(simdata, cuttoffstart,
-                                     cuttoffend, 'Time [UTC]', shift=True)
+                                     cuttoffend, 'Time [UTC]', shift=False)
     energeticslist = chopends_time(energetics_list,cuttoffstart,
-                                   cuttoffend, 'Time [UTC]', shift=True)
+                                   cuttoffend, 'Time [UTC]', shift=False)
     #Sort energetics into specific types
     mplist, fixedlist, agglist, dofixed, doagg = [], [], [], False, False
     for df in energetics_list:
@@ -1780,6 +1779,7 @@ if __name__ == "__main__":
         mp = mplist[0]
     agglist.append(mp)
     for df in enumerate(agglist):
+        from IPython import embed; embed()
         name = df[1]['name'].iloc[-1]
         region = name.split('mp')[-1].split('aggr')[-1].split(
                                                       '_')[0].capitalize()

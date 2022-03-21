@@ -11,6 +11,8 @@ import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
 import swmfpy
+#from global_energetics.analysis.proc_virial import (pyplotsetup,
+#                                                    general_plot_settings)
 
 def datetimeparser(datetimestring):
     #maybe move this somewhere to call a diff parser depending on file
@@ -580,7 +582,7 @@ def get_expanded_sw(start, end, data_path):
     return supermag, omni
 
 def read_indices(data_path, *, read_swmf=True, read_supermag=False,
-                               read_omni=False,
+                               read_omni=True,
                                start=dt.datetime(2014,2,18,6,0),
                                end=dt.datetime(2014,2,20,0,0)):
     """Top level function handles time varying magnetopause data and
@@ -615,6 +617,7 @@ def read_indices(data_path, *, read_swmf=True, read_supermag=False,
 
 if __name__ == "__main__":
     #Interpackage imports
+    '''
     if os.path.exists('../supermag-data'):
         os.system('ln -s ../supermag-data/supermag.py')
         print('soft link to supermag.py created')
@@ -632,12 +635,25 @@ if __name__ == "__main__":
     else:
         EXIT=False
     if not EXIT:
-        #enable latex format
-        plt.rcParams.update({
-        "font.family": "sans-serif",
-        "font.size": 18,
-        "font.sans-serif": ["Helvetica"]})
-        datapath = sys.argv[1]
-        print('processing indices output at {}'.format(datapath))
-        value = read_indices(datapath)
-        prepare_figures(value[0],value[1],value[2],value[3],value[4],'./output/starlink/')
+        pass
+    '''
+    #Setup data paths
+    datapath = sys.argv[1]
+    figureout = data
+    figureout = datapath+'figures/'
+
+    #Set default parameters
+    plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
+
+    #Read files for data
+    [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
+                                                    read_supermag=False,
+                                    start=dt.datetime(2022,2,2,6),
+                                    end=dt.datetime(2022,2,5,6))
+    #prepare_figures(value[0],value[1],value[2],valu[3],value[4],'./output/starlink/')
+    cuttoffstart=dt.datetime(2022,2,2,6,0)
+    cuttoffend=dt.datetime(2022,2,5,6,0)
+    simdata = [swmf_index, swmf_log, swmf_sw]
+    [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
+                                      cuttoffend, 'Time [UTC]', shift=False)
+    from IPython import embed; embed()

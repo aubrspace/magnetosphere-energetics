@@ -46,10 +46,10 @@ if __name__ == "__main__":
 
     files5 = ('3d__var_1_e20140218-060700-011.plt',
               '3d__var_1_e20140218-060900-002.plt')
-    files5 = ('3d__var_1_e20220202-051000-000.plt',
-              '3d__var_1_e20220202-050500-000.plt')
-    #files5 = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
-    #         'output/CCMC/3d__var_1_e20130713-204700-037.plt')
+    #files5 = ('3d__var_1_e20220202-051000-000.plt',
+    #          '3d__var_1_e20220202-050500-000.plt')
+    files5 = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
+              'output/CCMC/3d__var_1_e20130713-204700-037.plt')
 
     OUTPATH = 'temp/'
     PNGPATH = 'temp/'
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     mhddatafile = files5[0]
 
     #for point in [files1, files2, files3, files4]:
-    for point in [files5]:
+    for point in [files3]:
         #python objects
         field_data = tp.data.load_tecplot([point[0],point[1]])
         field_data.zone(0).name = 'global_field'

@@ -80,7 +80,8 @@ def add_derived_variables(dflist):
                 ###Add cumulative energy terms
                 #Compute cumulative energy In, Out, and Net
                 start = df[1].index[0]
-                totalE = df[1]['Total [J]']
+                from IPython import embed; embed()
+                totalE = df[1]['Utot [J]']
                 delta_t = (df[1]['Time [UTC]'].loc[start+1]-
                         df[1]['Time [UTC]'].loc[start]).seconds
                 #use pandas cumulative sum method
@@ -180,14 +181,14 @@ def prepare_figures(dflist, outpath):
             #Time
             timekey = 'Time [UTC]'
             #Energies on Primary Axes
-            qtylist = ['Total [J]', '1step_Predict_E [J]']
+            qtylist = ['Utot [J]', '1step_Predict_E [J]']
             ylabel = 'Energy [J]'
             linestyle= '-'
             for qty in enumerate(qtylist):
                 if mpdfs != []:
                     plot_all_runs_1Qty(ax1, mpdfs, timekey,
                                        qty[1], ylabel,ylim=[
-                                       0,mpdfs[0]['Total [J]'].max()*1.05])
+                                       0,mpdfs[0]['Utot [J]'].max()*1.05])
                 if False:
                     plot_all_runs_1Qty(ax2, boxdfs[0:1],
                                    timekey, qty[1], ylabel, Color='blue',
@@ -311,7 +312,8 @@ def read_energetics(data_path_list, *, add_variables=True):
                 bar.finish()
         if add_variables:
             if len(dflist) > 0:
-                dflist = add_derived_variables(dflist)
+                #dflist = add_derived_variables(dflist)
+                pass
     print('done!')
     return dflist
 
