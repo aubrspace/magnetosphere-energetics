@@ -85,7 +85,7 @@ def set_frames(folder):
     return folder+'/frames'
 
 
-def vid_compile(folder, framerate, title):
+def vid_compile(infolder, outfolder, framerate, title):
     """function that compiles video from sequence of .png files
     Inputs:
         folder
@@ -97,15 +97,15 @@ def vid_compile(folder, framerate, title):
     #   vcodec libx264 is h.264 format video
     #   pix_fmt fixes pixel format so that quicktime works
     #########################################################
-    if glob.glob(folder+'/'+title+'.avi') != []:
-        os.remove(folder+'/'+title+'.avi')
-    print(glob.glob(folder+'/img-???.png'))
-    if glob.glob(folder+'/img-???.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%03d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
+    if glob.glob(outfolder+'/'+title+'.mp4') != []:
+        os.remove(outfolder+'/'+title+'.mp4')
+    print(glob.glob(infolder+'/img-???.png'))
+    if glob.glob(infolder+'/img-???.png') != []:
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%03d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     elif glob.glob(folder+'/img-??.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%02d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%02d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     elif glob.glob(folder+'/img-?.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+folder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+folder+'/'+title+'.mp4'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     os.system(make_vid_cmd)
 
 #Main program
@@ -123,4 +123,4 @@ if __name__ == '__main__':
     #convert_pdf(FOLDER, RES)
 
     #Create video from .png
-    vid_compile(FRAME_LOC, FRAMERATE, 'video')
+    vid_compile(FRAME_LOC, FRAME_LOC, FRAMERATE, 'video')

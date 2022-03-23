@@ -1313,7 +1313,14 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{Lshell} = {r [R]}/cos({lambda})**2')
         eq('{theta [deg]} = -180/pi*{lambda}')
     else:
-        eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)')
+        if 'XY_zone_index' in kwargs:
+            eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2)',
+                zones=[kwargs.get('XY_zone_index',1),
+                       kwargs.get('XYTri_index',6)])
+        else:
+            eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)',
+                zones=[kwargs.get('XZ_zone_index',0),
+                       kwargs.get('XZTri_index',2)])
     #Dynamic Pressure
     eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
@@ -1482,6 +1489,21 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{Reynolds_m_cell} = 4*pi*1e-4*'+
                'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
                                  '{Cell Size [Re]}/({eta [Re/S]}+1e-9)')
+    ######################################################################
+    if 'usermod' in analysis_type:
+        eq('{Eth_acc [J/Re^3]} = {dp_acc [nPa]}*6371**3',
+            value_location=ValueLocation.CellCentered)
+        eq('{Dp_acc [nPa]} = {drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
+            value_location=ValueLocation.CellCentered)
+        eq('{KE_acc [J/Re^3]} = {Dp_acc [nPa]}*6371**3',
+            value_location=ValueLocation.CellCentered)
+        eq('{Wth [W/Re^3]} = IF({dtime_acc [s]}>0,'+
+                               '{Eth_acc [J/Re^3]}/{dtime_acc [s]},0)',
+            value_location=ValueLocation.CellCentered)
+        eq('{WKE [W/Re^3]} = IF({dtime_acc [s]}>0,'+
+                               '{KE_acc [J/Re^3]}/{dtime_acc [s]},0)',
+            value_location=ValueLocation.CellCentered)
     if analysis_type=='all':
         eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
                                     '(({U_x [km/s]}*{unitbx})**2+'+

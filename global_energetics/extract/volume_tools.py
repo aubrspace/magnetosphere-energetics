@@ -69,6 +69,33 @@ def virial_post_integr(results):
         newterms.update(energy_to_dB(newterm))
     return newterms
 
+def get_imtrack_integrands(state_var):
+    """Creates dictionary of terms to be integrated for IM track analysis
+    Inputs
+        zone(Zone)- tecplot zone object used to decide which terms included
+    Outputs
+        imtrack(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    state, imtrack = state_var.name, {}
+    eq = tp.data.operate.execute_equation
+    existing_variables = state_var.dataset.variable_names
+    #Integrands
+    integrands = ['Eth_acc [J/Re^3]','KE_acc [J/Re^3]',
+                  'Wth [W/Re^3]', 'WKE [W/Re^3]']
+    #Debug:
+    '''
+    integrands = ['Virial Ub [J/Re^3]','Virial 2x Uk [J/Re^3]',
+                  'rhoU_r [Js/Re^3]','uB [J/Re^3]', 'uB_dipole [J/Re^3]']
+    '''
+
+    for term in integrands:
+        name = term.split(' [')[0]
+        units = '['+term.split('[')[1].split('/Re^3')[0]+']'
+        if name+state not in existing_variables:
+            eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})')
+            imtrack.update({name+state:name+' '+units})
+    return imtrack
+
 def get_biotsavart_integrands(state_var):
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
@@ -196,6 +223,8 @@ def volume_analysis(state_var, **kwargs):
         integrands.update(get_energy_integrands(state_var))
     if 'biotsavart' in analysis_type:
         integrands.update(get_biotsavart_integrands(state_var))
+    if 'usermod' in analysis_type:
+        integrands.update(get_imtrack_integrands(state_var))
     integrands.update(kwargs.get('customTerms', {}))
     #Debug
     ###################################################################

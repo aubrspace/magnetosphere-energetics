@@ -83,6 +83,62 @@ def display_progress(meshfile, integralfile, zonename):
     print(result)
     print('**************************************************************')
 
+def merge_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
+                                          progress=True):
+    """Function combines all .h5 files with different headers and same time
+    Inputs
+        datapath
+    """
+    filelist = glob.glob(datapath+'/*.h5')
+    keylength=0
+    for file in filelist:
+        with pd.HDFStore(file) as store:
+            anykey = store.keys()[0]
+            blank = pd.DataFrame(columns=store[anykey].keys())
+            temp_keylist = store.keys()
+        if len(temp_keylist)>keylength:
+            keylist = temp_keylist
+            keylength = len(keylist)
+    for key in keylist:
+        energetics = blank
+        for hdffile in filelist:
+            print(hdffile)
+            with pd.HDFStore(hdffile) as store:
+                if any([localkey == key for localkey in store.keys()]):
+                    #for localkey in energetics.keys():
+                    #    if all(energetics[localkey].isna()):
+                    #        if localkey in store.get(key).keys():
+                    #            energetics[localkey]=store.get(key)[localkey]
+                    for localkey in store.get(key).keys():
+                        energetics[localkey] = store.get(key)[localkey]
+                    #energetics = energetics.append(store.get(key),
+                    #                            ignore_index=False)
+        timekey=[key for key in energetics.keys()if'time' in key.lower()][0]
+        energetics = energetics.sort_values(by=[timekey])
+        energetics = energetics.reset_index(drop=True)
+        print(energetics)
+        with pd.HDFStore(outputpath+'/'+combo_name) as store:
+            store[key] = energetics
+    '''
+    for key in keylist:
+        energetics = blank
+        for hdffile in filelist:
+            print(hdffile)
+            with pd.HDFStore(hdffile) as store:
+                if any([localkey == key for localkey in store.keys()]):
+                    energetics = energetics.append(store.get(key),
+                                                ignore_index=True)
+        timekey=[key for key in energetics.keys()if'time' in key.lower()][0]
+        energetics = energetics.sort_values(by=[timekey])
+        energetics = energetics.reset_index(drop=True)
+        print(energetics)
+        with pd.HDFStore(outputpath+'/'+combo_name) as store:
+            store[key] = energetics
+    if progress:
+        display_progress(outputpath+'/meshdata/*.h5',
+                        outputpath+'/energetics.h5', 'Combined_zones')
+    '''
+
 def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                                           progress=True):
     """Function combines all .h5 files at the given datapath, cleans and
@@ -91,7 +147,7 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
         datapath
     """
     filelist = glob.glob(datapath+'/*.h5')
-    with pd.HDFStore(filelist[0]) as store:
+    with pd.HDFStore(filelist[1]) as store:
         anykey = store.keys()[0]
         blank = pd.DataFrame(columns=store[anykey].keys())
         keylist = store.keys()
@@ -116,4 +172,5 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
 if __name__ == "__main__":
     DATA = sys.argv[1]
     OPATH = sys.argv[2]
-    combine_hdfs(DATA, OPATH)
+    #combine_hdfs(DATA, OPATH)
+    merge_hdfs(DATA, OPATH)

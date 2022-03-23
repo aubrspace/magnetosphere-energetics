@@ -168,8 +168,9 @@ def get_XY_magnetopause(ds,**kwargs):
     zone = triangulate(ds.zone(kwargs.get('XY_zone_index',1)))
     zone.name = 'XYTriangulation'
     #Calculate standard variables if not already there:
-    if 'beta_star' not in ds.variable_names:
-        get_global_variables(ds, '2DMagnetopause', is3D=False)
+    #if 'beta_star' not in ds.variable_names:
+    kwargs.update({'is3D':False,'XYTri_index':zone.index})
+    get_global_variables(ds, '2DMagnetopause', **kwargs)
     eq = tp.data.operate.execute_equation
     if 'daysideB' in ds.aux_data:
         eq('{closedXY}=IF({B_z [nT]}>'+ds.aux_data['daysideB']+
@@ -195,7 +196,8 @@ def get_XZ_magnetopause(ds,**kwargs):
     #Record betastar value in aux data
     ds.aux_data['betastar'] = kwargs.get('betastar',0.7)
     #Calculate standard variables:
-    get_global_variables(ds, '2DMagnetopause', is3D=False)
+    kwargs.update({'is3D':False,'XZTri_index':zone.index})
+    get_global_variables(ds, '2DMagnetopause', **kwargs)
     #Find last "closed" fieldline in XZ, turn  into an area zone
     day_streamzone = streamfind_bisection(ds,'daysideXZ',
                                           None,10, 30, 3, 100, 0.1)
@@ -224,10 +226,11 @@ if __name__ == "__main__":
         #    inputfiles.append(arg)
         if '-c' in sys.argv:
             tp.session.connect()
-    datapath = 'localdbug/2Dcuts/'
-    ypath = 'y=0_var_1_e20140218-082700-000_20140220-022700-000/'
-    zpath = 'z=0_var_2_e20140218-082700-000_20140220-022700-000/'
+    datapath = 'storms/'
+    ypath = 'y0/y=0_var_1_e20140218-082700-000_20140220-022700-000/'
+    zpath = 'z0/z=0_var_2_e20140218-082700-000_20140220-022700-000/'
     inputfiles = glob.glob(datapath+ypath+'*.out')
+    #if True:
     with tp.session.suspend():
         for infile in inputfiles[0:1]:
             #Get matching file
@@ -261,15 +264,28 @@ if __name__ == "__main__":
             get_XY_magnetopause(ds, XY_zone_index=1)
             ymax,ymin = get_night_mp_points(ds.zone('XYTriangulation'),-10,
                                             plane='XY',mpvar='mpXY')
-            newell = get_local_newell(ds.zone('XYTriangulation'),xloc=20)
 
-            #savedata
+            ##Other terms
+            newell = get_local_newell(ds.zone('XYTriangulation'),xloc=20)
+            shue_nose, shue_flank = get_local_shue(ds.zone('XYTriangulation'),
+                                                   xloc=20, xflank=-10)
+
+            ##Savedata
             save_tofile(infile,timestamp,xloc=-10,nose=[nose],
+                        shue_nose=[shue_nose],shue_flank=[shue_flank],
+                        newell=[newell],
                         ymax=[ymax],ymin=[ymin],zmax=[zmax],zmin=[zmin])
-            #Display
-            #display_2D_contours(tp.active_frame(),
-            #    outputname='localdbug/2Dcuts/test/'+hdffile.split('.h5')[0],
-            #                    filename = hdffile)
+            ##Display
+            #Z
+            set_yaxis() #set to XZ
+            display_2D_contours(tp.active_frame(),
+                outputname='localdbug/2Dcuts/test/'+zfile.split('.h5')[0],
+                                filename = zfile)
+            #Y
+            set_yaxis(mode='Y') #set to XY
+            display_2D_contours(tp.active_frame(), axis='XY',
+                outputname='localdbug/2Dcuts/test/'+yfile.split('.h5')[0],
+                                filename = yfile)
 
             #Clean up
             os.remove(os.getcwd()+'/'+zfile)

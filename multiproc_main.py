@@ -76,8 +76,8 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,integrate_volume=True,
-                                    analysis_type='virialbiotsavart',
-                                    mpbetastar=0.6,
+                                    analysis_type='virialbiotsavartusermod',
+                                    mpbetastar=0.7,
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -154,7 +154,7 @@ if __name__ == '__main__':
         raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    RUNDIR = 'starlink'
+    RUNDIR = 'usermod'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)

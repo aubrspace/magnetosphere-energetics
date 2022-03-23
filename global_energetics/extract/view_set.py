@@ -846,23 +846,34 @@ def display_2D_contours(frame, **kwargs):
     Inputs
         frame
         kwargs:
+            axis (str)- default 'XZ'
+            outputname (str)
+            filename (str)
             keeps (list)- indices of fieldmaps to show, hide all others
     """
+    ###Always included
+    path = os.getcwd()+'/energetics.map'
+    tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
     #Initialization
     ds = frame.dataset
     filename = kwargs.get('filename','var_1_e20130430-040200-000.h5')
     betastar_index = ds.variable('beta_star').index
-    mp_index = ds.variable('mp').index
+    mp_index = ds.variable('mp'+kwargs.get('axis','XZ')).index
     closed_index = ds.variable('closed').index
     plot = frame.plot()
     #Axis settings
     #plot.axes.axis_mode=AxisMode.Independent
     #plot.axes.preserve_scale=True
-    plot.axes.x_axis.min=-60
-    plot.axes.x_axis.max=30
-    plot.axes.x_axis.reverse=True
-    plot.axes.y_axis.min=-40
-    plot.axes.y_axis.max=40
+    if plot.axes.x_axis.min != -60:
+        plot.axes.x_axis.min=-60
+    if plot.axes.x_axis.max != 30:
+        plot.axes.x_axis.max != 30
+    if plot.axes.y_axis.min != -40:
+        plot.axes.y_axis.min=-40
+    if plot.axes.y_axis.max != 40:
+        plot.axes.y_axis.max=40
+    if not plot.axes.x_axis.reverse:
+        plot.axes.x_axis.reverse=True
     #Contour settings
     plot.contour(0).variable_index= betastar_index
     plot.show_contour=True
@@ -887,13 +898,19 @@ def display_2D_contours(frame, **kwargs):
     blank.constraint(1).comparison_value=kwargs.get('closed_val',0)
     blank.constraint(1).line_pattern=LinePattern.Dashed
     #Copy zone so outline shows up on top of contours
-    ds.copy_zones([1])
-    ds.zone(-1).name='copy_initial_triangulation'
-    plot.fieldmaps(1).effects.value_blanking=False
+    zone = ds.zone(kwargs.get('axis','XZ')+'Triangulation')
+    ds.copy_zones([zone])
+    copy = ds.zone(-1)
+    copy.name=kwargs.get('axis','XZ')+'copy_triangulation'
+    plot.fieldmaps(copy.index).effects.value_blanking=False
     #Hide other zones to only have one set of lines
-    keeps = kwargs.get('keeps',[1,6])
+    keeps = kwargs.get('keeps',[kwargs.get('axis','XZ')+'Triangulation',
+                                kwargs.get('axis','XZ')+'copy_triangulation'])
     for fmap in plot.fieldmaps():
-        if fmap.index not in keeps:
+        fmapname = [z for z in fmap.zones][0].name
+        if fmapname in keeps:
+            fmap.show=True
+        else:
             fmap.show=False
     #Put 1Re circle and 2.5Re boundary
     tp.macro.execute_command('''$!AttachGeom 
@@ -925,9 +942,9 @@ def display_2D_contours(frame, **kwargs):
     plot.axes.x_axis.line.color=Color.White
     add_timestamp(frame, filename, kwargs.get('timestamp_pos',(15,15)))
     #Save output file
-    tp.export.save_png(os.getcwd()+'/'+kwargs.get('pngpath','./')+'/'+
-                           kwargs.get('outputname','2Dcontour')+'.png',
-                           width=kwargs.get('pngwidth',1600))
+    tp.export.save_png(kwargs.get('pngpath','./')+'/'+
+                       kwargs.get('outputname',filename)+'.png',
+                       width=kwargs.get('pngwidth',1600))
 
 # Use main functionality to reset view setting in connected mode
 # Run this script with "-c" to connect to Tecplot 360 on port 7600
