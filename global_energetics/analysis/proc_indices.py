@@ -81,7 +81,7 @@ def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
     return df
 
 def plot_dst(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=4, ls=None,**kwargs):
     """Function plots dst (or equivalent index) with given data frames
     Inputs
         axis- object plotted on
@@ -92,7 +92,10 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
     """
     legend_loc = 'lower left'
     for data in dflist:
-        name = data['name'].iloc[-1]
+        if 'name' in kwargs:
+            name = kwargs.get('name')
+        else:
+            name = data['name'].iloc[-1]
         if name == 'supermag':
             qtkey = 'SMR (nT)'
         elif name == 'swmf_log':
@@ -319,7 +322,7 @@ def plot_swbybz(axis, dflist, timekey, ylabel, *,
     axis.legend(loc=legend_loc)
 
 def plot_swpdyn(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+             xlim=None, ylim=None, Color=None, Size=4, ls=None,**kwargs):
     """Function plots solarwind dynamic pressure w given data frames
     Inputs
         axis- object plotted on
@@ -330,7 +333,10 @@ def plot_swpdyn(axis, dflist, timekey, ylabel, *,
     legend_loc = 'upper left'
     for data in dflist:
         qtkey_alt = None
-        name = data['name'].iloc[-1]
+        if 'name' in kwargs:
+            name = kwargs.get('name')
+        else:
+            name = data['name'].iloc[-1]
         if name == 'supermag':
             convert = 1.6726e-27*1e6*(1e3)**2*1e9
             qtkey = 'Dyn. Pres. (nPa)'
@@ -352,7 +358,7 @@ def plot_swpdyn(axis, dflist, timekey, ylabel, *,
             qtkey = None
         if qtkey != None:
             axis.plot(data[timekey],data[qtkey],
-                      label=qtkey+'_'+name,
+                      label=qtkey+'_'+name,Color=Color,
                       linewidth=Size, linestyle=ls)
         if qtkey_alt != None:
             axis.plot(data[timekey],data[qtkey_alt],

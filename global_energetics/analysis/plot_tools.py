@@ -56,8 +56,8 @@ def general_plot_settings(ax, **kwargs):
     if not kwargs.get('iscontour',False):
         if kwargs.get('do_xlabel',False):
             ax.set_xlabel(r'Time $\left[ UTC\right]$')
-        #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        #ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
         ax.xaxis.set_minor_locator(AutoMinorLocator(6))
     else:
         ax.set_xlim(kwargs.get('xlim',None))
