@@ -101,10 +101,10 @@ def get_local_newell(zone,xloc,**kwargs):
     return
         newell (float)- value Wb/s
     """
-    probe_result = probe(xloc,0,zones=[zone])
+    probe_result = probe(kwargs.get('xloc',20),0,zones=[zone])
     sw = dict(zip(zone.dataset.variable_names,probe_result.data))
     vsw = 1000*np.sqrt(sw['U_x [km/s]']**2+
-                       sw['U_y [km/s]']**2+sw['U_z [km/s]'])
+                       sw['U_y [km/s]']**2+sw['U_z [km/s]']**2)
     clock = np.arctan2(sw['B_y [nT]'],sw['B_z [nT]'])
     Bt = np.sqrt(sw['B_y [nT]']**2+sw['B_z [nT]']**2)*1e-3
     Cmp = 1000 #Followed
@@ -114,6 +114,7 @@ def get_local_newell(zone,xloc,**kwargs):
     #however from the paper: "From our work,
     #                       α is estimated to be on order of 10^3"
     newell = Cmp * vsw**(4/3) * Bt**(2/3) * abs(np.sin(clock/2))**(8/3)
+    return newell
 
 def get_night_mp_points(zone,xloc,**kwargs):
     """Function finds location of magnetopause in plane at xlocation
@@ -136,7 +137,7 @@ def get_night_mp_points(zone,xloc,**kwargs):
         R = zone.values('Y *').as_numpy_array()
     rvals = R[(abs(X-xloc)<kwargs.get('tol',1)) & (mp==1)]
     if len(rvals)==0:
-        return 'None','None'
+        return 0,0
     else:
         return rvals.max(), rvals.min()
 

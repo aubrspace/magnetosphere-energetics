@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import swmfpy
-from spacepy import coordinates as coord
-from spacepy import time as spacetime
-from spacepy import pybats as bats
+#from spacepy import coordinates as coord
+#from spacepy import time as spacetime
+#from spacepy import pybats as bats
 
 
 
