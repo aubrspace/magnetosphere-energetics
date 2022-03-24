@@ -20,6 +20,9 @@ from global_energetics.analysis.analyze_energetics import (chopends_time,
                                                   plot_swflowP,plot_swbz,
                                                         plot_dst,plot_al)
 from global_energetics.analysis.proc_virial import (get_interzone_stats,
+                                                    gather_magnetopause,
+                                                    group_subzones,
+                                                    load_clean_virial,
                                                     BIGMOD)
 def plot_single(ax, times, mp, msdict, **kwargs):
     """Plots energy or dst contribution in particular zone
@@ -262,59 +265,31 @@ def plot_contributions(ax, times, mp, msdict, **kwargs):
     general_plot_settings(ax, **kwargs)
 
 if __name__ == "__main__":
+    #handling io paths
     datapath = sys.argv[-1]
-    figureout = datapath+'figures/'
+    figureout = os.path.join(datapath,'figures')
+    os.makedirs(figureout, exist_ok=True)
+
+    #setting pyplot configurations
     plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
+
+    ##Loading data
+    #Log files and observational indices
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
-    cuttoffstart = dt.datetime(2014,2,18,6,0)
-    cuttoffend = dt.datetime(2014,2,20,0,0)
-    simdata = [swmf_index, swmf_log, swmf_sw]
-    [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
-                                      cuttoffend, 'Time [UTC]', shift=True)
-    store = pd.HDFStore(datapath+'bioSfull_virial.h5')
-    times = store[store.keys()[0]]['Time [UTC]']+dt.timedelta(minutes=45)
-    #Clean up and gather statistics
-    mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
-                             store['/mp_iso_betastar_volume'], times)
-    inner_mp = store['/mp_iso_betastar_inner_surface']
-    mpdict = {'ms_full':mp}
-    msdict = {}
-    for key in store.keys():
-        if 'ms' in key:
-            if any(['Virial' in k for k in store[key].keys()]):
-                cleaned_df = virial_mods(store[key], times)
-            else:
-                cleaned_df = store[key]
-            msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
-                                                  columns=['Time [UTC]'])})
-    store.close()
+    #HDF data, will be sorted and cleaned
+    [mpdict,msdict,inner_mp,times]= load_clean_virial(datapath+
+                                                           'energetics.h5')
+
+    ##Gather more statistics
     mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
-    mpdict,msdict,inner_mp,scale=BIGMOD(mpdict,msdict,inner_mp,
-                                        fix='')
-    print('\nSCALE:\n{}\n'.format(scale))
-    #Construct "grouped" set of subzones
-    if 'closed' in msdict.keys():
-        msdict_3zone = {'lobes':msdict['nlobe']+msdict['slobe'],
-                        'closedRegion':msdict['closed'],
-                        'rc':msdict['rc'],
-                        'missing':msdict['missed']}
-    else:
-        msdict_3zone = {'lobes':msdict['nlobe']+msdict['slobe'],
-                        'closedRegion':msdict['ps']+msdict['qDp'],
-                        'rc':msdict['rc'],
-                        'missing':msdict['missed']}
+    mp = [m for m in mpdict.values()][0]
+
+    ##Construct "grouped" set of subzones
+    msdict = group_subzones(msdict,mode='3zone')
+
+    ##Begin plots
     '''
-    msdict_lobes ={'nlobe':msdict['nlobe'],
-                   'slobe':msdict['slobe'],
-                   'remaining':msdict['rc']+msdict['ps']+msdict['qDp'],
-                   'missing':msdict['missed']}
-    '''
-    for key in msdict['summed'].keys():
-        mp[key] = msdict['summed'][key]
-    #times = times-times.iloc[0]
-    '''
-    #Begin plots
     #Fist type: line and stacks of various groupings of terms
     ######################################################################
     if 'Virial Volume Total [nT]' in mp.keys()and 'bioS [nT]' in mp.keys():
@@ -327,7 +302,7 @@ if __name__ == "__main__":
         value_keys=['Virial Volume Total ','Virial 2x Uk ',
                     'Virial Ub ','bioS ']
         #Line plots- total virial, plasma, disturbance, and Biot savart
-        for combo in {'allPiece':msdict,'3zone':msdict_3zone,
+        for combo in {'allPiece':msdict,'3zone':msdict,
                     'lobes':msdict_lobes}.items():
             fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,
                                     figsize=[14,8])
@@ -352,7 +327,7 @@ if __name__ == "__main__":
                                combo[0]+'.png')
                 plt.close(fig[1])
         #Stack plots- total virial, plasma, disturbance, and Biot savart
-        for combo in {'allPiece':msdict,'3zone':msdict_3zone,
+        for combo in {'allPiece':msdict,'3zone':msdict,
                     'lobes':msdict_lobes}.items():
             fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,
                                     figsize=[14,8])
@@ -387,9 +362,9 @@ if __name__ == "__main__":
     for (term,label) in term_labels.items():
         if term+' [J]' in mp.keys():
             fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-            plot_contributions(ax[0],times,mp,msdict_3zone,ylabel=label,
+            plot_contributions(ax[0],times,mp,msdict,ylabel=label,
                                value_key=term+' [J]')
-            plot_contributions(ax[1],times,mp,msdict_3zone,ylabel=y2label,
+            plot_contributions(ax[1],times,mp,msdict,ylabel=y2label,
                                value_key=term+' [%]',
                                do_xlabel=True)
             fig.tight_layout(pad=1)
@@ -397,10 +372,10 @@ if __name__ == "__main__":
             plt.close(fig)
     if 'Volume [Re^3]' in mp.keys():
         fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-        plot_contributions(ax[0], times, mp, msdict_3zone,
+        plot_contributions(ax[0], times, mp, msdict,
                            ylabel=r'Volume $\left[R_e\right]$',
                            value_key='Volume [Re^3]')
-        plot_contributions(ax[1], times, mp, msdict_3zone,
+        plot_contributions(ax[1], times, mp, msdict,
                            ylabel=r'Volume fraction $\left[\%\right]$',
                            value_key='Volume [%]')
         fig.tight_layout(pad=1)
@@ -425,29 +400,29 @@ if __name__ == "__main__":
         y1labels = ['Full MS '+vals+' Distribution']
         fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
         fig2,ax2 = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,16])
-        plot_stack_distr(ax1[0],times,mp,msdict_3zone,ylabel=y1labels[0],
+        plot_stack_distr(ax1[0],times,mp,msdict,ylabel=y1labels[0],
                                                             value_set=vals)
-        plot_stack_distr(ax1[1], times, mp, msdict_3zone, ylabel=y2label,
+        plot_stack_distr(ax1[1], times, mp, msdict, ylabel=y2label,
                    value_set=vals+'%', do_xlabel=True)
         fig1.tight_layout(pad=1)
-        fig1.savefig(figureout+'distr_'+vals+'_fullMS_line.png')
+        fig1.savefig(figureout+'/distr_'+vals+'_fullMS_line.png')
         plt.close(fig1)
-        for subzone in enumerate([k for k in msdict_3zone.keys()][::]):
+        for subzone in enumerate([k for k in msdict.keys()][0:-1]):
             y1labels = [subzone[1]+' '+vals+' Distribution']
             fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-            plot_stack_distr(ax[0],times,mp,msdict_3zone,ylabel=y1labels[0],
+            plot_stack_distr(ax[0],times,mp,msdict,ylabel=y1labels[0],
                        value_set=vals, subzone=subzone[1])
-            plot_stack_distr(ax[1], times, mp, msdict_3zone, ylabel=y2label,
+            plot_stack_distr(ax[1], times, mp, msdict, ylabel=y2label,
                    value_set=vals+'%', do_xlabel=True, subzone=subzone[1])
-            plot_stack_distr(ax2[subzone[0]],times,mp,msdict_3zone,
+            plot_stack_distr(ax2[subzone[0]],times,mp,msdict,
                 ylabel=fig2ylabels[subzone[1]],value_set=vals,
                 subzone=subzone[1],
-                             do_xlabel=(subzone[0] is len(msdict_3zone)-2))
+                             do_xlabel=(subzone[0] is len(msdict)-2))
             fig.tight_layout(pad=1)
-            fig.savefig(figureout+'distr_'+vals+subzone[1]+'_line.png')
+            fig.savefig(figureout+'/distr_'+vals+subzone[1]+'_line.png')
             plt.close(fig)
         fig2.tight_layout(pad=1)
-        fig2.savefig(figureout+'distr_'+vals+'eachzone_line.png')
+        fig2.savefig(figureout+'/distr_'+vals+'eachzone_line.png')
         plt.close(fig2)
     '''
     #Fourth type: virial vs Biot Savart stand alones
@@ -456,31 +431,32 @@ if __name__ == "__main__":
                'closedRegion':r'Closed Region $\Delta B\left[nT\right]$',
                'lobes':r'Lobes $\Delta B\left[nT\right]$',
                'missing':r'Unaccounted $\Delta B\left[nT\right]$'}
-    fig, ax = plt.subplots(nrows=len(msdict_3zone), ncols=1, sharex=True,
-                           figsize=[14,2*len(msdict_3zone)])
-    for subzone in enumerate(msdict_3zone):
-        plot_single(ax[subzone[0]], times, mp, msdict_3zone,
+    fig, ax = plt.subplots(nrows=len(msdict), ncols=1, sharex=True,
+                           figsize=[14,2*len(msdict)])
+    for subzone in enumerate(msdict):
+        plot_single(ax[subzone[0]], times, mp, msdict,
                    ylabel=ylabels[subzone[1]],
                    subzone=subzone[1],value_key='Virial [nT]')
-        plot_single(ax[subzone[0]], times, mp, msdict_3zone,
+        plot_single(ax[subzone[0]], times, mp, msdict,
              ylabel=ylabels[subzone[1]], subzone=subzone[1],
              value_key='bioS [nT]',
-                    do_xlabel=(subzone[0] is len(msdict_3zone)-1))
+                    do_xlabel=(subzone[0] is len(msdict)-1))
                     #ylim=[-100,30])
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'compare_Total_line.png')
     plt.close(fig)
     '''
+    from IPython import embed; embed()
     #Fifth type: virial vs Biot Savart one nice imag with obs dst
     ######################################################################
     y1label = r'Virial $\Delta B\left[ nT\right]$'
     y2label = r'Biot Savart law $\Delta B\left[ nT\right]$'
     fig,ax = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,14])
-    msdict_3zone.pop('missing')
-    plot_stack_contrib(ax[0], times,mp,msdict_3zone,ylabel=y1label,
+    msdict.pop('missing')
+    plot_stack_contrib(ax[0], times,mp,msdict,ylabel=y1label,
                                value_key='Virial [nT]',
                                legend_loc='lower left')
-    plot_stack_contrib(ax[1], times,mp,msdict_3zone,ylabel=y2label,
+    plot_stack_contrib(ax[1], times,mp,msdict,ylabel=y2label,
                                value_key='bioS [nT]', do_xlabel=True)
     ax[0].set_ylim([-125,20])
     ax[1].set_ylim([-125,20])
@@ -496,19 +472,19 @@ if __name__ == "__main__":
                'lobes':r'Lobes $\Delta B\left[nT\right]$'}
     fig,ax = plt.subplots(nrows=5,ncols=1,sharex=True,figsize=[14,17],
                           gridspec_kw={'height_ratios':[2,2,1,1,1]})
-    #msdict_3zone.pop('missing')
-    plot_stack_contrib(ax[0], times,mp,msdict_3zone,ylabel=y1label,
+    #msdict.pop('missing')
+    plot_stack_contrib(ax[0], times,mp,msdict,ylabel=y1label,
                                value_key='Virial [nT]',ylim=[-125,25],
                                legend_loc='lower left')
-    plot_stack_contrib(ax[1], times,mp,msdict_3zone,ylabel=y2label,
+    plot_stack_contrib(ax[1], times,mp,msdict,ylabel=y2label,
                               ylim=[-125,25],
                                value_key='bioS [nT]', do_xlabel=False)
-    for subzone in enumerate([k for k in msdict_3zone.keys()]):
+    for subzone in enumerate([k for k in msdict.keys()]):
         ylabels = [subzone[1]+' '+vals+' Distribution']
-        plot_stack_distr(ax[2+subzone[0]],times,mp,msdict_3zone,
+        plot_stack_distr(ax[2+subzone[0]],times,mp,msdict,
                  ylabel=fig2ylabels[subzone[1]],value_set=vals,
                  subzone=subzone[1],
-                             do_xlabel=(subzone[0] is len(msdict_3zone)-1))
+                             do_xlabel=(subzone[0] is len(msdict)-1))
         ax[2+subzone[0]].get_legend().remove()
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'agu2021_main.png')
@@ -565,13 +541,13 @@ if __name__ == "__main__":
         ax.fill_between(times,mp['Virial Surface Total [nT]']+
                             mp['Virial Volume Total [nT]'],color='grey')
         ax.plot(times,mp['Virial Surface TotalClosed [nT]']+
-                  msdict_3zone['closedRegion']['Virial Volume Total [nT]'],
+                  msdict['closedRegion']['Virial Volume Total [nT]'],
                     label='Closed')
         ax.plot(times,mp['Virial Surface TotalOpenN [nT]']+
                     mp['Virial Surface TotalOpenS [nT]']+
-                    msdict_3zone['lobes']['Virial Volume Total [nT]'],
+                    msdict['lobes']['Virial Volume Total [nT]'],
                     label='Lobes')
-        ax.plot(times,msdict_3zone['rc']['Virial Volume Total [nT]'],
+        ax.plot(times,msdict['rc']['Virial Volume Total [nT]'],
                     label='RingCurrent')
     if False:
         ax.fill_between(times,mp['Um [nT]'],color='grey')

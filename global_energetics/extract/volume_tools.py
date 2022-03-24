@@ -82,12 +82,6 @@ def get_imtrack_integrands(state_var):
     #Integrands
     integrands = ['Eth_acc [J/Re^3]','KE_acc [J/Re^3]',
                   'Wth [W/Re^3]', 'WKE [W/Re^3]']
-    #Debug:
-    '''
-    integrands = ['Virial Ub [J/Re^3]','Virial 2x Uk [J/Re^3]',
-                  'rhoU_r [Js/Re^3]','uB [J/Re^3]', 'uB_dipole [J/Re^3]']
-    '''
-
     for term in integrands:
         name = term.split(' [')[0]
         units = '['+term.split('[')[1].split('/Re^3')[0]+']'

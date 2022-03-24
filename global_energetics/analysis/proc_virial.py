@@ -4,6 +4,45 @@
 import numpy as np
 import pandas as pd
 
+def load_clean_virial(hdf, **kwargs):
+    """loads HDF file then sorts cleans and sorts into subzones
+    inputs
+        hdf (str) - filename str to load (full path)
+        kwargs:
+            timekey
+            surfacekey
+            volumekey
+            innersurfacekey
+    Return
+        mpdict (dict{DataFrames})
+        msdict (dict{DataFrames})
+        inner_mp (DataFrame)
+    """
+    #load data
+    store = pd.HDFStore(hdf)
+
+    #strip times
+    times = store[store.keys()[0]]['Time [UTC]']
+
+    #define magnetopause and inner_magnetopause will relevant pieces
+    mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
+                             store['/mp_iso_betastar_volume'], times)
+    inner_mp = store['/mp_iso_betastar_inner_surface']
+    mpdict = {'ms_full':mp}
+
+    #define subzones with relevant pieces
+    msdict = {}
+    for key in store.keys():
+        if 'ms' in key:
+            if any(['Virial' in k for k in store[key].keys()]):
+                cleaned_df = virial_mods(store[key], times)
+            else:
+                cleaned_df = store[key]
+            msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
+                                                  columns=['Time [UTC]'])})
+    store.close()
+    return mpdict, msdict, inner_mp, times
+
 def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
     """Function finds percent contributions and missing amounts
     Inputs
@@ -80,6 +119,9 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
         for key in ms.keys():
             ms[key.split('[')[0]+'[%]'] = (100*ms[key]/
                                       [m for m in mpdict.values()][0][key])
+    #NOTE maybe mpdict simply wasn't being updated!
+    #for key in msdict['summed'].keys():
+    #    mp[key] = msdict['summed'][key]
     return mpdict, msdict
 
 def calculate_mass_term(df,times):
@@ -146,6 +188,11 @@ def virial_mods(df, times):
     for key in df.keys():
         if '[J]' in key and key.split(' [J]')[0]+' [nT]' not in df.keys():
             df[key.split(' [J]')[0]+' [nT]'] = df[key]/(-8e13)
+    if 'KE [J]' not in df.keys():
+        df['KE [J]'] = (df['Virial 2x Uk [J]']-df['Pth [J]'])/2
+        df['Eth [J]'] = df['Pth [J]']
+        df['Utot [J]'] = df['Pth [J]']+df['KE [J]']+df['Virial Ub [J]']
+        df['uB [J]'] = df['Virial Ub [J]']
     return df
 
 def magnetopause_energy_mods(mpdf):
@@ -209,6 +256,31 @@ def gather_magnetopause(outersurface, volume, times):
     if 'Virial Volume Total [nT]' in combined.keys():
         combined = biot_mods(combined, times)
     return combined
+
+def group_subzones(msdict, mode='3zone'):
+    """Groups subzones into dictionary with certain keys
+    inputs
+        msdict (dict{DataFrames})
+        mode (str)
+    returns
+        msdict
+    """
+    if ('closed' in msdict.keys()) and ('3zone' in mode):
+        msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
+                        'closedRegion':msdict['closed'],
+                        'rc':msdict['rc'],
+                        'missing':msdict['missed']}
+    elif ('3zone' in mode):
+        msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
+                        'closedRegion':msdict['ps']+msdict['qDp'],
+                        'rc':msdict['rc'],
+                        'missing':msdict['missed']}
+    elif ('lobes' in mode):
+        msdict ={'nlobe':msdict['nlobe'],
+                       'slobe':msdict['slobe'],
+                       'remaining':msdict['rc']+msdict['ps']+msdict['qDp'],
+                       'missing':msdict['missed']}
+    return msdict
 
 def BIGMOD(mpdict,msdict,inner_mp,fix=None):
     """Function makes correction to virial data
