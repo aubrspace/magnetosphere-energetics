@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """Functions for identifying surfaces from field data
 """
@@ -1182,8 +1183,10 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         field_data- tecplot Dataset class containing 3D field data
         kwargs:
             is3D- if all 3 dimensions are present
+            zones - list of zone objects
     """
     ######################################################################
+    zones = kwargs.get('zones', None)
     eq = tp.data.operate.execute_equation
     #General equations
     if (any([var.find('J_')!=-1 for var in field_data.variable_names])and
@@ -1198,11 +1201,16 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
         aux = field_data.zone('global_field').aux_data
         #Dipolar coordinate variables
-        eq('{mhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
-        eq('{mhat_y} = 0')
-        eq('{mhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
-        eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
-        eq('{Lshell} = {r [R]}/cos({lambda})**2')
+        print('hello')
+        print(aux['BTHETATILT'])
+        eq('{mZhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
+        eq('{mZhat_y} = 0')
+        eq('{mZhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
+        eq('{mXhat_x} = sin(('+aux['BTHETATILT']+'+90)*pi/180)')
+        eq('{mXhat_y} = 0')
+        eq('{mXhat_z} = -1*cos(('+aux['BTHETATILT']+'+90)*pi/180)')
+        # eq('{lambda} = asin(({mhat_x}*{X [R]}+{mhat_z}*{Z [R]})/{r [R]})')
+        # eq('{Lshell} = {r [R]}/cos({lambda})**2')
     else:
         eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)')
     #Dynamic Pressure
@@ -1221,14 +1229,23 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     ######################################################################
     #Fieldlinemaping
     if ('OCFLB' in analysis_type or analysis_type=='all') and kwargs.get('is3D',True):
-        eq('{Xd [R]}= {mhat_x}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
-        eq('{Zd [R]}= {mhat_z}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
-        eq('{phi} = atan2({Y [R]}, {Xd [R]})')
-        eq('{req} = 2.7/(cos({lambda})**2)')
-        eq('{lambda2} =sqrt(acos(1/{req}))')
-        eq('{X_r1project} = 1*cos({phi})*sin(pi/2-{lambda2})')
-        eq('{Y_r1project} = 1*sin({phi})*sin(pi/2-{lambda2})')
-        eq('{Z_r1project} = 1*cos(pi/2-{lambda2})')
+
+        #eq('{Xd [R]}= {mhat_x}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})')
+        print('hello')
+        eq('{Z_mag [R]}= {Z [R]}*cos('+aux['BTHETATILT']+'*pi/180) - {X [R]}*sin('+aux['BTHETATILT']+'*pi/180)')
+        #eq('{Zd [R]}= {mhat_z}*({X [R]}*{mhat_x}+{Z [R]}*{mhat_z})', zones=zones)
+        eq('{X_mag [R]}= {X [R]}*cos('+aux['BTHETATILT']+'*pi/180) + {Z [R]}*sin('+aux['BTHETATILT']+'*pi/180)')
+        eq('{phi} = atan2({Y [R]}, {X_mag [R]})')#jlhh, zones=zones)
+        eq('{lambda_mag} = atan2({Z_mag [R]}, sqrt({X_mag [R]}**2 + {Y [R]}**2))')
+        eq('{r_mod} = IF({r [R]} < 1, 1, {r [R]})')
+        eq('{req} = {r_mod}/(cos({lambda_mag})**2)', zones=zones)
+        eq('{req_root} = sqrt({req})', zones=zones)
+        eq('{radius_ratio} = 1/({req_root})', ignore_divide_by_zero = True, zones=zones)
+        #import IPython; IPython.embed()
+        eq('{lambda2} = acos({radius_ratio})', zones=zones) #edit by Shannon H. 11/13/21
+        eq('{X_r1project} = 1*cos({phi})*sin(pi/2-{lambda2})', zones=zones)
+        eq('{Y_r1project} = 1*sin({phi})*sin(pi/2-{lambda2})', zones=zones)
+        eq('{Z_r1project} = 1*cos(pi/2-{lambda2})', zones=zones)
     ######################################################################
     #Virial only intermediate terms
     if 'virial' in analysis_type or analysis_type=='all':
