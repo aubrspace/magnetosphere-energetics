@@ -4,6 +4,15 @@
 import numpy as np
 import pandas as pd
 
+def load_nonGM(hdf, **kwargs):
+    store = pd.HDFStore(hdf)
+    data = {}
+    for key in store.keys():
+        if any(['ie' in key, 'ua' in key]):
+            data[key] = store[key]
+    store.close()
+    return data['/ie'], data['/ua']
+
 def load_clean_virial(hdf, **kwargs):
     """loads HDF file then sorts cleans and sorts into subzones
     inputs
@@ -21,27 +30,56 @@ def load_clean_virial(hdf, **kwargs):
     #load data
     store = pd.HDFStore(hdf)
 
+    #check if non-gm data is present
+    nonGM = any([ngm in k for k in store.keys() for ngm in ['ie','ua']])
+    #keep only GM keys
+    gmdict = {}
+    for key in store.keys():
+        if not any(['ie' in key, 'ua' in key]):
+            gmdict[key] = store[key]
+    store.close()
+
     #strip times
-    times = store[store.keys()[0]]['Time [UTC]']
+    times = [df for df in gmdict.values()][0]['Time [UTC]']
 
     #define magnetopause and inner_magnetopause will relevant pieces
-    mp = gather_magnetopause(store['/mp_iso_betastar_surface'],
-                             store['/mp_iso_betastar_volume'], times)
-    inner_mp = store['/mp_iso_betastar_inner_surface']
+    mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
+                             gmdict['/mp_iso_betastar_volume'], times)
+    inner_mp = gmdict['/mp_iso_betastar_inner_surface']
     mpdict = {'ms_full':mp}
 
     #define subzones with relevant pieces
     msdict = {}
-    for key in store.keys():
+    for key in gmdict.keys():
+        print(key)
         if 'ms' in key:
-            if any(['Virial' in k for k in store[key].keys()]):
-                cleaned_df = virial_mods(store[key], times)
+            if any(['Virial' in k for k in gmdict[key].keys()]):
+                cleaned_df = check_timing(gmdict[key],times)
+                cleaned_df = virial_mods(cleaned_df, times)
             else:
-                cleaned_df = store[key]
+                cleaned_df = gmdict[key]
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
                                                   columns=['Time [UTC]'])})
-    store.close()
-    return mpdict, msdict, inner_mp, times
+    return mpdict, msdict, inner_mp, times, nonGM
+
+def check_timing(df,times):
+    """If times don't match data, interpolate data
+    Inputs
+        df
+        times
+    Return
+        interp_df
+    """
+    #Do nothing if times are already matching
+    if len(times) == len(df['Time [UTC]']):
+        if all(times == df['Time [UTC]']):
+            return df
+    #Otw reconstruct on times column and interpolate
+    interp_df = pd.DataFrame({'Time [UTC]':times})
+    for key in df.keys().drop('Time [UTC]'):
+        interp_df[key] = df[key]
+    interp_df = interp_df.interpolate(col='Time [UTC]')
+    return interp_df
 
 def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
     """Function finds percent contributions and missing amounts
@@ -52,11 +90,13 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
         [MODIFIED] mpdict(Dict of DataFrames)
         [MODIFIED] msdict(Dict of DataFrames)
     """
-    mp = [m for m in mpdict.values()][0]
+    mp = [m.copy() for m in mpdict.values()][0]
     mp['Virial Surface Total [nT]'] = (mp['Virial Surface Total [nT]']+
                   inner_mp['Virial Fadv [nT]']+inner_mp['Virial b^2 [nT]'])
     mp['Virial [nT]'] = (mp['Virial [nT]'] + inner_mp['Virial Fadv [nT]']+
                          inner_mp['Virial b^2 [nT]'])
+    mp['Utot2 [J]'] = mp['KE [J]']+mp['Eth [J]']+mp['Virial Ub [J]']
+    mpdict[[k for k in mpdict.keys()][0]] = mp
     for m in msdict.items():
         #Remove empty/uneccessary columns from subvolumes
         for key in m[1].keys():
@@ -101,6 +141,8 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
             m[1]['Virial Surface Total [nT]'] = (
                                   m[1]['Virial Surface Total [J]']/(-8e13))
             m[1]['Virial [nT]'] = m[1]['Virial [J]']/(-8e13)
+            m[1]['Utot2 [J]'] = (m[1]['KE [J]']+m[1]['Eth [J]']+
+                                 m[1]['Virial Ub [J]'])
             msdict.update({m[0]:m[1]})
     #Quantify amount missing from sum of all subzones
     missing_volume, summed_volume = pd.DataFrame(), pd.DataFrame()
@@ -119,7 +161,6 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
         for key in ms.keys():
             ms[key.split('[')[0]+'[%]'] = (100*ms[key]/
                                       [m for m in mpdict.values()][0][key])
-    #NOTE maybe mpdict simply wasn't being updated!
     #for key in msdict['summed'].keys():
     #    mp[key] = msdict['summed'][key]
     return mpdict, msdict
@@ -137,6 +178,7 @@ def calculate_mass_term(df,times):
     ftimes.index=ftimes.index-1
     ftimes.drop(index=[-1],inplace=True)
     dtimes = ftimes-times
+    #dtimes.iloc[-1] = dtimes.iloc[-2]
     #Forward difference of integrated positionally weighted density
     df['Um_static [J]'] = -1*df['rhoU_r [Js]']/[d.seconds for d in dtimes]
     f_n0 = df['rhoU_r [Js]']
@@ -190,9 +232,12 @@ def virial_mods(df, times):
             df[key.split(' [J]')[0]+' [nT]'] = df[key]/(-8e13)
     if 'KE [J]' not in df.keys():
         df['KE [J]'] = (df['Virial 2x Uk [J]']-df['Pth [J]'])/2
+    if 'Eth [J]' not in df.keys():
         df['Eth [J]'] = df['Pth [J]']
+    if 'Utot [J]' not in df.keys():
         df['Utot [J]'] = df['Pth [J]']+df['KE [J]']+df['Virial Ub [J]']
-        df['uB [J]'] = df['Virial Ub [J]']
+    if 'uB [J]' not in df.keys():
+        df['uB [J]'] = df['Virial Ub [J]']#mostly so it doesn't crash
     return df
 
 def magnetopause_energy_mods(mpdf):

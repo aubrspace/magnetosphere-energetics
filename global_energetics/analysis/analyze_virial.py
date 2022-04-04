@@ -23,6 +23,7 @@ from global_energetics.analysis.proc_virial import (get_interzone_stats,
                                                     gather_magnetopause,
                                                     group_subzones,
                                                     load_clean_virial,
+                                                    load_nonGM,
                                                     BIGMOD)
 def plot_single(ax, times, mp, msdict, **kwargs):
     """Plots energy or dst contribution in particular zone
@@ -103,11 +104,11 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
         values[value_set].remove('Virial Surface Total [nT]')
         ax.axhline(0,color='white',linewidth=0.5)
     for value in values[value_set]:
-        label = value.split(' [')[0]
+        label = value.split(' [')[0].split('Virial ')[-1]
         ax.fill_between(times,starting_value,starting_value+data[value],
                         label=label)
         starting_value = starting_value+data[value]
-    if not '%' in value_set:
+    if (not '%' in value_set) and kwargs.get('doBios',True):
         if any(['bioS' in k for k in data.keys()]):
             ax.plot(times, data['bioS [nT]'], color='white', ls='--',
                     label='BiotSavart')
@@ -157,6 +158,7 @@ def plot_distr(ax, times, mp, msdict, **kwargs):
             ax.plot(times, mp['Virial [nT]'], color='black', ls='--',
                     label='Virial')
             try:
+                if all(omni['sym_h'].isna()): raise NameError
                 ax.plot(omni['Time [UTC]'],omni['sym_h'],
                         color='white',
                         ls='--', label='SYM-H')
@@ -196,6 +198,7 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
         ax.axhline(0,color='white',linewidth=0.5)
         if ('Virial' in value_key) or ('bioS' in value_key):
             try:
+                if all(omni['sym_h'].isna()): raise NameError
                 ax.plot(omni['Time [UTC]'],omni['sym_h'],color='white',
                     ls='--', label='SYM-H')
             except NameError:
@@ -239,6 +242,7 @@ def plot_contributions(ax, times, mp, msdict, **kwargs):
             pass
         if 'bioS' in value_key or 'Virial' in value_key:
             try:
+                if all(omni['sym_h'].isna()): raise NameError
                 ax.plot(omni['Time [UTC]'],omni['sym_h'],color='seagreen',
                     ls='--', label='OMNI obs')
             except NameError:
@@ -278,8 +282,11 @@ if __name__ == "__main__":
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
     #HDF data, will be sorted and cleaned
-    [mpdict,msdict,inner_mp,times]= load_clean_virial(datapath+
-                                                           'energetics.h5')
+    [mpdict,msdict,inner_mp,times,get_nonGM]=load_clean_virial(
+                                                     datapath+'results.h5')
+    if get_nonGM:
+        #Check for non GM data
+        ie, ua = load_nonGM(datapath+'results.h5')
 
     ##Gather more statistics
     mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
@@ -289,6 +296,44 @@ if __name__ == "__main__":
     msdict = group_subzones(msdict,mode='3zone')
 
     ##Begin plots
+    #MGU image: ie integrated joule heating, ua density@210km, lobe energy
+    ######################################################################
+    if get_nonGM:
+        #gmlabel = r'$\Delta B \left[nT\right]$'
+        gmlabel = r'Energy $\left[J\right]$'
+        gmlabel2 = r'Energy $\left[\%\right]$'
+        lobelabel= r'Lobes Energy$\left[J\right]$'
+        ielabel = r'Joule Heating $\left[GW\right]$'
+        ualabel = r'$\rho_{210km} \left[amu/cm^3\right]$'
+        fig,ax = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,18],
+                              gridspec_kw={'height_ratios':[1,1,1,1]})
+        ##Biot Savart Dst
+        #plot_stack_contrib(ax[0], times,mp,msdict,ylabel=gmlabel,
+        #                   ylim=[-125,30], value_key='bioS [nT]',
+        #                   do_xlabel=False)
+        ##Energy Contributions- value
+        plot_stack_contrib(ax[0], times,mp,msdict,ylabel=gmlabel,
+                           value_key='Utot2 [J]',
+                           do_xlabel=False)
+        ##Energy Contributions- percent
+        plot_contributions(ax[1], times,mp,msdict,ylabel=gmlabel2,
+                           ylim=[0,100],value_key='Utot2 [%]',
+                           do_xlabel=False)
+        ##Lobe Energy
+        #plot_stack_distr(ax[1],times,mp,msdict,ylabel=lobelabel,
+        #                doBios=False,
+        #                value_set='Energy',subzone='lobes',do_xlabel=False)
+        ##IE integrated joule heating
+        ax[2].plot(ie.index,ie['nJouleHeat_W']/1e9,label='north')
+        ax[2].plot(ie.index,ie['sJouleHeat_W']/1e9,label='south')
+        general_plot_settings(ax[2],ylabel=ielabel,legend_loc='upper left')
+        ##UA Density @210km
+        ax[3].plot(ua.index,ua['Rho_mean'])
+        general_plot_settings(ax[3],ylabel=ualabel,do_xlabel=True)
+        ax[3].get_legend().remove()
+        fig.tight_layout(pad=1)
+        fig.savefig(figureout+'/ie_ua_energy')
+        plt.close(fig)
     '''
     #Fist type: line and stacks of various groupings of terms
     ######################################################################
@@ -424,7 +469,6 @@ if __name__ == "__main__":
         fig2.tight_layout(pad=1)
         fig2.savefig(figureout+'/distr_'+vals+'eachzone_line.png')
         plt.close(fig2)
-    '''
     #Fourth type: virial vs Biot Savart stand alones
     ######################################################################
     ylabels = {'rc':r'Ring Current $\Delta B\left[nT\right]$',
@@ -432,7 +476,7 @@ if __name__ == "__main__":
                'lobes':r'Lobes $\Delta B\left[nT\right]$',
                'missing':r'Unaccounted $\Delta B\left[nT\right]$'}
     fig, ax = plt.subplots(nrows=len(msdict), ncols=1, sharex=True,
-                           figsize=[14,2*len(msdict)])
+                           figsize=[14,4*len(msdict)])
     for subzone in enumerate(msdict):
         plot_single(ax[subzone[0]], times, mp, msdict,
                    ylabel=ylabels[subzone[1]],
@@ -443,10 +487,8 @@ if __name__ == "__main__":
                     do_xlabel=(subzone[0] is len(msdict)-1))
                     #ylim=[-100,30])
     fig.tight_layout(pad=1)
-    fig.savefig(figureout+'compare_Total_line.png')
+    fig.savefig(figureout+'/compare_Total_line.png')
     plt.close(fig)
-    '''
-    from IPython import embed; embed()
     #Fifth type: virial vs Biot Savart one nice imag with obs dst
     ######################################################################
     y1label = r'Virial $\Delta B\left[ nT\right]$'
@@ -461,7 +503,7 @@ if __name__ == "__main__":
     ax[0].set_ylim([-125,20])
     ax[1].set_ylim([-125,20])
     fig.tight_layout(pad=1)
-    fig.savefig(figureout+'pretty_Dst_line.png')
+    fig.savefig(figureout+'/pretty_Dst_line.png')
     plt.close(fig)
     #AGU image: virial biot savart
     ######################################################################
@@ -487,7 +529,7 @@ if __name__ == "__main__":
                              do_xlabel=(subzone[0] is len(msdict)-1))
         ax[2+subzone[0]].get_legend().remove()
     fig.tight_layout(pad=1)
-    fig.savefig(figureout+'agu2021_main.png')
+    fig.savefig(figureout+'/agu2021_main.png')
     plt.close(fig)
     #AGU image: SW Bz+Bmagnitude, Pdyn
     ######################################################################
@@ -521,7 +563,7 @@ if __name__ == "__main__":
     plot_al(ax[2], [omni, swmf_index], 'Time [UTC]', Allabel)
     general_plot_settings(ax[2], ylabel=Allabel)
     fig.tight_layout(pad=1)
-    fig.savefig(figureout+'agu2021_side.png')
+    fig.savefig(figureout+'/agu2021_side.png')
     plt.close(fig)
     #Just look at surface terms
     ######################################################################

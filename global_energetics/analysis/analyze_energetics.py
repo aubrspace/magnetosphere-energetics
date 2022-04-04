@@ -1779,7 +1779,6 @@ if __name__ == "__main__":
         mp = mplist[0]
     agglist.append(mp)
     for df in enumerate(agglist):
-        from IPython import embed; embed()
         name = df[1]['name'].iloc[-1]
         region = name.split('mp')[-1].split('aggr')[-1].split(
                                                       '_')[0].capitalize()

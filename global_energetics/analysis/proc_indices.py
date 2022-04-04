@@ -662,4 +662,3 @@ if __name__ == "__main__":
     simdata = [swmf_index, swmf_log, swmf_sw]
     [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
                                       cuttoffend, 'Time [UTC]', shift=False)
-    from IPython import embed; embed()

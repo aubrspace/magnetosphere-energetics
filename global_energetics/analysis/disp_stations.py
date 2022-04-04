@@ -26,7 +26,6 @@ def stationXYZgsm(Lon, Lat, timeinfo, **kwargs):
 
 if __name__ == "__main__":
     testfile = './mag_grid/mag_grid_e20161110-020100.out'
-    from IPython import embed; embed()
     #find files for station locations
     #               simulation data
     #               supermag   data

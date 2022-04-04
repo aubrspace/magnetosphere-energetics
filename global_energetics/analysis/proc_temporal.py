@@ -80,7 +80,6 @@ def add_derived_variables(dflist):
                 ###Add cumulative energy terms
                 #Compute cumulative energy In, Out, and Net
                 start = df[1].index[0]
-                from IPython import embed; embed()
                 totalE = df[1]['Utot [J]']
                 delta_t = (df[1]['Time [UTC]'].loc[start+1]-
                         df[1]['Time [UTC]'].loc[start]).seconds
