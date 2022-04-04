@@ -5,6 +5,7 @@ import logging as log
 import os
 import sys
 import time
+import glob
 from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
@@ -14,23 +15,24 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules
-'''
-from global_energetics.makevideo import get_time
-from global_energetics.extract import surface_construct
-#from global_energetics.extract.view_set import display_magnetopause
-from global_energetics.extract import surface_tools
-from global_energetics.extract.surface_tools import surface_analysis
-from global_energetics.extract import volume_tools
-from global_energetics.extract.volume_tools import volume_analysis
-from global_energetics.extract import stream_tools
-from global_energetics.extract.stream_tools import (calc_dayside_mp,
-                                                    calc_tail_mp,
-                                                    dump_to_pandas,
-                                                    create_cylinder,
-                                                    load_cylinder,
-                                                    abs_to_timestamp,
-                                                    write_to_timelog)
-'''
+from global_energetics.makevideo import get_time, time_sort
+from global_energetics.extract.stream_tools import integrate_tecplot
+
+def calc_shell_variables(ds, **kwargs):
+    """Calculates helpful variables such as cell area (labeled as volume)
+    """
+    tp.macro.execute_extended_command('CFDAnalyzer3',
+                                      'CALCULATE FUNCTION = '+
+                                      'CELLVOLUME VALUELOCATION = '+
+                                      'CELLCENTERED')
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    #Generate cellcentered versions of postitional variables
+    for var in ['X [R]','Y [R]','Z [R]','JouleHeat [mW/m^2]']:
+        if var in zone.dataset.variable_names:
+            newvar = var.split(' ')[0].lower()+'_cc'
+            eq('{'+newvar+'}={'+var+'}', value_location=CC,
+                                        zones=[zone.index])
+
 def get_ionosphere_zone(eventdt, datapath):
     """Function to find the correct ionosphere datafile and append the data
         to the current tecplot session
@@ -56,7 +58,7 @@ def get_ionosphere_zone(eventdt, datapath):
         print('no ionosphere data found!')
         return None, None
 
-def get_ionosphere(field_data, ndatafile, sdatafile, *, show=False,
+def get_ionosphere(field_data, *, show=False,
                    comp1=True, comp2=True, comp3=True,
                    local_integrate=False):
     """Function that finds, plots and calculates energetics on the
@@ -92,6 +94,26 @@ def get_ionosphere(field_data, ndatafile, sdatafile, *, show=False,
         #pass data to tecplot
         load_ionosphere_tecplot(northdf, southdf)
 
+def save_tofile(infile,timestamp,filetype='hdf',outputdir='localdbug/ie',
+                hdfkey='ie',**values):
+    """Function saves data to file
+    Inputs
+        infile (str)- input filename
+        timestamp (datettime)
+        filetype (str)- only hdf5 supported
+        hdfkey (str)
+        values:
+            dict(list of values)- typically single valued list
+    """
+    df = pd.DataFrame(values)
+    df.index = [timestamp]
+    #output info
+    outfile = '/'+infile.split('/')[-1].split('it')[-1].split('.')[0]
+    if 'hdf' in filetype:
+        df.to_hdf(outputdir+outfile+'.h5', key='ie')
+    if 'ascii' in filetype:
+        df.to_csv(outputdir+outfile+'.dat',sep=' ',index=False)
+
 
 
 # Must list .plt that script is applied for proper execution
@@ -100,7 +122,23 @@ def get_ionosphere(field_data, ndatafile, sdatafile, *, show=False,
 #   "Scripting" -> "PyTecplot Connections..." -> "Accept connections"
 
 if __name__ == "__main__":
+    start_time = time.time()
     if '-c' in sys.argv:
         tp.session.connect()
-    tp.new_layout()
-    get_ionosphere(sys.argv[1],sys.argv[2])
+        tp.new_layout()
+    datapath = ('/nfs/solsticedisk/tuija/starlink/IE/ionosphere/')
+    filelist = sorted(glob.glob(datapath+'it*.tec'), key=time_sort)
+    for file in filelist[0:1]:
+        field_data = tp.data.load_tecplot(file)
+        #get timestamp
+        timestamp = get_time(file)
+        #setup zones
+        north = field_data.zone('IonN *')
+        south = field_data.zone('IonS *')
+        joule = field_data.variable('JouleHeat *')
+        #integrate
+        conversion = 6371**2*1e3 #mW/m^2*Re^2 -> W
+        nint = integrate_tecplot(joule,north)*conversion
+        sint = integrate_tecplot(joule,south)*conversion
+        #save data
+        save_tofile(file,timestamp,nJouleHeat_W=[nint],sJouleHeat_W=[sint])

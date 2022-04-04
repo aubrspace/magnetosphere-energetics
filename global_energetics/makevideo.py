@@ -10,29 +10,30 @@ import numpy as np
 import datetime as dt
 #import spacepy.time as spacetime
 
-def get_time(filename):
+def get_time(infile):
     """Function gets time from file name and returns spacepy Ticktock obj
     Input
-        filename
+        infile
     Output
         time- spacepy Ticktock object
     """
-    date_string = filename.split('/')[-1].split('e')[-1].split('.')[0]
-    time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
-    '''
-    #import spacepy.time as spacetime
-    date_string = filename.split('/')[-1].split('-')[0]
-    year = int(''.join(list(date_string)[-8:-4]))
-    month = int(''.join(list(date_string)[-4:-2]))
-    day = int(''.join(list(date_string)[-2:]))
-    time_string = int(filename.split('/')[-1].split('-')[1].split('-')[0])
-    hour = int(np.floor(time_string/10000))
-    minute = int(np.mod(time_string/100, 100))
-    second = int(np.mod(time_string, 100))
-    time_dt = dt.datetime(year, month, day, hour, minute, second)
-    #time = spacetime.Ticktock(time_dt,'UTC')
-    '''
-    return time_dt
+    try:#looking for typically BATSRUS 3D output
+        date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
+        time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+    except ValueError:
+        try:#looking for typical IE output
+            date_string=infile.split('/')[-1].split('it')[-1].split('.')[0]
+            time_dt = dt.datetime.strptime(date_string,'%y%m%d_%H%M%S_%f')
+        except ValueError:
+            try:#looking for typical UA output
+                date_string=infile.split('_t')[-1].split('.')[0]
+                time_dt = dt.datetime.strptime(date_string,'%y%m%d_%H%M%S')
+            except ValueError:
+                warnings.warn("Tried reading "+infile+
+                          " as GM3d or IE output and failed",UserWarning)
+                time_dt = None
+    finally:
+        return time_dt
 
 def time_sort(filename):
     """Function returns absolute time in seconds for use in sorting

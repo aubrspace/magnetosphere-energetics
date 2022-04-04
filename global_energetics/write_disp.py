@@ -151,6 +151,11 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
         anykey = store.keys()[0]
         blank = pd.DataFrame(columns=store[anykey].keys())
         keylist = store.keys()
+        #see if index contains data we care about (usually time)
+        if type(store[anykey].index[0]) != type(0):
+            doignore=False
+        else:
+            doignore=True
     for key in keylist:
         energetics = blank
         for hdffile in filelist:
@@ -158,10 +163,13 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
             with pd.HDFStore(hdffile) as store:
                 if any([localkey == key for localkey in store.keys()]):
                     energetics = energetics.append(store.get(key),
-                                                ignore_index=True)
-        timekey=[key for key in energetics.keys()if'time' in key.lower()][0]
-        energetics = energetics.sort_values(by=[timekey])
-        energetics = energetics.reset_index(drop=True)
+                                                ignore_index=doignore)
+        if doignore: #index values
+            timekey=[key for key in energetics.keys()if'time'in key.lower()][0]
+            energetics = energetics.sort_values(by=[timekey])
+            energetics = energetics.reset_index(drop=True)
+        else:
+            energetics.sort_index(inplace=True)
         print(energetics)
         with pd.HDFStore(outputpath+'/'+combo_name) as store:
             store[key] = energetics
@@ -172,5 +180,5 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
 if __name__ == "__main__":
     DATA = sys.argv[1]
     OPATH = sys.argv[2]
-    #combine_hdfs(DATA, OPATH)
-    merge_hdfs(DATA, OPATH)
+    combine_hdfs(DATA, OPATH)
+    #merge_hdfs(DATA, OPATH)

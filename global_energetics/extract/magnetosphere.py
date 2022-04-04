@@ -342,7 +342,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     extra_surf_terms = kwargs.get('customTerms', {})
     do_1Dsw = kwargs.get('do_1Dsw', False)
     globalzone = field_data.zone('global_field')
-    futurezone = field_data.zone('future*')
+    if do_cms:
+        futurezone = field_data.zone('future*')
     #
     inner_cond = kwargs.get('inner_cond', 'sphere')
     inner_r = kwargs.get('inner_r', 3)
@@ -404,8 +405,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
         #modes = [mode, 'Jpar+']
     else:
-        #modes = [mode, 'bs', 'closed', 'rc', 'nlobe', 'slobe']
-        modes = [mode]
+        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
+        #modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if (type(zone) != type(None) or type(inner_zone)!=type(None)):
