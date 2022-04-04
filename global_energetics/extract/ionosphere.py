@@ -126,7 +126,8 @@ if __name__ == "__main__":
     if '-c' in sys.argv:
         tp.session.connect()
         tp.new_layout()
-    datapath = ('/nfs/solsticedisk/tuija/starlink/IE/ionosphere/')
+    #datapath = ('/nfs/solsticedisk/tuija/starlink/IE/ionosphere/')
+    datapath = ('/Users/ngpdl/Code/swmf-energetics/localdbug/ie/')
     filelist = sorted(glob.glob(datapath+'it*.tec'), key=time_sort)
     for file in filelist[0:1]:
         field_data = tp.data.load_tecplot(file)
@@ -136,9 +137,14 @@ if __name__ == "__main__":
         north = field_data.zone('IonN *')
         south = field_data.zone('IonS *')
         joule = field_data.variable('JouleHeat *')
+        energy = field_data.variable('E-Flux *')
         #integrate
         conversion = 6371**2*1e3 #mW/m^2*Re^2 -> W
-        nint = integrate_tecplot(joule,north)*conversion
-        sint = integrate_tecplot(joule,south)*conversion
+        njoul = integrate_tecplot(joule,north)*conversion
+        sjoul = integrate_tecplot(joule,south)*conversion
+        nenergy = integrate_tecplot(energy,north)*conversion/1e3
+        senergy = integrate_tecplot(energy,south)*conversion/1e3
         #save data
-        save_tofile(file,timestamp,nJouleHeat_W=[nint],sJouleHeat_W=[sint])
+        save_tofile(file,timestamp,
+                    nJouleHeat_W=[njoul],sJouleHeat_W=[sjoul],
+                    nEFlux_W=[nenergy],sEFlux_W=[senergy])
