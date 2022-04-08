@@ -11,7 +11,8 @@ def load_nonGM(hdf, **kwargs):
         if any(['ie' in key, 'ua' in key]):
             data[key] = store[key]
     store.close()
-    return data['/ie'], data['/ua']
+    return (data['/ie'], data['/ua_njoule'], data['/ua_nenergy'],
+                         data['/ua_nohpi'])
 
 def load_clean_virial(hdf, **kwargs):
     """loads HDF file then sorts cleans and sorts into subzones

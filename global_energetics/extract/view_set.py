@@ -527,8 +527,8 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
     shadings = {'mp_iso_betastar':Color.Cyan,
                 'mp_iso_betastarinnerbound':Color.Custom11,
                 'plasmasheet':Color.Custom9,
-                'ms_nlobe':Color.Yellow,
-                'ms_slobe':Color.Yellow,
+                'ms_nlobe':Color.Custom18,
+                'ms_slobe':Color.Custom18,
                 'ms_rc':Color.Custom32,
                 'ms_ps':Color.Purple,
                 'ms_closed':Color.Custom23,
@@ -720,12 +720,12 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
     ###Always included
     path = os.getcwd()+'/energetics.map'
     tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
-    #frame.background_color = Color.Custom46
+    frame.background_color = Color.Custom46 #dark blueish
     #frame.background_color = Color.Black
-    frame.background_color = Color.Custom17
+    #frame.background_color = Color.Custom17 #Olive
     add_earth_iso(frame, rindex=frame.dataset.variable('r *').index)
     ###DEFAULTS for genaric mode###
-    default = {'transluc': 1,           #zone settings
+    default = {'transluc': 60,           #zone settings
                'energyfracs':[.4,.4,.4,.4,.4],
                'fracnames':['ms_nlobe','ms_slobe','ms_rc','ms_ps','ms_qDp'],
                'zone_hidekeys':['sphere','box','lcb','shue','future'],

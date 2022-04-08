@@ -15,7 +15,8 @@ from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
 from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.plot_tools import (general_plot_settings,
-                                                   pyplotsetup)
+                                                   pyplotsetup,
+                                                   get_omni_cdas)
 from global_energetics.analysis.analyze_energetics import (chopends_time,
                                                   plot_swflowP,plot_swbz,
                                                         plot_dst,plot_al)
@@ -281,12 +282,14 @@ if __name__ == "__main__":
     #Log files and observational indices
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
+    omni2 = get_omni_cdas(dt.datetime(2022,2,2),dt.datetime(2022,2,6))
+    omni['sym_h'] = omni2[omni2.index<=omni['times'].iloc[-2]].reset_index(drop=True)
     #HDF data, will be sorted and cleaned
     [mpdict,msdict,inner_mp,times,get_nonGM]=load_clean_virial(
                                                      datapath+'results.h5')
     if get_nonGM:
         #Check for non GM data
-        ie, ua = load_nonGM(datapath+'results.h5')
+        ie, ua_j, ua_e, ua_non = load_nonGM(datapath+'results.h5')
 
     ##Gather more statistics
     mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
@@ -304,9 +307,13 @@ if __name__ == "__main__":
         gmlabel2 = r'Energy $\left[\%\right]$'
         lobelabel= r'Lobes Energy$\left[J\right]$'
         ielabel = r'Joule Heating $\left[GW\right]$'
+        ielabel3 = r'Power $\left[GW\right]$'
         ualabel = r'$\rho_{210km} \left[amu/cm^3\right]$'
-        fig,ax = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,18],
-                              gridspec_kw={'height_ratios':[1,1,1,1]})
+        ualabel2 = r'$\rho_{210km}/\rho_0$'
+        #fig,ax = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,18],
+        #                      gridspec_kw={'height_ratios':[1,1,1,1]})
+        fig,ax = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,15.75],
+                              gridspec_kw={'height_ratios':[2,2,2,1]})
         ##Biot Savart Dst
         #plot_stack_contrib(ax[0], times,mp,msdict,ylabel=gmlabel,
         #                   ylim=[-125,30], value_key='bioS [nT]',
@@ -324,13 +331,36 @@ if __name__ == "__main__":
         #                doBios=False,
         #                value_set='Energy',subzone='lobes',do_xlabel=False)
         ##IE integrated joule heating
-        ax[2].plot(ie.index,ie['nJouleHeat_W']/1e9,label='north')
-        ax[2].plot(ie.index,ie['sJouleHeat_W']/1e9,label='south')
-        general_plot_settings(ax[2],ylabel=ielabel,legend_loc='upper left')
+        ax[2].plot(ie.index,ie['nJouleHeat_W']/1e9,label='north Joule')
+        ax[2].plot(ie.index,ie['sJouleHeat_W']/1e9,label='south Joule')
+        #general_plot_settings(ax[2],ylabel=ielabel,legend_loc='upper left')
+        ##IE integrated Energy Flux
+        #ax22 = ax[2].twinx()
+        ax[2].plot(ie.index,ie['nEFlux_W']/1e3,label='north EFlux',color='peru')
+        ax[2].plot(ie.index,ie['sEFlux_W']/1e3,label='south EFlux',color='chartreuse')
+        general_plot_settings(ax[2],ylabel=ielabel3,legend_loc='upper left')
         ##UA Density @210km
-        ax[3].plot(ua.index,ua['Rho_mean'])
-        general_plot_settings(ax[3],ylabel=ualabel,do_xlabel=True)
+        ua_tags = ['nJoule','nEnergy','None']
+        #ua_ls = ['--',':',None]
+        ua_ls = [None]
+        for ua in enumerate([ua_e]):
+            print((ua[1]['Rho_mean210']/ua[1]['Rho_mean210'].iloc[0]).describe())
+            ax[3].plot(ua[1].index,
+                       ua[1]['Rho_mean210']/ua[1]['Rho_mean210'].iloc[0],
+                       label='210'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+            #ax[3].plot(ua[1].index,
+            #           ua[1]['Rho_mean310']/ua[1]['Rho_mean310'].iloc[0],
+            #           label='310'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+            #ax[3].plot(ua[1].index,
+            #           ua[1]['Rho_mean410']/ua[1]['Rho_mean410'].iloc[0],
+            #           label='410'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+            #ax[3].plot(ua[1].index,
+            #           ua[1]['Rho_mean510']/ua[1]['Rho_mean510'].iloc[0],
+            #           label='510'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+        general_plot_settings(ax[3],ylabel=ualabel2,do_xlabel=True,
+                              ylim=[0.8,1.5])
         ax[3].get_legend().remove()
+        #Save
         fig.tight_layout(pad=1)
         fig.savefig(figureout+'/ie_ua_energy')
         plt.close(fig)
@@ -441,7 +471,7 @@ if __name__ == "__main__":
         elif 'Energy' in vals:
             fig2ylabels = {'rc':r'Ring Current Energy $\left[J\right]$',
                     'closedRegion':r'Closed Region Energy $\left[J\right]$',
-                           'lobes':r'Lobes Energy $\left[J\right]$'}
+                           'lobes':r'Lobe Energy $\left[J\right]$'}
         y1labels = ['Full MS '+vals+' Distribution']
         fig1,ax1 = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
         fig2,ax2 = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,16])
@@ -454,11 +484,14 @@ if __name__ == "__main__":
         plt.close(fig1)
         for subzone in enumerate([k for k in msdict.keys()][0:-1]):
             y1labels = [subzone[1]+' '+vals+' Distribution']
-            fig,ax=plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,8])
-            plot_stack_distr(ax[0],times,mp,msdict,ylabel=y1labels[0],
-                       value_set=vals, subzone=subzone[1])
-            plot_stack_distr(ax[1], times, mp, msdict, ylabel=y2label,
-                   value_set=vals+'%', do_xlabel=True, subzone=subzone[1])
+            fig,ax=plt.subplots(nrows=1,ncols=1,sharex=True,figsize=[14,4])
+            plot_stack_distr(ax,times,mp,msdict,
+                             ylabel=fig2ylabels[subzone[1]],
+                           value_set=vals,subzone=subzone[1],doBios=False,
+                           ylim=[0,10e15],do_xlabel=True,
+                           legend_loc='upper left')
+            #plot_stack_distr(ax[1], times, mp, msdict, ylabel=y2label,
+            #       value_set=vals+'%', do_xlabel=True, subzone=subzone[1])
             plot_stack_distr(ax2[subzone[0]],times,mp,msdict,
                 ylabel=fig2ylabels[subzone[1]],value_set=vals,
                 subzone=subzone[1],
@@ -536,6 +569,7 @@ if __name__ == "__main__":
     swBlabel = r'$B \left[nT\right]$'
     swPlabel = r'$P_{ram} \left[nPa\right]$'
     Allabel = r'AL $\left[nT\right]$'
+    SYMhlabel = r'SYM-H $\left[nT\right]$'
     colorwheel = plt.cycler('color',
                    ['#375e95', '#05BC54', 'black', 'chartreuse', 'wheat',
                     'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
@@ -548,22 +582,60 @@ if __name__ == "__main__":
                          'axes.edgecolor': 'black',
                          'axes.facecolor': '#FBFFE7',
                          'axes.labelcolor': 'black'})
-    fig,ax = plt.subplots(nrows=3,ncols=1,sharex=True,figsize=[14,6],
-                          gridspec_kw={'height_ratios':[1,1,1]})
+    #figure settings
+    fig,ax = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,10],
+                          gridspec_kw={'height_ratios':[1,1,1,2]})
+    #fig,ax = plt.subplots(nrows=2,ncols=1,sharex=True,figsize=[14,4.5],
+    #                      gridspec_kw={'height_ratios':[1,1]})
+    #Solar wind Bz
     plot_swbz(ax[0],[swmf_sw],'Time [UTC]',swBlabel)
     ax[0].fill_between(swmf_sw['Time [UTC]'], np.sqrt(swmf_sw['bx']**2+
                                      swmf_sw['by']**2+swmf_sw['bz']**2),
                                      color='grey',label=r'$|B|$')
-    plot_swflowP(ax[1],[swmf_sw],'Time [UTC]',swPlabel)
     general_plot_settings(ax[0], ylabel=swBlabel, legend_loc='lower left')
-    general_plot_settings(ax[1], ylabel=swPlabel)
     ax[0].set_xlabel(None)
+    #Ram pressure
+    plot_swflowP(ax[1],[swmf_sw],'Time [UTC]',swPlabel)
+    general_plot_settings(ax[1], ylabel=swPlabel)
     ax[1].set_xlabel(None)
     ax[1].get_legend().remove()
-    plot_al(ax[2], [omni, swmf_index], 'Time [UTC]', Allabel)
+    #AL
+    plot_al(ax[2], [omni,swmf_index], 'Time [UTC]', Allabel)
     general_plot_settings(ax[2], ylabel=Allabel)
+    ax[2].set_xlabel(None)
+    ax[2].get_legend().remove()
+    #Dst
+    plot_dst(ax[3], [omni], 'Time [UTC]', Allabel)
+    ax[3].plot(times, mp['bioS [nT]'],linewidth=2,label='Sim')
+    general_plot_settings(ax[3], ylabel=SYMhlabel)
+    #Save
     fig.tight_layout(pad=1)
     fig.savefig(figureout+'/agu2021_side.png')
+    plt.close(fig)
+    #Pressure, External Perturbations, Volume
+    ######################################################################
+    Plabel = r'$P_{ram} \left[nPa\right]$'
+    Biotlabel = r'External $\Delta B\left[ nT\right]$'
+    Vollabel = r'Volume $\left[R_e\right]$'
+    fig,ax = plt.subplots(nrows=3,ncols=1,sharex=True,figsize=[14,6],
+                              gridspec_kw={'height_ratios':[1,1,1]})
+    #Ram pressure
+    plot_swflowP(ax[0],[swmf_sw],'Time [UTC]',Plabel)
+    general_plot_settings(ax[0], ylabel=Plabel)
+    ax[0].set_xlabel(None)
+    ax[0].get_legend().remove()
+    #Dst
+    ax[1].plot(times,mp['bioS_ext [nT]'],color='#05BC54')
+    general_plot_settings(ax[1], ylabel=Biotlabel)
+    ax[1].set_xlabel(None)
+    ax[1].get_legend().remove()
+    #Volume
+    ax[2].plot(times,mp['Volume [Re^3]'],color='#05BC54')
+    general_plot_settings(ax[2], ylabel=Vollabel,do_xlabel=True)
+    ax[2].get_legend().remove()
+    #Save
+    fig.tight_layout(pad=1)
+    fig.savefig(figureout+'/external_pressure.png')
     plt.close(fig)
     #Just look at surface terms
     ######################################################################

@@ -70,6 +70,23 @@ def general_plot_settings(ax, **kwargs):
     ax.tick_params(which='major', length=9)
     ax.legend(loc=kwargs.get('legend_loc',None))
 
+def get_omni_cdas(start,end,as_df=True,**variables):
+    from cdasws import CdasWs
+    import pandas as pd
+    cdas = CdasWs()
+    omni_allvars = cdas.get_variables('OMNI_HRO_1MIN')
+    omni_vars = ['SYM_H']
+    for var in variables:
+        if var in omni_allvars:
+            omni_vars.append(var)
+    status,omni = cdas.get_data('OMNI_HRO_1MIN',omni_vars,start,end)
+    if as_df:
+        df = pd.DataFrame(omni['SYM_H'], columns=['symh'],
+                              index=omni['Epoch'])
+        return df
+    else:
+        return omni
+
 
 if __name__ == "__main__":
     print('this module only contains helper functions and other useful '+

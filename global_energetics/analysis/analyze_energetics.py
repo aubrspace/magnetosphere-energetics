@@ -1095,7 +1095,7 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
                       label='SMR',
                       linewidth=Size, linestyle=ls,
                       color=pallete[name])
-        elif name == 'swmf_log':
+        elif name == 'swmf_index':
             qtkey = 'dst_sm'
             axis.plot(data[timekey],data[qtkey],
                       label='Sim',
@@ -1105,8 +1105,7 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
             qtkey = 'sym_h'
             axis.plot(data[timekey],data[qtkey],
                       label='Obs',
-                      linewidth=Size, linestyle=ls,
-                      color=pallete[name])
+                      linewidth=Size, linestyle=ls)
         else:
             qtkey = None
     if xlim!=None:
