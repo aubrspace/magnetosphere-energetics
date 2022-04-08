@@ -20,10 +20,15 @@ def get_averaged_values(data,**kwargs):
         data (GitmBin)- spacepy data object
         kwargs:
             valuekey (str)- typically 'Rho'
-            altmax/min (float)- altitude in km
+            alt (float)- altitude in km
+            dalt (float)- delta altitude in km
     Return
         result (dict{mean(float),limits([min,max]),std(float)})
     """
+    #organize kwargs
+    ave_alt = str(kwargs.get('alt',210))
+    altmax = kwargs.get('alt',210)+kwargs.get('dalt',20)
+    altmin = kwargs.get('alt',210)-kwargs.get('dalt',20)
     #split into pieces
     lat = data['Latitude']
     lon = data['Longitude']
@@ -40,12 +45,11 @@ def get_averaged_values(data,**kwargs):
     #use altitude (km) for index
     df.index = alt[0,0,:]/1000
     #get specific layer value at altitude
-    layer = df[(df.index < kwargs.get('altmax',230))&
-               (df.index > kwargs.get('altmin',200))].mean()
-    result = {kwargs.get('valuekey','Rho')+'_mean':layer.mean(),
-              kwargs.get('valuekey','Rho')+'_max':layer.max(),
-              kwargs.get('valuekey','Rho')+'_min':layer.min(),
-              kwargs.get('valuekey','Rho')+'_std':layer.std()}
+    layer = df[(df.index < altmax) & (df.index > altmin)].mean()
+    result = {kwargs.get('valuekey','Rho')+'_mean'+ave_alt:layer.mean(),
+              kwargs.get('valuekey','Rho')+'_max'+ave_alt:layer.max(),
+              kwargs.get('valuekey','Rho')+'_min'+ave_alt:layer.min(),
+              kwargs.get('valuekey','Rho')+'_std'+ave_alt:layer.std()}
     return result
 
 def save_tofile(infile,timestamp,filetype='hdf',outputdir='localdbug/ua',

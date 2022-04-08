@@ -54,15 +54,19 @@ def work(file):
     north = field_data.zone('IonN *')
     south = field_data.zone('IonS *')
     joule = field_data.variable('JouleHeat *')
+    energy = field_data.variable('E-Flux *')
 
     ##integrate
     conversion = 6371**2*1e3 #mW/m^2*Re^2 -> W
-    nint = integrate_tecplot(joule,north)*conversion
-    sint = integrate_tecplot(joule,south)*conversion
+    njoul = integrate_tecplot(joule,north)*conversion
+    sjoul = integrate_tecplot(joule,south)*conversion
+    nenergy = integrate_tecplot(energy,north)*conversion*1e3
+    senergy = integrate_tecplot(energy,south)*conversion*1e3
 
     ##save data
     ion.save_tofile(file,timestamp,outputdir=CONTEXT['OUTPUTPATH'],
-                    nJouleHeat_W=[nint],sJouleHeat_W=[sint])
+                    nJouleHeat_W=[njoul],sJouleHeat_W=[sjoul],
+                    nEFlux_W=[nenergy],sEFlux_W=[senergy])
 
     ##Display
 

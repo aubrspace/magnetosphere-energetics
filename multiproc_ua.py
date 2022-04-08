@@ -39,7 +39,9 @@ def work(file):
     timestamp = makevideo.get_time(file)
     ##read single file
     dat = gitm.GitmBin(file)
-    density = therm.get_averaged_values(dat)
+    density = {}
+    for altitude in [210,310,410,510]:
+        density.update(therm.get_averaged_values(dat,alt=altitude))
     #save data
     therm.save_tofile(file,timestamp,
                       outputdir=CONTEXT['OUTPUTPATH'],**density)
@@ -54,6 +56,7 @@ def single_event_run(eventpath, **kwargs):
         eventdir (str)
         kwargs:
             stormdir
+            outname
     """
     #EXAMPLE file paths to explain naming convention
     #   eventpath (inputs)
@@ -77,7 +80,7 @@ def single_event_run(eventpath, **kwargs):
 
     ##Combine HDF5 files
     write_disp.combine_hdfs(outputpath,outputdir, progress=False,
-                            combo_name='ua_energetics.h5')
+             combo_name=kwargs.get('outname','ua_energetics.h5'))
 
     ##Make a video
     pass
@@ -145,10 +148,14 @@ if __name__ == '__main__':
 
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    STARLINKDIR = '/home/aubr/Code/GITM2/run/data/'
+    nJOULEdir = '/home/aubr/Code/GITM2/run/UA/joule_run'
+    nENERGYdir = '/home/aubr/Code/GITM2/run/UA/nEnergy_run'
+    NOHPI = '/home/aubr/Code/GITM2/run/UA/no_hpi'
     ########################################
 
-    single_event_run(STARLINKDIR)
+    single_event_run(nJOULEdir, outname='ua_njoule.h5')
+    single_event_run(nENERGYdir, outname='ua_nenergy.h5')
+    single_event_run(NOHPI, outname='ua_nohpi.h5')
 
     #timestamp
     ltime = time.time()-start_time
