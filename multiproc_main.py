@@ -76,8 +76,8 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,integrate_volume=True,
-                                    analysis_type='energy',
-                                    mpbetastar=0.6,
+                                    analysis_type='energy_trackIM',
+                                    mpbetastar=0.7,
                                     outputpath=CONTEXT['OUTPUTPATH'])
     #get supporting module data for this timestamp
     #satzones = satellites.get_satellite_zones(field_data,
@@ -154,7 +154,8 @@ if __name__ == '__main__':
         raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    RUNDIR = 'starlink'
+    RUNDIR = 'usermod'
+    #RUNDIR = 'localdbug/test'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
@@ -174,7 +175,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[0::5]
+                                key=makevideo.time_sort)[0:5]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
@@ -211,9 +212,8 @@ if __name__ == '__main__':
         # Join the process pool before exit so Tec cleans up & no core dump
         pool.close()
         pool.join()
-        for f in glob.glob(MHDDIR+'/*'):
-            if os.path.isdir(f):
-                os.removedirs(f)
+        for f in [f for f in glob.glob(MHDDIR+'/*') if os.path.isdir(f)]:
+            os.removedirs(f)
     ########################################
 
     #Combine and delete individual energetics files

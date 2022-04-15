@@ -151,11 +151,13 @@ if __name__ == '__main__':
     nJOULEdir = '/home/aubr/Code/GITM2/run/UA/joule_run'
     nENERGYdir = '/home/aubr/Code/GITM2/run/UA/nEnergy_run'
     NOHPI = '/home/aubr/Code/GITM2/run/UA/no_hpi'
+    IE1 = '/home/aubr/Code/GITM2/run/UA/hpi_const_IE'
     ########################################
 
-    single_event_run(nJOULEdir, outname='ua_njoule.h5')
-    single_event_run(nENERGYdir, outname='ua_nenergy.h5')
-    single_event_run(NOHPI, outname='ua_nohpi.h5')
+    #single_event_run(nJOULEdir, outname='ua_njoule.h5')
+    #single_event_run(nENERGYdir, outname='ua_nenergy.h5')
+    #single_event_run(NOHPI, outname='ua_nohpi.h5')
+    single_event_run(IE1, outname='ua_IE.h5')
 
     #timestamp
     ltime = time.time()-start_time

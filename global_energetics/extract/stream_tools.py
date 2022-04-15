@@ -1490,19 +1490,19 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
                                  '{Cell Size [Re]}/({eta [Re/S]}+1e-9)')
     ######################################################################
-    if 'usermod' in analysis_type:
-        eq('{Eth_acc [J/Re^3]} = {dp_acc [nPa]}*6371**3',
+    if 'trackIM' in analysis_type:
+        eq('{trackEth_acc [J/Re^3]} = {dp_acc [nPa]}*6371**3',
             value_location=ValueLocation.CellCentered)
-        eq('{Dp_acc [nPa]} = {drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
+        eq('{trackDp_acc [nPa]} = {drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
               '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
             value_location=ValueLocation.CellCentered)
-        eq('{KE_acc [J/Re^3]} = {Dp_acc [nPa]}*6371**3',
+        eq('{trackKE_acc [J/Re^3]} = {trackDp_acc [nPa]}*6371**3',
             value_location=ValueLocation.CellCentered)
-        eq('{Wth [W/Re^3]} = IF({dtime_acc [s]}>0,'+
-                               '{Eth_acc [J/Re^3]}/{dtime_acc [s]},0)',
+        eq('{trackWth [W/Re^3]} = IF({dtime_acc [s]}>0,'+
+                             '{trackEth_acc [J/Re^3]}/{dtime_acc [s]},0)',
             value_location=ValueLocation.CellCentered)
-        eq('{WKE [W/Re^3]} = IF({dtime_acc [s]}>0,'+
-                               '{KE_acc [J/Re^3]}/{dtime_acc [s]},0)',
+        eq('{trackWKE [W/Re^3]} = IF({dtime_acc [s]}>0,'+
+                             '{trackKE_acc [J/Re^3]}/{dtime_acc [s]},0)',
             value_location=ValueLocation.CellCentered)
     if analysis_type=='all':
         eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+

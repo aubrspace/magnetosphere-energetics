@@ -36,20 +36,24 @@ def energy_post_integr(results, **kwargs):
     newterms.update({'Utot [J]':[newterms['uHydro [J]'][0]+
                                       results['uB [J]'][0]]})
     if kwargs.get('do_cms', False):
+        u = ' [W]'
         for direction in ['_acqu', '_forf', '_net']:
-            newterms.update({'uHydro'+direction+' [W]':
-                                      [results['Eth'+direction+' [W]'][0]+
-                                       results['KE'+direction+' [W]'][0]]})
-            newterms.update({'Utot'+direction+'[W]':
-                                  [newterms['uHydro'+direction+' [W]'][0]+
-                                    results['uB'+direction+' [W]'][0]]})
-            for loc in['Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']:
-                newterms.update({'uHydro'+direction+loc+' [W]':
-                                [results['Eth'+direction+loc+' [W]'][0]+
-                                 results['KE'+direction+loc+' [W]'][0]]})
-                newterms.update({'Utot'+direction+'[W]':
-                                [newterms['uHydro'+direction+loc+' [W]'][0]+
-                                 results['uB'+direction+loc+' [W]'][0]]})
+            '''
+            newterms.update({'uHydro'+direction+u:
+                                      [results['Eth'+direction+u][0]+
+                                       results['KE'+direction+u][0]]})
+            newterms.update({'Utot'+direction+u:
+                                  [newterms['uHydro'+direction+u][0]+
+                                    results['uB'+direction+u][0]]})
+            '''
+            #for loc in['Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']:
+            for loc in['','OpenN','OpenS','Closed']:
+                newterms.update({'uHydro'+direction+loc+u:
+                                [results['Eth'+direction+loc+u][0]+
+                                 results['KE'+direction+loc+u][0]]})
+                newterms.update({'Utot'+direction+loc+u:
+                                [newterms['uHydro'+direction+loc+u][0]+
+                                 results['uB'+direction+loc+u][0]]})
     return newterms
 
 def virial_post_integr(results):
@@ -80,8 +84,8 @@ def get_imtrack_integrands(state_var):
     eq = tp.data.operate.execute_equation
     existing_variables = state_var.dataset.variable_names
     #Integrands
-    integrands = ['Eth_acc [J/Re^3]','KE_acc [J/Re^3]',
-                  'Wth [W/Re^3]', 'WKE [W/Re^3]']
+    integrands = ['trackEth_acc [J/Re^3]','trackKE_acc [J/Re^3]',
+                  'trackWth [W/Re^3]', 'trackWKE [W/Re^3]']
     for term in integrands:
         name = term.split(' [')[0]
         units = '['+term.split('[')[1].split('/Re^3')[0]+']'
@@ -166,7 +170,9 @@ def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
         mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
-    for term in integrands.items():
+    #for term in integrands.items():
+    #Don't proliferate IM tracking variables
+    for term in [(t,d) for t,d in integrands.items() if'track' not in t]:
         if ('energy' in analysis_type) or ('rhoU_r' in term[0]):
             name = term[0].split(' [')[0]
             outputname = term[1].split(' [')[0]
@@ -184,8 +190,8 @@ def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
             eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
                                                              zones=[zone])
             mobiledict.update({name+'_acqu':outputname+'_acqu '+units,
-                            name+'_forf':outputname+'_forf '+units,
-                            name+'_net':outputname+'_net '+units})
+                               name+'_forf':outputname+'_forf '+units,
+                               name+'_net':outputname+'_net '+units})
     return mobiledict
 
 def volume_analysis(state_var, **kwargs):
@@ -217,10 +223,9 @@ def volume_analysis(state_var, **kwargs):
         integrands.update(get_energy_integrands(state_var))
     if 'biotsavart' in analysis_type:
         integrands.update(get_biotsavart_integrands(state_var))
-    if 'usermod' in analysis_type:
+    if 'trackIM' in analysis_type:
         integrands.update(get_imtrack_integrands(state_var))
     integrands.update(kwargs.get('customTerms', {}))
-    #Debug
     ###################################################################
     #Integral bounds modifications THIS ACCOUNTS FOR SURFACE MOTION
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
@@ -230,8 +235,8 @@ def volume_analysis(state_var, **kwargs):
                                              analysis_type)
         if 'mp' in state_var.name:
             #Integral bounds for spatially parsing results
-            mobile_terms.update(get_dft_integrands(global_zone,
-                                                   mobile_terms))
+            #mobile_terms.update(get_dft_integrands(global_zone,
+            #                                       mobile_terms))
             mobile_terms.update(get_open_close_integrands(global_zone,
                                                           mobile_terms))
         integrands.update(mobile_terms)
@@ -240,8 +245,7 @@ def volume_analysis(state_var, **kwargs):
     for term in integrands.items():
         results.update(calc_integral(term, global_zone))
         if kwargs.get('verbose',False):
-            print(stat_var.name+term[1]+' integration done')
-    #Debug
+            print(state_var.name+term[1]+' integration done')
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):
@@ -253,7 +257,7 @@ def volume_analysis(state_var, **kwargs):
             results.update(calc_integral(('delta_volume','dVolume [Re^3]'),
                                          global_zone))
         if kwargs.get('verbose',False):
-            print(stat_var.name+' Volume integration done')
+            print(state_var.name+' Volume integration done')
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:
@@ -264,7 +268,8 @@ def volume_analysis(state_var, **kwargs):
             for direction in ['_acqu', '_forf','_net']:
                 results.pop('Eth'+direction+' [W]')
                 results.pop('KE'+direction+' [W]')
-                for loc in['Day','Flank','Tail','OpenN','OpenS','Closed']:
+                #for loc in['Day','Flank','Tail','OpenN','OpenS','Closed']:
+                for loc in['OpenN','OpenS','Closed']:
                     results.pop('Eth'+direction+loc+' [W]')
                     results.pop('KE'+direction+loc+' [W]')
     return pd.DataFrame(results)

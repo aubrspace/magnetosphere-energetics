@@ -50,6 +50,8 @@ if __name__ == "__main__":
                 '3d__var_1_e20220203-115000-000.plt',
                 '3d__var_1_e20220203-120000-000.plt',
                 '3d__var_1_e20220203-121000-000.plt')
+    trackim = ('3d__var_1_e20140219-020000-000.plt',
+               '3d__var_1_e20140219-020100-000.plt')
     paleo = ('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
     #files5 = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
     #         'output/CCMC/3d__var_1_e20130713-204700-037.plt')
@@ -65,12 +67,12 @@ if __name__ == "__main__":
     '''
 
     #for point in [files1, files2, files3, files4]:
-    for points in starlink:
+    if True:
         tp.new_layout()
-        mhddatafile = points
+        mhddatafile = trackim[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
         #python objects
-        field_data = tp.data.load_tecplot(points)
+        field_data = tp.data.load_tecplot(trackim)
         field_data.zone(0).name = 'global_field'
         if len(field_data.zone_names)>1:
             print(len(field_data.zone_names))
@@ -82,13 +84,14 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath=OUTPATH,
-                                    analysis_type='energy',
-                                                    do_cms=False,
+                                            analysis_type='energy_trackIM',
+                                                    do_cms=True,
                                                     mpbetastar=0.7,
-                                                    tail_cap=-40,
                                                     save_mesh=False,
-                                                    integrate_surface=False,
-                                                    integrate_volume=False)
+                                                    integrate_surface=True,
+                                                    integrate_volume=True,
+                                                    timeref=start_time)
+        if False:
             #adjust view settings
             proc = 'Multi Frame Manager'
             cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

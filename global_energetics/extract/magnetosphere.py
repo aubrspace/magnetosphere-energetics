@@ -405,8 +405,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
         #modes = [mode, 'Jpar+']
     else:
-        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
-        #modes = [mode]
+        #modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
+        modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if (type(zone) != type(None) or type(inner_zone)!=type(None)):
@@ -443,7 +443,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if integrate_surface:
         for zone in zonelist[0:1]:
             #integrate power on main surface
-            print('Working on: '+zone.name)
+            print('Working on: '+zone.name+' surface')
             surf_results = surface_analysis(zone,**kwargs)
             #Add time and x_subsolar
             surf_results['Time [UTC]'] = eventtime
@@ -482,17 +482,19 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if integrate_volume:
         for state_index in enumerate(state_indices):
             region = zonelist[state_index[0]]
-            print('Working on: '+region.name)
+            print('Working on: '+region.name+' volume')
             energies = volume_analysis(field_data.variable(state_index[1]),
                                        **kwargs)
             energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name+'_volume':energies})
-            for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
-                        'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
-                usename = var.split(' ')[0]+'_cc'
-                tp.data.operate.execute_equation('{'+usename+'}={'+var+'}',
-                  zones=[region],value_location=ValueLocation.CellCentered)
-                savemeshvars[modes[state_index[0]]].append(usename)
+            if save_mesh:
+                for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
+                      'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
+                    usename = var.split(' ')[0]+'_cc'
+                    eq = tp.data.operate.execute_equation
+                    eq('{'+usename+'}={'+var+'}',zones=[region],
+                            value_location=ValueLocation.CellCentered)
+                    savemeshvars[modes[state_index[0]]].append(usename)
     #Debugging
     '''
     mpzone = zonelist[0]
@@ -549,9 +551,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                       str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                       str(eventtime.minute))
-        write_to_hdf(outputpath+'/meshdata/mesh_'+datestring+'.h5',mp_mesh)
         write_to_hdf(outputpath+'/energeticsdata/energetics_'+
                         datestring+'.h5', data_to_write)
+    if save_mesh:
+        write_to_hdf(outputpath+'/meshdata/mesh_'+datestring+'.h5',mp_mesh)
     if disp_result:
         display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                             outputpath+'/energeticsdata/energetics_'+

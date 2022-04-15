@@ -188,11 +188,11 @@ def surface_analysis(zone, **kwargs):
     if 'energy' in analysis_type:
         integrands.update(get_energy_dict())
     integrands.update(kwargs.get('customTerms', {}))
-    #Debug:
     ###################################################################
     #Integral bounds modifications spatially parsing results
     if 'innerbound' not in zone.name:
-        integrands.update(get_dft_integrands(zone, integrands))
+        #integrands.update(get_dft_integrands(zone, integrands))
+        pass
     else:
         integrands.update(get_low_lat_integrands(zone, integrands))
     integrands.update(get_open_close_integrands(zone, integrands))
@@ -202,7 +202,6 @@ def surface_analysis(zone, **kwargs):
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
             print(zone.name+term[1]+' integration done')
-    #Debug:
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doSurfaceArea', True):
