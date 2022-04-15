@@ -18,7 +18,6 @@ import verify
 from verify import Contingency2x2 as conting
 #interpackage imports
 from global_energetics.analysis.analyze_energetics import mark_times
-from global_energetics.analysis.proc_temporal import read_energetics
 from global_energetics.analysis.proc_indices import (read_indices,
                                                      datetimeparser,
                                                      datetimeparser2,

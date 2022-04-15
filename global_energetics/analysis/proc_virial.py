@@ -1,86 +1,8 @@
 #!/usr/bin/env python3
-"""Functions for handling and plotting time magnetic indices data
+"""Functions process data in prep for virial theorem analysis
 """
 import numpy as np
 import pandas as pd
-
-def load_nonGM(hdf, **kwargs):
-    store = pd.HDFStore(hdf)
-    data = {}
-    for key in store.keys():
-        if any(['ie' in key, 'ua' in key]):
-            data[key] = store[key]
-    store.close()
-    return (data['/ie'], data['/ua_njoule'], data['/ua_nenergy'],
-                         data['/ua_nohpi'])
-
-def load_clean_virial(hdf, **kwargs):
-    """loads HDF file then sorts cleans and sorts into subzones
-    inputs
-        hdf (str) - filename str to load (full path)
-        kwargs:
-            timekey
-            surfacekey
-            volumekey
-            innersurfacekey
-    Return
-        mpdict (dict{DataFrames})
-        msdict (dict{DataFrames})
-        inner_mp (DataFrame)
-    """
-    #load data
-    store = pd.HDFStore(hdf)
-
-    #check if non-gm data is present
-    nonGM = any([ngm in k for k in store.keys() for ngm in ['ie','ua']])
-    #keep only GM keys
-    gmdict = {}
-    for key in store.keys():
-        if not any(['ie' in key, 'ua' in key]):
-            gmdict[key] = store[key]
-    store.close()
-
-    #strip times
-    times = [df for df in gmdict.values()][0]['Time [UTC]']
-
-    #define magnetopause and inner_magnetopause will relevant pieces
-    mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
-                             gmdict['/mp_iso_betastar_volume'], times)
-    inner_mp = gmdict['/mp_iso_betastar_inner_surface']
-    mpdict = {'ms_full':mp}
-
-    #define subzones with relevant pieces
-    msdict = {}
-    for key in gmdict.keys():
-        print(key)
-        if 'ms' in key:
-            if any(['Virial' in k for k in gmdict[key].keys()]):
-                cleaned_df = check_timing(gmdict[key],times)
-                cleaned_df = virial_mods(cleaned_df, times)
-            else:
-                cleaned_df = gmdict[key]
-            msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
-                                                  columns=['Time [UTC]'])})
-    return mpdict, msdict, inner_mp, times, nonGM
-
-def check_timing(df,times):
-    """If times don't match data, interpolate data
-    Inputs
-        df
-        times
-    Return
-        interp_df
-    """
-    #Do nothing if times are already matching
-    if len(times) == len(df['Time [UTC]']):
-        if all(times == df['Time [UTC]']):
-            return df
-    #Otw reconstruct on times column and interpolate
-    interp_df = pd.DataFrame({'Time [UTC]':times})
-    for key in df.keys().drop('Time [UTC]'):
-        interp_df[key] = df[key]
-    interp_df = interp_df.interpolate(col='Time [UTC]')
-    return interp_df
 
 def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
     """Function finds percent contributions and missing amounts
@@ -241,93 +163,6 @@ def virial_mods(df, times):
         df['uB [J]'] = df['Virial Ub [J]']#mostly so it doesn't crash
     return df
 
-def magnetopause_energy_mods(mpdf):
-    """Function returns magnetopause DataFrame with modified energy columns
-    Inputs
-        mpdf(DataFrame)
-    Returns
-        mpdf(DataFrame)- modified
-    """
-    #One-off renames
-    if 'Utot_acqu[W]' in mpdf.keys():
-        mpdf.rename(columns={'Utot_acqu[W]':'Utot_acqu [W]',
-                             'Utot_forf[W]':'Utot_forf [W]',
-                             'Utot_net[W]':'Utot_net [W]'}, inplace=True)
-    #Define relevant pieces
-    fluxes, energies = ['K_','ExB_','P0_'], ['Utot_', 'uB_', 'uHydro_']
-    direct = ['injection', 'escape', 'net']
-    locations = ['', 'Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']
-    motion = ['acqu', 'forf', 'net']
-    u = ' [W]'#units
-    #One-off missing keys
-    if 'Utot_acquDay [W]' not in mpdf.keys():
-        for loc in locations:
-            for m in motion:
-                mpdf['Utot_'+m+loc+u] = (mpdf['uB_'+m+loc+u]+
-                                         mpdf['uHydro_'+m+loc+u])
-    #Surface Volume combinations
-    for flux in enumerate(fluxes):
-        for d in enumerate(direct):
-            for loc in locations:
-                #Rename to denote 'static' contribution only
-                mpdf.rename(columns={flux[1]+d[1]+loc+u:
-                                     flux[1]+d[1]+loc+'_static'+u},
-                                     inplace=True)
-                #Add in motional terms for proper total
-                static = mpdf[flux[1]+d[1]+loc+'_static'+u]
-                motional = mpdf[energies[flux[0]]+motion[d[0]]+loc+u]
-                mpdf[flux[1]+d[1]+loc+u] = static+motional
-    #Drop time column
-    mpdf.drop(columns=['Time [UTC]'],inplace=True, errors='ignore')
-    return mpdf
-
-def gather_magnetopause(outersurface, volume, times):
-    """Function combines surface and volume terms to construct single df
-        with all magnetopause (magnetosphere) terms
-    Inputs
-        outersurface(DataFrame)-
-        volume(DataFrame)-
-    Returns
-        combined(DataFrame)
-    """
-    combined = pd.DataFrame()
-    for df in [outersurface, volume]:
-        for key in df.keys():
-            if not all(df[key].isna()):
-                combined[key] = df[key]
-    if 'K_net [W]' in combined.keys():
-        combined = magnetopause_energy_mods(combined)
-    if 'Virial Volume Total [nT]' in combined.keys():
-        combined = virial_mods(combined, times)
-    if 'Virial Volume Total [nT]' in combined.keys():
-        combined = biot_mods(combined, times)
-    return combined
-
-def group_subzones(msdict, mode='3zone'):
-    """Groups subzones into dictionary with certain keys
-    inputs
-        msdict (dict{DataFrames})
-        mode (str)
-    returns
-        msdict
-    """
-    if ('closed' in msdict.keys()) and ('3zone' in mode):
-        msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
-                        'closedRegion':msdict['closed'],
-                        'rc':msdict['rc'],
-                        'missing':msdict['missed']}
-    elif ('3zone' in mode):
-        msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
-                        'closedRegion':msdict['ps']+msdict['qDp'],
-                        'rc':msdict['rc'],
-                        'missing':msdict['missed']}
-    elif ('lobes' in mode):
-        msdict ={'nlobe':msdict['nlobe'],
-                       'slobe':msdict['slobe'],
-                       'remaining':msdict['rc']+msdict['ps']+msdict['qDp'],
-                       'missing':msdict['missed']}
-    return msdict
-
 def BIGMOD(mpdict,msdict,inner_mp,fix=None):
     """Function makes correction to virial data
     Inputs
@@ -358,6 +193,29 @@ def BIGMOD(mpdict,msdict,inner_mp,fix=None):
     else:
         scale = 1
     return mp, msdict, inner_mp, scale
+
+def process_virial(mpdict,msdict,inner_mp,times,**kwargs):
+    """Wrapper function calls all processing steps for timeseries
+        data intent for virial analysis
+    Inputs
+        mpdict,msdict,inner_mp (dict{DataFrames})- data that will be moded
+        kwargs:
+    Returns
+        mpdict,msdict,inner_mp- same as input, MODIFIED
+    """
+    ##Term modification (usually just name changes, 
+     #                   sometimes to hotfix simple calculation errors)
+    for group in [mpdict,msdict,inner_mp]:
+        for sz in group.keys():
+            df = group[sz]#copy subzone values to DataFrame
+            if 'Virial Volume Total [nT]' in df.keys():
+                moded = virial_mods(df, times)#changes for virial terms
+                moded = biot_mods(df, times)#changes for biot savart terms
+                group[sz] = moded
+
+    ##Interzone stats ie, %contribution, diff between sums etc
+    mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
+    return mpdict,msdict,inner_mp
 
 if __name__ == "__main__":
     print('this module processes virial and biot savart data, for plotting'+          ' see analyze_virial.py')

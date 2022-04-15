@@ -18,7 +18,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 #interpackage
-from global_energetics.analysis import proc_temporal
+from global_energetics.analysis import proc_energy_temporal
 from global_energetics import write_disp
 
 def plot_fixed_loc(fig, ax, df,  powerkey, *,

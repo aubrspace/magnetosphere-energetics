@@ -17,15 +17,12 @@ from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.plot_tools import (general_plot_settings,
                                                    pyplotsetup,
                                                    get_omni_cdas)
-from global_energetics.analysis.analyze_energetics import (chopends_time,
-                                                  plot_swflowP,plot_swbz,
-                                                        plot_dst,plot_al)
-from global_energetics.analysis.proc_virial import (get_interzone_stats,
-                                                    gather_magnetopause,
-                                                    group_subzones,
-                                                    load_clean_virial,
-                                                    load_nonGM,
-                                                    BIGMOD)
+from global_energetics.analysis.analyze_energetics import (plot_swflowP,
+                                                          plot_swbz,
+                                                          plot_dst,plot_al)
+from global_energetics.analysis.proc_virial import (process_virial)
+from global_energetics.analysis.proc_hdf import(group_subzones,load_nonGM,
+                                                load_hdf_sort)
 def plot_single(ax, times, mp, msdict, **kwargs):
     """Plots energy or dst contribution in particular zone
     Inputs
@@ -282,17 +279,20 @@ if __name__ == "__main__":
     #Log files and observational indices
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
-    omni2 = get_omni_cdas(dt.datetime(2022,2,2),dt.datetime(2022,2,6))
-    omni['sym_h'] = omni2[omni2.index<=omni['times'].iloc[-2]].reset_index(drop=True)
+    if all(omni['sym_h'].isna()):#look CDAS if event is too new for omni
+        omni2 = get_omni_cdas(dt.datetime(2022,2,2),dt.datetime(2022,2,6))
+        omni['sym_h']=omni2[
+                         omni2.index<=omni['times'].iloc[-2]].reset_index(
+                                                                drop=True)
     #HDF data, will be sorted and cleaned
-    [mpdict,msdict,inner_mp,times,get_nonGM]=load_clean_virial(
+    [mpdict,msdict,inner_mp,times,get_nonGM]=load_hdf_sort(
                                                      datapath+'results.h5')
     if get_nonGM:
         #Check for non GM data
-        ie, ua_j, ua_e, ua_non = load_nonGM(datapath+'results.h5')
+        ie, ua_j, ua_e, ua_non, ua_ie= load_nonGM(datapath+'results.h5')
 
-    ##Gather more statistics
-    mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
+    ##Apply any mods and gather additional statistics
+    [mpdict,msdict,inner_mp] = process_virial(mpdict,msdict,inner_mp,times)
     mp = [m for m in mpdict.values()][0]
 
     ##Construct "grouped" set of subzones
@@ -340,26 +340,29 @@ if __name__ == "__main__":
         ax[2].plot(ie.index,ie['sEFlux_W']/1e3,label='south EFlux',color='chartreuse')
         general_plot_settings(ax[2],ylabel=ielabel3,legend_loc='upper left')
         ##UA Density @210km
-        ua_tags = ['nJoule','nEnergy','None']
-        #ua_ls = ['--',':',None]
-        ua_ls = [None]
-        for ua in enumerate([ua_e]):
-            print((ua[1]['Rho_mean210']/ua[1]['Rho_mean210'].iloc[0]).describe())
+        ua_tags = ['nJoule','nEnergy','None', 'IE']
+        ua_ls = ['--',':','-.',None]
+        fig,ax=plt.subplots(nrows=4,ncols=1,sharex=True,figsize=[14,15.75],
+                                   gridspec_kw={'height_ratios':[2,2,2,2]})
+        for ua in enumerate([ua_e,ua_j,ua_non,ua_ie]):
             ax[3].plot(ua[1].index,
                        ua[1]['Rho_mean210']/ua[1]['Rho_mean210'].iloc[0],
                        label='210'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
-            #ax[3].plot(ua[1].index,
-            #           ua[1]['Rho_mean310']/ua[1]['Rho_mean310'].iloc[0],
-            #           label='310'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
-            #ax[3].plot(ua[1].index,
-            #           ua[1]['Rho_mean410']/ua[1]['Rho_mean410'].iloc[0],
-            #           label='410'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
-            #ax[3].plot(ua[1].index,
-            #           ua[1]['Rho_mean510']/ua[1]['Rho_mean510'].iloc[0],
-            #           label='510'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
-        general_plot_settings(ax[3],ylabel=ualabel2,do_xlabel=True,
-                              ylim=[0.8,1.5])
-        ax[3].get_legend().remove()
+            ax[2].plot(ua[1].index,
+                       ua[1]['Rho_mean310']/ua[1]['Rho_mean310'].iloc[0],
+                       label='310'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+            ax[1].plot(ua[1].index,
+                       ua[1]['Rho_mean410']/ua[1]['Rho_mean410'].iloc[0],
+                       label='410'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+            ax[0].plot(ua[1].index,
+                       ua[1]['Rho_mean510']/ua[1]['Rho_mean510'].iloc[0],
+                       label='510'+ua_tags[ua[0]],ls=ua_ls[ua[0]])
+        general_plot_settings(ax[0],ylabel=ualabel2,do_xlabel=True)
+        general_plot_settings(ax[1],ylabel=ualabel2,do_xlabel=True)
+        general_plot_settings(ax[2],ylabel=ualabel2,do_xlabel=True)
+        general_plot_settings(ax[3],ylabel=ualabel2,do_xlabel=True)
+        #                     ylim=[0.8,1.5])
+        #ax[3].get_legend().remove()
         #Save
         fig.tight_layout(pad=1)
         fig.savefig(figureout+'/ie_ua_energy')

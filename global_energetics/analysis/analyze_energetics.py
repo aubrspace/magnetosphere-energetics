@@ -20,141 +20,29 @@ from labellines import labelLines
 import swmfpy
 #interpackage imports
 from global_energetics.extract.shue import (r0_alpha_1998, r_shue)
-from global_energetics.analysis.proc_temporal import read_energetics
+from global_energetics.analysis.plot_tools import (general_plot_settings,
+                                                   pyplotsetup,safelabel,
+                                                   get_omni_cdas,
+                                                   mark_times, shade_plot)
+from global_energetics.analysis.proc_hdf import(group_subzones,load_nonGM,
+                                                load_hdf_sort)
+from global_energetics.analysis.proc_energy_temporal import(process_energy)
 from global_energetics.analysis.proc_indices import (read_indices,
                                                      get_expanded_sw)
 
-def shade_plot(axis, *, do_full=False):
-    """Credit Qusai from NSF proposal:
-        Shade the ICME regions"""
 
-    # ICME Timings
-    def hour(minutes):
-        """return hour as int from given minutes"""
-        return int((minutes)/60//24)
-
-    def minute(minutes):
-        """return minute as int from given minutes"""
-        return int(minutes % 60)
-
-    # From Tuija email
-    icme = (
-
-        # (dt.datetime(2014, 2, 15, 13+hour(25), minute(25)),  # SH1
-        #  dt.datetime(2014, 2, 16, 4+hour(45), minute(45)),  # EJ1
-        #  dt.datetime(2014, 2, 16, 16+hour(55), minute(55))),  # ET1
-
-        (dt.datetime(2014, 2, 18, 7+hour(6), minute(6)),  # SH2
-         dt.datetime(2014, 2, 18, 15+hour(45), minute(45)),  # EJ2
-         dt.datetime(2014, 2, 19, 3+hour(55), minute(55))),  # ET2
-
-        (dt.datetime(2014, 2, 19, 3+hour(56), minute(56)),  # SH3
-         dt.datetime(2014, 2, 19, 12+hour(45), minute(45)),  # EJ3
-         dt.datetime(2014, 2, 20, 3+hour(9), minute(9))),  # ET3
-
-        # (dt.datetime(2014, 2, 20, 3+hour(9), minute(9)),  # SH4
-        #  dt.datetime(2014, 2, 21, 3+hour(15), minute(15)),  # EJ4
-        #  dt.datetime(2014, 2, 22, 13+hour(00), minute(00))),  # ET4
-
-        )
-    fullicme = (
-
-        (dt.datetime(2014, 2, 15, 13+hour(25), minute(25)),  # SH1
-         dt.datetime(2014, 2, 16, 4+hour(45), minute(45)),  # EJ1
-         dt.datetime(2014, 2, 16, 16+hour(55), minute(55))),  # ET1
-
-        (dt.datetime(2014, 2, 18, 7+hour(6), minute(6)),  # SH2
-         dt.datetime(2014, 2, 18, 15+hour(45), minute(45)),  # EJ2
-         dt.datetime(2014, 2, 19, 3+hour(55), minute(55))),  # ET2
-
-        (dt.datetime(2014, 2, 19, 3+hour(56), minute(56)),  # SH3
-         dt.datetime(2014, 2, 19, 12+hour(45), minute(45)),  # EJ3
-         dt.datetime(2014, 2, 20, 3+hour(9), minute(9))),  # ET3
-
-        (dt.datetime(2014, 2, 20, 3+hour(9), minute(9)),  # SH4
-         dt.datetime(2014, 2, 21, 3+hour(15), minute(15)),  # EJ4
-         dt.datetime(2014, 2, 22, 13+hour(00), minute(00))),  # ET4
-
-        )
-    if do_full:
-        icme = fullicme
-
-    for num, times in enumerate(icme, start=2):
-        sheath = mpl.dates.date2num(times[0])
-        ejecta = mpl.dates.date2num(times[1])
-        end = mpl.dates.date2num(times[2])
-        axis.axvspan(sheath, ejecta, facecolor='k', alpha=0.1,
-                     label=('sheath ' + str(num)))
-        axis.axvspan(ejecta, end, facecolor='k', alpha=0.4,
-                     label=('ejecta ' + str(num)))
-def mark_times(axis):
-    """Function makes vertical marks at specified time stamps
-    Inputs
-        axis- object to mark
-    """
-    #FROM Tuija Email June 20, 2021:
-    '''
-    % IMF changes
-02 19 10 20
-02 19 17 45
-% Density peaks 18/12-17 UT, 19/0940-1020 UT, 19/1250-1440
-02 18 12 00
-02 18 17 00
-02 19 09 00
-02 19 10 20
-02 19 12 50
-02 19 14 40
-% AL: substorm onsets 18/1430, 18/1615, 18/1850, 19/0030, 19/0356, 19/0900, 19/1255
-02 18 14 30
-02 18 16 10
-02 18 18 50
-02 19 00 30
-02 19 03 56
-02 19 09 00
-02 19 12 55
-    '''
-    timeslist=[]
-    #IMF changes
-    timeslist.append([dt.datetime(2014,2,19,10,20),'IMF'])
-    timeslist.append([dt.datetime(2014,2,19,17,45),'IMF'])
-    #Density peaks
-    timeslist.append([dt.datetime(2014,2,18,12,0),'Density'])
-    timeslist.append([dt.datetime(2014,2,18,17,0),'Density'])
-    timeslist.append([dt.datetime(2014,2,19,9,0),'Density'])
-    timeslist.append([dt.datetime(2014,2,19,10,20),'Density'])
-    timeslist.append([dt.datetime(2014,2,19,12,50),'Density'])
-    timeslist.append([dt.datetime(2014,2,19,14,40),'Density'])
-    #Substorm onsets based on AL
-    timeslist.append([dt.datetime(2014,2,18,14,30),'Substorm'])
-    timeslist.append([dt.datetime(2014,2,18,16,10),'Substorm'])
-    timeslist.append([dt.datetime(2014,2,18,18,50),'Substorm'])
-    timeslist.append([dt.datetime(2014,2,19,0,30),'Substorm'])
-    timeslist.append([dt.datetime(2014,2,19,3,56),'Substorm'])
-    timeslist.append([dt.datetime(2014,2,19,9,0),'Substorm'])
-    timeslist.append([dt.datetime(2014,2,19,12,55),'Substorm'])
-    #Colors, IMF, Density, Substorm
-    colorwheel = dict({'IMF':'black',
-                       'Density':'black',
-                       'Substorm':'black'})
-    lswheel = dict({'IMF':None,
-                       'Density':None,
-                       'Substorm':'--'})
-    for stamp in timeslist:
-        axis.axvline(stamp[0], color=colorwheel[stamp[1]],
-                     linestyle=lswheel[stamp[1]], linewidth=1)
-
-def plot_Power_al(axis, dflist, timekey, ylabel, *,
+def plot_Power_al(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, multiplier=-1, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         powerin = 'K_injection [W]'
         powerout = 'K_escape [W]'
@@ -184,116 +72,68 @@ def plot_Power_al(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_Power(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=2, ls=None,
-             use_inner=False, use_shield=False, use_average=False,
-             use_surface=False):
+def plot_power(axis, dfdict, times, **kwargs):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    if Color != None:
-        override_color = True
-        if dflist[0]['name'].iloc[-1].find('aggr')!=-1:
-            #TBD!!! somehow switch colors!
-            pass
-    else:
-        override_color = False
-    legend_loc = 'upper right'
-    for data in dflist:
-        name = data['name'].iloc[-1]
-        powerin_str = 'K_injection [W]'
-        powerout_str = 'K_escape [W]'
-        powernet_str = 'K_net [W]'
-        if use_inner:
-            powerin_str = 'inner'+powerin_str
-            powerout_str = 'inner'+powerout_str
-            powernet_str = 'inner'+powernet_str
-        elif use_surface:
-            powerin_str = 'Utot_acquired [W]'
-            powerout_str = 'Utot_forfeited [W]'
-            powernet_str = 'Utot_net [W]'
-        if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
-            if use_shield:
-                oneDin = abs(data['1D'+powerin_str])*100+1
-                oneDout = abs(data['1D'+powerout_str])*100+1
-                oneDnet = abs(data['1D'+powernet_str])*100+1
-                powerin = data[powerin_str]/oneDin
-                powerout = data[powerout_str]/oneDout
-                powernet = data[powernet_str]/oneDnet
-                axis.set_ylim([-50, 50])
-            elif use_average:
-                powerin = data[powerin_str]/data['Area [Re^2]']
-                powerout = data[powerout_str]/data['Area [Re^2]']
-                powernet = data[powernet_str]/data['Area [Re^2]']
-            else:
-                powerin = data[powerin_str]/1e12
-                powerout = data[powerout_str]/1e12
-                powernet = data[powernet_str]/1e12
-                axis.set_ylim([-20, 20])
-            #INJECTION
-            if not override_color:
-                Color = 'mediumvioletred'
-            axis.plot(data[timekey],powerin,
-                            label=r'Injection',
-                        linewidth=Size, linestyle=ls,
-                        color=Color)
-            dtime = data[timekey][~ data[timekey].isin([np.inf,
-                                                           -np.inf])]
-            if name.find('aggr')==-1:
-                axis.fill_between(data[timekey],powerin,
-                                  color='palevioletred')
-            #ESCAPE
-            if not override_color:
-                Color = 'peru'
-            axis.plot(data[timekey],powerout,
-                            label=r'Escape',
-                        linewidth=Size, linestyle=ls,
-                        color=Color)
-            if name.find('aggr')==-1:
-                axis.fill_between(data[timekey].values,powerout.values,
-                              color='peachpuff')
-            #NET
-            if not use_shield:
-                if not override_color:
-                    Color = 'black'
-                    Size = 1
-                axis.plot(data[timekey],powernet,
-                            label=r'Net',
-                            linewidth=Size, linestyle=ls,
-                            color=Color)
-                dtime = data[timekey][~ data[timekey].isin([np.inf,
-                                                           -np.inf])]
-                powernet = powernet[~ powernet.isin([np.inf,-np.inf])]
-                if name.find('aggr')==-1:
-                    axis.fill_between(data[timekey],powernet,
-                                      color='silver')
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time (UTC)}')
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+    #Update default legend_loc
+    kwargs.update({'legend_loc':kwargs.get('legend_loc','upper right')})
+    #helper dictionaries
+    keydict = {'inj':'K_injection [W]','esc':'K_escape [W]',
+               'net':'K_net [W]'}
+    labeldict = {'inj':r'Injection','esc':r'Escape','net':r'Net'}
+    colordict = {'inj':'mediumvioletred','esc':'peru','net':'black'}
+    fcolordict = {'inj':'palevioletred','esc':'peachpuff','net':'silver'}
+    for name,data in dfdict.items():
+        ##Yvalue dictionary
+        if kwargs.get('use_inner',False):
+            for item,value in keydict:
+                keydict.update({item:'inner'+value})
+        elif kwargs.get('use_surface',False):
+            keydict={'inj':'Utot_acquired [W]','esc':'Utot_forfeited [W]',
+                     'net':'Utot_net [W]'}
+        if kwargs.get('use_shield',False):
+            pass#NOTE come back to this
+        elif kwargs.get('use_average',False):
+            powdict = {'inj':data[keydict['inj']]/data['Area [Re^2]'],
+                       'esc':data[keydict['esc']]/data['Area [Re^2]'],
+                       'net':data[keydict['net']]/data['Area [Re^2]']}
+        else:
+            powdict = {'inj':data[keydict['inj']]/1e12,
+                       'esc':data[keydict['esc']]/1e12,
+                       'net':data[keydict['net']]/1e12}
+            axis.set_ylim([-20, 20])
+        ##PLOT
+        for term in ['inj','esc','net']:
+            axis.plot(times,powdict[term],label=labeldict[term],
+                      linewidth=kwargs.get('lw',None),
+                      linestyle=kwargs.get('ls',None),
+                      color=kwargs.get(term+'color',colordict[term]))
+        if kwargs.get('dofill',True):
+            axis.fill_between(times,powdict[term],
+                         color=kwargs.get(term+'fcolor',fcolordict[term]))
+    #General plot settings
+    general_plot_settings(axis, **kwargs)
 
-def plot_P0Power(axis, dflist, timekey, ylabel, *,
+def plot_P0Power(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False, use_average=False,
              use_surface=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper right'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         powerin_str = 'P0_injection [W]'
         powerout_str = 'P0_escape [W]'
@@ -358,20 +198,20 @@ def plot_P0Power(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_ExBPower(axis, dflist, timekey, ylabel, *,
+def plot_ExBPower(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None,
              use_inner=False, use_shield=False, use_average=False,
              use_surface=False):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper right'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         powerin_str = 'ExB_injection [W]'
         powerout_str = 'ExB_escape [W]'
@@ -436,13 +276,13 @@ def plot_ExBPower(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
+def plot_PowerSpatDist(axis, dfdict, timekey, ylabel, powerkey, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None,
              allpositive=False):
     """Function plots spatatial distribution in terms of percents
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -457,19 +297,19 @@ def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
     else:
         injaxis = axis[0]
         escaxis = axis[1]
-    if (dflist[0]['name'].iloc[-1] !=-1) and (len(dflist)>1):
-        total_powerin = dflist[0][~ dflist[0][powerin_str].isna()][
+    if (dfdict[0]['name'].iloc[-1] !=-1) and (len(dfdict)>1):
+        total_powerin = dfdict[0][~ dfdict[0][powerin_str].isna()][
                                                               powerin_str]
-        total_powerout = dflist[0][~ dflist[0][powerin_str].isna()][
+        total_powerout = dfdict[0][~ dfdict[0][powerin_str].isna()][
                                                              powerout_str]
-        total_powernet = dflist[0][~ dflist[0][powerin_str].isna()][
+        total_powernet = dfdict[0][~ dfdict[0][powerin_str].isna()][
                                                              powernet_str]
-        for data in dflist[1::]:
+        for data in dfdict[1::]:
             data = data[~ data[powerin_str].isna()]
             total_powerin = total_powerin+data[powerin_str]
             total_powerout = total_powerout+data[powerout_str]
             total_powernet = total_powernet+data[powernet_str]
-        for data in dflist:
+        for data in dfdict:
             name = data['name'].iloc[-1]
             data = data[~ data[powerin_str].isna()]
             #set linestyles
@@ -531,26 +371,26 @@ def plot_PowerSpatDist(axis, dflist, timekey, ylabel, powerkey, *,
     escaxis.set_ylabel(ylabel)
     injaxis.legend(loc=legend_loc)
     escaxis.legend(loc=legend_loc)
-def plot_DFTstack(axis, dflist, timekey, ylabel, control_key, *,
+def plot_DFTstack(axis, dfdict, timekey, ylabel, control_key, *,
                    xlim=None, ylim=None, Color=None, Size=2, ls=None,
                    do_percent=False):
     """Function plots power transfer at different vorticity bins
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper left'
-    day = [df for df in dflist if df['name'].iloc[-1].split('_')[1].split(
+    day = [df for df in dfdict if df['name'].iloc[-1].split('_')[1].split(
                                                     'aggr')[-1]=='day'][0]
-    flank = [df for df in dflist if df['name'].iloc[-1].split(
+    flank = [df for df in dfdict if df['name'].iloc[-1].split(
                                     '_')[1].split('aggr')[-1]=='flank'][0]
-    tail = [df for df in dflist if df['name'].iloc[-1].split('_')[1].split(
+    tail = [df for df in dfdict if df['name'].iloc[-1].split('_')[1].split(
                                                     'aggr')[-1]=='tail'][0]
     Injlist, Injlabels, Esclist, Esclabels, k, kmax = [],[],[],[],0,99
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         region = name.split('_')[1].split('aggr')[-1].capitalize()
         Colordict = dict({'Day':'deepskyblue',
@@ -613,12 +453,12 @@ def plot_DFTstack(axis, dflist, timekey, ylabel, control_key, *,
 def VortValue(vortstr):
     return float(vortstr.split('vort')[-1].split('[')[-1].split('-')[0])
 
-def plot_VortPower(axis, dflist, timekey, ylabel, control_key, *,
+def plot_VortPower(axis, dfdict, timekey, ylabel, control_key, *,
                    xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots power transfer at different vorticity bins
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -626,7 +466,7 @@ def plot_VortPower(axis, dflist, timekey, ylabel, control_key, *,
     legend_loc = 'upper right'
     control_flavor = control_key.split('_')[0]
     control_type = control_key.split('_')[-1].split(' ')[0]
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         region = name.split('_')[1].split('aggr')[-1]
         Klist, Klabels, k, kmax = [], [], 0, 99
@@ -678,12 +518,12 @@ def plot_VortPower(axis, dflist, timekey, ylabel, control_key, *,
     axis.set_ylabel(ylabel)
     labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
 
-def plot_stackedPower(axis, dflist, timekey, ylabel, control_key, *,
+def plot_stackedPower(axis, dfdict, timekey, ylabel, control_key, *,
                    xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots power transfer at different vorticity bins
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -692,7 +532,7 @@ def plot_stackedPower(axis, dflist, timekey, ylabel, control_key, *,
     legend_loc = 'upper right'
     control_flavor = control_key.split('_')[0]
     control_type = control_key.split('_')[-1].split(' ')[0]
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         region = name.split('_')[1].split('aggr')[-1]
         Klist, Klabels, k, kmax = [], [], 0, 99
@@ -744,12 +584,12 @@ def plot_stackedPower(axis, dflist, timekey, ylabel, control_key, *,
     axis.set_ylabel(ylabel)
     labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
 
-def plot_SurfacePower(axis, dflist, timekey, ylabel, *,
+def plot_SurfacePower(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -758,7 +598,7 @@ def plot_SurfacePower(axis, dflist, timekey, ylabel, *,
     qtkey = 'KSurface_'+typekey
     if Color == None:
         Color = 'magenta'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
             tag = name.split('_')[-1]
@@ -774,48 +614,52 @@ def plot_SurfacePower(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_TotalEnergy(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=2, ls=None):
-    """Function plots outer surface boundary powers
+def plot_trackEth(axis, dfdict, times, **kwargs):
+    """Function plots energy overwrites during IM-GM coupling
     Inputs
         axis- object plotted on
-        dflist- datasets
-        dflabels- labels used for legend
-        timekey- used to located column with time and the qt to plot
-        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+        dfdict- datasets
+        times-
+        kwargs
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'lower right'
-    for data in dflist:
-        name = data['name'].iloc[-1]
-        total = 'Utot [J]'
-        for qtkey in [total]:
-            if name.find('mp')!=-1:
-                data['correct_Total'] =(data['Utot [J]']-data['uE [J]']+
-                                        data['KEpar [J]']+
-                                        0.5*data['Etherm [J]'])
-                axis.plot(data[timekey],-1*data['correct_Total']/1e15,
-                            label=r'$\displaystyle \int_V{U_{total}}$',
-                        linewidth=Size, linestyle=ls,
-                        color='blue')
-            else:
-                axis.plot(data[timekey],-1*data[qtkey],
-                            label=name,
-                        linewidth=Size, linestyle=ls,
-                        color='coral')
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time [UTC]}')
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+    #Update default legend_loc
+    #kwargs.update({'legend_loc':kwargs.get('legend_loc','lower right')})
+    for name,data in dfdict.items():
+        eth_key = kwargs.get('eth_key','Wth [W]')
+        axis.plot(times,data[eth_key]/1e12-data[eth_key].iloc[0]/1e12,
+                  label=kwargs.get('altlabel',safelabel(name)),
+                  linewidth=kwargs.get('lw'), linestyle=kwargs.get('ls'),
+                  color=kwargs.get('color','olive'))
+    #General plot settings
+    general_plot_settings(axis, **kwargs)
 
-def plot_VoverSA(axis, dflist, timekey, ylabel, *,
+def plot_TotalEnergy(axis, dfdict, times, **kwargs):
+    """Function plots outer surface boundary powers
+    Inputs
+        axis- object plotted on
+        dfdict- datasets
+        times-
+        kwargs
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    #Update default legend_loc
+    kwargs.update({'legend_loc':kwargs.get('legend_loc','lower right')})
+    for name,data in dfdict.items():
+        totkey = kwargs.get('totkey','Utot [J]')
+        axis.plot(times,-1*data[totkey]/1e15,
+                  label=kwargs.get('altlabel',safelabel(name)),
+                  linewidth=kwargs.get('lw'), linestyle=kwargs.get('ls'),
+                  color=kwargs.get('color','coral'))
+    #General plot settings
+    general_plot_settings(axis, **kwargs)
+
+def plot_VoverSA(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -824,7 +668,7 @@ def plot_VoverSA(axis, dflist, timekey, ylabel, *,
     qtkey = 'V/SA [Re]'
     if Color == None:
         Color = 'magenta'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
             tag = name.split('_')[-1]
@@ -840,12 +684,12 @@ def plot_VoverSA(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_SA(axis, dflist, timekey, ylabel, *,
+def plot_SA(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -854,7 +698,7 @@ def plot_SA(axis, dflist, timekey, ylabel, *,
     qtkey = 'Area [Re^2]'
     if Color == None:
         Color = 'magenta'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
             tag = name.split('_')[-1]
@@ -870,12 +714,12 @@ def plot_SA(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_Standoff(axis, dflist, timekey, ylabel, *,
+def plot_Standoff(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -884,7 +728,7 @@ def plot_Standoff(axis, dflist, timekey, ylabel, *,
     qtkey = 'X_subsolar [Re]'
     if Color == None:
         Color = 'magenta'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
             axis.plot(data[timekey],data[qtkey],
@@ -915,12 +759,12 @@ def plot_Standoff(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_Asymmetry(axis, dflist, timekey, ylabel, *,
+def plot_Asymmetry(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -929,7 +773,7 @@ def plot_Asymmetry(axis, dflist, timekey, ylabel, *,
     qtkey = ''
     if Color == None:
         Color = 'magenta'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name.find('asym')!=-1:
             tag = name.split('_')[-1]
@@ -1000,12 +844,12 @@ def plot_Asymmetry(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_Volume(axis, dflist, timekey, ylabel, *,
+def plot_Volume(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -1014,7 +858,7 @@ def plot_Volume(axis, dflist, timekey, ylabel, *,
     qtkey = 'Volume [Re^3]'
     if Color == None:
         Color = 'magenta'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name.find('mp')!=-1:
             tag = name.split('_')[-1]
@@ -1073,12 +917,12 @@ def plot_Volume(axis, dflist, timekey, ylabel, *,
     axis.yaxis.set_minor_locator(AutoMinorLocator(5))
     axis.legend(loc=legend_loc)
 
-def plot_dst(axis, dflist, timekey, ylabel, *,
+def plot_dst(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots dst (or equivalent index) with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
@@ -1087,7 +931,7 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
     if Color != None:
         pallete = {'supermag':Color,'swmf_log':Color,'omni':Color}
     legend_loc = 'lower left'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             qtkey = 'SMR (nT)'
@@ -1116,18 +960,18 @@ def plot_dst(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_al(axis, dflist, timekey, ylabel, *,
+def plot_al(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots dst (or equivalent index) with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower left'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             qtkey = 'SML (nT)'
@@ -1157,18 +1001,18 @@ def plot_al(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_newell(axis, dflist, timekey, ylabel, *,
+def plot_newell(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots cross polar cap potential with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper left'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             data['Newell_corrected'] = data['Newell CF (Wb/s)']*100
@@ -1222,18 +1066,18 @@ def plot_newell(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_cpcp(axis, dflist, timekey, ylabel, *,
+def plot_cpcp(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots cross polar cap potential with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         dflabels- labels used for legend
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper left'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'omni':
             pci = data['pc_n']
@@ -1262,17 +1106,17 @@ def plot_cpcp(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_swdensity(axis, dflist, timekey, ylabel, *,
+def plot_swdensity(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind density with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper left'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             qtkey = 'Density (#/cm^3)'
@@ -1302,16 +1146,16 @@ def plot_swdensity(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
+def plot_DesslerParkerSckopke(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    for simdata in dflist:
+    for simdata in dfdict:
         simname = simdata['name'].iloc[-1]
         if simname.find('mp')!=-1:
             total = simdata['Utot [J]']
@@ -1338,7 +1182,7 @@ def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
                       linewidth=Size, linestyle='--',
                       color='green')
             '''
-    for data in dflist:
+    for data in dfdict:
         qtkey = None
         name = data['name'].iloc[-1]
         #Get DSP energy from magnetic perturbation
@@ -1371,16 +1215,16 @@ def plot_DesslerParkerSckopke(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc='upper left')
 
-def plot_akasofu(axis, dflist, timekey, ylabel, *,
+def plot_akasofu(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             pass
@@ -1420,17 +1264,17 @@ def plot_akasofu(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     #axis.legend(loc='upper right')
 
-def plot_pearson_r(axis, dflist, ydf, xlabel, ylabel, *,
+def plot_pearson_r(axis, dfdict, ydf, xlabel, ylabel, *,
                    qtkeyX='dst',qtkeyY='Utot [J]',
                    xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             if qtkeyX=='dst':
@@ -1478,17 +1322,17 @@ def plot_pearson_r(axis, dflist, ydf, xlabel, ylabel, *,
     axis.legend(loc='upper right')
     axis.grid()
 
-def plot_swbz(axis, dflist, timekey, ylabel, *,
+def plot_swbz(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             qtkey = 'BzGSM (nT)'
@@ -1519,17 +1363,17 @@ def plot_swbz(axis, dflist, timekey, ylabel, *,
     axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
 
-def plot_swflowP(axis, dflist, timekey, ylabel, *,
+def plot_swflowP(axis, dfdict, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'lower right'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         if name == 'supermag':
             qtkey = 'Dyn. Pres. (nPa)'
@@ -1563,17 +1407,17 @@ def plot_swflowP(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.yaxis.set_minor_locator(AutoMinorLocator(5))
 
-def plot_swPower(axis, dflist, mp, timekey, ylabel, *,
+def plot_swPower(axis, dfdict, mp, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None):
     """Function plots solar wind clock angle with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
+        dfdict- datasets
         timekey- used to located column with time and the qt to plot
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper right'
-    for data in dflist:
+    for data in dfdict:
         name = data['name'].iloc[-1]
         powerin_str = '1DK_injection [W]'
         powerout_str = '1DK_escape [W]'
@@ -1696,20 +1540,20 @@ def plot_fixed_loc(fig, ax, df,  powerkey, *,
     if show_colorbar:
         fig.colorbar(cntr, ax=axes, ticks=cont_lvl)
 
-def chopends_time(dflist, start, end, timekey,*,shift=False,
+def chopends_time(dfdict, start, end, timekey,*,shift=False,
                   shift_minutes=45):
     """Function chops ends of dataframe based on time
     Inputs
-        dflist
+        dfdict
         start, end
         timekey
         shift- boolean for shifting entire dataset
         shift_minutes- how much to shift (add time)
     Outputs
-        dflist
+        dfdict
     """
     newlist = []
-    for df in enumerate(dflist):
+    for df in enumerate(dfdict):
         name = pd.Series({'name':df[1]['name'].iloc[-1]})
         if not any([key==timekey for key in df[1].keys()]):
             df[1][timekey] = df[1][
@@ -1724,87 +1568,55 @@ def chopends_time(dflist, start, end, timekey,*,shift=False,
     return newlist
 
 if __name__ == "__main__":
-    datapath = sys.argv[1::]
-    print('processing indices output at {}'.format(datapath))
-    figureout = datapath[-1]+'figures/'
-    #set text settings
-    plt.rcParams.update({
-        "text.usetex": True,
-        "font.family": "sans-serif",
-        "font.size": 18,
-        "font.sans-serif": ["Helvetica"]})
-    #figure size defaults
-    figx = 14; figy = 6; padsize=3
-    #Read in data
-    fullstart = dt.datetime(2014, 2, 15, 0)
-    fullend = dt.datetime(2014, 2, 23, 0)
-    [swmf_index, swmf_log, swmf_sw, supermag, omni]= read_indices(
-                                                             datapath[-1])
-    #                                                 read_supermag=False)
-    [supermag_expanded, omni_expanded] = get_expanded_sw(fullstart,
-                                                    fullend, datapath[-1])
-    energetics_list = read_energetics(datapath)
-    #Chop based on time
-    cuttoffstart = dt.datetime(2014,2,18,6,0)
-    cuttoffend = dt.datetime(2014,2,20,0,0)
-    simdata = [swmf_index, swmf_log, swmf_sw]
-    obsdata = [supermag, omni]
-    #[supermag,omni] = chopends_time(obsdata, cuttoffstart, cuttoffend,
-    #                                'Time [UTC]')
-    [swmf_index,swmf_log,swmf_sw,] = chopends_time(simdata, cuttoffstart,
-                                     cuttoffend, 'Time [UTC]', shift=False)
-    energeticslist = chopends_time(energetics_list,cuttoffstart,
-                                   cuttoffend, 'Time [UTC]', shift=False)
-    #Sort energetics into specific types
-    mplist, fixedlist, agglist, dofixed, doagg = [], [], [], False, False
-    for df in energetics_list:
-        if df['name'].iloc[-1].find('mp_')!=-1:
-            mplist.append(df)
-        #if df['name'].iloc[-1].find('fixed')!=-1:
-        #    fixedlist.append(df)
-        #    dofixed = True
-        if df['name'].iloc[-1].find('aggr')!=-1:
-            agglist.append(df)
-            doagg = True
-        if df['name'].iloc[-1].find('lcb')!=-1:
-            lcb = df
-    if len(mplist) > 1:
-        do_mpcomparisons = True
-        main_key = 'betastar'
-        mp = mplist.pop(np.argmax(
-                   [df.iloc[-1]['name'].find(main_key) for df in mplist]))
-    else:
-        do_mpcomparisons = False
-        mp = mplist[0]
-    agglist.append(mp)
-    for df in enumerate(agglist):
-        name = df[1]['name'].iloc[-1]
-        region = name.split('mp')[-1].split('aggr')[-1].split(
-                                                      '_')[0].capitalize()
-        if name.find('asym')==-1:
-            #Net
-            df[1]['K_injection [W]'] = (df[1]['K_injection [W]']+
-                                        mp['Utot'+region+'_acquired [W]'])
-            df[1]['K_escape [W]'] = (df[1]['K_escape [W]']+
-                                     mp['Utot'+region+'_forfeited [W]'])
-            df[1]['K_net [W]'] = (df[1]['K_net [W]']+
-                                  mp['Utot'+region+'_net [W]'])
-            #ExB
-            df[1]['ExB_injection [W]'] = (df[1]['ExB_injection [W]']+
-                                          mp['uB'+region+'_acquired [W]'])
-            df[1]['ExB_escape [W]'] = (df[1]['ExB_escape [W]']+
-                                       mp['uB'+region+'_forfeited [W]'])
-            df[1]['ExB_net [W]'] = (df[1]['ExB_net [W]']+
-                                    mp['uB'+region+'_net [W]'])
-            #Hydro
-            df[1]['P0_injection [W]'] = (df[1]['P0_injection [W]']+
-                                      mp['uHydro'+region+'_acquired [W]'])
-            df[1]['P0_escape [W]'] = (df[1]['P0_escape [W]']+
-                                     mp['uHydro'+region+'_forfeited [W]'])
-            df[1]['P0_net [W]'] = (df[1]['P0_net [W]']+
-                                   mp['uHydro'+region+'_net [W]'])
-    agglist.pop()
+    #handling io paths
+    datapath = sys.argv[-1]
+    figureout = os.path.join(datapath,'figures')
+    os.makedirs(figureout, exist_ok=True)
+
+    #setting pyplot configurations
+    plt.rcParams.update(pyplotsetup(mode='print_presentation'))
+
+    ##Loading data
+    #Log files and observational indices
+    [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
+                                                      read_supermag=False)
+    #HDF data needs to be read, sorted and cleaned
+    [mpdict,msdict,inner_mp,times,get_nonGM]=load_hdf_sort(
+                                            datapath+'trackIM_results.h5')
+    if get_nonGM:
+        #Check for non GM data
+        ie, ua_j, ua_e, ua_non, ua_ie= load_nonGM(datapath+'results.h5')
+
+    ##Apply any mods and gather additional statistics
+    [mpdict,msdict,inner_mp]=process_energy(mpdict,msdict,inner_mp,times)
+    mp = [m for m in mpdict.values()][0]
+
+    ##Construct "grouped" set of subzones
+    if msdict!={}:
+        msdict = group_subzones(msdict,mode='3zone')
+
     ##Plot data
+    ######################################################################
+    #IM Tracking initial values
+    if True and 'WKE [W]'in mp.keys():
+        #figure specs
+        figname = 'Track_IM'
+        track_im,(ax1) = plt.subplots(1,1,figsize=[14,6],sharex=True)
+
+        #labels
+        eth_label = r'$H_{therm,IM}\left[ TW \right]$'
+        Knet_label= r'Integ. K Power $\left[TW\right]$'
+
+        #Figure elements
+        mark_times(ax1)
+        plot_power(ax1,mpdict,times,ylabel=Knet_label,ylim=[-7.5,7.5])
+        plot_trackEth(ax1,mpdict,times,ylabel=eth_label)
+
+        #Additional adjustments
+        track_im.tight_layout(pad=1)
+
+        #Save
+        track_im.savefig(figureout+'/'+figname+'.png')
     ######################################################################
     #Newell Function and Outerbound Net Power, and cpcp
     if False:
@@ -1828,37 +1640,35 @@ if __name__ == "__main__":
         #new_out_pow.autofmt_xdate()
         #shade_plot(ax1)
         #ax1.set_facecolor('olive')
-        new_out_pow.savefig(figureout+'{}.eps'.format(figname))
+        new_out_pow.savefig(figureout+'/'+figname+'.eps')
     ######################################################################
     #Total energy and dst index
     if True:
+        #figure specs
         figname = 'Energy_dst'
-        energy_dst, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
-                                          figsize=[14,6])
-        #Time
-        timekey = 'Time [UTC]'
-        y1label = r'$\displaystyle Dst \left[ nT \right]$'
-        y2label = r'$\displaystyle E_{total} \left[ PJ \right]$'
+        energy_dst,(ax1) = plt.subplots(1,1,figsize=[14,6],sharex=True)
         ax2 = ax1.twinx()
+
+        #labels
+        db_label = r'$\Delta B \left[ nT \right]$'
+        etot_label = r'$E_{total} \left[ PJ \right]$'
+
+        #Figure elements
         mark_times(ax2)
-        plot_dst(ax1, [swmf_log, omni], timekey, y1label)
-        plot_TotalEnergy(ax2, [mp], timekey, y2label)
-        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-        ax1.tick_params(which='major', length=7)
-        ax1.xaxis.set_minor_locator(AutoMinorLocator(6))
-        ax1.yaxis.set_minor_locator(AutoMinorLocator())
-        ax2.legend(loc='lower right', fontsize=18, labelcolor='blue')
+        plot_dst(ax1, [swmf_log, omni], 'Time [UTC]', db_label)
+        plot_TotalEnergy(ax2, mpdict, times, ylabel=etot_label)
+
+        #Additional adjustments
         ax2.spines['right'].set_color('blue')
         ax2.yaxis.label.set_color('blue')
         ax2.tick_params(axis='y', colors='blue')
-        #energy_dst.tight_layout(rect=(0.03,0,0.95,1))
         energy_dst.tight_layout(pad=1)
-        energy_dst.savefig(figureout+'{}.eps'.format(figname))
-        energy_dst.savefig(figureout+'{}.tiff'.format(figname))
-        energy_dst.savefig(figureout+'{}.png'.format(figname))
+
+        #Save
+        energy_dst.savefig(figureout+'/'+figname+'.png')
     ######################################################################
     #Correlation for energy and dst
-    if True:
+    if False:
         figname = 'Energy_dst_rcor'
         energy_corr, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figy,figy])
@@ -1876,7 +1686,7 @@ if __name__ == "__main__":
         energy_corr.savefig(figureout+'{}.png'.format(figname))
     ######################################################################
     #Correlation for ram pressure and volume
-    if True:
+    if False:
         figname = 'Pram_volume_rcor'
         pram_corr, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figy,figy])
@@ -2019,7 +1829,7 @@ if __name__ == "__main__":
         innerP0power.savefig(figureout+'{}_inner.eps'.format(figname))
     ######################################################################
     #3panel Power, power_inner, and shielding
-    if True:
+    if False:
         figname = '3panelPower'
         panel3power, (ax1,ax2,ax3)=plt.subplots(nrows=3, ncols=1,
                                           sharex=True, figsize=[figx,3*figy])
@@ -2114,7 +1924,7 @@ if __name__ == "__main__":
         bigsw.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #3panel Akosofu, Newell, Dst
-    if True:
+    if False:
         figname = '3panelProxies'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                        'flank_full')!=-1]
@@ -2175,7 +1985,7 @@ if __name__ == "__main__":
         DPS.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces power
-    if do_mpcomparisons:
+    if False:
         figname = 'ComparativePower'
         power_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -2194,7 +2004,7 @@ if __name__ == "__main__":
         power_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
-    if True:
+    if False:
         figname = 'MPStandoff'
         mpstand, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[14,4])
@@ -2215,7 +2025,7 @@ if __name__ == "__main__":
         mpstand.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of mulitple magnetopause surfaces volumes
-    if do_mpcomparisons:
+    if False:
         figname = 'ComparativeSurfaceArea'
         surf_comp, (ax1) = plt.subplots(nrows=1, ncols=1,sharex=True,
                                           figsize=[figx,figy])
@@ -2233,7 +2043,7 @@ if __name__ == "__main__":
         surf_comp.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'Day3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                           'day_full')!=-1]
@@ -2261,7 +2071,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'Flank3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                        'flank_full')!=-1]
@@ -2290,7 +2100,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'Tail3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                           'tail_full')!=-1]
@@ -2318,7 +2128,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'AverageDay3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                           'day_full')!=-1]
@@ -2349,7 +2159,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'AverageFlank3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                         'flank_full')!=-1]
@@ -2380,7 +2190,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'AverageTail3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                         'flank_full')!=-1]
@@ -2412,7 +2222,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'DayFlankTail3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                               'full')!=-1]
@@ -2440,7 +2250,7 @@ if __name__ == "__main__":
         dft_3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'Spatial_Powers3panel'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                               'full')!=-1]
@@ -2470,7 +2280,7 @@ if __name__ == "__main__":
         spPower3.savefig(figureout+'{}.eps'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if doagg:
+    if False:
         figname = 'Spatial_Powers'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(
                                                               'full')!=-1]
@@ -2497,7 +2307,7 @@ if __name__ == "__main__":
         spPower.savefig(figureout+'{}.eps'.format(figname+'_K'))
     ######################################################################
     #timeseries of data at a set of fixed points on the surface
-    if dofixed:
+    if False:
         figname = 'fixed_spatial_timeseries'
         fixed = plt.figure(figsize=[16,16])
         #toprow
@@ -2598,7 +2408,7 @@ if __name__ == "__main__":
                         '.eps'.format(figname))
     ######################################################################
     #Total Power injection, escape and net
-    if True:
+    if False:
         figname = 'SurfacePower'
         asym=[ag for ag in agglist if ag['name'].iloc[-1].find('asym')!=-1]
         power,(ax1,ax2,ax3,ax4)=plt.subplots(nrows=4, ncols=1,sharex=True,
@@ -2638,7 +2448,7 @@ if __name__ == "__main__":
         power.savefig(figureout+'{}.tiff'.format(figname))
     ######################################################################
     #Total Power injection, escape and net
-    if True:
+    if False:
         figname = 'SurfacePower3types'
         power, (ax1,ax2,ax3) = plt.subplots(nrows=3, ncols=1,sharex=True,
                                           figsize=[figx,2*figy])
@@ -2666,7 +2476,7 @@ if __name__ == "__main__":
         power.savefig(figureout+'{}.tiff'.format(figname))
     ######################################################################
     #Comparisons of sections of the magntopause surface
-    if True:
+    if False:
         figname = 'MPDFTStacked'
         timekey = 'Time_UTC'
         aggsublist = [ag for ag in agglist if ag['name'].iloc[-1].find(

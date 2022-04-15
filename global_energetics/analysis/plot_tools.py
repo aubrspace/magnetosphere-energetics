@@ -2,6 +2,7 @@
 """Functions for handling and plotting time magnetic indices data
 """
 import numpy as np
+import datetime as dt
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
@@ -41,6 +42,18 @@ def pyplotsetup(*,mode='presentation',**kwargs):
                     'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
         settings.update({'axes.prop_cycle': colorwheel})
     return settings
+
+def safelabel(label):
+    """Returns str that will not break latex format
+    Input
+        label
+    Return
+        label
+    """
+    culprits = ['_','%']#ones that show up often
+    for c in culprits:
+        label = ('\\'+c).join(label.split(c))
+    return label
 
 def general_plot_settings(ax, **kwargs):
     """Sets a bunch of general settings
@@ -86,6 +99,126 @@ def get_omni_cdas(start,end,as_df=True,**variables):
         return df
     else:
         return omni
+
+def shade_plot(axis, *, do_full=False):
+    """Credit Qusai from NSF proposal:
+        Shade the ICME regions"""
+
+    # ICME Timings
+    def hour(minutes):
+        """return hour as int from given minutes"""
+        return int((minutes)/60//24)
+
+    def minute(minutes):
+        """return minute as int from given minutes"""
+        return int(minutes % 60)
+
+    # From Tuija email
+    icme = (
+
+        # (dt.datetime(2014, 2, 15, 13+hour(25), minute(25)),  # SH1
+        #  dt.datetime(2014, 2, 16, 4+hour(45), minute(45)),  # EJ1
+        #  dt.datetime(2014, 2, 16, 16+hour(55), minute(55))),  # ET1
+
+        (dt.datetime(2014, 2, 18, 7+hour(6), minute(6)),  # SH2
+         dt.datetime(2014, 2, 18, 15+hour(45), minute(45)),  # EJ2
+         dt.datetime(2014, 2, 19, 3+hour(55), minute(55))),  # ET2
+
+        (dt.datetime(2014, 2, 19, 3+hour(56), minute(56)),  # SH3
+         dt.datetime(2014, 2, 19, 12+hour(45), minute(45)),  # EJ3
+         dt.datetime(2014, 2, 20, 3+hour(9), minute(9))),  # ET3
+
+        # (dt.datetime(2014, 2, 20, 3+hour(9), minute(9)),  # SH4
+        #  dt.datetime(2014, 2, 21, 3+hour(15), minute(15)),  # EJ4
+        #  dt.datetime(2014, 2, 22, 13+hour(00), minute(00))),  # ET4
+
+        )
+    fullicme = (
+
+        (dt.datetime(2014, 2, 15, 13+hour(25), minute(25)),  # SH1
+         dt.datetime(2014, 2, 16, 4+hour(45), minute(45)),  # EJ1
+         dt.datetime(2014, 2, 16, 16+hour(55), minute(55))),  # ET1
+
+        (dt.datetime(2014, 2, 18, 7+hour(6), minute(6)),  # SH2
+         dt.datetime(2014, 2, 18, 15+hour(45), minute(45)),  # EJ2
+         dt.datetime(2014, 2, 19, 3+hour(55), minute(55))),  # ET2
+
+        (dt.datetime(2014, 2, 19, 3+hour(56), minute(56)),  # SH3
+         dt.datetime(2014, 2, 19, 12+hour(45), minute(45)),  # EJ3
+         dt.datetime(2014, 2, 20, 3+hour(9), minute(9))),  # ET3
+
+        (dt.datetime(2014, 2, 20, 3+hour(9), minute(9)),  # SH4
+         dt.datetime(2014, 2, 21, 3+hour(15), minute(15)),  # EJ4
+         dt.datetime(2014, 2, 22, 13+hour(00), minute(00))),  # ET4
+
+        )
+    if do_full:
+        icme = fullicme
+
+    for num, times in enumerate(icme, start=2):
+        sheath = mpl.dates.date2num(times[0])
+        ejecta = mpl.dates.date2num(times[1])
+        end = mpl.dates.date2num(times[2])
+        axis.axvspan(sheath, ejecta, facecolor='k', alpha=0.1,
+                     label=('sheath ' + str(num)))
+        axis.axvspan(ejecta, end, facecolor='k', alpha=0.4,
+                     label=('ejecta ' + str(num)))
+
+def mark_times(axis):
+    """Function makes vertical marks at specified time stamps
+    Inputs
+        axis- object to mark
+    """
+    #FROM Tuija Email June 20, 2021:
+    '''
+    % IMF changes
+02 19 10 20
+02 19 17 45
+% Density peaks 18/12-17 UT, 19/0940-1020 UT, 19/1250-1440
+02 18 12 00
+02 18 17 00
+02 19 09 00
+02 19 10 20
+02 19 12 50
+02 19 14 40
+% AL: substorm onsets 18/1430, 18/1615, 18/1850, 19/0030, 19/0356, 19/0900, 19/1255
+02 18 14 30
+02 18 16 10
+02 18 18 50
+02 19 00 30
+02 19 03 56
+02 19 09 00
+02 19 12 55
+    '''
+    timeslist=[]
+    #IMF changes
+    timeslist.append([dt.datetime(2014,2,19,10,20),'IMF'])
+    timeslist.append([dt.datetime(2014,2,19,17,45),'IMF'])
+    #Density peaks
+    timeslist.append([dt.datetime(2014,2,18,12,0),'Density'])
+    timeslist.append([dt.datetime(2014,2,18,17,0),'Density'])
+    timeslist.append([dt.datetime(2014,2,19,9,0),'Density'])
+    timeslist.append([dt.datetime(2014,2,19,10,20),'Density'])
+    timeslist.append([dt.datetime(2014,2,19,12,50),'Density'])
+    timeslist.append([dt.datetime(2014,2,19,14,40),'Density'])
+    #Substorm onsets based on AL
+    timeslist.append([dt.datetime(2014,2,18,14,30),'Substorm'])
+    timeslist.append([dt.datetime(2014,2,18,16,10),'Substorm'])
+    timeslist.append([dt.datetime(2014,2,18,18,50),'Substorm'])
+    timeslist.append([dt.datetime(2014,2,19,0,30),'Substorm'])
+    timeslist.append([dt.datetime(2014,2,19,3,56),'Substorm'])
+    timeslist.append([dt.datetime(2014,2,19,9,0),'Substorm'])
+    timeslist.append([dt.datetime(2014,2,19,12,55),'Substorm'])
+    #Colors, IMF, Density, Substorm
+    colorwheel = dict({'IMF':'black',
+                       'Density':'black',
+                       'Substorm':'black'})
+    lswheel = dict({'IMF':None,
+                       'Density':None,
+                       'Substorm':'--'})
+    for stamp in timeslist:
+        axis.axvline(stamp[0], color=colorwheel[stamp[1]],
+                     linestyle=lswheel[stamp[1]], linewidth=1)
 
 
 if __name__ == "__main__":
