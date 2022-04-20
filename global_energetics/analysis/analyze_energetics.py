@@ -626,7 +626,27 @@ def plot_trackEth(axis, dfdict, times, **kwargs):
     #Update default legend_loc
     #kwargs.update({'legend_loc':kwargs.get('legend_loc','lower right')})
     for name,data in dfdict.items():
-        eth_key = kwargs.get('eth_key','Wth [W]')
+        eth_key = kwargs.get('eth_key','Eth_acc [J]')
+        axis.plot(times,data[eth_key]/1e15,
+                  label=kwargs.get('altlabel',safelabel(name)),
+                  linewidth=kwargs.get('lw'), linestyle=kwargs.get('ls'),
+                  color=kwargs.get('color','olive'))
+    #General plot settings
+    general_plot_settings(axis, **kwargs)
+
+def plot_trackHth(axis, dfdict, times, **kwargs):
+    """Function plots energy overwrites during IM-GM coupling
+    Inputs
+        axis- object plotted on
+        dfdict- datasets
+        times-
+        kwargs
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    #Update default legend_loc
+    #kwargs.update({'legend_loc':kwargs.get('legend_loc','lower right')})
+    for name,data in dfdict.items():
+        eth_key = kwargs.get('Hth_key','Wth [W]')
         axis.plot(times,data[eth_key]/1e12-data[eth_key].iloc[0]/1e12,
                   label=kwargs.get('altlabel',safelabel(name)),
                   linewidth=kwargs.get('lw'), linestyle=kwargs.get('ls'),
@@ -1602,15 +1622,19 @@ if __name__ == "__main__":
         #figure specs
         figname = 'Track_IM'
         track_im,(ax1) = plt.subplots(1,1,figsize=[14,6],sharex=True)
+        ax2 = ax1.twinx()
 
         #labels
-        eth_label = r'$H_{therm,IM}\left[ TW \right]$'
+        Hth_label = r'$H_{therm,IM}\left[ TW \right]$'
+        Eth_label = r'$E_{therm,IM}\left[ PJ \right]$'
+        KE_label = r'$KE_{acc,IM}\left[ PJ \right]$'
         Knet_label= r'Integ. K Power $\left[TW\right]$'
 
         #Figure elements
         mark_times(ax1)
-        plot_power(ax1,mpdict,times,ylabel=Knet_label,ylim=[-7.5,7.5])
-        plot_trackEth(ax1,mpdict,times,ylabel=eth_label)
+        #plot_power(ax1,mpdict,times,ylabel=Knet_label,ylim=[-7.5,7.5])
+        plot_trackEth(ax1,mpdict,times,ylabel=Eth_label)
+        plot_trackHth(ax2,mpdict,times,ylabel=Hth_label)
 
         #Additional adjustments
         track_im.tight_layout(pad=1)

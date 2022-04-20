@@ -286,7 +286,7 @@ if __name__ == "__main__":
                                                                 drop=True)
     #HDF data, will be sorted and cleaned
     [mpdict,msdict,inner_mp,times,get_nonGM]=load_hdf_sort(
-                                                     datapath+'results.h5')
+                                                datapath+'virial_track.h5')
     if get_nonGM:
         #Check for non GM data
         ie, ua_j, ua_e, ua_non, ua_ie= load_nonGM(datapath+'results.h5')
