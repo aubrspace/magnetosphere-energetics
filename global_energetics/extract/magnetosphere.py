@@ -8,7 +8,6 @@ import time
 from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, deg2rad, linspace
-import matplotlib.pyplot as plt
 import datetime as dt
 import tecplot as tp
 from tecplot.constant import *
@@ -230,7 +229,8 @@ def prep_field_data(field_data, **kwargs):
             closed_zone = field_data.zone('*lcb*')
         elif has_status == True:
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
-            closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
+            closed_zone = setup_isosurface(1,closed_index,'lcb',
+                                        blankvalue=kwargs.get('inner_r',3))
     else:
         if do_trace:
             closedzone_index = streamfind_bisection(field_data,
@@ -245,14 +245,15 @@ def prep_field_data(field_data, **kwargs):
                                                 global_key=futurezonename)
         else:
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
-            closed_zone, _ = setup_isosurface(1,closed_index,'lcb')
+            closed_zone = setup_isosurface(1,closed_index,'lcb',
+                                        blankvalue=kwargs.get('inner_r',3))
             if do_cms:
                 future_closed_index = calc_closed_state('future_lcb',
                                                         'Status', 3,
                                                         tail_cap, 1)
-                future_closed_zone, _ = setup_isosurface(1,
-                                                       future_closed_index,
-                                                       'future_lcb')
+                future_closed_zone =setup_isosurface(1,future_closed_index,
+                                                     'future_lcb',
+                                        blankvalue=kwargs.get('inner_r',3))
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closed_zone.index).values('X *').max())
@@ -271,6 +272,7 @@ def prep_field_data(field_data, **kwargs):
     if do_cms:
         return aux, closed_zone, future_closed_zone
     else:
+        print('closed_zone: '+closed_zone.name)
         return aux, closed_zone, None
 
 def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
@@ -405,8 +407,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
         #modes = [mode, 'Jpar+']
     else:
-        #modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
-        modes = [mode]
+        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
+        #modes = [mode]
     for m in modes:
         zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
         if (type(zone) != type(None) or type(inner_zone)!=type(None)):

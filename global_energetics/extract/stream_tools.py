@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Functions for identifying surfaces from field data
 """
-import logging as log
+#import logging as log
 import os, warnings
 import sys
 import time
@@ -1554,24 +1554,19 @@ def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
     return result
 
 def setup_isosurface(iso_value, varindex, zonename, *,
-                     contindex=7, isoindex=7, keep_condition=None,
-                                              keep_cond_value=0,
-                                              global_key='global_field',
-                                              blankvar='',blankvalue=2,
+                     contindex=7, isoindex=7, global_key='global_field',
+                                            blankvar='r *',blankvalue=2,
                                               blankop=RelOp.LessThan):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
         iso_value
         varindex, contindex, isoindex- storage locations on tecplot side
         zonename
-        keep_condition- will keep connected region w/ max element & this
-        keep_cond_value- value used for above condition
     Outputs
         newzone- primary zone created (w/ max elements)
-        newzone2- secondary zone that meets keep condition
     """
-    frame = tp.active_frame()
-    plt = frame.plot()
+    ds = tp.active_frame().dataset
+    plt = tp.active_frame().plot()
     #hide all zones not matching global_key
     for map_index in plt.fieldmaps().fieldmap_indices:
         for zone in plt.fieldmap(map_index).zones:
@@ -1586,58 +1581,36 @@ def setup_isosurface(iso_value, varindex, zonename, *,
     plt.contour(contindex).variable_index = varindex
     iso.isosurface_values[0] = iso_value
     print('creating isosurface of {}={:.2f}'.format(
-                                    frame.dataset.variable(varindex).name,
+                                    ds.variable(varindex).name,
                                     iso_value))
-    orig_nzones = frame.dataset.num_zones
+    orig_nzones = ds.num_zones
     #Check for blanking conditions
     if blankvar != '':
         plt.value_blanking.active = True
         blank = plt.value_blanking.constraint(1)
         blank.active = True
-        blank.variable = frame.dataset.variable(blankvar)
+        blank.variable = ds.variable(blankvar)
         blank.comparison_operator = blankop
         blank.comparison_value = blankvalue
     try:
-        tp.macro.execute_command('$!ExtractIsoSurfaces Group = {:d} '.format(
-                                                                  isoindex+1)+
-                                    'ExtractMode = OneZonePerConnectedRegion')
+        macro = tp.macro.execute_command
+        macro('$!ExtractIsoSurfaces Group = {:d} '.format(isoindex+1)+
+                            'ExtractMode = OneZonePerConnectedRegion')
     except TecplotMacroError:
         print('Unable to create '+zonename+'!')
-        return None, None
+        return None
     iso.show = False
     #Turn off blanking
     if blankvar != '':
         plt.value_blanking.active = False
-    #only keep zone with the highest number of elements, or meet condition
-    nelements = 0
-    for i in range(orig_nzones, frame.dataset.num_zones):
-        if len(frame.dataset.zone(i).values('X *')) > nelements:
-            nelements = len(frame.dataset.zone(i).values('X *'))
-            keep_index = i
-        if keep_condition == 'sphere':
-            element_total = len(frame.dataset.zone(i).values('r *'))
-            rvals = frame.dataset.zone(i).values('r *').as_numpy_array()
-            elements_onsphere = len(np.where(
-                                    abs(rvals-keep_cond_value)<0.5)[0])
-            if (elements_onsphere/element_total > 0.9 and
-                element_total >20):
-                newzone2_key = frame.dataset.zone(i).name
-                keep_alt = i
-        else:
-            keep_alt = None
-    for i in reversed(range(orig_nzones, frame.dataset.num_zones)):
-        if i != keep_index and i != keep_alt:
-            frame.dataset.delete_zones(i)
-        else:
-            newzone_key = frame.dataset.zone(i).name
-    newzone = frame.dataset.zone(newzone_key)
+    #only keep zone with the highest number of elements
+    zsizes=pd.DataFrame([(z, z.num_elements)for z in ds.zones('*region*')],
+                                                  columns=['zone','size'])
+    newzone=zsizes[zsizes['size']==zsizes['size'].max()]['zone'].values[0]
     newzone.name = zonename
-    if keep_condition == None:
-        return newzone, newzone
-    else:
-        newzone2 = frame.dataset.zone(newzone2_key)
-        newzone2.name = zonename+'innerbound'
-        return newzone, newzone2
+    if len(zsizes)!=1:
+        ds.delete_zones([z.index for z in ds.zones('*region*')])
+    return newzone
 
 def calc_state(mode, sourcezone, **kwargs):
     """Function selects which state calculation method to use
@@ -1660,17 +1633,8 @@ def calc_state(mode, sourcezone, **kwargs):
     #Call calc_XYZ_state and return state_index and create zonename
     if 'iso_betastar' in mode:
         zonename = 'mp_'+mode
-        if 'future' in sourcezone.name:
-            zonename = 'future_'+mode
-            closed_zone = kwargs.get('future_closed_zone')
-        else:
-            closed_zone = kwargs.get('closed_zone')
-        state_index = calc_betastar_state(zonename, sourcezone.index,
-                                          kwargs.get('x_subsolar'),
-                                          kwargs.get('tail_cap', -20),
-                                          50,kwargs.get('mpbetastar',0.7),
-                                          kwargs.get('inner_r',3),
-                                          closed_zone)
+        state_index = calc_betastar_state(zonename,sourcezone,**kwargs)
+
     elif mode == 'sphere':
         zonename = mode+str(kwargs.get('sp_rmax',3))
         state_index = calc_sphere_state(zonename, kwargs.get('sp_x',0),
@@ -1724,7 +1688,8 @@ def calc_state(mode, sourcezone, **kwargs):
                                        ' closed_zone present! Cant do rc')
         zonename = 'ms_'+mode
         state_index = calc_rc_state(kwargs.get('closed_zone').name,
-                                    str(kwargs.get('lshelllim',7)))
+                                    str(kwargs.get('lshelllim',7)),
+                                    **kwargs)
     elif 'ps' in mode:
         assert type(kwargs.get('closed_zone')) != type(None), ('No'+
                                        ' closed_zone present! Cant do ps')
@@ -1781,13 +1746,20 @@ def calc_state(mode, sourcezone, **kwargs):
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
-    if 'iso_betastar' not in mode:
-        zone, innerzone = setup_isosurface(1, state_index, zonename)
-        innerzone = None
+    zone = setup_isosurface(1, state_index, zonename,
+                            blankvalue=kwargs.get('inner_r',3))
+    if 'iso_betastar' in mode:
+        #Sphere at fixed radius
+        innerzone = setup_isosurface(kwargs.get('inner_r',3),
+                                sourcezone.dataset.variable('r *').index,
+                                     zonename+'innerbound',blankvar='')
+        #PALEO update subsolar point
+        new_subsolar = zone.values('X *').max()
+        if new_subsolar>float(sourcezone.aux_data['x_subsolar']):
+            print('x_subsolar updated to {}'.format(new_subsolar))
+            sourcezone.aux_data['x_subsolar'] = new_subsolar
     else:
-        zone, innerzone = setup_isosurface(1, state_index, zonename,
-                                           keep_condition='sphere',
-                                  keep_cond_value=kwargs.get('inner_r',3))
+        innerzone = None
     return zone, innerzone, state_index
 
 def extrema(array,factor):
@@ -2024,7 +1996,7 @@ def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell', **kwargs):
     """
     eq = tp.data.operate.execute_equation
     eq('{ms_rc_L='+lshellmax+'} = if({'+closed_var+'}==1&&'+
-                                   '{r [R]}>'+kwargs.get('rmin','3')+'&&'+
+                           '{r [R]}>'+str(kwargs.get('inner_r',3))+'&&'+
                                     '{'+Lvar+'}<'+lshellmax+',1,0)')
     return tp.active_frame().dataset.variable('ms_rc_L='+lshellmax).index
 
@@ -2063,8 +2035,7 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
             str(rhomin)+'||({uB [J/Re^3]}>'+str(uBmin)+'), 1, 0), 0)')
     return tp.active_frame().dataset.variable('mp_rho_transition').index
 
-def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
-                        coreradius, closed_zone):
+def calc_betastar_state(zonename, srczone, **kwargs):
     """Function creates equation in tecplot representing surface
     Inputs
         zonename
@@ -2074,6 +2045,17 @@ def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
     Outputs
         created variable index
     """
+    #Values needed to put into equation string passed to Tecplot
+    xmax = str(kwargs.get('x_subsolar','30'))
+    xmin = str(kwargs.get('tail_cap',-20))
+    core_r = str(kwargs.get('inner_r',3))
+    betamax = str(kwargs.get('mpbetastar',0.7))
+    srcZnIndex = str(srczone.index+1)
+    if 'future' in srczone.name:
+        zonename = 'future_'+mode
+        closed_zone = kwargs.get('future_closed_zone')
+    else:
+        closed_zone = kwargs.get('closed_zone')
     #FOR LATER
     '''
     {d_Betastar0.7} = IF({beta_star}<2.8&&{beta_star}>0.7, {beta_star}, IF({beta_star}<0.7, 0.7, 2.8))
@@ -2081,16 +2063,18 @@ def calc_betastar_state(zonename, source, xmax, xmin, hmax, betamax,
 {dn_y} = ddy({d_Betastar0.7})
     '''
     eq = tp.data.operate.execute_equation
-    eqstr = ('{'+zonename+'} = '+
-        'IF({X [R]} >'+str(xmin-2)+'&&'+
-        '{X [R]} <'+str(xmax)+'&& {r [R]} > '+str(coreradius))
-    eqstr=(eqstr+',IF({beta_star}['+str(source+1)+']<'+str(betamax)+',1,')
+    if kwargs.get('sunward_pole',False):
+        #PALEO variant for dipole facing subsolar point
+        eqstr=('{'+zonename+'}=IF({X [R]}>'+xmin+'&&'+'{r [R]}>'+core_r)
+    else:
+        eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+
+                                 '{X [R]} <'+xmax+'&&{r [R]} > '+core_r)
+    eqstr=(eqstr+',IF({beta_star}['+srcZnIndex+']<'+betamax+',1,')
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
     else:
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
-    #eq(eqstr, zones=[0], value_location=ValueLocation.CellCentered)
     eq(eqstr, zones=[0])
     return tp.active_frame().dataset.variable(zonename).index
 

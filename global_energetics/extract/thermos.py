@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extraction routine for ionosphere surface
 """
-import logging as log
+#import logging as log
 import os
 import sys
 import time

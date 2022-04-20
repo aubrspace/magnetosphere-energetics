@@ -215,6 +215,15 @@ def volume_analysis(state_var, **kwargs):
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     global_zone = state_var.dataset.zone(0)
+    #TRYING THIS OUT
+    if True:
+        plt = tp.active_frame().plot()
+        plt.value_blanking.active = True
+        blank = plt.value_blanking.constraint(1)
+        blank.active = True
+        blank.variable = state_var
+        blank.comparison_operator = RelOp.EqualTo
+        blank.comparison_value = 0
     ###################################################################
     #Core integral terms
     if 'virial' in analysis_type:
@@ -272,5 +281,6 @@ def volume_analysis(state_var, **kwargs):
                 for loc in['OpenN','OpenS','Closed']:
                     results.pop('Eth'+direction+loc+' [W]')
                     results.pop('KE'+direction+loc+' [W]')
+    blank.active = False
     return pd.DataFrame(results)
 

@@ -3,6 +3,7 @@
 """
 import time
 import logging
+logging.basicConfig(filename='MAINrunlog.log',level=logging.DEBUG)
 import atexit, os, multiprocessing, sys
 import numpy as np
 import pandas as pd
@@ -17,17 +18,31 @@ from tecplot.constant import *
 from tecplot.exception import *
 import global_energetics
 from global_energetics.extract import magnetosphere
-from global_energetics.extract import plasmasheet
-from global_energetics.extract import satellites
-from global_energetics.extract import stream_tools
-from global_energetics.extract import surface_tools
-from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
 from global_energetics.extract.view_set import twodigit
 from global_energetics import write_disp, makevideo
 
+def copy_plt(infiles,savepath):
+    """Copies and unzips pair of files to process
+    Inputs
+        infiles (list[str])- files to unzip EXPECTS 2: [Current, Next]
+        savepath (str)- where to save new, unzipped files
+    Returns
+        temp_files (list[str])- filenames of newly created unzipped temps
+    """
+    temp_files = [savepath+'/current.plt',savepath+'/next.plt']
+    for f in enumerate(infiles):
+        if '.gz' in infiles[0]:
+            with gzip.open(f[1],'rb')as fin,open(
+                                            temp_files[f[0]],'wb')as fout:
+                shutil.copyfileobj(fin, fout)
+        else:
+            with open(f[1],'rb')as fin,open(temp_files[f[0]],'wb')as fout:
+                shutil.copyfileobj(fin, fout)
+    return temp_files
+
 def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath,
-         all_solution_times):
+         all_solution_times, loglevel):
     '''Initialization function for each new spawn
     Inputs
         rundir, mhddir, etc. - filepaths for input/output
@@ -37,6 +52,14 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath,
     # Must register stop at exit to ensure Tecplot cleans
     # up all temporary files and does not create a core dump
     atexit.register(tp.session.stop)
+    #set ID for processor
+    ID = id(multiprocessing.current_process())
+    #setup a separate log for each processor
+    logger = logging.getLogger().getChild('child_'+str(ID))
+    file_handler = logging.FileHandler(outputpath+'/'+str(ID)+'runlog.log')
+    file_handler.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+    logger.addHandler(file_handler)
+    logger.setLevel(loglevel)
     #globalize variables for each worker
     global CONTEXT
     CONTEXT = {
@@ -48,40 +71,54 @@ def init(rundir, mhddir, iedir, imdir, scriptdir, outputpath, pngpath,
             'OUTPUTPATH' : outputpath,
             'PNGPATH' : pngpath,
             'ALL_SOLUTION_TIMES' : all_solution_times,
-            'id' : id(multiprocessing.current_process()),
+            'id' : ID,
+            'log': logger
             }
     os.makedirs(mhddir+'/'+str(CONTEXT['id']), exist_ok=True)
 
 def work(mhddatafile):
-    print(str(CONTEXT['id'])+'working on: '+mhddatafile)
-    #Unzip copies to spawn's local folder
-    for sol in enumerate(CONTEXT['ALL_SOLUTION_TIMES']):
-        if mhddatafile == sol[1]:
-            if sol[0]!=len(CONTEXT['ALL_SOLUTION_TIMES'])-1:
-                nextmhdfile = CONTEXT['ALL_SOLUTION_TIMES'][sol[0]+1]
-            else:
-                nextmhdfile = mhddatafile
-    temp_cfile = CONTEXT['MHDDIR']+'/'+str(CONTEXT['id'])+'/current.plt'
-    temp_nfile = CONTEXT['MHDDIR']+'/'+str(CONTEXT['id'])+'/next.plt'
-    temp_files = [temp_cfile, temp_nfile]
-    for f in enumerate([mhddatafile, nextmhdfile]):
-        with gzip.open(f[1],'r')as fin,open(temp_files[f[0]],'wb')as fout:
-            shutil.copyfileobj(fin, fout)
+    log = CONTEXT['log']
+    log.info('Beginning work for: '+mhddatafile)
+    if log.level==10:
+        marktime=time.time()
+
+    ##Find pair of files for current + next solution (assumed sorted)
+    cSol = CONTEXT['ALL_SOLUTION_TIMES']
+    nSol = cSol.copy(); nSol.pop(0); nSol.append(cSol[-1])#shift 1 right
+    cnSol = [[c,n] for c,n in zip(cSol,nSol) if c==mhddatafile][0]
+
+    if not os.path.exists(CONTEXT['MHDDIR']+'/copy_plt'):
+        #Create copies to spawn's local folder
+        temppath = CONTEXT['MHDDIR']+'/'+str(CONTEXT['id'])
+        tempSol = copy_plt(cnSol,temppath)#Now solutions are unzipped copies
+    else:
+        #Use existing copy found in "copy_plt" folder
+        tempSol=[cnSol[0],os.path.join(CONTEXT['MHDDIR'],
+                                   'copy_plt',cnSol[1].split('/')[-1])]
+
     #Load data into tecplot and setup field zone names
     tp.new_layout()
-    field_data = tp.data.load_tecplot(temp_files)
+    field_data = tp.data.load_tecplot(tempSol)
     field_data.zone(0).name = 'global_field'
     field_data.zone(1).name = 'future'
     OUTPUTNAME = mhddatafile.split('e')[-1].split('.plt')[0]
+    if log.level==10:
+        log.debug('Copy unzip: --- {:.2f}s ---'.format(time.time()-
+                                                           marktime))
+        marktime=time.time()
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,integrate_volume=True,
-                                    analysis_type='energy_trackIM',
+                                analysis_type='energy_virial_trackIM',
                                     mpbetastar=0.7,
                                     outputpath=CONTEXT['OUTPUTPATH'])
-    #get supporting module data for this timestamp
-    #satzones = satellites.get_satellite_zones(field_data,
-    #                              CONTEXT['MHDDIR']+'/'+str(CONTEXT['id']))
+    if log.level==10:
+        log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
+                                                           marktime))
+        marktime=time.time()
+    log.info('Begining visuals')
+    if log.level==10:
+        marktime=time.time()
     if False:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
@@ -141,27 +178,32 @@ def work(mhddatafile):
     else:
         with open(CONTEXT['PNGPATH']+'/'+OUTPUTNAME+'.png','wb') as png:
             png.close()
-    #Remove unzipped copies now that work is done for that file
-    for f in temp_files:
-        os.remove(f)
-    print(time.ctime())
+    #Remove copies now that work is done for that file
+    if not os.path.exists(CONTEXT['MHDDIR']+'/copy_plt'):
+        for f in tempSol: os.remove(f)
+    if log.level==10:
+        log.debug('Png and Wrapup: --- {:.2f}s ---'.format(time.time()-
+                                                               marktime))
+        marktime=time.time()
+    #print(time.ctime())
 
 if __name__ == '__main__':
     start_time = time.time()
-    if sys.version_info < (3, 5):
-        raise Exception('This script requires Python version 3.5+')
-    if tp.session.connected():
-        raise Exception('This script must be run in batch mode')
+    #if sys.version_info < (3, 5):
+    #    raise Exception('This script requires Python version 3.5+')
+    #if tp.session.connected():
+    #    raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     RUNDIR = 'usermod'
-    #RUNDIR = 'localdbug/test'
+    #RUNDIR = 'starlink'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     OUTPUTPATH = os.path.join(SCRIPTDIR, 'output')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
+    LOGLEVEL = logging.DEBUG
     ########################################
     #make directories for output
     os.makedirs(OUTPUTPATH, exist_ok=True)
@@ -174,8 +216,8 @@ if __name__ == '__main__':
     multiprocessing.set_start_method('spawn')
 
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt.gz'),
-                                key=makevideo.time_sort)[0:5]
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
+                                key=makevideo.time_sort)[0::5]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
@@ -193,7 +235,7 @@ if __name__ == '__main__':
             parsednotdone.append(plt.split('e')[-1].split('.')[0])
             #parsednotdone.append(plt.split('e')[-1].split('.')[0].split(
             #                                                     '00-')[0])
-        solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt.gz' for item
+        solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt' for item
                     in parsednotdone if item not in parseddonelist]
     else:
         solution_times = all_solution_times
@@ -202,9 +244,11 @@ if __name__ == '__main__':
 
     # Set up the pool with initializing function and associated arguments
     num_workers = min(numproc, len(solution_times))
+    print(num_workers)
+    '''
     pool = multiprocessing.Pool(num_workers, initializer=init,
             initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
-                      PNGPATH, all_solution_times))
+                      PNGPATH, all_solution_times,LOGLEVEL))
     try:
         # Map the work function to each of the job arguments
         pool.map(work, solution_times)
@@ -213,14 +257,17 @@ if __name__ == '__main__':
         pool.close()
         pool.join()
         for f in [f for f in glob.glob(MHDDIR+'/*') if os.path.isdir(f)]:
-            os.removedirs(f)
+            try:
+                os.removedirs(f)
+            except: OSError
     ########################################
+    '''
 
     #Combine and delete individual energetics files
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                                 OUTPUTPATH)
-        shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
+        #shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

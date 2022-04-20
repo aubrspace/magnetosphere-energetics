@@ -2,7 +2,7 @@
 """Functions for handling and processing spatial magnetopause surface data
     that is static in time
 """
-import logging as log
+#import logging as log
 import os
 import sys
 import glob

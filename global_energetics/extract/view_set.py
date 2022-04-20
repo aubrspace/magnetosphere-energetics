@@ -8,8 +8,6 @@ from tecplot.constant import *
 import numpy as np
 from numpy import deg2rad, linspace
 import datetime as dt
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 #from global_energetics.makevideo import get_time
 from global_energetics.makevideo import get_time
 from global_energetics.extract.swmf_access import swmf_read_time
@@ -28,6 +26,7 @@ def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
         outputpath- where to save image (will be deleted)
         position, size- image settings
     """
+    import matplotlib.pyplot as plt
     plt.rc('xtick', labelsize=30, color='white')
     plt.rc('ytick', labelsize=30, color='white')
     fig = plt.figure(figsize=(12, 6*1.2), facecolor='gray')
@@ -123,10 +122,10 @@ def set_orientation_axis(frame, *, position=[91,7]):
         frame
         position- [x, y] list object
     """
-    plt = frame.plot()
-    plt.axes.orientation_axis.size = 8
-    plt.axes.orientation_axis.position = position
-    plt.axes.orientation_axis.color = Color.White
+    plot = frame.plot()
+    plot.axes.orientation_axis.size = 8
+    plot.axes.orientation_axis.position = position
+    plot.axes.orientation_axis.color = Color.White
 
 def add_fieldlines(frame, filename, showleg=False, mode='not_supermag'):
     """adds streamlines
@@ -134,12 +133,12 @@ def add_fieldlines(frame, filename, showleg=False, mode='not_supermag'):
         frame- frame to add to
         TBD more options for where to seed rakes
     """
-    plt = frame.plot()
+    plot = frame.plot()
     ds = frame.dataset
-    plt.vector.u_variable = ds.variable('B_x *')
-    plt.vector.v_variable = ds.variable('B_y *')
-    plt.vector.w_variable = ds.variable('B_z *')
-    plt.show_streamtraces = True
+    plot.vector.u_variable = ds.variable('B_x *')
+    plot.vector.v_variable = ds.variable('B_y *')
+    plot.vector.w_variable = ds.variable('B_z *')
+    plot.show_streamtraces = True
     btilt = float(ds.zone(0).aux_data['BTHETATILT'])
     if mode=='supermag':
         #read in the station locations
@@ -155,36 +154,36 @@ def add_fieldlines(frame, filename, showleg=False, mode='not_supermag'):
         lats = np.zeros(len(lons))+80
         latlons = [l for l in zip(lats,lons)]
     for lat,lon in latlons:
-        plt.streamtraces.add(mag2cart(lat,lon,btilt),Streamtrace.VolumeLine)
+        plot.streamtraces.add(mag2cart(lat,lon,btilt),Streamtrace.VolumeLine)
     """
-    plt.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-20,0,10],[-30,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-30,0,10],[-20,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-30,0,10],[-50,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-50,0,10],[-30,0,-10],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([-80,0,10],[-80,0,-10],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-10,0,20],[-10,0,-20],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-20,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-20,0,10],[-30,0,-10],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-30,0,10],[-20,0,-10],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-30,0,10],[-50,0,-10],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-50,0,10],[-30,0,-10],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([-80,0,10],[-80,0,-10],Streamtrace.VolumeLine)
     '''
-    plt.streamtraces.add_rake([10,0,30],[-40,0,30],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([10,0,-30],[-40,0,-30],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([10,30,0],[-40,30,0],Streamtrace.VolumeLine)
-    plt.streamtraces.add_rake([10,-30,0],[-40,-30,0],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([10,0,30],[-40,0,30],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([10,0,-30],[-40,0,-30],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([10,30,0],[-40,30,0],Streamtrace.VolumeLine)
+    plot.streamtraces.add_rake([10,-30,0],[-40,-30,0],Streamtrace.VolumeLine)
     '''
     """
-    plt.streamtraces.obey_source_zone_blanking = False
-    plt.streamtraces.color = plt.contour(3)
-    plt.contour(3).variable_index = frame.dataset.variable('Status').index
-    plt.contour(3).colormap_name='Large Rainbow'
-    plt.contour(3).colormap_filter.reversed=True
-    plt.contour(3).levels.reset_levels([-1,0,1,2,3])
-    plt.contour(3).legend.show = showleg
-    plt.contour(3).legend.position[1] = 98
-    plt.contour(3).legend.position[0] = 98
-    plt.contour(3).legend.box.box_type = TextBox.Filled
-    plt.contour(3).legend.box.fill_color = Color.Custom2
-    plt.streamtraces.line_thickness = 0.2
+    plot.streamtraces.obey_source_zone_blanking = False
+    plot.streamtraces.color = plot.contour(3)
+    plot.contour(3).variable_index = frame.dataset.variable('Status').index
+    plot.contour(3).colormap_name='Large Rainbow'
+    plot.contour(3).colormap_filter.reversed=True
+    plot.contour(3).levels.reset_levels([-1,0,1,2,3])
+    plot.contour(3).legend.show = showleg
+    plot.contour(3).legend.position[1] = 98
+    plot.contour(3).legend.position[0] = 98
+    plot.contour(3).legend.box.box_type = TextBox.Filled
+    plot.contour(3).legend.box.fill_color = Color.Custom2
+    plot.streamtraces.line_thickness = 0.2
 
 def add_jy_slice(frame, jyindex, showleg):
     """adds iso contour for earth at r=1Re
@@ -521,7 +520,7 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
     Outputs
         show_list- list of zones shown after operations
     """
-    plt = frame.plot()
+    plot = frame.plot()
     show_list = []
     hide_keys = zone_hidekeys
     shadings = {'mp_iso_betastar':Color.Cyan,
@@ -537,23 +536,23 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
                 'shue98':Color.Custom7,
                 'ext_bs':Color.Custom10}
     #hide all other zones
-    for map_index in plt.fieldmaps().fieldmap_indices:
-        for zone in plt.fieldmap(map_index).zones:
+    for map_index in plot.fieldmaps().fieldmap_indices:
+        for zone in plot.fieldmap(map_index).zones:
             if 'inner' in zone.name:
                 cont_num=2
             if zone.name == 'global_field':
-                plt.fieldmap(map_index).surfaces.surfaces_to_plot = None
+                plot.fieldmap(map_index).surfaces.surfaces_to_plot = None
             elif any([zone.name.find(key)!=-1 for key in hide_keys]):
-                plt.fieldmap(map_index).show = False
+                plot.fieldmap(map_index).show = False
             else:
-                plt.fieldmap(map_index).surfaces.surfaces_to_plot = (
+                plot.fieldmap(map_index).surfaces.surfaces_to_plot = (
                                                    SurfacesToPlot.IKPlanes)
-                plt.fieldmap(map_index).show = True
-                plt.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
-                plt.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
-                plt.fieldmap(map_index).contour.flood_contour_group_index=(
+                plot.fieldmap(map_index).show = True
+                plot.fieldmap(map_index).surfaces.i_range = (-1,-1,1)
+                plot.fieldmap(map_index).surfaces.k_range = (0,-1, nslice-1)
+                plot.fieldmap(map_index).contour.flood_contour_group_index=(
                                                                     cont_num)
-                plt.fieldmap(map_index).shade.color=shadings.get(zone.name,
+                plot.fieldmap(map_index).shade.color=shadings.get(zone.name,
                                                              Color.Custom2)
                 show_list.append(zone.name)
     #Transluceny and shade settings
@@ -574,28 +573,28 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
                 'shue97':translucency,
                 'shue98':translucency,
                 'ext_bs':translucency}
-    for map_index in plt.fieldmaps().fieldmap_indices:
-        for zone in plt.fieldmap(map_index).zones:
+    for map_index in plot.fieldmaps().fieldmap_indices:
+        for zone in plot.fieldmap(map_index).zones:
             frame.plot(PlotType.Cartesian3D).use_translucency=True
-            plt.fieldmap(map_index).effects.use_translucency=True
-            plt.fieldmap(map_index).effects.surface_translucency=(
+            plot.fieldmap(map_index).effects.use_translucency=True
+            plot.fieldmap(map_index).effects.surface_translucency=(
                                       transluc.get(zone.name,translucency))
             '''old shade settings
             if zone.name.find('hybrid') != -1:
-                plt.fieldmap(map_index).shade.color = Color.Custom20
+                plot.fieldmap(map_index).shade.color = Color.Custom20
             if zone.name.find('fieldline') != -1:
-                plt.fieldmap(map_index).shade.color = Color.Custom34
+                plot.fieldmap(map_index).shade.color = Color.Custom34
             if zone.name.find('flowline') != -1:
-                plt.fieldmap(map_index).shade.color = Color.Custom11
+                plot.fieldmap(map_index).shade.color = Color.Custom11
             if zone.name.find('shue') != -1:
                 if zone.name.find('97') != -1:
-                    plt.fieldmap(map_index).shade.color = Color.Custom9
+                    plot.fieldmap(map_index).shade.color = Color.Custom9
                 else:
-                    plt.fieldmap(map_index).shade.color = Color.Custom2
+                    plot.fieldmap(map_index).shade.color = Color.Custom2
             if zone.name.find('test') != -1:
-                plt.fieldmap(map_index).shade.color = Color.Custom7
+                plot.fieldmap(map_index).shade.color = Color.Custom7
             if zone.name.find('cps') != -1:
-                plt.fieldmap(map_index).shade.color = Color.Custom8
+                plot.fieldmap(map_index).shade.color = Color.Custom8
             '''
     return show_list
 
