@@ -24,7 +24,7 @@ from global_energetics.analysis.plot_tools import (general_plot_settings,
                                                    pyplotsetup,safelabel,
                                                    get_omni_cdas,
                                                    mark_times, shade_plot)
-from global_energetics.analysis.proc_hdf import(group_subzones,load_nonGM,
+from global_energetics.analysis.proc_hdf import(group_subzones,
                                                 load_hdf_sort)
 from global_energetics.analysis.proc_energy_temporal import(process_energy)
 from global_energetics.analysis.proc_indices import (read_indices,

@@ -11,6 +11,7 @@ import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
 import swmfpy
+from global_energetics.analysis.plot_tools import get_omni_cdas
 #from global_energetics.analysis.proc_virial import (pyplotsetup,
 #                                                    general_plot_settings)
 
@@ -453,7 +454,7 @@ def get_supermag_data(start, end, datapath):
         return pd.DataFrame().append(
                 pd.Series({'name':'supermag'}),ignore_index=True)
 
-def get_swmf_data(datapath):
+def get_swmf_data(datapath,**kwargs):
     """Function reads in swmf geoindex log and log
     Inputs
         datapath- path where log files are
@@ -461,41 +462,47 @@ def get_swmf_data(datapath):
         geoindexdata, swmflogdata- pandas DataFrame with data
     """
     #read files
-    geoindex = glob.glob(datapath+'*geo*.log')[0]
-    swmflog = glob.glob(datapath+'*log_*.log')[0]
-    solarwind = glob.glob(datapath+'*IMF.dat*')[0]
+    geopath = os.path.join(datapath,kwargs.get('prefix','')+'geo*.log')
+    logpath = os.path.join(datapath,kwargs.get('prefix','')+'log_*.log')
+    swpath = os.path.join(datapath,kwargs.get('prefix','')+'IMF.dat')
+    geoindex = glob.glob(geopath)[0]
+    swmflog = glob.glob(logpath)[0]
+    solarwind = glob.glob(swpath)[0]
     #get dataset names
     geoindexname = geoindex.split('/')[-1].split('.log')[0]
     swmflogname = swmflog.split('/')[-1].split('.log')[0]
     solarwindname = solarwind.split('/')[-1].split('.dat')[0]
     print('reading: \n\t{}\n\t{}\n\t{}'.format(geoindex,swmflog,solarwind))
+    ##SIMULATION INDICES
     geoindexdata = pd.read_csv(geoindex, sep='\s+', skiprows=1,
         parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True)
+    geoindexdata.index = geoindexdata['Time [UTC]']
+    geoindexdata.drop(columns=['Time [UTC]'],inplace=True)
+    ##SIMULATION LOG
     swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
         parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True)
+    swmflogdata.index = swmflogdata['Time [UTC]']
+    swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
+    ##SIMULATION SOLARWIND
     swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[0,1,2,4,5,6,7],
         parse_dates={'Time [UTC]':['year','month','day',
                                    'hour','min','sec','msec']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
-    swdata=swdata[swdata['Time [UTC]']<geoindexdata['Time [UTC]'].iloc[-1]]
-    swdata =swdata[swdata['Time [UTC]']>geoindexdata['Time [UTC]'].iloc[0]]
+    swdata.index = swdata['Time [UTC]']
+    swdata.drop(columns=['Time [UTC]'],inplace=True)
+    swdata=swdata[swdata.index < geoindexdata.index[-1]]
+    swdata =swdata[swdata.index > geoindexdata.index[0]]
     #times Time [UTC]
-    geoindexdata['times'] = geoindexdata['Time [UTC]']
-    swmflogdata['times'] = swmflogdata['Time [UTC]']
-    swdata['times'] = swdata['Time [UTC]']
+    geoindexdata['times'] = geoindexdata.index
+    swmflogdata['times'] = swmflogdata.index
+    swdata['times'] = swdata.index
     swdata['dens'] = swdata['density']
-    #attach names to each dataset
-    geoindexdata = geoindexdata.append(pd.Series({'name':'swmf_index'}),
-                                       ignore_index=True)
-    swmflogdata = swmflogdata.append(pd.Series({'name':'swmf_log'}),
-                                       ignore_index=True)
-    swdata = swdata.append(pd.Series({'name':'swmf_sw'}),
-                                       ignore_index=True)
+
     return geoindexdata, swmflogdata, swdata
 
 def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
@@ -587,39 +594,48 @@ def get_expanded_sw(start, end, data_path):
     omni['Time [UTC]'] = omni['times']
     return supermag, omni
 
-def read_indices(data_path, *, read_swmf=True, read_supermag=False,
-                               read_omni=True,
-                               start=dt.datetime(2014,2,18,6,0),
-                               end=dt.datetime(2014,2,20,0,0)):
+def read_indices(data_path, **kwargs):
     """Top level function handles time varying magnetopause data and
         generates figures according to settings set by inputs
     Inputs
         data_path- path to the data
-    Outputs
-        swmf_indices, swmf_log, swmf_sw, supermag, omni
+        kwargs:
+            read_swmf=True
+            read_supermag=False,
+            read_omni=True,
+            start=dt.datetime(2014,2,18,6,0),
+            end=dt.datetime(2014,2,20,0,0)):
+    Returns
+        data (dict{DataFrame})- swmf_indices, swmf_log, swmf_sw, supermag, omni
     """
-    if read_swmf:
-        swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path)
+    data = {}
+    if kwargs.get('read_swmf',True):
+        swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path,**kwargs)
+        data.update({'swmf_index':swmf_index})
+        data.update({'swmf_log':swmf_log})
+        data.update({'swmf_sw':swmf_sw})
         #find new start/end times
-        start = swmf_index['Time [UTC]'][0]
-        end = swmf_index['Time [UTC]'].iloc[-2]
-    else:
-        swmf_index, swmf_log, swmf_sw = (pd.DataFrame(), pd.DataFrame(),
-                                         pd.DataFrame())
+        kwargs.update({'start':swmf_index.index[0]})
+        kwargs.update({'end':swmf_index.index[-1]})
     #get supermag and omni
-    if read_supermag:
+    if kwargs.get('read_supermag',True):
         supermag = get_supermag_data(start, end, data_path)
         supermag['Time [UTC]'] = supermag['times']
-    else:
-        supermag = pd.DataFrame()
-    if read_omni:
-        omni = pd.DataFrame(swmfpy.web.get_omni_data(start, end)).append(
-               pd.Series({'name':'omni'}), ignore_index=True)
+        data.update({'supermag':supermag})
+    if kwargs.get('read_omni',True):
+        print(kwargs.get('start'),kwargs.get('end'))
+        omni = pd.DataFrame(swmfpy.web.get_omni_data(
+                           kwargs.get('start',dt.datetime(2014,2,18,6,0)),
+                           kwargs.get('end',dt.datetime(2014,2,20,0,0))))
+        omni.index = omni['times']
         omni['Time [UTC]'] = omni['times']
-    else:
-        omni = pd.DataFrame()
-    #make plots
-    return [swmf_index, swmf_log, swmf_sw, supermag, omni]
+        if all(omni['sym_h'].isna()):#look CDAS if event too new for omni
+            omni2 = get_omni_cdas(
+                           kwargs.get('start',dt.datetime(2014,2,18,6,0)),
+                           kwargs.get('end',dt.datetime(2014,2,20,0,0)))
+            omni['sym_h']=omni2['sym_h']
+        data.update({'omni':omni})
+    return data
 
 if __name__ == "__main__":
     #Interpackage imports

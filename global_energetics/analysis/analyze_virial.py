@@ -21,7 +21,7 @@ from global_energetics.analysis.analyze_energetics import (plot_swflowP,
                                                           plot_swbz,
                                                           plot_dst,plot_al)
 from global_energetics.analysis.proc_virial import (process_virial)
-from global_energetics.analysis.proc_hdf import(group_subzones,load_nonGM,
+from global_energetics.analysis.proc_hdf import(group_subzones,
                                                 load_hdf_sort)
 def plot_single(ax, times, mp, msdict, **kwargs):
     """Plots energy or dst contribution in particular zone
@@ -279,11 +279,6 @@ if __name__ == "__main__":
     #Log files and observational indices
     [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
                                                        read_supermag=False)
-    if all(omni['sym_h'].isna()):#look CDAS if event is too new for omni
-        omni2 = get_omni_cdas(dt.datetime(2022,2,2),dt.datetime(2022,2,6))
-        omni['sym_h']=omni2[
-                         omni2.index<=omni['times'].iloc[-2]].reset_index(
-                                                                drop=True)
     #HDF data, will be sorted and cleaned
     [mpdict,msdict,inner_mp,times,get_nonGM]=load_hdf_sort(
                                                 datapath+'virial_track.h5')

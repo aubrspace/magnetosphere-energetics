@@ -6,16 +6,6 @@ import warnings
 import numpy as np
 import pandas as pd
 
-def load_nonGM(hdf, **kwargs):
-    store = pd.HDFStore(hdf)
-    data = {}
-    for key in store.keys():
-        if any(['ie' in key, 'ua' in key]):
-            data[key] = store[key]
-    store.close()
-    return (data['/ie'], data['/ua_njoule'], data['/ua_nenergy'],
-                         data['/ua_nohpi'], data['/ua_ie'])
-
 def load_hdf_sort(hdf, **kwargs):
     """loads HDF file then sorts cleans and sorts into subzones
     inputs
@@ -26,36 +16,52 @@ def load_hdf_sort(hdf, **kwargs):
             volumekey
             innersurfacekey
     Return
-        mpdict (dict{DataFrames})
-        msdict (dict{DataFrames})
-        inner_mp (DataFrame)
+        data (dict{dict{DataFrames}})- ex:
+                                            {mpdict:(dict{DataFrames}),
+                                             msdict:(dict{DataFrames}),
+                                             inner_mp:(DataFrame)}
     """
+    data = {}
     #load data
     store = pd.HDFStore(hdf)
 
-    #check if non-gm data is present
-    nonGM = any([ngm in k for k in store.keys() for ngm in ['ie','ua']])
     #keep only GM keys
-    gmdict = {}
+    gmdict, iedict, uadict = {}, {}, {}
     for key in store.keys():
-        if not any(['ie' in key, 'ua' in key]):
+        if 'mp' in key:
             gmdict[key] = store[key].sort_values(by='Time [UTC]')
+            gmdict[key].index=gmdict[key]['Time [UTC]'].drop(
+                                                    columns=['Time [UTC]'])
+        if 'ie' in key:
+            iedict[key] = store[key]
+        if 'ua' in key:
+            uadict[key] = store[key]
+    #strip times
+    #gmtimes = gmdict[[k for k in gmdict.keys()][0]]['Time [UTC]']
+    gmtimes = gmdict[[k for k in gmdict.keys()][0]].index
+    data.update({'times':gmtimes})
     store.close()
 
-    #strip times
-    times = [df for df in gmdict.values()][0]['Time [UTC]']
+    if gmdict!={}:
+        #define magnetopause and inner_magnetopause will relevant pieces
+        mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
+                                 gmdict['/mp_iso_betastar_volume'],gmtimes)
 
-    #define magnetopause and inner_magnetopause will relevant pieces
-    mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
-                             gmdict['/mp_iso_betastar_volume'], times)
-    inner_mp = gmdict['/mp_iso_betastar_inner_surface']
+        #check units OoM
+        mp = check_units(mp)
+        inner_mp = check_units(gmdict['/mp_iso_betastar_inner_surface'])
 
-    #check units OoM
-    mp = check_units(mp)
-    inner_mp = check_units(inner_mp)
+        #repackage in dictionary
+        data.update({'mpdict': {'ms_full':mp}})
+        data.update({'inner_mp': inner_mp})
 
-    #repackage in dictionary
-    mpdict = {'ms_full':mp}
+    if iedict!={}:
+        #repackage in dictionary
+        data.update({'iedict': iedict})
+
+    if uadict!={}:
+        #repackage in dictionary
+        data.update({'uadict': uadict})
 
     #define subzones with relevant pieces
     msdict = {}
@@ -63,13 +69,17 @@ def load_hdf_sort(hdf, **kwargs):
         print(key)
         if 'ms' in key:
             if any(['Virial' in k for k in gmdict[key].keys()]):
-                cleaned_df = check_timing(gmdict[key],times)
+                cleaned_df = check_timing(gmdict[key],gmtimes)
                 cleaned_df = check_units(cleaned_df)
             else:
                 cleaned_df = gmdict[key]
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
                                                   columns=['Time [UTC]'])})
-    return mpdict, msdict, inner_mp, times, nonGM
+    if msdict!={}:
+        #repackage in dictionary
+        data.update({'msdict':msdict})
+    return data
+
 
 def gather_magnetopause(outersurface, volume, times):
     """Function combines surface and volume terms to construct single df

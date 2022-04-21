@@ -68,9 +68,9 @@ def general_plot_settings(ax, **kwargs):
     #Xlabel
     if not kwargs.get('iscontour',False):
         if kwargs.get('do_xlabel',False):
-            ax.set_xlabel(r'Time $\left[ UTC\right]$')
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
-        #ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
+            ax.set_xlabel(kwargs.get('xlabel',r'Time $\left[ UTC\right]$'))
+        #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
         ax.xaxis.set_minor_locator(AutoMinorLocator(6))
     else:
         ax.set_xlim(kwargs.get('xlim',None))
@@ -86,6 +86,9 @@ def general_plot_settings(ax, **kwargs):
 def get_omni_cdas(start,end,as_df=True,**variables):
     from cdasws import CdasWs
     import pandas as pd
+    if type(start)==pd._libs.tslibs.timestamps.Timestamp:
+        start = dt.datetime.fromtimestamp(start.timestamp())
+        end = dt.datetime.fromtimestamp(end.timestamp())
     cdas = CdasWs()
     omni_allvars = cdas.get_variables('OMNI_HRO_1MIN')
     omni_vars = ['SYM_H']
@@ -94,7 +97,7 @@ def get_omni_cdas(start,end,as_df=True,**variables):
             omni_vars.append(var)
     status,omni = cdas.get_data('OMNI_HRO_1MIN',omni_vars,start,end)
     if as_df:
-        df = pd.DataFrame(omni['SYM_H'], columns=['symh'],
+        df = pd.DataFrame(omni['SYM_H'], columns=['sym_h'],
                               index=omni['Epoch'])
         return df
     else:
