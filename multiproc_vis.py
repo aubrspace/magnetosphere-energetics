@@ -15,9 +15,12 @@ if __name__ == '__main__':
     start_time = time.time()
     if '-c' in sys.argv:
         tp.session.connect()
-    master = '/home/aubr/Desktop/paleo_ms_volumes.lay'
+    #master = '/home/aubr/Desktop/paleo_ms_volumes.lay'
+    #master = '/home/aubr/Desktop/paleo_jpar2.lay'
+    master = '/home/aubr/Desktop/paleo_closeup_gap.lay'
     for epoch in glob.glob('/home/aubr/Code/paleo/*.plt'):
-        if '4080' in epoch:
+        #if '4080' in epoch:
+        if True:
             marktime = time.time()
             outlabel = epoch.split('-000_')[-1].split('.plt')[0]
             print(epoch)

@@ -43,7 +43,7 @@ def init(eventpath_z, outputpath,all_solution_times):
     #os.makedirs(mhddir+'/'+str(CONTEXT['id']), exist_ok=True)
 
 def work(XZfile):
-    print(str(CONTEXT['id'])+'working on: '+XZfile)
+    #print(str(CONTEXT['id'])+'working on: '+XZfile)
     #Get matching file
     matchfile = (CONTEXT['EVENTPATH_Z']+'/z=0_var_2'+
                                              XZfile.split('y=0_var_1')[-1])
@@ -127,9 +127,9 @@ def single_event_run(eventname, **kwargs):
             return
     else:
         checkfiles = False
-    outputdir = os.path.join(kwargs.get('stormdir',''), 'mp_points',
+    outputdir = os.path.join(kwargs.get('stormdir',''), 'mp_points3',
                                  eventname.split('e')[-1])
-    outputpath = os.path.join(kwargs.get('stormdir',''), 'mp_points',
+    outputpath = os.path.join(kwargs.get('stormdir',''), 'mp_points3',
                                  eventname.split('e')[-1],
                                  'individual')
 
@@ -166,17 +166,20 @@ def multiprocess(eventpath, eventpath_z, outputpath,**kwargs):
     """
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(eventpath+'/*.out'),
-                            key=makevideo.time_sort)
+                                key=makevideo.time_sort)
     if kwargs.get('check',False):
         #find and remove any files that don't have a match
         #NOTE replace this with creating matched pairs from the beginning?
         matching_solutions = sorted(glob.glob(eventpath_z+'/*.out'),
-                            key=makevideo.time_sort)
+                                    key=makevideo.time_sort)
         tail_y = [s.split('y=0_var_1_e')[-1] for s in all_solution_times]
         tail_z = [s.split('z=0_var_2_e')[-1] for s in matching_solutions]
         for s in list(set(tail_y)-set(tail_z)):
             print('removing: '+s+' from solution list')
             all_solution_times.remove(eventpath+'/y=0_var_1_e'+s)
+        for s in list(set(tail_z)-set(tail_y)):
+            print('removing: '+s+' from solution list')
+            all_solution_times.remove(eventpath_z+'/z=0_var_2_e'+s)
     solution_times = all_solution_times
     print(len(solution_times))
     numproc = multiprocessing.cpu_count()-1
@@ -240,108 +243,24 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     STORMDIR = '/nfs/solsticedisk/tuija/storms/'
-    # Batch #EVENTNAME = sys.argv[-1].split('/')[-2]
-    # first #EVENTNAME = 'y=0_var_1_e20100214-163100-000_20100216-103100-000'
-    # with newell and visuals#EVENTNAME = 'y=0_var_1_e20120312-031000-000_20120313-211000-000'
-    # latest
-    #EVENTNAME = 'y=0_var_1_e20110805-120200-000_20110807-060200-000'
-    EVENTNAME = 'y=0_var_1_e20120124-084900-000_20120126-024900-000'
-    eventlist = ['y=0_var_1_e20110805-120200-000_20110807-060200-000',
-                 'y=0_var_1_e20120124-084900-000_20120126-024900-000',
-                 'y=0_var_1_e20100214-163100-000_20100216-103100-000',
-                 'y=0_var_1_e20120312-031000-000_20120313-211000-000']
+
+    skiplist = ['y=0_var_1_e20120315-071400-000_20120317-011400-000',
+                'y=0_var_1_e20140607-103600-000_20140609-043600-000',
+                'y=0_var_1_e20150622-163000-000_20150623-170000-000',
+                'y=0_var_1_e20151018-010600-000_20151019-190600-000',
+                'y=0_var_1_e20150919-234600-000_20150921-174600-000',
+                'y=0_var_1_e20161109-193700-000_20161111-020700-000',
+                'y=0_var_1_e20161109-195200-030_20161111-133700-000',
+                'y=0_var_1_e20161221-031700-000_20161222-211700-000',
+                'y=0_var_1_e20170301-004400-000_20170302-184400-000',
+                'y=0_var_1_e20181007-014500-000_20181008-194500-000']
     eventlist = glob.glob(STORMDIR+'y0/*/')
     for event in [e.split('/')[-2] for e in eventlist]:
-        if not os.path.exists(os.path.join(
-                        STORMDIR,'mp_points',event.split('y=0_var_1_e')[-1])):
+        if (not event in skiplist) and (not os.path.exists(os.path.join(
+                    STORMDIR,'mp_points3',event.split('y=0_var_1_e')[-1]))):
+            print('**************EVENT '+event.split('y=0_var_1_e')[-1]+
+                  '**************')
             single_event_run(event,stormdir=STORMDIR)
-    """
-    EVENT_Z = 'z=0_var_2'+EVENTNAME.split('y=0_var_1')[-1]
-    EVENTPATH = os.path.join(STORMDIR,'y0',EVENTNAME)
-    EVENTPATH_Z = os.path.join(STORMDIR,'z0',EVENT_Z)
-    OUTPUTDIR = os.path.join(STORMDIR, 'mp_points',
-                                 EVENTNAME.split('e')[-1])
-    OUTPUTPATH = os.path.join(STORMDIR, 'mp_points',
-                                 EVENTNAME.split('e')[-1],
-                                 'individual')
-    ########################################
-    #make directories for output
-    os.makedirs(OUTPUTPATH, exist_ok=True)
-    os.makedirs(OUTPUTPATH+'/yfigures', exist_ok=True)
-    os.makedirs(OUTPUTPATH+'/zfigures', exist_ok=True)
-    ########################################
-    ########### MULTIPROCESSING ###########
-    #Pytecplot requires spawn method
-    multiprocessing.set_start_method('spawn')
-
-    # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(EVENTPATH+'/*.out'),
-                                key=makevideo.time_sort)
-    solution_times = all_solution_times
-    '''
-    #Pick up only the files that haven't been processed
-    if os.path.exists(OUTPUTPATH+'/energeticsdata'):
-        parseddonelist, parsednotdone = [], []
-        donelist = glob.glob(OUTPUTPATH+'/png/*.png')
-        #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
-        for png in donelist:
-            parseddonelist.append(png.split('/')[-1].split('.')[0])
-            #yr,mo,dy,hr,mn = png.split('-')
-            #yr = yr.split('_')[-1]
-            #mn = mn.split('.')[0]
-            #parsed = (yr+twodigit(int(mo))+twodigit(int(dy))+'-'+
-            #                           twodigit(int(hr))+twodigit(int(mn)))
-            #parseddonelist.append(parsed)
-        for plt in all_solution_times:
-            parsednotdone.append(plt.split('e')[-1].split('.')[0])
-            #parsednotdone.append(plt.split('e')[-1].split('.')[0].split(
-            #                                                     '00-')[0])
-        solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt.gz' for item
-                    in parsednotdone if item not in parseddonelist]
-    else:
-        solution_times = all_solution_times
-    '''
-    print(len(solution_times))
-    numproc = multiprocessing.cpu_count()-1
-
-    # Set up the pool with initializing function and associated arguments
-    num_workers = min(numproc, len(solution_times))
-    pool = multiprocessing.Pool(num_workers, initializer=init,
-            initargs=(EVENTPATH_Z, OUTPUTPATH, all_solution_times))
-    try:
-        # Map the work function to each of the job arguments
-        pool.map(work, solution_times)
-    finally:
-        # Join the process pool before exit so Tec cleans up & no core dump
-        pool.close()
-        pool.join()
-        #for f in glob.glob(MHDDIR+'/*'):
-        #    if os.path.isdir(f):
-        #        os.removedirs(f)
-    ########################################
-
-    #Combine and delete individual hdf5 files
-    if os.path.exists(OUTPUTPATH):
-        ##Create videos from images
-        #Video settings
-        RES = 400
-        FRAMERATE = 16
-        for cut in ['y','z']:
-            FOLDER = OUTPUTPATH+'/'+cut+'figures/'
-            FRAME_LOC = makevideo.set_frames(FOLDER)
-            makevideo.vid_compile(FRAME_LOC, OUTPUTDIR, FRAMERATE,
-                                  '2Dmotion_'+cut)
-        ##Combine HDF5 files
-        write_disp.combine_hdfs(OUTPUTPATH,OUTPUTDIR, progress=False,
-                                combo_name=EVENTNAME+'.h5')
-        shutil.rmtree(OUTPUTPATH)
-        ##make ASCII copy
-        header= time.ctime()+'\nBetastar='+str(0.7)+'\nXloc='+str(-10)+'\n'
-        store = pd.HDFStore(OUTPUTDIR+'/'+EVENTNAME+'.h5')
-        df = store['/mp_points']
-        df.to_csv(OUTPUTDIR+'/'+EVENTNAME+'.dat',sep=' ',index=False)
-        store.close()
-    """
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

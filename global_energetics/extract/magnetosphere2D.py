@@ -179,7 +179,8 @@ def get_XY_magnetopause(ds,**kwargs):
                        zones=[1])
     else:
         eq('{closedXY}==IF({B_z [nT]}>50&&{X [R]}>0&&{X [R]}<10,1,0)')
-    eq('{mpXY} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<'+
+    #eq('{mpXY} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<'+
+    eq('{mpXY} = IF({X [R]}>-20&&({beta_star}<'+
                                          str(kwargs.get('betastar',0.7))+
                                                 '||{closedXY}==1),1,0)')
 
@@ -204,6 +205,8 @@ def get_XZ_magnetopause(ds,**kwargs):
                                           None,10, 30, 3, 100, 0.1)
     day_closed_zone = triangulate(ds.zone(day_streamzone))
     day_closed_zone.name='day_streamtrace_triangulation'
+    day_closed_Xmax = day_closed_zone.values('X *').max()
+    print('Day Closed Xmax: ',day_closed_Xmax)
     night_streamzone = streamfind_bisection(ds,'inner_magXZ',
                                             None,10, -30, -3, 100, 0.1)
     night_closed_zone = triangulate(ds.zone(night_streamzone))
@@ -215,8 +218,8 @@ def get_XZ_magnetopause(ds,**kwargs):
                          source_zones=[day_closed_zone, night_closed_zone],
                                    variables=[ds.variable('closed').index])
     #Create magnetopause state variable
-    eq('{mpXZ} = IF({X [R]}>-20&&{X [R]}<20&&({beta_star}<'+
-                                         str(kwargs.get('betastar',0.7))+
+    eq('{mpXZ} = IF({X [R]}>-20&&{X [R]}<'+str(day_closed_Xmax)+
+                    '&&({beta_star}<'+str(kwargs.get('betastar',0.7))+
                                                      '||{closed}==1),1,0)')
 
 if __name__ == "__main__":

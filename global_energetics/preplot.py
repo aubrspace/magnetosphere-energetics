@@ -5,7 +5,7 @@ and run on set of .dat files +
 """
 
 import glob
-import os
+import os,warnings
 import sys
 from subprocess import check_output as read_out
 import tecplot as tp
@@ -19,12 +19,16 @@ def IDL_to_hdf5(filepath, **kwargs):
     Return
         hdf5file
     """
-    #import spacepy
-    from spacepy import pybats as bats
-    fil = bats.IdlFile(filepath)
-    hdffile = filepath.split('/')[-1].split('.out')[0]+'.h5'
-    fil.toHDF5(os.getcwd()+'/'+hdffile)
-    return hdffile
+    if os.path.exists(filepath):
+        #import spacepy
+        from spacepy import pybats as bats
+        fil = bats.IdlFile(filepath)
+        hdffile = filepath.split('/')[-1].split('.out')[0]+'.h5'
+        fil.toHDF5(os.getcwd()+'/'+hdffile)
+        return hdffile
+    else:
+        warnings.warn(filepath+' Does not exist!',UserWarning)
+        return None
 
 def load_hdf5_data(filepath, **kwargs):
     """Function reads in 'IDL' data given variable list and modifies

@@ -1270,11 +1270,11 @@ def get_dipole_field(auxdata, *, B0=31000):
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
-def mag2cart(lat,lon,btheta):
+def mag2cart(lat,lon,btheta,*,r=1):
     """
     """
     #find xyz_mag
-    x_mag, y_mag, z_mag = sph_to_cart(1,lat,lon)
+    x_mag, y_mag, z_mag = sph_to_cart(r,lat,lon)
     #get rotation matrix
     rot = rotation(-btheta*pi/180,axis='y')
     #find new points by rotation
