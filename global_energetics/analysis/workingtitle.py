@@ -14,15 +14,14 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
 from global_energetics.analysis.plot_tools import (pyplotsetup,
-                                                   general_plot_settings)
+                                                   general_plot_settings,
+                                                   plot_stack_distr,
+                                                   plot_stack_contrib)
 from global_energetics.analysis.proc_indices import read_indices
-from global_energetics.analysis.proc_hdf import load_hdf_sort
+from global_energetics.analysis.proc_hdf import (load_hdf_sort,
+                                                 group_subzones,
+                                                 get_subzone_contrib)
 
-#TODO: create phase locator function
-#       Input- dataset for an event, time in some form or another
-#              manual at first selecting times for each, could detect later
-#       Return- dict with {phase,dataset_subset}
-#   this could be moved to a proc_xxx.py module
 def locate_phase(dfdict,phasekey,**kwargs):
     """
     """
@@ -56,7 +55,7 @@ def locate_phase(dfdict,phasekey,**kwargs):
         if '2' in phasekey:
             cond = (times>peak1) & (times<peak2)
         else:
-            cond = (times>impact) & (times<peak1)
+            cond = (times>impact) & (times<peak2)
     elif 'rec' in phasekey:
         cond = times>peak2
 
@@ -79,6 +78,7 @@ if __name__ == "__main__":
     unfiled = os.path.join(outPath,'unfiled')
     for path in [outPath,outQT,outSSC,outMN1,outMN2,outRec,unfiled]:
         os.makedirs(path,exist_ok=True)
+
     #setting pyplot configurations
     plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
     #Log files and observational indices
@@ -88,18 +88,15 @@ if __name__ == "__main__":
     #HDF data, will be sorted and cleaned
     febSim = load_hdf_sort(inPath+'feb2014_results.h5')
     starSim = load_hdf_sort(inPath+'starlink_results.h5')
-    '''
-    if get_nonGM:
-        #Check for non GM data
-        ie, ua_j, ua_e, ua_non, ua_ie= load_nonGM(datapath+'results.h5')
 
-    ##Apply any mods and gather additional statistics
-    [mpdict,msdict,inner_mp] = process_virial(mpdict,msdict,inner_mp,times)
-    mp = [m for m in mpdict.values()][0]
-    ##Construct "grouped" set of subzones
-    msdict = group_subzones(msdict,mode='3zone')
-    pass
-    '''
+    ##Construct "grouped" set of subzones, then get %contrib for each
+    starSim['mpdict'],starSim['msdict'] = get_subzone_contrib(
+                                       starSim['mpdict'],starSim['msdict'])
+    starSim['msdict'] = group_subzones(starSim['msdict'],mode='3zone')
+    febSim['mpdict'],febSim['msdict'] = get_subzone_contrib(
+                                       febSim['mpdict'],febSim['msdict'])
+    febSim['msdict'] = group_subzones(febSim['msdict'],mode='3zone')
+
     ######################################################################
     ##Quiet time
     #parse storm phase
@@ -109,9 +106,21 @@ if __name__ == "__main__":
     star_mp_qt = locate_phase(starSim['mpdict'],'qt')['ms_full']
     startime = [dt.datetime(2000,1,1)+r for r in
                 star_mp_qt.index-star_mp_qt.index[0]]
+    #parse storm phase
+    feb_mpdict_qt = locate_phase(febSim['mpdict'],'qt')
+    feb_mp_qt = feb_mpdict_qt['ms_full']
+    feb_msdict_qt = locate_phase(febSim['msdict'],'qt')
+    febtime = [dt.datetime(2000,1,1)+r for r in
+               feb_mp_qt.index-feb_mp_qt.index[0]]
+    star_mpdict_qt = locate_phase(starSim['mpdict'],'qt')
+    star_mp_qt = star_mpdict_qt['ms_full']
+    star_msdict_qt = locate_phase(starSim['msdict'],'qt')
+    startime = [dt.datetime(2000,1,1)+r for r in
+                star_mp_qt.index-star_mp_qt.index[0]]
 
     #setup figure
-    qt_energy, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True)
+    qt_energy, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+                                        figsize=[14,8])
     feblabel = 'Feb 2014'
     starlabel = 'Feb 2022'
     Elabel = r'Energy $\left[ J\right]$'
@@ -120,24 +129,51 @@ if __name__ == "__main__":
     #plot
     ax1.plot(febtime, feb_mp_qt['Utot [J]'],label=feblabel)
     ax2.plot(startime, star_mp_qt['Utot [J]'],label=starlabel)
-    general_plot_settings(ax1,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
+    general_plot_settings(ax1,ylabel=Elabel,do_xlabel=False,xlabel=Tlabel)
     general_plot_settings(ax2,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
 
     #save
+    qt_energy.tight_layout(pad=1)
     qt_energy.savefig(outQT+'/quiet_total_energy.png')
     plt.close(qt_energy)
+
+    ##Stack plot Energy by region
+    #setup figure
+    qt_contr, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+                                       figsize=[14,8])
+
+    feb_msdict_qt.pop('missing')
+    star_msdict_qt.pop('missing')
+    #plot
+    plot_stack_contrib(ax1, febtime,feb_mp_qt, feb_msdict_qt,
+                         value_key='Utot [J]', label=feblabel,
+                         ylabel=Elabel,legend_loc='upper left')
+    plot_stack_contrib(ax2, startime,star_mp_qt, star_msdict_qt,
+                         value_key='Utot [J]', label=starlabel,
+                         ylabel=Elabel,legend_loc='upper left')
+
+    #save
+    qt_contr.tight_layout(pad=1)
+    qt_contr.savefig(outQT+'/quiet_contr_energy.png')
+    plt.close(qt_contr)
     ######################################################################
     ##Main phase
     #parse storm phase
-    feb_mp_mn1 = locate_phase(febSim['mpdict'],'main1')['ms_full']
+    feb_mpdict_mn1 = locate_phase(febSim['mpdict'],'main1')
+    feb_mp_mn1 = feb_mpdict_mn1['ms_full']
+    feb_msdict_mn1 = locate_phase(febSim['msdict'],'main1')
     febtime = [dt.datetime(2000,1,1)+r for r in
                feb_mp_mn1.index-feb_mp_mn1.index[0]]
-    star_mp_mn1 = locate_phase(starSim['mpdict'],'main1')['ms_full']
+    star_mpdict_mn1 = locate_phase(starSim['mpdict'],'main1')
+    star_mp_mn1 = star_mpdict_mn1['ms_full']
+    star_msdict_mn1 = locate_phase(starSim['msdict'],'main1')
     startime = [dt.datetime(2000,1,1)+r for r in
                 star_mp_mn1.index-star_mp_mn1.index[0]]
 
+    ##Line plot Energy
     #setup figure
-    main1_energy, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True)
+    main1_energy, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+                                           figsize=[14,8])
     feblabel = 'Feb 2014'
     starlabel = 'Feb 2022'
     Elabel = r'Energy $\left[ J\right]$'
@@ -146,10 +182,55 @@ if __name__ == "__main__":
     #plot
     ax1.plot(febtime, feb_mp_mn1['Utot [J]'],label=feblabel)
     ax2.plot(startime, star_mp_mn1['Utot [J]'],label=starlabel)
-    general_plot_settings(ax1,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
+    general_plot_settings(ax1,ylabel=Elabel,do_xlabel=False,xlabel=Tlabel)
     general_plot_settings(ax2,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
 
     #save
+    main1_energy.tight_layout(pad=1)
     main1_energy.savefig(outMN1+'/main1_total_energy.png')
     plt.close(main1_energy)
+
+    ##Stack plot Energy by type (hydro,magnetic) for each region
+    feblabel = 'Feb 2014'
+    starlabel = 'Feb 2022'
+    Elabel = r'Energy $\left[ J\right]$'
+    Tlabel = r'Time $\left[ hr\right]$'
+    for sz in ['ms_full','lobes','closedRegion','rc']:
+        #setup figures
+        main1_distr, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+                                              figsize=[14,8])
+
+        #plot
+        plot_stack_distr(ax1, febtime,feb_mp_mn1, feb_msdict_mn1,
+                         value_set='Energy2', doBios=False, label=feblabel,
+                         ylabel=Elabel,legend_loc='upper left',subzone=sz)
+        plot_stack_distr(ax2, startime,star_mp_mn1, star_msdict_mn1,
+                         value_set='Energy2', doBios=False, label=starlabel,
+                         ylabel=Elabel,legend_loc='upper left',subzone=sz)
+
+        #save
+        main1_distr.tight_layout(pad=1)
+        main1_distr.savefig(outMN1+'/main1_distr_energy'+sz+'.png')
+        plt.close(main1_distr)
+
+    ##Stack plot Energy by region
+    #setup figure
+    main1_contr, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+                                          figsize=[14,8])
+
+    feb_msdict_mn1.pop('missing')
+    star_msdict_mn1.pop('missing')
+    #plot
+    plot_stack_contrib(ax1, febtime,feb_mp_mn1, feb_msdict_mn1,
+                         value_key='Utot [J]', label=feblabel,
+                         ylabel=Elabel,legend_loc='upper left')
+    plot_stack_contrib(ax2, startime,star_mp_mn1, star_msdict_mn1,
+                         value_key='Utot [J]', label=starlabel,
+                         ylabel=Elabel,legend_loc='upper left')
+
+    #save
+    main1_contr.tight_layout(pad=1)
+    main1_contr.savefig(outMN1+'/main1_contr_energy.png')
+    plt.close(main1_contr)
+
     ######################################################################

@@ -55,64 +55,6 @@ def plot_single(ax, times, mp, msdict, **kwargs):
     #General plot settings
     general_plot_settings(ax, **kwargs)
 
-def plot_stack_distr(ax, times, mp, msdict, **kwargs):
-    """Plots distribution of energies in particular zone
-    Inputs
-        mp(DataFrame)- total magnetosphere values
-        msdict(Dict of DataFrames)- subzone values
-        kwargs:
-            do_xlabel(boolean)- default False
-            ylabel(str)- default ''
-            legend_loc(see pyplot)- 'upper right' etc
-            subzone(str)- 'ms_full' is default
-            value_set(str)- 'Virialvolume', 'Energy', etc
-            ylim(tuple or list)- None
-    """
-    #Figure out value_keys and subzone
-    subzone = kwargs.get('subzone', 'ms_full')
-    kwargs.update({'legend_loc':kwargs.get('legend_loc','lower left')})
-    if 'ms_full' in subzone:
-        data = mp
-    else:
-        data = msdict[subzone]
-    value_set = kwargs.get('value_set','Virial')
-    values = {'Virial':['Virial 2x Uk [nT]', 'Virial Ub [nT]','Um [nT]',
-                        'Virial Surface Total [nT]'],
-              'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
-              'Virial%':['Virial 2x Uk [%]', 'Virial Ub [%]',
-                               'Virial Surface Total [%]'],
-              'Energy%':['Virial Ub [%]', 'KE [%]', 'Eth [%]']}
-    #Get % within specific subvolume
-    if '%' in value_set:
-        kwargs.update({'ylim':kwargs.get('ylim',[0,100])})
-        for value in values[''.join(value_set.split('%'))]:
-                #find total
-                if 'Virial' in value_set:
-                    total = data['Virial [nT]']
-                elif 'Energy' in value_set:
-                    total = (data['Utot [J]']-data['uB [J]']+
-                             data['Virial Ub [J]'])
-                data[value.split('[')[0]+'[%]'] = data[value]/total*100
-    #Optional layers depending on value_key
-    starting_value = 0
-    if (not '%' in value_set) and (not 'Energy' in value_set):
-        ax.plot(times, data['Virial Surface Total [nT]'], color='#05BC54',
-                linewidth=4,label='Boundary Stress')#light green color
-        starting_value = data['Virial Surface Total [nT]']
-        values[value_set].remove('Virial Surface Total [nT]')
-        ax.axhline(0,color='white',linewidth=0.5)
-    for value in values[value_set]:
-        label = value.split(' [')[0].split('Virial ')[-1]
-        ax.fill_between(times,starting_value,starting_value+data[value],
-                        label=label)
-        starting_value = starting_value+data[value]
-    if (not '%' in value_set) and kwargs.get('doBios',True):
-        if any(['bioS' in k for k in data.keys()]):
-            ax.plot(times, data['bioS [nT]'], color='white', ls='--',
-                    label='BiotSavart')
-    #General plot settings
-    general_plot_settings(ax, **kwargs)
-
 def plot_distr(ax, times, mp, msdict, **kwargs):
     """Plots distribution of energies in particular zone
     Inputs
@@ -175,47 +117,6 @@ def plot_distr(ax, times, mp, msdict, **kwargs):
             safelabel = ' '.join(value.split('_')).split('[%]')[0]
             #ax.plot(times, data[value], label=safelabel)
             ax.plot(times, data[value], label=safelabel)
-    #General plot settings
-    general_plot_settings(ax, **kwargs)
-
-def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
-    """Plots contribution of subzone to virial Dst
-    Inputs
-        mp(DataFrame)- total magnetosphere values
-        msdict(Dict of DataFrames)- subzone values
-        kwargs:
-            do_xlabel(boolean)- default False
-            ylabel(str)- default ''
-            legend_loc(see pyplot)- 'upper right' etc
-    """
-    #Figure out value_key
-    value_key = kwargs.get('value_key','Virial [nT]')
-    #Optional layers depending on value_key
-    starting_value = 0
-    if not '%' in value_key:
-        ax.axhline(0,color='white',linewidth=0.5)
-        if ('Virial' in value_key) or ('bioS' in value_key):
-            try:
-                if all(omni['sym_h'].isna()): raise NameError
-                ax.plot(omni['Time [UTC]'],omni['sym_h'],color='white',
-                    ls='--', label='SYM-H')
-            except NameError:
-                print('omni not loaded! No obs comparisons!')
-        if ('bioS' in value_key) and ('bioS_ext [nT]' in mp.keys()):
-            starting_value = mp['bioS_ext [nT]']
-            ax.plot(times, mp['bioS_ext [nT]'],color='#05BC54',linewidth=4,
-                    label='External')#light green color
-    #Plot stacks
-    for ms in msdict.items():
-        mslabel = ms[0]
-        d = ms[1][value_key]
-        times, d = times[~d.isna()], d[~d.isna()]
-        ax.fill_between(times,starting_value,starting_value+d,label=mslabel)
-        starting_value = starting_value+d
-    ax.set_xlim([times.iloc[0],times.iloc[-1]])
-    #Optional plot settings
-    if ('bioS' in value_key) and ('%' in value_key):
-        ax.set_ylim([-100,100])
     #General plot settings
     general_plot_settings(ax, **kwargs)
 

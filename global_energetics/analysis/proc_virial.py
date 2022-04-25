@@ -3,8 +3,10 @@
 """
 import numpy as np
 import pandas as pd
+#interpackage
+from global_energetics.analysis.proc_hdf import get_subzone_contrib
 
-def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
+def virial_construction(mpdict, msdict, inner_mp, **kwargs):
     """Function finds percent contributions and missing amounts
     Inputs
         mpdict(DataFrame)-
@@ -67,26 +69,8 @@ def get_interzone_stats(mpdict, msdict, inner_mp, **kwargs):
             m[1]['Utot2 [J]'] = (m[1]['KE [J]']+m[1]['Eth [J]']+
                                  m[1]['Virial Ub [J]'])
             msdict.update({m[0]:m[1]})
-    #Quantify amount missing from sum of all subzones
-    missing_volume, summed_volume = pd.DataFrame(), pd.DataFrame()
-    for key in [m for m in msdict.values()][0].keys():
-        if key in [m for m in mpdict.values()][0].keys():
-            fullvolume = [m for m in mpdict.values()][0][key]
-            added = [m for m in msdict.values()][0][key]
-            for sub in [m for m in msdict.values()][1::]:
-                added = added+sub[key]
-            missing_volume[key] = fullvolume-added
-            summed_volume[key] = added
-    msdict.update({'missed':missing_volume})
-    msdict.update({'summed':summed_volume})
-    #Identify percentage contribution from each piece
-    for ms in msdict.values():
-        for key in ms.keys():
-            ms[key.split('[')[0]+'[%]'] = (100*ms[key]/
-                                      [m for m in mpdict.values()][0][key])
-    #for key in msdict['summed'].keys():
-    #    mp[key] = msdict['summed'][key]
     return mpdict, msdict
+
 
 def calculate_mass_term(df,times):
     """Calculates the temporal derivative minus surface motion contribution
@@ -213,8 +197,11 @@ def process_virial(mpdict,msdict,inner_mp,times,**kwargs):
                 moded = biot_mods(df, times)#changes for biot savart terms
                 group[sz] = moded
 
-    ##Interzone stats ie, %contribution, diff between sums etc
-    mpdict, msdict = get_interzone_stats(mpdict, msdict, inner_mp)
+    ##Grouping surface pieces on subzones into appropriate sub-totals
+    mpdict, msdict = virial_construction(mpdict, msdict, inner_mp)
+
+    ## %contribution, diff between sums etc
+    mpdict, msdict = get_subzone_contrib(mpdict, msdict)
     return mpdict,msdict,inner_mp
 
 if __name__ == "__main__":

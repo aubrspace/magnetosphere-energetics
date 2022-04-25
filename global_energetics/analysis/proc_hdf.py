@@ -28,7 +28,7 @@ def load_hdf_sort(hdf, **kwargs):
     #keep only GM keys
     gmdict, iedict, uadict = {}, {}, {}
     for key in store.keys():
-        if 'mp' in key:
+        if ('mp' in key) or ('ms' in key):
             gmdict[key] = store[key].sort_values(by='Time [UTC]')
             gmdict[key].index=gmdict[key]['Time [UTC]'].drop(
                                                     columns=['Time [UTC]'])
@@ -68,8 +68,8 @@ def load_hdf_sort(hdf, **kwargs):
     for key in gmdict.keys():
         print(key)
         if 'ms' in key:
+            cleaned_df = check_timing(gmdict[key],gmtimes)
             if any(['Virial' in k for k in gmdict[key].keys()]):
-                cleaned_df = check_timing(gmdict[key],gmtimes)
                 cleaned_df = check_units(cleaned_df)
             else:
                 cleaned_df = gmdict[key]
@@ -111,10 +111,14 @@ def check_timing(df,times):
         if all(times == df['Time [UTC]']):
             return df
     #Otw reconstruct on times column and interpolate
-    interp_df = pd.DataFrame({'Time [UTC]':times})
+    #interp_df = pd.DataFrame({'Time [UTC]':times})
+    interp_df = pd.DataFrame({'Time [UTC]':times},index=times)
+    if times[0] not in df.index:
+        df.loc[times[0]] = df.iloc[0]
+        df.sort_index()
     for key in df.keys().drop('Time [UTC]'):
         interp_df[key] = df[key]
-    interp_df = interp_df.interpolate(col='Time [UTC]')
+    interp_df.interpolate(method='time',inplace=True)
     return interp_df
 
 def check_units(df,*, smallunit='[nT]', bigunit='[J]', factor=-8e13):
@@ -158,6 +162,36 @@ def group_subzones(msdict, mode='3zone'):
                        'remaining':msdict['rc']+msdict['ps']+msdict['qDp'],
                        'missing':msdict['missed']}
     return msdict
+
+def get_subzone_contrib(mpdict, msdict, **kwargs):
+    """Function finds percent contributions and missing amounts
+    Inputs
+        mpdict(DataFrame)-
+        msdict(Dict of DataFrames)-
+    Returns
+        [MODIFIED] mpdict(Dict of DataFrames)
+        [MODIFIED] msdict(Dict of DataFrames)
+    """
+    #assume mpdict actually has just one entry
+    full = [m for m in msdict.values()][0]
+    #Quantify amount missing from sum of all subzones
+    missing_volume, summed_volume = pd.DataFrame(), pd.DataFrame()
+    szkeys = [sz for sz in msdict.values()][0].keys()
+    for key in [k for k in full.keys() if k in szkeys]:
+        if key in szkeys:
+            fullvalue = full[key]
+            added = [m for m in msdict.values()][0][key]
+            for sub in [m for m in msdict.values()][1::]:
+                added = added+sub[key]
+            missing_volume[key] = fullvalue-added
+            summed_volume[key] = added
+    msdict.update({'missed':missing_volume,'summed':summed_volume})
+    #Identify percentage contribution from each piece
+    for ms in msdict.values():
+        for key in ms.keys():
+            if key in full.keys():
+                ms[key.split('[')[0]+'[%]'] = (100*ms[key]/full[key])
+    return mpdict, msdict
 
 if __name__ == "__main__":
     print('this module processes hdf data, for plotting'+
