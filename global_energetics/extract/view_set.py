@@ -857,6 +857,7 @@ def display_2D_contours(frame, **kwargs):
     ds = frame.dataset
     filename = kwargs.get('filename','var_1_e20130430-040200-000.h5')
     betastar_index = ds.variable('beta_star').index
+    #betastar_index = ds.variable('ell').index
     mp_index = ds.variable('mp'+kwargs.get('axis','XZ')).index
     closed_index = ds.variable('closed').index
     plot = frame.plot()
@@ -866,11 +867,11 @@ def display_2D_contours(frame, **kwargs):
     if plot.axes.x_axis.min != -60:
         plot.axes.x_axis.min=-60
     if plot.axes.x_axis.max != 30:
-        plot.axes.x_axis.max != 30
+        plot.axes.x_axis.max = 30
     if plot.axes.y_axis.min != -40:
-        plot.axes.y_axis.min=-40
+        plot.axes.y_axis.min=-45
     if plot.axes.y_axis.max != 40:
-        plot.axes.y_axis.max=40
+        plot.axes.y_axis.max=45
     if not plot.axes.x_axis.reverse:
         plot.axes.x_axis.reverse=True
     #Contour settings
@@ -878,7 +879,8 @@ def display_2D_contours(frame, **kwargs):
     plot.show_contour=True
     plot.contour(0).levels.reset_levels([0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,
                                              0.8,0.9,1,1.1,1.2,1.3,1.4])
-    plot.contour(0).colormap_name='div3-green-brown-div'
+    #plot.contour(0).colormap_name='div3-green-brown-div'
+    plot.contour(0).colormap_name='div1-blue-orange-div'
     #Blanking 1- magnetopause boundary trace
     blank = plot.value_blanking
     blank.active=True
@@ -886,7 +888,7 @@ def display_2D_contours(frame, **kwargs):
     blank.constraint(0).variable_index=mp_index
     blank.cell_mode=ValueBlankCellMode.TrimCells
     blank.constraint(0).show_line=True
-    blank.constraint(0).color=Color.Cyan
+    blank.constraint(0).color=Color.Custom8
     blank.constraint(0).comparison_value=0.7
     #Blanking 2- "closed" field line region
     blank.constraint(1).active=True

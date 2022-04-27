@@ -6,7 +6,7 @@ import os
 import glob
 import time
 import numpy as np
-from numpy import pi, sin, cos
+from numpy import pi, sin, cos, arctan2,sqrt
 import pandas as pd
 import tecplot as tp
 from tecplot.data.extract import triangulate
@@ -205,22 +205,39 @@ def get_XZ_magnetopause(ds,**kwargs):
                                           None,10, 30, 3, 100, 0.1)
     day_closed_zone = triangulate(ds.zone(day_streamzone))
     day_closed_zone.name='day_streamtrace_triangulation'
+    #Get the max X value, this should be the subsolar point
     day_closed_Xmax = day_closed_zone.values('X *').max()
     print('Day Closed Xmax: ',day_closed_Xmax)
+    #Fit a slight ellipse near this point
+    eq = tp.data.operate.execute_equation
+    Xday = day_closed_zone.values('X *').as_numpy_array()
+    Zday = day_closed_zone.values('Z *').as_numpy_array()
+    etilt = np.arctan2(Zday[Xday==Xday.max()],Xday.max())
+    th=str(etilt[0])
+    r = str(((Xday.max()**2+Zday[Xday==Xday.max()]**2)/2)[0])
+    ell =('IF((({X [R]}*COS('+th+')+{Z [R]}*SIN('+th+'))**2/2 + '+
+              '({Z [R]}*-SIN('+th+')+{Z [R]}*COS('+th+'))**2)<'+r+',1,0)')
+    eq('{ell}='+ell)
+    eq('{Xd}={X [R]}*COS('+th+')+{Z [R]}*SIN('+th+')')
+    eq('{Day_fwd}=IF({Xd}>0 &&'+
+                    '(SIGN('+th+')*{Z [R]})<0, 1,0)')
+    eq('{Day_bck}=IF({X [R]}>0 &&'+
+                    '(SIGN('+th+')*{Z [R]})>0, 1,0)')
     night_streamzone = streamfind_bisection(ds,'inner_magXZ',
                                             None,10, -30, -3, 100, 0.1)
     night_closed_zone = triangulate(ds.zone(night_streamzone))
     night_closed_zone.name='night_streamtrace_triangulation'
-    eq = tp.data.operate.execute_equation
+    #eq = tp.data.operate.execute_equation
     eq(equation='{closed} = 1', zones=[day_closed_zone])
     eq(equation='{closed} = 1', zones=[night_closed_zone])
     interpolate_linear(destination_zone=zone,fill_value=0,
                          source_zones=[day_closed_zone, night_closed_zone],
                                    variables=[ds.variable('closed').index])
     #Create magnetopause state variable
-    eq('{mpXZ} = IF({X [R]}>-20&&{X [R]}<'+str(day_closed_Xmax)+
-                    '&&({beta_star}<'+str(kwargs.get('betastar',0.7))+
-                                                     '||{closed}==1),1,0)')
+    eq('{mpXZ} =IF((({Day_fwd}==1||{Day_bck}==1)&&({ell}==1||{closed}==1))||'+
+                   '({Day_fwd}==0&&{Day_bck}==0)&&{X [R]}>-20&&'+
+                   '({beta_star}<'+str(kwargs.get('betastar',0.7))+
+                '||{closed}==1),1,0)')
 
 if __name__ == "__main__":
     inputfiles = []
@@ -231,12 +248,12 @@ if __name__ == "__main__":
         if '-c' in sys.argv:
             tp.session.connect()
     datapath = 'storms/'
-    ypath = 'y0/y=0_var_1_e20140218-082700-000_20140220-022700-000/'
-    zpath = 'z0/z=0_var_2_e20140218-082700-000_20140220-022700-000/'
+    ypath = 'y0/y=0_var_1_e20110805-120200-000_20110807-060200-000/'
+    zpath = 'z0/z=0_var_2_e20110805-120200-000_20110807-060200-000/'
     inputfiles = glob.glob(datapath+ypath+'*.out')
     #if True:
     with tp.session.suspend():
-        for infile in inputfiles[0:1]:
+        for infile in [i for i in inputfiles if '181700' in i]:
             #Get matching file
             matchfile = (datapath+zpath+'z=0_var_2'+
                                              infile.split('y=0_var_1')[-1])
@@ -262,7 +279,7 @@ if __name__ == "__main__":
             get_XZ_magnetopause(ds, XZ_zone_index=0)
             #Get mp points
             zmax,zmin = get_night_mp_points(ds.zone('XZTriangulation'),-10)
-            nose = get_nose(tp.active_frame().dataset.zone(2))
+            nose = get_nose(ds.zone('XZTriangulation'))
 
             ##XY plane
             get_XY_magnetopause(ds, XY_zone_index=1)
@@ -285,11 +302,13 @@ if __name__ == "__main__":
             display_2D_contours(tp.active_frame(),
                 outputname='localdbug/2Dcuts/test/'+zfile.split('.h5')[0],
                                 filename = zfile)
+            '''
             #Y
             set_yaxis(mode='Y') #set to XY
             display_2D_contours(tp.active_frame(), axis='XY',
                 outputname='localdbug/2Dcuts/test/'+yfile.split('.h5')[0],
                                 filename = yfile)
+            '''
 
             #Clean up
             os.remove(os.getcwd()+'/'+zfile)

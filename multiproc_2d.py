@@ -77,9 +77,9 @@ def work(XZfile):
                                             plane='XY',mpvar='mpXY')
 
     ##Other terms
-    newell = mp2d.get_local_newell(ds.zone('XYTriangulation'),xloc=20)
+    newell = mp2d.get_local_newell(ds.zone('XYTriangulation'),xloc=30)
     shue_nose, shue_flank = mp2d.get_local_shue(ds.zone('XYTriangulation'),
-                                                xloc=20, xflank=-10)
+                                                xloc=30, xflank=-10)
 
     #savedata
     mp2d.save_tofile(XZfile,timestamp,xloc=-10,nose=[nose],newell=[newell],
@@ -127,9 +127,9 @@ def single_event_run(eventname, **kwargs):
             return
     else:
         checkfiles = False
-    outputdir = os.path.join(kwargs.get('stormdir',''), 'mp_points3',
+    outputdir = os.path.join(kwargs.get('stormdir',''), 'mp_points5',
                                  eventname.split('e')[-1])
-    outputpath = os.path.join(kwargs.get('stormdir',''), 'mp_points3',
+    outputpath = os.path.join(kwargs.get('stormdir',''), 'mp_points5',
                                  eventname.split('e')[-1],
                                  'individual')
 
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     eventlist = glob.glob(STORMDIR+'y0/*/')
     for event in [e.split('/')[-2] for e in eventlist]:
         if (not event in skiplist) and (not os.path.exists(os.path.join(
-                    STORMDIR,'mp_points3',event.split('y=0_var_1_e')[-1]))):
+                    STORMDIR,'mp_points5',event.split('y=0_var_1_e')[-1]))):
             print('**************EVENT '+event.split('y=0_var_1_e')[-1]+
                   '**************')
             single_event_run(event,stormdir=STORMDIR)
