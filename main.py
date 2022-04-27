@@ -32,33 +32,13 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
-    files1 = ('3d__var_1_e20140219-090000-000.plt',
-              '3d__var_1_e20140219-090100-023.plt')
-
-    files2 = ('3d__var_1_e20140219-023400-027.plt',
-              '3d__var_1_e20140219-023500-037.plt')
-
-    files3 = ('3d__var_1_e20140219-041500-002.plt',
-              '3d__var_1_e20140219-041600-027.plt')
-
-    files4 = ('3d__var_1_e20140219-060000-000.plt',
-              '3d__var_1_e20140219-060100-014.plt')
-
-    files5 = ('3d__var_1_e20140218-060700-011.plt',
-              '3d__var_1_e20140218-060900-002.plt')
-    starlink = ('3d__var_1_e20220203-114000-000.plt',
-                '3d__var_1_e20220203-115000-000.plt',
-                '3d__var_1_e20220203-120000-000.plt',
-                '3d__var_1_e20220203-121000-000.plt')
-    trackim = ('3d__var_1_e20140219-020000-000.plt',
-               '3d__var_1_e20140219-020100-000.plt')
+    starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
+                'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
+    trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
+               'localdbug/trackim/3d__var_1_e20140219-020100-000.plt')
     paleo = ('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
-    #files5 = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
-    #         'output/CCMC/3d__var_1_e20130713-204700-037.plt')
-
-    OUTPATH = 'temp/'
-    PNGPATH = 'temp/'
-    #OUTPUTNAME = 'testoutput1.png'
+    ccmc  = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
+             'output/CCMC/3d__var_1_e20130713-204700-037.plt')
 
     '''
     #load from file
@@ -66,85 +46,23 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    #for point in [files1, files2, files3, files4]:
-    if True:
+    for inputs in [starlink]:
         tp.new_layout()
-        mhddatafile = trackim[0]
+        mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
         #python objects
-        field_data = tp.data.load_tecplot(trackim)
+        field_data = tp.data.load_tecplot(inputs)
         field_data.zone(0).name = 'global_field'
         if len(field_data.zone_names)>1:
-            print(len(field_data.zone_names))
             field_data.zone(1).name = 'future'
         main = tp.active_frame()
         main.name = 'main'
 
-        #Caclulate initial surface
+        #Perform data extraction
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
-                                                    outputpath=OUTPATH,
-                                            analysis_type='energy_trackIM',
-                                                    do_cms=True,
-                                                    mpbetastar=0.7,
-                                                    save_mesh=False,
-                                                    integrate_surface=True,
-                                                    integrate_volume=True,
-                                                    timeref=start_time)
-        if False:
-            #adjust view settings
-            proc = 'Multi Frame Manager'
-            cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-            tp.macro.execute_extended_command(command_processor_id=proc,
-                                              command=cmd)
-            mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
-            zone_hidekeys = ['sphere', 'box','shue','future',
-                            'mp_iso_betastar','mp_iso_betastarinnerbound',
-                             'lcb']
-            timestamp=True
-            for frame in enumerate(tp.frames()):
-                frame[1].activate()
-                if frame[0]==0:
-                    legend = False
-                    timestamp = True
-                    doslice = False
-                    slicelegend = False
-                    fieldlegend = True
-                    fieldline=True
-                if frame[0]==1:
-                    legend = True
-                    timestamp = False
-                    doslice = True
-                    slicelegend = False
-                    fieldlegend = False
-                    fieldline=True
-                if frame[0]==2:
-                    legend = False
-                    timestamp = False
-                    doslice = True
-                    slicelegend = True
-                    fieldlegend = False
-                    fieldline=True
-                if frame[0]==3:
-                    legend = True
-                    save = True
-                    timestamp = False
-                    doslice = False
-                    slicelegend = False
-                    fieldlegend = False
-                    fieldline=True
-                view_set.display_single_iso(frame[1], mhddatafile,
-                                            mode=mode[frame[0]],
-                                            outputname=OUTPUTNAME,
-                                            show_fieldline=False,
-                                            show_legend=legend,
-                                            show_slegend=slicelegend,
-                                            show_flegend=fieldlegend,
-                                            show_slice=doslice,
-                                            show_contour=False,
-                                            timestamp_pos=[4,5],
-                                            zone_hidekeys=zone_hidekeys,
-                                            show_timestamp=timestamp)
+                                                    outputpath='babyrun/',
+                                                   analysis_type='energy')
     #with tp.session.suspend():
     #    if True:#manually switch on or off
     #timestamp

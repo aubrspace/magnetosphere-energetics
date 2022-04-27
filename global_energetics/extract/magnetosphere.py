@@ -2,10 +2,7 @@
 """Extraction routine for magnetosphere objects (surfaces and/or volumes)
 """
 import logging as log
-import os
-import sys
-import time
-from array import array
+import os,sys,time,warnings
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, deg2rad, linspace
 import datetime as dt
@@ -42,7 +39,7 @@ def todimensional(dataset, **kwargs):
     #SWMF sets up two conversions to go between
     # No (nondimensional) Si (SI) and Io (input output),
     # what we want is No2Io = No2Si_V / Io2Si_V
-    #Find these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
+    #Found these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
     No2Si = {'X':6371*1e3,                             #planet radius
              'Y':6371*1e3,
              'Z':6371*1e3,
@@ -58,7 +55,7 @@ def todimensional(dataset, **kwargs):
              'J_y':(sqrt(cMu*1e6*proton_mass)/cMu),
              'J_z':(sqrt(cMu*1e6*proton_mass)/cMu)
             }
-    #Find these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
+    #Found these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
     Io2Si = {'X':6371*1e3,                  #planet radius
              'Y':6371*1e3,                  #planet radius
              'Z':6371*1e3,                  #planet radius
@@ -121,27 +118,35 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
     Return
         do_trace- could by forced True if no Status variable
     """
+    #Validate mode selection
     approved= ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere',
-               'lcb', 'nlobe', 'slobe', 'rc', 'ps', 'qDp','closed']
+               'lcb', 'nlobe', 'slobe', 'rc', 'ps', 'qDp','closed','bs']
     if not any([mode == match for match in approved]):
         assert False, ('Magnetopause mode "{}" not recognized!!'.format(
                                                                     mode)+
                        'Please set mode to one of the following:'+
                        '\t'.join(approved))
-    if field_data.variable_names.count('Status') ==0:
+
+    #See if status variable in dataset
+    if 'Status' not in field_data.variable_names:
         has_status = False
         do_trace = True
         print('Status variable not included in dataset!'+
                 'do_trace -> True')
     else:
         has_status = True
+
+    #This specific case won't work
     if do_trace and mode == 'lcb':
         print('last_closed boundary not setup with trace mode!')
         return
+
+    #Make sure if cms is selected that we have a second zone to do d/dt
     if do_cms:
         if len([zn for zn in tp.active_frame().dataset.zones()])<2:
             print('not enough data to do moving surfaces!')
             do_cms = False
+
     #get date and time info based on data source
     if source == 'swmf':
         eventtime = swmf_access.swmf_read_time()
@@ -150,13 +155,12 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
             deltatime = (futuretime-eventtime).seconds
         else:
             deltatime=0
+
     #Check to make sure that dimensional variables are given
     if ('X' in field_data.variable_names and
         'X [R]' not in field_data.variable_names):
         print('dimensionless variables given! converting to dimensional...')
         todimensional(field_data)
-    #assert not badsettings, ('Bad input settings! Check file(s) and mode'+
-    #                         'selection compatibility')
     return do_trace, eventtime, deltatime
 
 def show_settings(**kwargs):
@@ -195,14 +199,13 @@ def prep_field_data(field_data, **kwargs):
     #Auxillary data from tecplot file
     aux = field_data.zone('global_field').aux_data
     if do_cms:
-        futurezone = field_data.zone('future*')
-        future_aux = futurezone.aux_data
+        future_aux = field_data.zone('future*').aux_data
     #set frame name and calculate global variables
     if field_data.variable_names.count('r [R]') ==0:
         main_frame = tp.active_frame()
         print('Calculating global energetic variables')
         main_frame.name = 'main'
-        get_global_variables(field_data, analysis_type)
+        get_global_variables(field_data, analysis_type,aux=aux)
         if do_1Dsw:
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
@@ -242,7 +245,7 @@ def prep_field_data(field_data, **kwargs):
                                                         'dayside',
                                                 lon_bounds, n_fieldlines,
                                                 rmax, rmin, itr_max, tol,
-                                                global_key=futurezonename)
+                                                global_key='future*')
         else:
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
             closed_zone = setup_isosurface(1,closed_index,'lcb',
@@ -274,6 +277,68 @@ def prep_field_data(field_data, **kwargs):
     else:
         print('closed_zone: '+closed_zone.name)
         return aux, closed_zone, None
+
+def generate_3Dobj(sourcezone, **kwargs):
+    """Creates isosurface zone depending on mode setting
+    Inputs
+        sourcezone (Zone)- tecplot Zone with data used for generation
+        kwargs:
+            analysis_type (str)- kw for family of measurements
+            integrate_volume (bool)
+            mode (str)- kw for what to generate
+            modes (list[str])- !watch out! this overwrites 'mode' setting
+    Returns
+        zonelist (list[Zone])- list of tp Zone objects of whats generated.
+            This useful so we know where to apply SURFACE equations and
+            integration operations.
+        state_indices (list[VariableIndex])- list of tp Variable Index's.
+            This used to apply conditions to achieve VOLUME integrations
+        kwargs- we modify at least one arg depending on settings
+    """
+    zonelist, state_indices = [], []
+    if kwargs=={}: print('Generating default zones:\n\t'+
+                         'mode=iso_betastar\n\tanalysis_type=energy')
+
+    #Decide what kind of things we will be generating
+    if ('virial' in kwargs.get('analysis_type','energy')) and (
+                                    kwargs.get('integrate_volume',True)):
+        modes = [kwargs.get('mode','iso_betastar'),
+                 'closed', 'rc', 'nlobe', 'slobe']
+    else:
+        modes = [kwargs.get('mode','iso_betastar')]
+    modes=kwargs.get('modes',modes)
+    if 'modes' in kwargs:
+        warnings.warn('Overwriting zone generation modes!, could be '+
+                      'incompattable w/ analysis type', UserWarning)
+    else:
+        kwargs.update({'modes':modes})
+
+    #Create the tecplot objects and store into lists
+    for m in modes:
+        zone, inner_zone, state_index = calc_state(m, sourcezone, **kwargs)
+        if (type(zone) != type(None) or type(inner_zone)!=type(None)):
+            if 'zone_rename' in kwargs:
+                zone.name = kwargs.get('zone_rename','')+'_'+m
+            zonelist.append(zone)
+            state_indices.append(state_index)
+
+    #Assign magnetopause variable and get geometry vars (others will ref)
+    if sourcezone.dataset.variable('mp*') is not None:
+        kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
+        get_surf_geom_variables(sourcezone.dataset.zone('mp*'))
+        #get_surf_geom_variables(sourcezone.dataset.zone('ext_bs*'))
+    else:#now 'mpvar' could be a bit of a misnomer
+        kwargs.update({'mpvar':sourcezone.dataset.variable(state_index).name})
+        get_surf_geom_variables(zonelist[0])
+    if kwargs.get('do_cms','energy'in kwargs.get('analysis_type','energy')):
+        futurezone = sourcezone.dataset.zone('future*')
+        _,j,future_state_index=calc_state(kwargs.get('mode','iso_betastar'),
+                                          futurezone,**kwargs)
+        #get state variable representing acquisitions/forfeitures
+        calc_delta_state(sourcezone.dataset.variable(state_index).name,
+                  sourcezone.dataset.variable(future_state_index).name)
+    return zonelist, state_indices, kwargs
+
 
 def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     """Function that finds, plots and calculates quantities on
@@ -337,29 +402,17 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     disp_result = kwargs.get('disp_result', True)
     verbose = kwargs.get('verbose', True)
     do_cms = kwargs.get('do_cms', 'energy' in analysis_type)
+    inner_cond = kwargs.get('inner_cond', 'sphere')
+    inner_r = kwargs.get('inner_r', 3)
     do_blank = kwargs.get('do_blank', False)
     blank_variable = kwargs.get('blank_variable', 'r *')
-    blank_value = kwargs.get('blank_value', 3)
+    blank_value = kwargs.get('blank_value', inner_r)
     blank_operator = kwargs.get('blank_operator', RelOp.LessThan)
     extra_surf_terms = kwargs.get('customTerms', {})
     do_1Dsw = kwargs.get('do_1Dsw', False)
     globalzone = field_data.zone('global_field')
-    if do_cms:
-        futurezone = field_data.zone('future*')
-    #
-    inner_cond = kwargs.get('inner_cond', 'sphere')
-    inner_r = kwargs.get('inner_r', 3)
     mpbetastar = kwargs.get('mpbetastar', 0.7)
     tail_cap = kwargs.get('tail_cap', -20)
-    '''
-    if mode == 'iso_betastar':
-        inner_cond = kwargs.get('inner_cond', 'sphere')
-        inner_r = kwargs.get('inner_r', 3)
-        mpbetastar = kwargs.get('mpbetastar', 0.7)
-    if any([mode==match for match in ['iso_betastar', 'shue97', 'shue98',
-                                      'shue']]):
-        tail_cap = kwargs.get('tail_cap', -20)
-    '''
     if mode == 'sphere':
         sp_x = kwargs.get('sp_x', 0)
         sp_y = kwargs.get('sp_y', 0)
@@ -381,7 +434,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         oneDmn = kwargs.get('oneDmn', -30)
         n_oneD = kwargs.get('n_oneD', 121)
     if do_cms:
-        pass
+        pass#TODO does anything go here?
     do_trace, eventtime, deltatime = validate_preproc(field_data, mode,
                                                       source,outputpath,
                                                       do_cms, verbose,
@@ -396,50 +449,21 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     #prepare field data
     aux, closed_zone, future_closed_zone = prep_field_data(field_data,
                                                            **kwargs)
+    # !!! kwargs updated !!!
     kwargs.update({'x_subsolar':float(aux['x_subsolar'])})
     kwargs.update({'closed_zone':closed_zone})
     kwargs.update({'future_closed_zone':future_closed_zone})
     main_frame = [fr for fr in tp.frames('main')][0]
-    #Create isosurface zone depending on mode setting
-    ################################################################
-    zonelist, state_indices = [], []
-    if 'virial' in analysis_type and integrate_volume:
-        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
-        #modes = [mode, 'Jpar+']
-    else:
-        modes = [mode, 'closed', 'rc', 'nlobe', 'slobe']
-        #modes = [mode]
-    for m in modes:
-        zone, inner_zone, state_index = calc_state(m, globalzone, **kwargs)
-        if (type(zone) != type(None) or type(inner_zone)!=type(None)):
-            if zone_rename != None:
-                zone.name = zone_rename+'_'+m
-            zonelist.append(zone)
-            state_indices.append(state_index)
-    #Assign magnetopause variable and get geometry vars (others will ref)
-    if field_data.variable('mp*') is not None:
-        kwargs.update({'mpvar':field_data.variable('mp*').name})
-        get_surf_geom_variables(field_data.zone('mp*'))
-        #get_surf_geom_variables(field_data.zone('ext_bs*'))
-    else:
-        #field_data.zone(mode).name = 'mp_'+mode
-        #field_data.variable(state_index).name = ('mp_'+
-        #                             field_data.variable(state_index).name)
-        kwargs.update({'mpvar':field_data.variable(state_index).name})
-        get_surf_geom_variables(zonelist[0])
-    if do_cms:
-        future_mp,_,future_state_index=calc_state(mode,futurezone,**kwargs)
-        #get state variable representing acquisitions/forfeitures
-        #calc_delta_state(zonelist[0].name, future_mp.name)
-        calc_delta_state(field_data.variable(state_index).name,
-                         field_data.variable(future_state_index).name)
-    ################################################################
+
+    # !!! kwargs updated !!!
+    zonelist, state_indices, kwargs = generate_3Dobj(globalzone, **kwargs)
+
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
     mp_mesh = {}
     data_to_write={}
     savemeshvars = {}
-    for mode in modes:
+    for mode in kwargs.get('modes'):
         savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
@@ -459,12 +483,12 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     var_length = len(zone.values(
                                   name.split(' ')[0]+'*').as_numpy_array())
                     if var_length==cc_length:
-                        savemeshvars[modes[0]].append(name)
+                        savemeshvars[kwargs.get('modes')[0]].append(name)
             if do_1Dsw and save_mesh:
                 for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                                 '1DExB_net [W/Re^2]']:
-                    savemeshvars[modes[0]].append(name)
-        if 'iso_betastar' in modes:
+                    savemeshvars[kwargs.get('modes')[0]].append(name)
+        if 'iso_betastar' in kwargs.get('modes'):
             #integrate power on innerboundary surface
             inner_mesh = {}
             inner_zone = field_data.zone('*innerbound*')
@@ -475,7 +499,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                                        inner_surf_results})
             if save_mesh:
                 #save inner boundary mesh to the mesh file
-                for var in savemeshvars[modes[0]]:
+                for var in savemeshvars[kwargs.get('modes')[0]]:
                     inner_mesh[var]=inner_zone.values(
                                     var.split(' ')[0]+'*').as_numpy_array()
                 inner_mesh.update({'Time [UTC]':
@@ -496,48 +520,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     eq = tp.data.operate.execute_equation
                     eq('{'+usename+'}={'+var+'}',zones=[region],
                             value_location=ValueLocation.CellCentered)
-                    savemeshvars[modes[state_index[0]]].append(usename)
-    #Debugging
-    '''
-    mpzone = zonelist[0]
-    surflist = [('virial_BB','BB'),
-                ('virial_scalarPth','Pth'),
-                ('virial_scalaruB','uB'),
-                ('virial_advect','Adv')]
-    dipSur = [('virial_BdBd', 'BdBd'),
-              ('virial_scalaruB_dipole','uBd')]
-    crossSur = [('virial_BBd', 'BBd')]
-    results,innerresults,dipole,indipole,cross,incross={},{},{},{},{},{}
-    for term in surflist:
-        results.update(calc_integral(term, mpzone))
-        results.update({term[1]+'[nT]':results[term[1]][0]/(-8e13)})
-        innerresults.update(calc_integral(term, inner_zone))
-        innerresults.update({term[1]+'[nT]':innerresults[term[1]][0]/(-8e13)})
-    for term in dipSur:
-        dipole.update(calc_integral(term, mpzone))
-        dipole.update({term[1]+'[nT]':dipole[term[1]][0]/(-8e13)})
-        indipole.update(calc_integral(term, inner_zone))
-        indipole.update({term[1]+'[nT]':indipole[term[1]][0]/(-8e13)})
-    for term in crossSur:
-        cross.update(calc_integral(term, mpzone))
-        cross.update({term[1]+'[nT]':cross[term[1]][0]/(-8e13)})
-        incross.update(calc_integral(term, inner_zone))
-        incross.update({term[1]+'[nT]':incross[term[1]][0]/(-8e13)})
-    print('outer_field {}'.format(results))
-    print('inner_field {}'.format(innerresults))
-    print('outer_dipole {}'.format(dipole))
-    print('inner_dipole {}'.format(indipole))
-    print('cross {}'.format(cross))
-    print('volume {}'.format(energies))
-    uBd = energies['uB_dipole [J]']/(-8e13)
-    err = (uBd + dipole['uBd[nT]']+dipole['BdBd[nT]']+indipole['uBd[nT]']+
-          indipole['BdBd[nT]'])
-    err2 = (uBd + dipole['uBd[nT]']+dipole['BdBd[nT]']-indipole['uBd[nT]']-
-            indipole['BdBd[nT]'])
-    print('err {}'.format(err))
-    print('ex:volume {}'.format(energies['example_volume [#]']))
-    print('ex:surface {}'.format(surf_results['example_surface [#]']))
-    '''
+                    savemeshvars[kwargs.get('modes')[state_index[0]]].append(usename)
     ################################################################
     if save_mesh:
         #save mesh to hdf file
@@ -564,47 +547,5 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                             [zn.name for zn in zonelist])
     return mp_mesh, data_to_write
 
-# Must list .plt that script is applied for proper execution
-# Run this script with "-c" to connect to Tecplot 360 on port 7600
-# To enable connections in Tecplot 360, click on:
-#   "Scripting" -> "PyTecplot Connections..." -> "Accept connections"
-
 if __name__ == "__main__":
-    if '-c' in sys.argv:
-        tp.session.connect()
-    os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
-    tp.new_layout()
-
-    #Load .plt file, come back to this later for batching
-    SWMF_DATA = tp.data.load_tecplot('3d__mhd_2_e20140219-123000-000.plt')
-
-    #Set parameters
-    #DaySide
-    N_AZIMUTH_DAY = 15
-    AZIMUTH_MAX = 122
-    R_MAX = 30
-    R_MIN = 3.5
-    ITR_MAX = 100
-    TOL = 0.1
-
-    #Tail
-    N_AZIMUTH_TAIL = 15
-    RHO_MAX = 50
-    RHO_STEP = 0.5
-    X_TAIL_CAP = -20
-
-    #YZ slices
-    N_SLICE = 40
-    N_ALPHA = 50
-
-    #Visualization
-    RCOLOR = 4
-
-    get_magnetopause('./3d__mhd_2_e20140219_123000-000.plt')
-'''
-{magnetopause}=IF({X [R]}<10.7&&{X [R]}>-40&&{h}<50,IF({Rho [amu/cm^3]}<0.16,1,0),0)
-{plasma_sphere}=IF({P [nPa]}<0.02&&{uB [J/Re^3]}>1e11,1,0)
-{lobes}=IF({X [R]}>-40&&abs({lon [deg]})>120&&{h}<28,IF({P [nPa]}<0.005&&{uB [J/Re^3]}<1e11&&{Rho [amu/cm^3]}<0.16,1,0),0)
-{plasma_sheet}=IF({X [R]}>-40&&abs({lon [deg]})>120&&{h}<28,IF({P [nPa]}>0.005&&{uB [J/Re^3]}<1e11&&{Rho [amu/cm^3]}<0.08,1,0),0)
-{cloak}=IF({P [nPa]}>0.03&&{uB [J/Re^3]}>1e11&&{r [R]}<9.5,1,0)
-'''
+    pass#TODO could make this a simple (!and fast) test function...

@@ -1280,250 +1280,298 @@ def mag2cart(lat,lon,btheta,*,r=1):
     #find new points by rotation
     return np.matmul(rot,[x_mag,y_mag,z_mag])
 
+def equations(**kwargs):
+    """Defines equations that will be used for global variables
+    Inputs- none
+    Return
+        equations dict{dict{str(eqName):str(eqText)}}- nested dicts
+    """
+    equations = {}
+    #Useful spatial variables
+    equations['basic3d'] = {
+                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
+                       '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
+    #2D versions of spatial variables
+    equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
+    equations['basic2d_XZ'] = {'{r [R]}':'sqrt({X [R]}**2 + {Z [R]}**2)'}
+    #Dipolar coordinate variables
+    if 'aux' in kwargs:
+        aux=kwargs.get('aux')
+        equations['dipole_coord'] = {
+         '{mXhat_x}':'sin(('+aux['BTHETATILT']+'+90)*pi/180)',
+         '{mXhat_y}':'0',
+         '{mXhat_z}':'-1*cos(('+aux['BTHETATILT']+'+90)*pi/180)',
+         '{mZhat_x}':'sin('+aux['BTHETATILT']+'*pi/180)',
+         '{mZhat_y}':'0',
+         '{mZhat_z}':'-1*cos('+aux['BTHETATILT']+'*pi/180)',
+         '{lambda}':'asin(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})',
+         '{Lshell}':'{r [R]}/cos({lambda})**2',
+         '{theta [deg]}':'-180/pi*{lambda}'}
+    ######################################################################
+    #Physical quantities including:
+    #   Dynamic Pressure
+    #   Sonic speed
+    #   Plasma Beta
+    #   Plasma Beta* using total pressure
+    #   B magnitude
+    equations['basic_physics'] = {
+     '{Dp [nPa]}':'{Rho [amu/cm^3]}*1e6*1.6605e-27*'+
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
+     '{Cs [km/s]}':'sqrt(5/3*{P [nPa]}/{Rho [amu/cm^3]}/6.022)*10**3',
+     '{beta}':'({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                '*(2*4*pi*1e-7)*1e9',
+     '{beta_star}':'({P [nPa]}+{Dp [nPa]})/'+
+                          '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                '*(2*4*pi*1e-7)*1e9',
+     '{Bmag [nT]}':'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'}
+    ######################################################################
+    #Fieldlinemaping
+    equations['fieldmapping'] = {
+        '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
+        '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
+        '{phi}':'atan2({Y [R]}, {Xd [R]})',
+        '{req}':'2.7/(cos({lambda})**2)',
+        '{lambda2}':'sqrt(acos(1/{req}))',
+        '{X_r1project}':'1*cos({phi})*sin(pi/2-{lambda2})',
+        '{Y_r1project}':'1*sin({phi})*sin(pi/2-{lambda2})',
+        '{Z_r1project}':'1*cos(pi/2-{lambda2})'}
+    ######################################################################
+    #Virial only intermediate terms, includes:
+    #   Density times velocity between now and next timestep
+    #   Advection term
+    equations['virial_intermediate'] = {
+        '{rhoUx_cc}':'{Rho [amu/cm^3]}*{U_x [km/s]}',
+        '{rhoUy_cc}':'{Rho [amu/cm^3]}*{U_y [km/s]}',
+        '{rhoUz_cc}':'{Rho [amu/cm^3]}*{U_z [km/s]}',
+        '{rhoU_r [Js/Re^3]}':'{Rho [amu/cm^3]}*1.6605e6*6.371**4*('+
+                                                 '{U_x [km/s]}*{X [R]}+'+
+                                                 '{U_y [km/s]}*{Y [R]}+'+
+                                                 '{U_z [km/s]}*{Z [R]})'}
+    ######################################################################
+    #Dipole field (requires coordsys and UT information!!!)
+    if 'aux' in kwargs:
+        aux=kwargs.get('aux')
+        Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
+        equations['dipole'] = {
+                Bdx_eq.split('=')[0]:Bdx_eq.split('=')[-1],
+                Bdy_eq.split('=')[0]:Bdy_eq.split('=')[-1],
+                Bdz_eq.split('=')[0]:Bdz_eq.split('=')[-1],
+               '{Bdmag [nT]}':'sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)'}
+    ######################################################################
+    #Volumetric energy terms, includes:
+    #   Total Magnetic Energy per volume
+    #   Thermal Pressure in Energy units
+    #   Kinetic energy per volume
+    #   Dipole magnetic Energy
+    #+Constructions:
+    #   Hydrodynamic Energy Density
+    #   Total Energy Density
+    equations['volume_energy'] = {
+               '{uB [J/Re^3]}':'{Bmag [nT]}**2'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{Pth [J/Re^3]}':'{P [nPa]}*6371**3',
+               '{KE [J/Re^3]}':'{Dp [nPa]}/2*6371**3',
+               '{uB_dipole [J/Re^3]}':'{Bdmag [nT]}**2'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{uHydro [J/Re^3]}':'({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+               '{Utot [J/Re^3]}':'{uHydro [J/Re^3]}+{uB [J/Re^3]}'}
+
+    ######################################################################
+    #Virial Volumetric energy terms, includes:
+    #   Disturbance Magnetic Energy per volume
+    #   Special construction of hydrodynamic energy density for virial
+    equations['virial_volume_energy'] = {
+               '{Virial Ub [J/Re^3]}':'(({B_x [nT]}-{Bdx})**2+'+
+                                       '({B_y [nT]}-{Bdy})**2+'+
+                                       '({B_z [nT]}-{Bdz})**2)'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{Virial 2x Uk [J/Re^3]}':'2*{KE [J/Re^3]}+{Pth [J/Re^3]}'}
+    ######################################################################
+    #Biot Savart terms, includes:
+    # delta B in nT
+    equations['biot_savart'] = {
+               '{dB_x [nT]}':'-({Y [R]}*{J_z [uA/m^2]}-'+
+                               '{Z [R]}*{J_y [uA/m^2]})*637.1/{r [R]}**3',
+               '{dB_y [nT]}':'-({Z [R]}*{J_x [uA/m^2]}-'+
+                               '{X [R]}*{J_z [uA/m^2]})*637.1/{r [R]}**3',
+               '{dB_z [nT]}':'-({X [R]}*{J_y [uA/m^2]}-'+
+                               '{Y [R]}*{J_x [uA/m^2]})*637.1/{r [R]}**3',
+               '{dB [nT]}':'{dB_x [nT]}*{mZhat_x}+{dB_z [nT]}*{mZhat_z}'}
+    ######################################################################
+    #Energy Flux terms including:
+    #   Magnetic field unit vectors
+    #   Field Aligned Current Magntitude
+    #   Poynting Flux
+    #   Total pressure Flux (plasma energy flux)
+    #   Total Energy Flux
+    equations['energy_flux'] = {
+        '{unitbx}':'{B_x [nT]}/MAX(1e-15,'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+        '{unitby}':'{B_y [nT]}/MAX(1e-15,'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+        '{unitbz}':'{B_z [nT]}/MAX(1e-15,'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+        '{J_par [uA/m^2]}':'{unitbx}*{J_x [uA/m^2]} + '+
+                              '{unitby}*{J_y [uA/m^2]} + '+
+                              '{unitbz}*{J_z [uA/m^2]}',
+        '{ExB_x [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                              '{U_x [km/s]})-{B_x [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{ExB_y [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                              '{U_y [km/s]})-{B_y [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{ExB_z [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                              '{U_z [km/s]})-{B_z [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{P0_x [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          '*{U_x [km/s]}',
+        '{P0_y [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          '*{U_y [km/s]}',
+        '{P0_z [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          '*{U_z [km/s]}',
+        '{K_x [W/Re^2]}':'{P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
+        '{K_y [W/Re^2]}':'{P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
+        '{K_z [W/Re^2]}':'{P0_z [W/Re^2]}+{ExB_z [W/Re^2]}'}
+    ######################################################################
+    #Reconnection variables: 
+    #   -u x B (electric field in mhd limit)
+    #   E (unit change)
+    #   current density magnitude
+    #   /eta magnetic field diffusivity E/J
+    #   /eta (unit change)
+    #   Cell size
+    #   magnetic reynolds number (advection/magnetic diffusion)
+    equations['reconnect'] = {
+        '{minus_uxB_x}':'-({U_y [km/s]}*{B_z [nT]}-'+
+                                               '{U_z [km/s]}*{B_y [nT]})',
+        '{minus_uxB_y}':'-({U_z [km/s]}*{B_x [nT]}-'+
+                                               '{U_x [km/s]}*{B_z [nT]})',
+        '{minus_uxB_z}':'-({U_x [km/s]}*{B_y [nT]}-'+
+                                               '{U_y [km/s]}*{B_x [nT]})',
+        '{E [uV/m]}':'sqrt({minus_uxB_x}**2+'+
+                                     '{minus_uxB_y}**2+{minus_uxB_z}**2)',
+        '{J [uA/m^2]}':'sqrt({J_x [uA/m^2]}**2+'+
+                                   '{J_y [uA/m^2]}**2+{J_z [uA/m^2]}**2)',
+        '{eta [m/S]}':'IF({J [uA/m^2]}>0.002,'+
+                                      '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)',
+        '{eta [Re/S]}':'{eta [m/S]}/(6371*1000)',
+        '{Cell Size [Re]}':'{Cell Volume}**(1/3)',
+        '{Reynolds_m_cell}':'4*pi*1e-4*'+
+                 'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
+                                   '{Cell Size [Re]}/({eta [Re/S]}+1e-9)'}
+    ######################################################################
+    #Tracking IM GM overwrites
+    equations['trackIM'] = {
+        '{trackEth_acc [J/Re^3]}':'{dp_acc [nPa]}*6371**3',
+        '{trackDp_acc [nPa]}':'{drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
+        '{trackKE_acc [J/Re^3]}':'{trackDp_acc [nPa]}*6371**3',
+        '{trackWth [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
+                             '{trackEth_acc [J/Re^3]}/{dtime_acc [s]},0)',
+        '{trackWKE [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
+                             '{trackKE_acc [J/Re^3]}/{dtime_acc [s]},0)'}
+    ######################################################################
+    #Some extra's not normally included:
+    equations['parallel'] = {
+        '{KEpar [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
+                                    '(({U_x [km/s]}*{unitbx})**2+'+
+                                    '({U_y [km/s]}*{unitby})**2+'+
+                                    '({U_z [km/s]}*{unitbz})**2) *'+
+                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
+        '{KEperp [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
+                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
+                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
+                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
+                                       '*1e6*1.6605e-27*1e6*1e9*6371**3'}
+    ######################################################################
+    #Terms with derivatives (experimental) !Can take a long time!
+    #   vorticity (grad x u)
+    equations['development'] = {
+        '{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
+                              '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
+                              '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)'}
+    ######################################################################
+    return equations
+
+def eqeval(eqset,**kwargs):
+    for lhs,rhs in eqset.items():
+        tp.data.operate.execute_equation(lhs+'='+rhs,
+                              zones=kwargs.get('zones'),
+                              value_location=kwargs.get('value_location'))
 
 def get_global_variables(field_data, analysis_type, **kwargs):
     """Function calculates values for energetics tracing
     Inputs
         field_data- tecplot Dataset class containing 3D field data
         kwargs:
+            aux- if dipole equations and corresponding energies are wanted
             is3D- if all 3 dimensions are present
     """
-    ######################################################################
-    eq = tp.data.operate.execute_equation
+    alleq = equations(aux=kwargs.get('aux'))
+    cc = ValueLocation.CellCentered
     #General equations
     if (any([var.find('J_')!=-1 for var in field_data.variable_names])and
-         any([var.find('`mA')!=-1 for var in field_data.variable_names])):
+        any([var.find('`mA')!=-1 for var in field_data.variable_names])):
         field_data.variable('J_x*').name = 'J_x [uA/m^2]'
         field_data.variable('J_y*').name = 'J_y [uA/m^2]'
         field_data.variable('J_z*').name = 'J_z [uA/m^2]'
-    #if 'J_x [`mA/m^2]' in ds.variable_names:
     #Useful spatial variables
     if kwargs.get('is3D',True):
-        eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2 + {Z [R]}**2)')
-        eq('{h} = sqrt({Y [R]}**2+{Z [R]}**2)')
         aux = field_data.zone('global_field').aux_data
-        #Dipolar coordinate variables
-        eq('{mXhat_x} = sin(('+aux['BTHETATILT']+'+90)*pi/180)')
-        eq('{mXhat_y} = 0')
-        eq('{mXhat_z} = -1*cos(('+aux['BTHETATILT']+'+90)*pi/180)')
-        eq('{mZhat_x} = sin('+aux['BTHETATILT']+'*pi/180)')
-        eq('{mZhat_y} = 0')
-        eq('{mZhat_z} = -1*cos('+aux['BTHETATILT']+'*pi/180)')
-        eq('{lambda}=asin(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})')
-        eq('{Lshell} = {r [R]}/cos({lambda})**2')
-        eq('{theta [deg]} = -180/pi*{lambda}')
+        eqeval(alleq['basic3d'])
+        eqeval(alleq['dipole_coord'])
+        eqeval(alleq['dipole'],value_location=cc)
     else:
         if 'XY_zone_index' in kwargs:
-            eq('{r [R]} = sqrt({X [R]}**2 + {Y [R]}**2)',
-                zones=[kwargs.get('XY_zone_index',1),
-                       kwargs.get('XYTri_index',6)])
+            eqeval(alleq['basic2d_XY'],
+                   zones=[kwargs.get('XY_zone_index',1),
+                          kwargs.get('XYTri_index',6)])
         else:
-            eq('{r [R]} = sqrt({X [R]}**2 + {Z [R]}**2)',
-                zones=[kwargs.get('XZ_zone_index',0),
-                       kwargs.get('XZTri_index',2)])
-    #Dynamic Pressure
-    eq('{Dp [nPa]} = {Rho [amu/cm^3]}*1e6*1.6605e-27*'+
-              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
-        value_location=ValueLocation.CellCentered)
-    #Sonic speed
-    eq('{Cs [km/s]} = sqrt(5/3*{P [nPa]}/{Rho [amu/cm^3]}/6.022)*10**3')
-    #Plasma Beta
-    eq('{beta}=({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                '*(2*4*pi*1e-7)*1e9')
-    #Plasma Beta* using total pressure
-    eq('{beta_star}=({P [nPa]}+{Dp [nPa]})/'+
-                          '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                '*(2*4*pi*1e-7)*1e9')
-    eq('{Bmag [nT]} =sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
-        value_location=ValueLocation.CellCentered)
-    ######################################################################
+            eqeval(alleq['basic2d_XZ'],
+                   zones=[kwargs.get('XZ_zone_index',0),
+                          kwargs.get('XZTri_index',2)])
+    #Physical quantities including Pdyn,Beta's,Bmag,Cs:
+    eqeval(alleq['basic_physics'])
     #Fieldlinemaping
-    if ('OCFLB' in analysis_type or analysis_type=='all') and kwargs.get('is3D',True):
-        eq('{Xd [R]}= {mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})')
-        eq('{Zd [R]}= {mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})')
-        eq('{phi} = atan2({Y [R]}, {Xd [R]})')
-        eq('{req} = 2.7/(cos({lambda})**2)')
-        eq('{lambda2} =sqrt(acos(1/{req}))')
-        eq('{X_r1project} = 1*cos({phi})*sin(pi/2-{lambda2})')
-        eq('{Y_r1project} = 1*sin({phi})*sin(pi/2-{lambda2})')
-        eq('{Z_r1project} = 1*cos(pi/2-{lambda2})')
-    ######################################################################
-    #Virial only intermediate terms
-    if 'virial' in analysis_type or analysis_type=='all':
-        #Density times velocity between now and next timestep
-        eq('{rhoUx_cc}={Rho [amu/cm^3]}*{U_x [km/s]}',
-                         value_location=ValueLocation.CellCentered)
-        eq('{rhoUy_cc}={Rho [amu/cm^3]}*{U_y [km/s]}',
-                         value_location=ValueLocation.CellCentered)
-        eq('{rhoUz_cc}={Rho [amu/cm^3]}*{U_z [km/s]}',
-                         value_location=ValueLocation.CellCentered)
-        #Advection term
-        eq('{rhoU_r [Js/Re^3]} = {Rho [amu/cm^3]}*1.6605e6*6.371**4*('+
-                                              '{U_x [km/s]}*{X [R]}+'+
-                                              '{U_y [km/s]}*{Y [R]}+'+
-                                              '{U_z [km/s]}*{Z [R]})',
-                          value_location=ValueLocation.CellCentered)
-        #Dipole field (requires coordsys and UT information!!!)
-        Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
-        eq(Bdx_eq); eq(Bdy_eq); eq(Bdz_eq)
-        eq('{Bdmag [nT]} =sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)',
-                          value_location=ValueLocation.CellCentered)
-    ######################################################################
+    if ('OCFLB' in analysis_type or analysis_type=='all') and (
+                                                kwargs.get('is3D',True)):
+        eqeval(alleq['fieldmapping'])
     #Volumetric energy terms
-    #Total Magnetic Energy per volume
-    eq('{uB [J/Re^3]} = {Bmag [nT]}**2'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Thermal Pressure in Energy units
-    eq('{Pth [J/Re^3]} = {P [nPa]}*6371**3',
-        value_location=ValueLocation.CellCentered)
-    #Kinetic energy per volume
-    eq('{KE [J/Re^3]} = {Dp [nPa]}/2*6371**3',
-        value_location=ValueLocation.CellCentered)
+    eqeval(alleq['volume_energy'],value_location=cc)
+    #Virial volume terms
     if 'virial' in analysis_type or analysis_type=='all':
-        #Dipole magnetic Energy
-        eq('{uB_dipole [J/Re^3]} = {Bdmag [nT]}**2'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-                          value_location=ValueLocation.CellCentered)
-        #Disturbance Magnetic Energy per volume
-        eq('{Virial Ub [J/Re^3]}= (({B_x [nT]}-{Bdx})**2+'+
-                                  '({B_y [nT]}-{Bdy})**2+'+
-                                  '({B_z [nT]}-{Bdz})**2)'+
-                        '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-                          value_location=ValueLocation.CellCentered)
-        #Special construction of hydrodynamic energy density for virial
-        eq('{Virial 2x Uk [J/Re^3]} = 2*{KE [J/Re^3]}+{Pth [J/Re^3]}',
-                          value_location=ValueLocation.CellCentered)
-    #Hydrodynamic Energy Density
-    eq('{uHydro [J/Re^3]} = ({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
-                          value_location=ValueLocation.CellCentered)
-    #Total Energy Density
-    eq('{Utot [J/Re^3]} = {uHydro [J/Re^3]}+{uB [J/Re^3]}',
-                          value_location=ValueLocation.CellCentered)
+        eqeval(alleq['virial_intermediate'],value_location=cc)
+        eqeval(alleq['virial_volume_energy'],value_location=cc)
+    #Biot savart
     if ('biotsavart' in analysis_type) or analysis_type=='all':
-        eq('{dB_x [nT]} = -({Y [R]}*{J_z [uA/m^2]}-'+
-                           '{Z [R]}*{J_y [uA/m^2]})*637.1/{r [R]}**3')
-        eq('{dB_y [nT]} = -({Z [R]}*{J_x [uA/m^2]}-'+
-                           '{X [R]}*{J_z [uA/m^2]})*637.1/{r [R]}**3')
-        eq('{dB_z [nT]} = -({X [R]}*{J_y [uA/m^2]}-'+
-                           '{Y [R]}*{J_x [uA/m^2]})*637.1/{r [R]}**3')
-        eq('{dB [nT]} = {dB_x [nT]}*{mZhat_x}+{dB_z [nT]}*{mZhat_z}')
-
-    ######################################################################
+        eqeval(alleq['biot_savart'],value_location=cc)
+    #Energy flux
     if 'energy' in analysis_type or analysis_type=='all':
-        #Energy Flux terms
-        #Magnetic field unit vectors
-        eq('{unitbx} ={B_x [nT]}/MAX(1e-15,'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
-                          value_location=ValueLocation.CellCentered)
-        eq('{unitby} ={B_y [nT]}/MAX(1e-15,'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
-                          value_location=ValueLocation.CellCentered)
-        eq('{unitbz} ={B_z [nT]}/MAX(1e-15,'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
-                          value_location=ValueLocation.CellCentered)
-        #Field Aligned Current Magntitude
-        eq('{J_par [uA/m^2]} = {unitbx}*{J_x [uA/m^2]} + '+
-                              '{unitby}*{J_y [uA/m^2]} + '+
-                              '{unitbz}*{J_z [uA/m^2]}',
-                          value_location=ValueLocation.CellCentered)
-        #Poynting Flux
-        eq('{ExB_x [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
-                              '{U_x [km/s]})-{B_x [nT]}*'+
-                                            '({B_x [nT]}*{U_x [km/s]}+'+
-                                             '{B_y [nT]}*{U_y [km/s]}+'+
-                                             '{B_z [nT]}*{U_z [km/s]})'+
-                                           '/(4*pi*1e-7)*1e-9*6371**2',
-                          value_location=ValueLocation.CellCentered)
-        eq('{ExB_y [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
-                              '{U_y [km/s]})-{B_y [nT]}*'+
-                                            '({B_x [nT]}*{U_x [km/s]}+'+
-                                             '{B_y [nT]}*{U_y [km/s]}+'+
-                                             '{B_z [nT]}*{U_z [km/s]})'+
-                                           '/(4*pi*1e-7)*1e-9*6371**2',
-                          value_location=ValueLocation.CellCentered)
-        eq('{ExB_z [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
-                              '{U_z [km/s]})-{B_z [nT]}*'+
-                                            '({B_x [nT]}*{U_x [km/s]}+'+
-                                             '{B_y [nT]}*{U_y [km/s]}+'+
-                                             '{B_z [nT]}*{U_z [km/s]})'+
-                                           '/(4*pi*1e-7)*1e-9*6371**2',
-                          value_location=ValueLocation.CellCentered)
-        #Total pressure Flux
-        eq('{P0_x [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
-                          '*{U_x [km/s]}',
-                          value_location=ValueLocation.CellCentered)
-        eq('{P0_y [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
-                          '*{U_y [km/s]}',
-                          value_location=ValueLocation.CellCentered)
-        eq('{P0_z [W/Re^2]} = ({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
-                          '*{U_z [km/s]}',
-                          value_location=ValueLocation.CellCentered)
-        #Total Energy Flux
-        eq('{K_x [W/Re^2]} = {P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
-                          value_location=ValueLocation.CellCentered)
-        eq('{K_y [W/Re^2]} = {P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
-                          value_location=ValueLocation.CellCentered)
-        eq('{K_z [W/Re^2]} = {P0_z [W/Re^2]}+{ExB_z [W/Re^2]}',
-                          value_location=ValueLocation.CellCentered)
-    ######################################################################
+        eqeval(alleq['energy_flux'],value_location=cc)
+    #Reconnection variables
     if 'reconnect' in analysis_type:
-        eq('{minus_uxB_x}=-({U_y [km/s]}*{B_z [nT]}-'+
-                           '{U_z [km/s]}*{B_y [nT]})')
-        eq('{minus_uxB_y}=-({U_z [km/s]}*{B_x [nT]}-'+
-                           '{U_x [km/s]}*{B_z [nT]})')
-        eq('{minus_uxB_z}=-({U_x [km/s]}*{B_y [nT]}-'+
-                           '{U_y [km/s]}*{B_x [nT]})')
-        eq('{E [uV/m]} = sqrt({minus_uxB_x}**2+'+
-                             '{minus_uxB_y}**2+{minus_uxB_z}**2)')
-        eq('{J [uA/m^2]} = sqrt({J_x [uA/m^2]}**2+'+
-                               '{J_y [uA/m^2]}**2+{J_z [uA/m^2]}**2)')
-        eq('{eta [m/S]} = IF({J [uA/m^2]}>0.002,'+
-                            '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)')
-        eq('{eta [Re/S]} = {eta [m/S]}/(6371*1000)')
         tp.macro.execute_extended_command('CFDAnalyzer3',
                                           'CALCULATE FUNCTION = '+
                                           'CELLVOLUME VALUELOCATION = '+
                                           'CELLCENTERED')
-        eq('{Cell Size [Re]} = {Cell Volume}**(1/3)')
-        eq('{Reynolds_m_cell} = 4*pi*1e-4*'+
-               'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
-                                 '{Cell Size [Re]}/({eta [Re/S]}+1e-9)')
-    ######################################################################
-    if 'trackIM' in analysis_type:
-        eq('{trackEth_acc [J/Re^3]} = {dp_acc [nPa]}*6371**3',
-            value_location=ValueLocation.CellCentered)
-        eq('{trackDp_acc [nPa]} = {drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
-              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
-            value_location=ValueLocation.CellCentered)
-        eq('{trackKE_acc [J/Re^3]} = {trackDp_acc [nPa]}*6371**3',
-            value_location=ValueLocation.CellCentered)
-        eq('{trackWth [W/Re^3]} = IF({dtime_acc [s]}>0,'+
-                             '{trackEth_acc [J/Re^3]}/{dtime_acc [s]},0)',
-            value_location=ValueLocation.CellCentered)
-        eq('{trackWKE [W/Re^3]} = IF({dtime_acc [s]}>0,'+
-                             '{trackKE_acc [J/Re^3]}/{dtime_acc [s]},0)',
-            value_location=ValueLocation.CellCentered)
-    if analysis_type=='all':
-        eq('{KEpar [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                                    '(({U_x [km/s]}*{unitbx})**2+'+
-                                    '({U_y [km/s]}*{unitby})**2+'+
-                                    '({U_z [km/s]}*{unitbz})**2) *'+
-                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
-                          value_location=ValueLocation.CellCentered)
-        eq('{KEperp [J/Re^3]} = {Rho [amu/cm^3]}/2 *'+
-                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
-                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
-                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
-                                       '*1e6*1.6605e-27*1e6*1e9*6371**3',
-                          value_location=ValueLocation.CellCentered)
-    #Terms with derivatives (experimental)
-    if analysis_type=='development':
-        #Vorticity
-        eq('{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
-                              '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
-                              '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)',
-                          value_location=ValueLocation.CellCentered)
+        eqeval(alleq['reconnect'],value_location=cc)
+    #trackIM
+    if'trackIM'in analysis_type:eqeval(alleq['trackIM'],value_location=cc)
+    #user_selected
+    if 'add_eqset' in kwargs:
+        for eq in [eq for eq in alleq if eq in kwargs.get('add_eqset')]:
+            eqeval(alleq[eq])
+    if 'global_eq' in kwargs:
+        eqeval(kwargs.get('global_eq'))
 
 def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
     """Function to calculate integral of variable on a 3D exterior surface
@@ -1631,6 +1679,7 @@ def calc_state(mode, sourcezone, **kwargs):
     #       See example use of 'assert' if any pre_recs are needed
     #####################################################################
     #Call calc_XYZ_state and return state_index and create zonename
+    print(mode)
     if 'iso_betastar' in mode:
         zonename = 'mp_'+mode
         state_index = calc_betastar_state(zonename,sourcezone,**kwargs)
@@ -1859,7 +1908,6 @@ def calc_Jpar_state(mode, sourcezone, **kwargs):
         valid_indices =global_index[(global_th>0) & (global_phi>0)]
         #Calculate min distance for each point
 
-        from IPython import embed; embed()
         state = any([np.sqrt((global_th[i]-t[0])**2 +
                                     (global_phi[i]-t[1])**2) < tol
                                                    for t in targets]).real
@@ -1867,14 +1915,12 @@ def calc_Jpar_state(mode, sourcezone, **kwargs):
             state[i] = any([np.sqrt((global_th[i]-t[0])**2 +
                                     (global_phi[i]-t[1])**2) < tol
                                                    for t in targets]).real
-        from IPython import embed; embed()
         state[proj_indices] = 1
         sourcezone.values(mode)[::] = state
 
         '''
         th_str = th.split('*')[0]+'[deg]'
         phi_str= phi.split('*')[0]+'[deg]'
-        from IPython import embed; embed()
         xmax = 15
         ymax = 30
         zmax = 30
@@ -1924,7 +1970,6 @@ def calc_Jpar_state(mode, sourcezone, **kwargs):
                                                             '{'+mode+'})',
                                                         value_location=CC,
                                                         zones=[sourcezone])
-        from IPython import embed; embed()
     return zone.dataset.variable(mode).index
 
 def calc_bs_state(sonicspeed, betastarblank, xtail, mpexists=False):
@@ -2052,7 +2097,7 @@ def calc_betastar_state(zonename, srczone, **kwargs):
     betamax = str(kwargs.get('mpbetastar',0.7))
     srcZnIndex = str(srczone.index+1)
     if 'future' in srczone.name:
-        zonename = 'future_'+mode
+        zonename = 'future_'+kwargs.get('mode','iso_betastar')
         closed_zone = kwargs.get('future_closed_zone')
     else:
         closed_zone = kwargs.get('closed_zone')
