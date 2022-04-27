@@ -36,7 +36,7 @@ if __name__ == "__main__":
                 'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
     trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
                'localdbug/trackim/3d__var_1_e20140219-020100-000.plt')
-    paleo = ('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
+    paleo=('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
     ccmc  = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
              'output/CCMC/3d__var_1_e20130713-204700-037.plt')
 
@@ -62,7 +62,10 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath='babyrun/',
+                                                    integrate_volume=False,
+                                                    do_interfacing=True,
                                                    analysis_type='energy')
+            #modes=['iso_betastar','rc'],
     #with tp.session.suspend():
     #    if True:#manually switch on or off
     #timestamp

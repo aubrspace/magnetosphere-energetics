@@ -90,6 +90,127 @@ def get_open_close_integrands(zone, integrands):
                                   name+'OpenS':outputname+'OpenS ' +units})
     return openClose_dict
 
+def conditional_mod(integrands,conditions,savename,**kwargs):
+    """Constructer function for common integrand modifications
+    Inputs
+        integrands(dict{str:str})- (static) in/output terms to calculate
+        conditions (list[str,str,...])- keys for conditions will be AND
+        savename (str)- name for output ie:'Flank','AOP','Downtail_lobes'
+    Outputs
+        interfaces(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    mods, eq = {}, tp.data.operate.execute_equation
+    #Condition options: 'open', 'closed', 'tail','on_innerbound', '<L7','>L7'
+    for term in integrands.items():
+        name = term[0].split(' [')[0]
+        outputname = term[1].split(' [')[0]
+        units = '['+term[1].split('[')[1].split(']')[0]+']'
+        new_eq = '{'+name+savename+'} = IF('
+        if ('open' in conditions) or ('closed' in conditions):
+            if (('not' in conditions) and ('open' in conditions)) or(
+                                                      'closed' in conditions):
+                new_eq+='({Status}==3) &&'#closed
+            else:
+                new_eq+='({Status}==2 || {Status}==1) &&'#open
+        if 'tail' in conditions:
+            if 'not' in conditions:
+                new_eq+='({Tail}==0) &&'
+            else:
+                new_eq+='({Tail}==1) &&'
+        if 'on_innerbound' in conditions:
+            if 'not' in conditions:
+                new_eq+='({r [R]}=='+str(kwargs.get('inner_r',3))+') &&'
+            else:
+                new_eq+='({r [R]}!='+str(kwargs.get('inner_r',3))+') &&'
+        if 'L7' in conditions:
+            if '<' in conditions:
+                new_eq+='({Lshell}<7) &&'
+            elif '>' in conditions:
+                new_eq+='({Lshell}>7) &&'
+            elif '=' in conditions:
+                new_eq+='({Lshell}==7) &&'
+        if any([c in ['open','closed','tail','on_innerbound','L7'] for
+                                                           c in conditions]):
+            #chop hanging && and close up condition
+            new_eq = '&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
+            #TODO: check if the equation has already been calculated
+            mods.update({name+savename:outputname+savename+units})
+    return mods
+
+def get_interface_integrands(zone,integrands,**kwargs):
+    """Creates dictionary of terms to be integrated for energy analysis
+    Inputs
+        zone(Zone)- tecplot Zone
+        integrands(dict{str:str})- (static) in/output terms to calculate
+    Outputs
+        interfaces(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    #May need to identify the 'tail' portion of the surface
+    if ((('mp'in zone.name and 'inner' not in zone.name) or
+        ('lobe' in zone.name) or
+        ('close' in zone.name))and
+     (not any(['Tail' in n for n in zone.dataset.variable_names]))):
+        get_day_flank_tail(zone)
+
+    interfaces, eq = {}, tp.data.operate.execute_equation
+    #Depending on the zone we'll have different interfaces
+    ##Magnetopause
+    if ('mp' in zone.name) and ('inner' not in zone.name):
+        #Flank
+        interfaces.update(conditional_mod(integrands,
+                                          ['open','not tail'],'Flank'))
+        #Tail(lobe)
+        interfaces.update(conditional_mod(integrands,
+                                          ['open','tail'],'Tail_lobe'))
+        #Tail(closed/NearEarthrXnLine)
+        interfaces.update(conditional_mod(integrands,
+                                          ['closed','tail'],'Tail_close'))
+        #TODO: find and store the NearEarthNeutralLine Xloc like subsolar
+        #Dayside
+        interfaces.update(conditional_mod(integrands,
+                                          ['closed','not tail'],'Dayside'))
+    ##InnerBoundary
+    if 'inner' in zone.name:
+        #Poles
+        interfaces.update(conditional_mod(integrands,['open'],'Poles'))
+        #MidLatitude
+        interfaces.update(conditional_mod(integrands,['L>7'],'MidLat'))
+        #LowLatitude
+        interfaces.update(conditional_mod(integrands,['L<7'],'LowLat'))
+    ##Lobes
+    if 'lobe' in zone.name:
+        #Flank- but not really bc it's hard to infer
+        #Poles
+        interfaces.update(conditional_mod(integrands,
+                    ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
+        #Tail(lobe)
+        interfaces.update(conditional_mod(integrands,['tail'],'Tail_lobe'))
+        #AuroralOvalProjection- Very hard to infer, will save for post
+    ##Closed
+    if 'close' in zone.name:
+        #Dayside- again letting magnetopause lead here
+        #L7
+        interfaces.update(conditional_mod(integrands,['L=7'],'L7'))
+        #AuroralOvalProjection- skipped
+        #MidLatitude
+        interfaces.update(conditional_mod(integrands,
+                   ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
+        #Tail(closed/NearEarthrXnLine)
+        interfaces.update(conditional_mod(integrands,['tail'],'Tail_close'))
+    ##RingCurrent
+    if 'rc' in zone.name:
+        #LowLatitude
+        interfaces.update(conditional_mod(integrands,
+                   ['on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
+        #L7
+        interfaces.update(conditional_mod(integrands,
+               ['not on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
+    from IPython import embed; embed()
+    time.sleep(3)
+
+    return interfaces
+
+
 def energy_to_dB(energy, *, conversion=-8e13):
     """Function converts energy term to magnetic perturbation term w factor
     Inputs
@@ -125,14 +246,14 @@ def get_energy_dict():
     Outputs
         energy_dict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
-    flux_suffixes = ['_escape','_net', '_injection']
+    flux_suffixes = ['_escape','_injection']#net will be calculated in post
     units = ' [W/Re^2]'
     postunits = ' [W]'
     energy_dict = {}
     for direction in flux_suffixes:
         energy_dict.update({'ExB'+direction+units:'ExB'+direction+postunits,
-                            'P0'+direction+units:'P0'+direction+postunits,
-                            'K'+direction+units:'K'+direction+postunits})
+                            'P0'+direction+units:'P0'+direction+postunits})
+        #Total flux K calculated in post
     return energy_dict
 
 def get_virial_dict(zone):
@@ -172,10 +293,22 @@ def surface_analysis(zone, **kwargs):
             customTerms(dict{str:str})- any one-off integrations
     Outputs
         surface_power- power, or energy flux at the magnetopause surface
+
+    ###################################################################
+    # These integrals are like sandwhiches, pick and chose what to
+    #  include from each category:
+    #       Core: primary integrands (turkey club or meatball sub)
+    #       SpatialMods: proliferates core results (6" or footlong)
+    #       Nonscalars: usually just surface area (lettuce)
+    #       customTerms: anything else? see 'equations' for options!
+    ###################################################################
     """
-    #Calculate needed surface variables for integrations
-    if 'analysis_type' in kwargs:
-        analysis_type = kwargs.pop('analysis_type')
+    #TODO: 1.Develop a way to tell while you're here if a certain interface is
+    #         already covered.
+    #      2.Add Downtail/NEXL, AOP, Poles, Midlat dictionaries for integrands
+    #      3.Put subzone specific if's for adding to integrands
+    if'analysis_type' in kwargs: analysis_type = kwargs.pop('analysis_type')
+    #Find needed surface variables for integrations
     if ('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
@@ -190,14 +323,17 @@ def surface_analysis(zone, **kwargs):
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications spatially parsing results
-    if 'innerbound' not in zone.name:
-        #integrands.update(get_dft_integrands(zone, integrands))
-        pass
+    if kwargs.get('do_interfacing',False):
+        integrands.update(get_interface_integrands(zone,integrands))
     else:
-        integrands.update(get_low_lat_integrands(zone, integrands))
-    integrands.update(get_open_close_integrands(zone, integrands))
+        if 'innerbound' not in zone.name and kwargs.get('doDFT',False):
+            integrands.update(get_dft_integrands(zone, integrands))
+        if 'innerbound' in zone.name:
+            integrands.update(get_low_lat_integrands(zone, integrands))
+        integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
+    if 'rc' in zone.name: from IPython import embed; embed()
     for term in integrands.items():
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):

@@ -321,9 +321,11 @@ def generate_3Dobj(sourcezone, **kwargs):
                 zone.name = kwargs.get('zone_rename','')+'_'+m
             zonelist.append(zone)
             state_indices.append(state_index)
+            if 'modes' in kwargs:
+                get_surf_geom_variables(zone)
 
     #Assign magnetopause variable and get geometry vars (others will ref)
-    if sourcezone.dataset.variable('mp*') is not None:
+    if (sourcezone.dataset.variable('mp*') is not None)and'modes'not in kwargs:
         kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
         get_surf_geom_variables(sourcezone.dataset.zone('mp*'))
         #get_surf_geom_variables(sourcezone.dataset.zone('ext_bs*'))
@@ -397,7 +399,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     tail_analysis_cap = kwargs.get('tail_analysis_cap',
                                    kwargs.get('tail_cap',-20))
     integrate_volume = kwargs.get('integrate_volume', True)
-    save_mesh = kwargs.get('save_mesh', True)
+    save_mesh = kwargs.get('save_mesh', False)
     write_data = kwargs.get('write_data', True)
     disp_result = kwargs.get('disp_result', True)
     verbose = kwargs.get('verbose', True)
@@ -467,15 +469,16 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
-        for zone in zonelist[0:1]:
+        for zone in zonelist:
             #integrate power on main surface
             print('Working on: '+zone.name+' surface')
             surf_results = surface_analysis(zone,**kwargs)
-            #Add time and x_subsolar
-            surf_results['Time [UTC]'] = eventtime
-            surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
-            mp_mesh.update({'Time [UTC]':
+            if ('mp_' in zone.name) and ('inner' not in zone.name):
+                #Add x_subsolar
+                surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
+                mp_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
+            surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
             if save_mesh:
                 cc_length =len(zone.values('x_cc').as_numpy_array())
@@ -488,7 +491,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                                 '1DExB_net [W/Re^2]']:
                     savemeshvars[kwargs.get('modes')[0]].append(name)
-        if 'iso_betastar' in kwargs.get('modes'):
+        if (('iso_betastar' in kwargs.get('modes')) and ('mp_' in zone.name)
+                                               and ('inner' not in zone.name)):
             #integrate power on innerboundary surface
             inner_mesh = {}
             inner_zone = field_data.zone('*innerbound*')
@@ -520,7 +524,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     eq = tp.data.operate.execute_equation
                     eq('{'+usename+'}={'+var+'}',zones=[region],
                             value_location=ValueLocation.CellCentered)
-                    savemeshvars[kwargs.get('modes')[state_index[0]]].append(usename)
+                    savemeshvars[kwargs.get('modes')[state_index[0]]].append(
+                                                                     usename)
     ################################################################
     if save_mesh:
         #save mesh to hdf file
