@@ -12,8 +12,7 @@ from tecplot.exception import *
 import pandas as pd
 #interpackage modules
 from global_energetics.extract import swmf_access
-from global_energetics.extract.surface_tools import (surface_analysis,
-                                                     calc_integral)
+from global_energetics.extract import surface_tools
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     get_global_variables,
@@ -195,7 +194,7 @@ def prep_field_data(field_data, **kwargs):
     itr_max = kwargs.get('itr_max', 100)
     tol = kwargs.get('tol', 0.1)
     if kwargs.get('verbose',False):
-        show_settings(kwargs)
+        show_settings(**kwargs)
     #Auxillary data from tecplot file
     aux = field_data.zone('global_field').aux_data
     if do_cms:
@@ -222,8 +221,10 @@ def prep_field_data(field_data, **kwargs):
     #Get x_subsolar if not already there
     if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
         x_subsolar = float(aux['x_subsolar'])
+        x_nexl = float(aux['x_nexl'])
         if do_cms:
             future_x_subsolar = float(future_aux['x_subsolar'])
+            future_x_nexl = float(future_aux['x_nexl'])
         closed_index = None
         closed_zone = None
         #Assign closed zone info if already exists
@@ -260,13 +261,21 @@ def prep_field_data(field_data, **kwargs):
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closed_zone.index).values('X *').max())
-        print('x_subsolar found at {}'.format(x_subsolar))
+        x_nexl = -1*kwargs.get('inner_r',3)
+        x_nexl = min(x_nexl,
+                field_data.zone(closed_zone.index).values('X *').min())
+        print('x_subsolar: {}, x_nexl: {}'.format(x_subsolar, x_nexl))
         aux['x_subsolar'] = x_subsolar
+        aux['x_nexl'] = x_nexl
         if do_cms:
             future_x_subsolar = 1
             future_x_subsolar = max(future_x_subsolar,
               field_data.zone(future_closed_zone.index).values('X *').max())
+            future_x_nexl = -1*kwargs.get('inner_r',3)
+            future_x_nexl = min(future_x_nexl,
+             field_data.zone(future_closed_zone.index).values('X *').min())
             future_aux['x_subsolar'] = future_x_subsolar
+            future_aux['x_nexl'] = future_x_nexl
         if do_trace:
             #delete streamzone
             field_data.delete_zones(closedzone_index)
@@ -453,6 +462,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                                            **kwargs)
     # !!! kwargs updated !!!
     kwargs.update({'x_subsolar':float(aux['x_subsolar'])})
+    kwargs.update({'x_nexl':float(aux['x_nexl'])})
     kwargs.update({'closed_zone':closed_zone})
     kwargs.update({'future_closed_zone':future_closed_zone})
     main_frame = [fr for fr in tp.frames('main')][0]
@@ -470,12 +480,13 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if integrate_surface:
         for zone in zonelist:
-            #integrate power on main surface
+            #integrate power on created surface
             print('Working on: '+zone.name+' surface')
-            surf_results = surface_analysis(zone,**kwargs)
+            surf_results = surface_tools.surface_analysis(zone,**kwargs)
             if ('mp_' in zone.name) and ('inner' not in zone.name):
                 #Add x_subsolar
                 surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
+                surf_results['X_NEXL [Re]'] = float(aux['x_nexl'])
                 mp_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
             surf_results['Time [UTC]'] = eventtime
@@ -491,8 +502,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                                 '1DExB_net [W/Re^2]']:
                     savemeshvars[kwargs.get('modes')[0]].append(name)
-        if (('iso_betastar' in kwargs.get('modes')) and ('mp_' in zone.name)
-                                               and ('inner' not in zone.name)):
+        if(('iso_betastar' in kwargs.get('modes'))and('mp_' in zone.name)
+                                           and ('inner' not in zone.name)):
             #integrate power on innerboundary surface
             inner_mesh = {}
             inner_zone = field_data.zone('*innerbound*')
@@ -508,6 +519,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                     var.split(' ')[0]+'*').as_numpy_array()
                 inner_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
+        #quick post_proc, saves on number of integration calls
+        data_to_write = surface_tools.post_proc(data_to_write,
+                         do_interfacing=kwargs.get('do_interfacing',False))
     ################################################################
     if integrate_volume:
         for state_index in enumerate(state_indices):

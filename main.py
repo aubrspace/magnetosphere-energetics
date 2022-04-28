@@ -64,6 +64,8 @@ if __name__ == "__main__":
                                                     outputpath='babyrun/',
                                                     integrate_volume=False,
                                                     do_interfacing=True,
+                                            modes=['iso_betastar','nlobe'],
+                                                    verbose=True,
                                                    analysis_type='energy')
             #modes=['iso_betastar','rc'],
     #with tp.session.suspend():

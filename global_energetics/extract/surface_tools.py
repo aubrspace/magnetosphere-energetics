@@ -20,6 +20,147 @@ from global_energetics.extract.stream_tools import (integrate_tecplot,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
+def post_proc(results,**kwargs):
+    """Simple post integration processing, especially for summed terms and
+        other sides of interface values
+    Inputs
+        results ()
+        kwargs:
+            do_interfacing (bool)
+    Returns
+        results (MODIFIED)
+    """
+    flank = pd.DataFrame()
+    tail_l = pd.DataFrame()
+    tail_c = pd.DataFrame()
+    day = pd.DataFrame()
+    poles = pd.DataFrame()
+    midlat = pd.DataFrame()
+    lowlat = pd.DataFrame()
+    l7 = pd.DataFrame()
+    for name, df in results.items():
+        #Combine 'injections' and 'escapes' back into net
+        injections = df[[k for k in df.keys() if 'injection' in k]]
+        escapes = df[[k for k in df.keys() if 'escape' in k]]
+        net_values = injections.values+escapes.values
+        net_keys = ['_net'.join(k.split('_injection')) for k in df.keys()
+                    if 'injection' in k]
+        for k in enumerate(net_keys):df[k[1]]=net_values[0][k[0]]
+
+        #Combine P0 and ExB into K (total flux)
+        p0 = df[[k for k in df.keys() if 'P0' in k]]
+        ExB = df[[k for k in df.keys() if 'ExB' in k]]
+        K_values = p0.values+ExB.values
+        K_keys = ['K'.join(k.split('P0')) for k in df.keys()if 'P0' in k]
+        for k in enumerate(K_keys):df[k[1]]=K_values[0][k[0]]
+
+        if kwargs.get('do_interfacing',False):
+            #Find the non-empty interfaces
+            if flank.empty:
+                flank=df[[k for k in df.keys() if 'Flank' in k]].copy()
+            if tail_l.empty:
+                tail_l=df[
+                        [k for k in df.keys()if'Tail_lobe'in k]].copy()
+            if tail_c.empty:
+                tail_c=df[
+                        [k for k in df.keys()if'Tail_close'in k]].copy()
+            if day.empty:
+                day = df[[k for k in df.keys() if'Dayside'in k]].copy()
+            if poles.empty:
+                poles = df[[k for k in df.keys() if'Poles'in k]].copy()
+            if midlat.empty:
+                midlat =df[[k for k in df.keys()if'Midlat'in k]].copy()
+            if lowlat.empty:
+                lowlat=df[[k for k in df.keys()if'Lowlat'in k]].copy()
+            if l7.empty:
+                l7=df[[k for k in df.keys()if'L7'in k]].copy()
+
+    if kwargs.get('do_interfacing',False):
+        for name, df in results.items():
+            #Fill the empty interfaces with opposite non-empty copy
+            #Magnetopause: Flank+Tail_l+Tail_c+Dayside
+            if ('mp' in name) and ('inner' not in name):
+                if df[[k for k in df.keys() if 'Flank' in k]].empty:
+                    for k in enumerate(flank.keys()):
+                        df[k[1]]=flank[k[1]]*-1
+                if df[[k for k in df.keys() if 'Tail_lobe'in k]].empty:
+                    for k in enumerate(tail_l.keys()):
+                        df[k[1]]=tail_l[k[1]]*-1
+                if df[[k for k in df.keys() if'Tail_close'in k]].empty:
+                    for k in enumerate(tail_c.keys()):
+                        df[k[1]]=tail_c[k[1]]*-1
+                if df[[k for k in df.keys() if'Dayside'in k]].empty:
+                    for k in enumerate(day.keys()):
+                        df[k[1]]=day[k[1]]*-1
+            ##InnerBoundary: Poles+MidLat+LowLat
+            if 'inner' in name:
+                if df[[k for k in df.keys() if 'Poles' in k]].empty:
+                    for k in enumerate(poles.keys()):
+                        df[k[1]]=poles[k[1]]*-1
+                if df[[k for k in df.keys() if 'MidLat' in k]].empty:
+                    for k in enumerate(midlat.keys()):
+                        df[k[1]]=midlat[k[1]]*-1
+                if df[[k for k in df.keys() if 'LowLat' in k]].empty:
+                    for k in enumerate(lowlat.keys()):
+                        df[k[1]]=lowlat[k[1]]*-1
+            ##Lobes: Flank+Poles+Tail_l+AuroralOvalProjection
+            if 'lobe' in name:
+                if df[[k for k in df.keys() if 'Flank' in k]].empty:
+                    for k in enumerate(flank.keys()):
+                        df[k[1]]=flank[k[1]]*-1
+                if df[[k for k in df.keys() if 'Poles' in k]].empty:
+                    for k in enumerate(poles.keys()):
+                        df[k[1]]=poles[k[1]]*-1
+                if df[[k for k in df.keys() if 'Tail_lobe' in k]].empty:
+                    for k in enumerate(tail_l.keys()):
+                        df[k[1]]=tail_l[k[1]]*-1
+            ##Closed: Dayside+L7+AOP+MidLat+Tail_c
+            if 'close' in name:
+                if df[[k for k in df.keys() if 'Dayside' in k]].empty:
+                    for k in enumerate(day.keys()):
+                        df[k[1]]=day[k[1]]*-1
+                if df[[k for k in df.keys() if 'L7' in k]].empty:
+                    for k in enumerate(l7.keys()):
+                        df[k[1]]=l7[k[1]]*-1
+                if df[[k for k in df.keys() if 'MidLat' in k]].empty:
+                    for k in enumerate(midlat.keys()):
+                        df[k[1]]=midlat[k[1]]*-1
+                if df[[k for k in df.keys()if'Tail_close' in k]].empty:
+                    for k in enumerate(tail_c.keys()):
+                        df[k[1]]=tail_c[k[1]]*-1
+            ##RingCurrent: LowLat+L7
+            if 'rc' in name:
+                if df[[k for k in df.keys() if 'LowLat' in k]].empty:
+                    for k in enumerate(lowlat.keys()):
+                        df[k[1]]=lowlat[k[1]]*-1
+                if df[[k for k in df.keys() if 'L7' in k]].empty:
+                    for k in enumerate(l7.keys()):
+                        df[k[1]]=l7[k[1]]*-1
+        ##TODO: handle AOP separately
+        #       remove 'enumerates' for all the above
+        #       move to a post_proc_interface function called from here
+        #       think about keeping it with one per type
+        #                                       with OR name conditions?
+        from IPython import embed; embed()
+        '''
+        if zone[[k for k in zone.keys() if 'AOP' in k]].empty:
+            whole_keys=[k for k in zone.keys()if ('_injection 'in k
+                                                     or   '_escape 'in k
+                                                     or   '_net 'in k)]
+            for k in enumerate(whole_keys):
+                zone[k[1]] = zone[k[0]]
+        for name,zone in results.items():
+            if any([mod in k for k in zone.keys()]):
+                existing_interface=zone[[k for f in zone.keys()if mod in k]]
+        #Fill in interface fluxes from adjacent subzones
+        if ('mp' in zone.name) and ('inner' not in zone.name):
+            if not any(['Flank'in k for k in zone.keys()]):
+                flank_keys = [k.split(' [W]')[0]+'Flank [W]' for k in
+                              zone.keys() if '[W]' in k]
+        pass
+    from IPython import embed; embed()
+        '''
+    return results
 def get_dft_integrands(zone, integrands):
     """Creates dictionary of terms to be integrated for energy analysis
     Inputs
@@ -90,25 +231,30 @@ def get_open_close_integrands(zone, integrands):
                                   name+'OpenS':outputname+'OpenS ' +units})
     return openClose_dict
 
-def conditional_mod(integrands,conditions,savename,**kwargs):
+def conditional_mod(integrands,conditions,modname,**kwargs):
     """Constructer function for common integrand modifications
     Inputs
         integrands(dict{str:str})- (static) in/output terms to calculate
         conditions (list[str,str,...])- keys for conditions will be AND
-        savename (str)- name for output ie:'Flank','AOP','Downtail_lobes'
+        modname (str)- name for output ie:'Flank','AOP','Downtail_lobes'
     Outputs
         interfaces(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     mods, eq = {}, tp.data.operate.execute_equation
-    #Condition options: 'open', 'closed', 'tail','on_innerbound', '<L7','>L7'
+    variables = tp.active_frame().dataset.variable_names
+    #Condition options:'open','closed','tail','on_innerbound','<L7','>L7'
+
+    #Check that this interface hasn't already been done by another sz
+    if [i.split(' ')[0] for i in integrands][0]+modname in variables:
+        return mods
     for term in integrands.items():
         name = term[0].split(' [')[0]
         outputname = term[1].split(' [')[0]
         units = '['+term[1].split('[')[1].split(']')[0]+']'
-        new_eq = '{'+name+savename+'} = IF('
+        new_eq = '{'+name+modname+'} = IF('
         if ('open' in conditions) or ('closed' in conditions):
             if (('not' in conditions) and ('open' in conditions)) or(
-                                                      'closed' in conditions):
+                                                   'closed' in conditions):
                 new_eq+='({Status}==3) &&'#closed
             else:
                 new_eq+='({Status}==2 || {Status}==1) &&'#open
@@ -130,11 +276,11 @@ def conditional_mod(integrands,conditions,savename,**kwargs):
             elif '=' in conditions:
                 new_eq+='({Lshell}==7) &&'
         if any([c in ['open','closed','tail','on_innerbound','L7'] for
-                                                           c in conditions]):
+                                                         c in conditions]):
             #chop hanging && and close up condition
-            new_eq = '&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
-            #TODO: check if the equation has already been calculated
-            mods.update({name+savename:outputname+savename+units})
+            new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
+            eq(new_eq)
+            mods.update({name+modname:outputname+modname+units})
     return mods
 
 def get_interface_integrands(zone,integrands,**kwargs):
@@ -152,7 +298,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
      (not any(['Tail' in n for n in zone.dataset.variable_names]))):
         get_day_flank_tail(zone)
 
-    interfaces, eq = {}, tp.data.operate.execute_equation
+    interfaces, test_i = {}, [i.split(' ')[0] for i in integrands][0]
+    variables = zone.dataset.variable_names
     #Depending on the zone we'll have different interfaces
     ##Magnetopause
     if ('mp' in zone.name) and ('inner' not in zone.name):
@@ -162,10 +309,9 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #Tail(lobe)
         interfaces.update(conditional_mod(integrands,
                                           ['open','tail'],'Tail_lobe'))
-        #Tail(closed/NearEarthrXnLine)
+        #Tail(closed/NearEarthXLine)
         interfaces.update(conditional_mod(integrands,
                                           ['closed','tail'],'Tail_close'))
-        #TODO: find and store the NearEarthNeutralLine Xloc like subsolar
         #Dayside
         interfaces.update(conditional_mod(integrands,
                                           ['closed','not tail'],'Dayside'))
@@ -182,7 +328,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #Flank- but not really bc it's hard to infer
         #Poles
         interfaces.update(conditional_mod(integrands,
-                    ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
+                ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
         #Tail(lobe)
         interfaces.update(conditional_mod(integrands,['tail'],'Tail_lobe'))
         #AuroralOvalProjection- Very hard to infer, will save for post
@@ -194,26 +340,23 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #AuroralOvalProjection- skipped
         #MidLatitude
         interfaces.update(conditional_mod(integrands,
-                   ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
-        #Tail(closed/NearEarthrXnLine)
+               ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
+        #Tail(closed/NearEarthXLine)
         interfaces.update(conditional_mod(integrands,['tail'],'Tail_close'))
     ##RingCurrent
     if 'rc' in zone.name:
         #LowLatitude
         interfaces.update(conditional_mod(integrands,
-                   ['on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
+               ['on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
         #L7
         interfaces.update(conditional_mod(integrands,
-               ['not on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
-    from IPython import embed; embed()
-    time.sleep(3)
-
+           ['not on_innerbound'],'L7',inner_r=kwargs.get('inner_r',3)))
     return interfaces
 
 
 def energy_to_dB(energy, *, conversion=-8e13):
     """Function converts energy term to magnetic perturbation term w factor
-    Inputs
+   Inputs
         energy(tuple(tuple)- (str,[float]) term to be converted
         virial_conversion(float)- -8e13, conversion factor based on dipole
     Outputs
@@ -303,10 +446,6 @@ def surface_analysis(zone, **kwargs):
     #       customTerms: anything else? see 'equations' for options!
     ###################################################################
     """
-    #TODO: 1.Develop a way to tell while you're here if a certain interface is
-    #         already covered.
-    #      2.Add Downtail/NEXL, AOP, Poles, Midlat dictionaries for integrands
-    #      3.Put subzone specific if's for adding to integrands
     if'analysis_type' in kwargs: analysis_type = kwargs.pop('analysis_type')
     #Find needed surface variables for integrations
     if ('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0):
@@ -333,7 +472,6 @@ def surface_analysis(zone, **kwargs):
         integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
-    if 'rc' in zone.name: from IPython import embed; embed()
     for term in integrands.items():
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
