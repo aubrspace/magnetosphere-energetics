@@ -1371,9 +1371,13 @@ def equations(**kwargs):
                                    '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                '{Pth [J/Re^3]}':'{P [nPa]}*6371**3',
                '{KE [J/Re^3]}':'{Dp [nPa]}/2*6371**3',
+               '{uHydro [J/Re^3]}':'({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
                '{uB_dipole [J/Re^3]}':'{Bdmag [nT]}**2'+
                                    '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-               '{uHydro [J/Re^3]}':'({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+               '{ub [J/Re^3]}':'(({B_x [nT]}-{Bdx})**2+'+
+                                '({B_y [nT]}-{Bdy})**2+'+
+                                '({B_z [nT]}-{Bdz})**2)'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                '{Utot [J/Re^3]}':'{uHydro [J/Re^3]}+{uB [J/Re^3]}'}
 
     ######################################################################
@@ -1674,12 +1678,15 @@ def calc_state(mode, sourcezone, **kwargs):
     """
     #####################################################################
     #   This is where new subzones/surfaces can be put in
-    #       Simply create a function calc_MYNEWSURF_state and call it
+    #       To create a function calc_MYNEWSURF_state and call it
     #       Recommend: zonename as input so variable name is automated
     #       See example use of 'assert' if any pre_recs are needed
     #####################################################################
     #Call calc_XYZ_state and return state_index and create zonename
-    print(mode)
+    if 'future' in sourcezone.name:
+        closed_zone = kwargs.get('closed_zone')
+    else:
+        closed_zone = kwargs.get('future_closed_zone')
     if 'iso_betastar' in mode:
         zonename = 'mp_'+mode
         state_index = calc_betastar_state(zonename,sourcezone,**kwargs)
@@ -1690,6 +1697,7 @@ def calc_state(mode, sourcezone, **kwargs):
                                         kwargs.get('sp_y',0),
                                         kwargs.get('sp_z',0),
                                         kwargs.get('sp_rmax',3),
+                                        sourcezone,
                                         rmin=kwargs.get('sp_rmin',0))
     elif mode == 'box':
         zonename = mode
@@ -1699,7 +1707,8 @@ def calc_state(mode, sourcezone, **kwargs):
                                      kwargs.get('box_ymax',5),
                                      kwargs.get('box_ymin',-5),
                                      kwargs.get('box_zmax',5),
-                                     kwargs.get('box_zmin',-5))
+                                     kwargs.get('box_zmin',-5),
+                                     sourcezone)
     elif 'shue' in mode:
         if mode =='shue97':
             zonename = 'shu97'
@@ -1707,67 +1716,79 @@ def calc_state(mode, sourcezone, **kwargs):
             zonename = 'shue98'
         state_index = calc_shue_state(tp.active_frame().dataset, mode,
                                       kwargs.get('x_subsolar'),
-                                      kwargs.get('tail_cap', -20))
+                                      kwargs.get('tail_cap', -20),
+                                      sourcezone)
     elif 'lcb' in mode:
         assert kwargs.get('do_trace',False) == False, (
                             "lcb mode only works with do_trace==False!")
-        assert kwargs.get('closed_zone').index != None, (
-                                    'No closed_zone present! Cant do lcb')
+        assert closed_zone != None, ('No closed_zone present! Cant do lcb')
+        zonename = closed_zone.name
         if 'future' in sourcezone.name:
-            zonename = 'future_mp_'+kwargs.get('closed_zone').name
-            state_index = tp.active_frame().dataset.variable(
+            state_index = sourcezone.dataset.variable(
                               kwargs.get('future_closed_zone').name).index
         else:
-            zonename = kwargs.get('closed_zone').name
-            state_index = tp.active_frame().dataset.variable(
-                                     kwargs.get('closed_zone').name).index
+            state_index = sourcezone.dataset.variable(closed_zone.name).index
     elif 'lobe' in mode:
-        mpvar = kwargs.get('mpvar', sourcezone.dataset.variable('mp*'))
+        if 'future' in sourcezone.name:
+            mpvar = sourcezone.dataset.variable('future_mp*')
+        else:
+            mpvar = kwargs.get('mpvar', sourcezone.dataset.variable('mp*'))
+        from IPython import embed;embed()
+        #TODO: -figure out why sz future values arent being found and the
+        #       assertions are triggering
+        #      -make it so future zones are only used for the delta state
+        #       and not all the volume integrals
+        #TODO: check that all the desired quantities are being captured
+        #       run full 'babyrun' at 1hr cadence,if good start collection
+        #       move back to analysis scripts
         assert kwargs.get('do_trace',False) == False, (
                             "lobe mode only works with do_trace==False!")
         assert mpvar is not None,('magnetopause variable not found'+
                                   'cannot calculate lobe zone!')
         zonename = 'ms_'+mode
-        if mode.lower().find('s') != -1:
-            state_index = calc_lobe_state(mpvar.name, 'south')
+        if mode.lower().find('slobe') != -1:
+            state_index = calc_lobe_state(mpvar.name, 'south', sourcezone)
+        elif mode.lower().find('nlobe') != -1:
+            state_index = calc_lobe_state(mpvar.name, 'north', sourcezone)
         else:
-            state_index = calc_lobe_state(mpvar.name, 'north')
+            state_index = calc_lobe_state(mpvar.name, 'both', sourcezone)
     elif 'rc' in mode:
-        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+        assert type(closed_zone) != type(None), ('No'+
                                        ' closed_zone present! Cant do rc')
         zonename = 'ms_'+mode
-        state_index = calc_rc_state(kwargs.get('closed_zone').name,
+        state_index = calc_rc_state(closed_zone.name,
                                     str(kwargs.get('lshelllim',7)),
-                                    **kwargs)
+                                    sourcezone, **kwargs)
     elif 'ps' in mode:
-        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+        assert type(closed_zone) != type(None), ('No'+
                                        ' closed_zone present! Cant do ps')
         zonename = 'ms_'+mode
-        state_index = calc_ps_qDp_state('ps',
-                                        kwargs.get('closed_zone').name,
+        state_index = calc_ps_qDp_state('ps', closed_zone.name,
                                         str(kwargs.get('lshelllim',7)),
-                                        str(kwargs.get('bxmax',10)))
+                                        str(kwargs.get('bxmax',10)),
+                                        sourcezone)
     elif 'qDp' in mode:
-        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+        assert type(closed_zone) != type(None), ('No'+
                                       ' closed_zone present! Cant do qDp')
         zonename = 'ms_'+mode
-        state_index = calc_ps_qDp_state('qDp',
-                                        kwargs.get('closed_zone').name,
+        state_index = calc_ps_qDp_state('qDp', closed_zone.name,
                                         str(kwargs.get('lshelllim',7)),
-                                        str(kwargs.get('bxmax',10)))
+                                        str(kwargs.get('bxmax',10)),
+                                        sourcezone)
     elif 'closed' in mode:
-        assert type(kwargs.get('closed_zone')) != type(None), ('No'+
+        assert type(closed_zone) != type(None), ('No'+
                                    ' closed_zone present! Cant do closed')
         zonename = 'ms_'+mode
-        state_index = calc_ps_qDp_state('closed',
-                                        kwargs.get('closed_zone').name,
+        state_index = calc_ps_qDp_state('closed', closed_zone.name,
                                         str(kwargs.get('lshelllim',7)),
-                                        str(kwargs.get('bxmax',10)))
+                                        str(kwargs.get('bxmax',10)),
+                                        sourcezone)
     elif 'bs' in mode:
         zonename = 'ext_'+mode
         state_index = calc_bs_state(kwargs.get('sonicspeed',34),
                                     kwargs.get('betastarblank',2),
                                     kwargs.get('tail_cap',-20),
+                                    sourcezone,
                                     mpexists=('mpvar' in kwargs.keys()))
         #TEMPORARY REROUTE FOR BOW SHOCK MODE, SEEMS TO BE GRID RES ISSUE
         #state_index = tp.active_frame().dataset.variable('Cs *').index
@@ -1791,7 +1812,7 @@ def calc_state(mode, sourcezone, **kwargs):
             warnings.warn("multiple 'inner' zones found, "+
                                    "default to first listed!",UserWarning)
         zonename = 'ms_'+mode
-        state_index = calc_Jpar_state(mode, sourcezone)
+        state_index = calc_Jpar_state(mode, sourcezone, sourcezone)
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
@@ -1827,7 +1848,7 @@ def foot_dist(foot,target,tol):
     """
     return np.sqrt((foot[0]-target[0])**2+(foot[1]-target[1])**2)<tol
 
-def calc_Jpar_state(mode, sourcezone, **kwargs):
+def calc_Jpar_state(mode, sourcezone,  **kwargs):
     """Function creates equation for region of projected Jparallel (field
       aligned current density). Typically found on an inner coupling boundary
       between GMand IE.
@@ -1972,7 +1993,8 @@ def calc_Jpar_state(mode, sourcezone, **kwargs):
                                                         zones=[sourcezone])
     return zone.dataset.variable(mode).index
 
-def calc_bs_state(sonicspeed, betastarblank, xtail, mpexists=False):
+def calc_bs_state(sonicspeed, betastarblank, xtail, sourcezone, *,
+                  mpexists=False):
     """Function creates equation for the bow shock region
     Inputs
         sonicspeed- gas dynamics speed of sound: sqrt(gamma*P/rho)[km/s]
@@ -1982,17 +2004,25 @@ def calc_bs_state(sonicspeed, betastarblank, xtail, mpexists=False):
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    if 'future' in sourcezone.name:
+        state = 'future_ext_bs_Cs'
+    else:
+        state = 'ext_bs_Cs'
     if not mpexists:
-        eq('{ext_bs_Cs}=if({beta_star}>'+str(betastarblank)+',{Cs [km/s]}'
-                                               +','+str(2*sonicspeed)+')')
+        eq('{'+state+'}=if({beta_star}['+src+']>'+str(betastarblank)+
+                             ',{Cs [km/s]}['+src+'],'+str(2*sonicspeed)+')',
+                             zones=[0])
     else:
         #UPDATE
-        eq('{ext_bs_Cs}=if({X [R]}=='+str(xtail)+','+str(sonicspeed)+','+
-                       'if({beta_star}>'+str(betastarblank)+'&&'+
-                          '{X [R]}>'+str(xtail)+',{Cs [km/s]},0))')
-    return tp.active_frame().dataset.variable('ext_bs_Cs').index
+        eq('{'+state+'}=if({X [R]}=='+str(xtail)+','+str(sonicspeed)+','+
+                       'if({beta_star}['+src+']>'+str(betastarblank)+'&&'+
+                          '{X [R]}>'+str(xtail)+',{Cs [km/s]}['+src+'],0))',
+                          zones=[0])
+    return sourcezone.dataset.variable('ext_bs_Cs').index
 
-def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
+def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,*,
+                      Lvar='Lshell'):
     """Function creates equation for the plasmasheet or quasi diploar
         region within the confines of closed field line surface indicated
         by closed_var
@@ -2004,31 +2034,30 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,*,Lvar='Lshell'):
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    if 'future' in sourcezone.name: state = 'future_ms_'+ps_qDp+'_L>'
+    else: state = 'ms_'+ps_qDp+'_L>'
     if ps_qDp == 'ps':
-        eq('{ms_ps_L>'+lshelllim+'} = if({'+closed_var+'}==1&&'+
-                                        '{'+Lvar+'}>'+lshelllim+'&&'+
-                                        '{r [R]}>3&&'+
-                                        'abs({B_x [nT]})<'+bxmax+'&&'+
-                                        '{X [R]}<0,1,0)')
-        return tp.active_frame().dataset.variable(
-                                               'ms_ps_L>'+lshelllim).index
+        eq('{'+state+lshelllim+'} = if({'+closed_var+'}['+src+']==1&&'+
+                                     '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
+                                     '{r [R]}>3&&'+
+                                    'abs({B_x [nT]}['+src+'])<'+bxmax+'&&'+
+                                     '{X [R]}<0,1,0)',zones=[0])
     elif ps_qDp == 'qDp':
-        eq('{ms_qDp_L>'+lshelllim+'} = if({'+closed_var+'}>0&&'+
-                                         '{'+Lvar+'}>'+lshelllim+'&&'+
-                                         '{r [R]}>3&&'+
-                                         '(abs({B_x [nT]})>'+bxmax+'||'+
-                                         '{X [R]}>0),1,0)')
-        return tp.active_frame().dataset.variable(
-                                              'ms_qDp_L>'+lshelllim).index
+        eq('{'+state+lshelllim+'} = if({'+closed_var+'}['+src+']>0&&'+
+                                    '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
+                                    '{r [R]}>3&&'+
+                                    '(abs({B_x [nT]}['+src+'])>'+bxmax+'||'+
+                                    '{X [R]}>0),1,0)',zones=[0])
     elif ps_qDp == 'closed':
-        eq('{ms_closed_L>'+lshelllim+'} = if({'+closed_var+'}>0&&'+
-                                         '{'+Lvar+'}>'+lshelllim+'&&'+
-                                         '{r [R]}>3,1,0)')
-        return tp.active_frame().dataset.variable(
-                                           'ms_closed_L>'+lshelllim).index
+        eq('{'+state+lshelllim+'} = if({'+closed_var+'}['+src+']>0&&'+
+                                    '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
+                                    '{r [R]}>3,1,0)',zones=[0])
+    return sourcezone.dataset.variable(state+lshelllim).index
 
 
-def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell', **kwargs):
+def calc_rc_state(closed_var, lshellmax, sourcezone, *,
+                  Lvar='Lshell', **kwargs):
     """Function creates eq for region containing ring currents within the
         confines of closed field line surface indicated by closed_var
     Inputs
@@ -2040,12 +2069,16 @@ def calc_rc_state(closed_var, lshellmax, *, Lvar='Lshell', **kwargs):
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
-    eq('{ms_rc_L='+lshellmax+'} = if({'+closed_var+'}==1&&'+
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    if 'future' in sourcezone.name: state = 'future_ms_rc_L='
+    else: state = 'ms_rc_L='
+    eq('{'+state+lshellmax+'} = if({'+closed_var+'}['+src+']==1&&'+
                            '{r [R]}>'+str(kwargs.get('inner_r',3))+'&&'+
-                                    '{'+Lvar+'}<'+lshellmax+',1,0)')
-    return tp.active_frame().dataset.variable('ms_rc_L='+lshellmax).index
+                                    '{'+Lvar+'}['+src+']<'+lshellmax+',1,0)',
+                                    zones=[0])
+    return sourcezone.dataset.variable(state+lshellmax).index
 
-def calc_lobe_state(mp_var, northsouth, *, status='Status'):
+def calc_lobe_state(mp_var, northsouth, sourcezone, *, status='Status'):
     """Function creates equation for north or south lobe within the
         confines of magnetopause surface indicated by mp_var
     Inputs
@@ -2056,14 +2089,26 @@ def calc_lobe_state(mp_var, northsouth, *, status='Status'):
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    #set state name
+    if 'both' in northsouth: state = 'Lobe'
+    else: state = northsouth[0].upper()+'Lobe'
+    if'future'in sourcezone.name: state = 'future_'+state
+    #calculate
     if northsouth == 'north':
-        eq('{NLobe} = if({'+mp_var+'}==1&&{'+status+'}==2,1,0)')
-        return tp.active_frame().dataset.variable('NLobe').index
+        eq('{'+state+'} = if({'+mp_var+'}['+src+']==1&&'+
+                            '{'+status+'}['+src+']==2,1,0)',zones=[0])
+    elif northsouth == 'south':
+        eq('{'+state+'} = if({'+mp_var+'}['+src+']==1&&'+
+                            '{'+status+'}['+src+']==1,1,0)',zones=[0])
     else:
-        eq('{SLobe} = if({'+mp_var+'}==1&&{'+status+'}==1,1,0)')
-        return tp.active_frame().dataset.variable('SLobe').index
+        eq('{'+state+'} = if({'+mp_var+'}['+src+']==1&&'+
+                '({'+status+'}['+src+']==1 ||{'+status+'}['+src+']==1),1,0)',
+                zones=[0])
+    return sourcezone.dataset.variable(state).index
 
-def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
+def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin,
+                              sourcezone):
     """Function creates equation in tecplot representing surface
     Inputs
         xmax, xmin, hmax, hmin, rmin- spatial bounds
@@ -2071,6 +2116,7 @@ def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin):
     Outputs
         created variable index
     """
+    ##OBSOLETE
     drho = rhomax-rhomin
     eq = tp.data.operate.execute_equation
     eq('{mp_rho_transition} = '+
@@ -2097,7 +2143,7 @@ def calc_betastar_state(zonename, srczone, **kwargs):
     betamax = str(kwargs.get('mpbetastar',0.7))
     srcZnIndex = str(srczone.index+1)
     if 'future' in srczone.name:
-        zonename = 'future_'+kwargs.get('mode','iso_betastar')
+        zonename = 'future_'+zonename
         closed_zone = kwargs.get('future_closed_zone')
     else:
         closed_zone = kwargs.get('closed_zone')
@@ -2135,7 +2181,8 @@ def calc_delta_state(t0state, t1state):
                         'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
                         value_location=ValueLocation.CellCentered)
 
-def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
+def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south,
+                       sourcezone):
     """Function creates equation in tecplot representing surface
     Inputs
         xmax, xmin, hmax, hmin, rmin- spatial bounds
@@ -2143,6 +2190,7 @@ def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
     Outputs
         created variable index
     """
+    ##OBSOLETE
     eq = tp.data.operate.execute_equation
     eq('{mp_rho_innerradius} = '+
         'IF({X [R]} >'+str(xmin-2)+'&&'+
@@ -2152,7 +2200,7 @@ def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south):
                    '({r [R]} <'+str(rmin_south)+'&&{Z [R]}<0),1,0)),0)')
     return tp.active_frame().dataset.variable('mp_rho_innerradius').index
 
-def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
+def calc_shue_state(field_data, mode, x_subsolar,xtail,sourcezone,*, dx=10):
     """Function creates state variable for magnetopause surface based on
         Shue emperical model
     Inputs
@@ -2163,10 +2211,15 @@ def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
     Outputs
         state_var_index- index to find state variable in tecplot
     """
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    if 'future' in sourcezone.name: state = 'future_'+mode
+    else: state = mode
     #Probe field data at x_subsolar + dx to find Bz and Dp
-    Bz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][9]
+    Bz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[
+                                                        sourcezone.index][9]
     Dp_index = field_data.variable('Dp *').index
-    Dp = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[0][Dp_index]
+    Dp = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[
+                                                 sourcezone.index][Dp_index]
     #Get r0 and alpha based on IMF conditions
     if mode == 'shue97':
         r0, alpha = r0_alpha_1997(Bz, Dp)
@@ -2174,12 +2227,12 @@ def calc_shue_state(field_data, mode, x_subsolar, xtail, *, dx=10):
         r0, alpha = r0_alpha_1998(Bz, Dp)
     eq = tp.data.operate.execute_equation
     eq('{theta} = IF({X [R]}>0,atan({h}/{X [R]}), pi-atan({h}/{X [R]}))')
-    eq('{r'+mode+'} = '+str(r0)+'*(2/(1+cos({theta})))**'+str(alpha))
-    eq('{'+mode+'} = IF(({r [R]} < {r'+mode+'}) &&'+
+    eq('{r'+state+'} = '+str(r0)+'*(2/(1+cos({theta})))**'+str(alpha))
+    eq('{'+state+'} = IF(({r [R]} < {r'+state+'}) &&'+
                       '({X [R]} > '+str(xtail)+'), 1, 0)')
     return field_data.variable(mode).index
 
-def calc_sphere_state(mode, xc, yc, zc, rmax, *, rmin=0):
+def calc_sphere_state(mode, xc, yc, zc, rmax, sourcezone,*, rmin=0):
     """Function creates state variable for a simple box
     Inputs
         mode
@@ -2189,7 +2242,9 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, *, rmin=0):
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
-    eq('{'+mode+'} = IF(sqrt(({X [R]} -'+str(xc)+')**2 +'+
+    if 'future' in sourcezone.name: state = 'future_'+mode
+    else: state = mode
+    eq('{'+state+'} = IF(sqrt(({X [R]} -'+str(xc)+')**2 +'+
                             '({Y [R]} -'+str(yc)+')**2 +'+
                             '({Z [R]} -'+str(zc)+')**2) <'+
                              str(rmax)+'&&'+
@@ -2197,7 +2252,7 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, *, rmin=0):
                             '({Y [R]} -'+str(yc)+')**2 +'+
                             '({Z [R]} -'+str(zc)+')**2) >'+
                             str(rmin)+',1, 0)')
-    return tp.active_frame().dataset.variable(mode).index
+    return sourcezone.dataset.variable(mode).index
 
 def calc_closed_state(statename, status_key, status_val, xmin, source):
     """Function creates state variable for the closed fieldline region
@@ -2214,7 +2269,7 @@ def calc_closed_state(statename, status_key, status_val, xmin, source):
                                                               zones=[0])
     return tp.active_frame().dataset.variable(statename).index
 
-def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
+def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin,sourcezone):
     """Function creates state variable for a simple box
     Inputs
         mode
@@ -2223,13 +2278,15 @@ def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin):
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
-    eq('{'+mode+'} = IF(({X [R]} >'+str(xmin)+') &&'+
+    if 'future' in sourcezone.name: state = 'future_'+mode
+    else: state = mode
+    eq('{'+state+'} = IF(({X [R]} >'+str(xmin)+') &&'+
                        '({X [R]} <'+str(xmax)+') &&'+
                        '({Y [R]} >'+str(ymin)+') &&'+
                        '({Y [R]} <'+str(ymax)+') &&'+
                        '({Z [R]} >'+str(zmin)+') &&'+
                        '({Z [R]} <'+str(zmax)+'), 1, 0)')
-    return tp.active_frame().dataset.variable(mode).index
+    return sourcezone.dataset.variable(mode).index
 
 def abs_to_timestamp(abstime):
     """Function converts absolute time in sec to a timestamp list

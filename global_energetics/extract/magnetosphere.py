@@ -322,18 +322,34 @@ def generate_3Dobj(sourcezone, **kwargs):
     else:
         kwargs.update({'modes':modes})
 
-    #Create the tecplot objects and store into lists
-    for m in modes:
-        zone, inner_zone, state_index = calc_state(m, sourcezone, **kwargs)
-        if (type(zone) != type(None) or type(inner_zone)!=type(None)):
-            if 'zone_rename' in kwargs:
-                zone.name = kwargs.get('zone_rename','')+'_'+m
-            zonelist.append(zone)
-            state_indices.append(state_index)
-            if 'modes' in kwargs:
-                get_surf_geom_variables(zone)
+    #Will have both a current and future source if cms is on
+    if kwargs.get('do_cms',False):
+        futurezone = sourcezone.dataset.zone('future*')
+        sources=[sourcezone,futurezone]
+    else:
+        sources=sourcezone
 
-    #Assign magnetopause variable and get geometry vars (others will ref)
+    #Create the tecplot objects from the source and store into lists
+    for m in modes:
+        for source in sources:
+            zone, inner_zone, state_index = calc_state(m, source, **kwargs)
+            if (type(zone) != type(None) or type(inner_zone)!=type(None)):
+                if 'zone_rename' in kwargs:
+                    zone.name = kwargs.get('zone_rename','')+'_'+m
+                if source==futurezone:
+                    zone.name='future_'+zone.name
+                    calc_delta_state(
+                            sourcezone.dataset.variable(state_index).name,
+                            futurezone.dataset.variable(state_index).name)
+                zonelist.append(zone)
+                state_indices.append(state_index)
+                if 'modes' in kwargs:
+                    get_surf_geom_variables(zone)
+
+    #Assign magnetopause variable
+    kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
+
+    '''
     if (sourcezone.dataset.variable('mp*') is not None)and'modes'not in kwargs:
         kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
         get_surf_geom_variables(sourcezone.dataset.zone('mp*'))
@@ -343,11 +359,16 @@ def generate_3Dobj(sourcezone, **kwargs):
         get_surf_geom_variables(zonelist[0])
     if kwargs.get('do_cms','energy'in kwargs.get('analysis_type','energy')):
         futurezone = sourcezone.dataset.zone('future*')
-        _,j,future_state_index=calc_state(kwargs.get('mode','iso_betastar'),
-                                          futurezone,**kwargs)
+        for cState in enumerate(state_indices):
+            _,__,fState = calc_state(modes[cState[0]],futurezone,**kwargs)
+            calc_delta_state(sourcezone.dataset.variable(cState[1]).name,
+                             sourcezone.dataset.variable(fState).name)
+        #_,j,future_state_index=calc_state(kwargs.get('mode','iso_betastar'),
+        #                                  futurezone,**kwargs)
         #get state variable representing acquisitions/forfeitures
-        calc_delta_state(sourcezone.dataset.variable(state_index).name,
-                  sourcezone.dataset.variable(future_state_index).name)
+        #calc_delta_state(sourcezone.dataset.variable(state_index).name,
+        #          sourcezone.dataset.variable(future_state_index).name)
+    '''
     return zonelist, state_indices, kwargs
 
 

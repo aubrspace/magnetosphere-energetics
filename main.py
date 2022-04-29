@@ -62,9 +62,11 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath='babyrun/',
-                                                    integrate_volume=False,
+                                                    integrate_surface=False,
+                                                    integrate_volume=True,
                                                     do_interfacing=True,
-                                            modes=['iso_betastar','nlobe'],
+                                                    do_cms=True,
+                              modes=['iso_betastar','lobes','closed','rc'],
                                                     verbose=True,
                                                    analysis_type='energy')
             #modes=['iso_betastar','rc'],

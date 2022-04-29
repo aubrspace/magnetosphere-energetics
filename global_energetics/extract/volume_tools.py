@@ -30,30 +30,27 @@ def energy_post_integr(results, **kwargs):
         newterms(dict{str:[value]})
     """
     newterms = {}
-    #Virial volume terms
-    newterms.update({'uHydro [J]':[results['Eth [J]'][0]+
-                                        results['KE [J]'][0]]})
-    newterms.update({'Utot [J]':[newterms['uHydro [J]'][0]+
-                                      results['uB [J]'][0]]})
+    df = pd.DataFrame(results)
+    #Combine MAG and HYDRO back into total energy
+    uB = df[[k for k in df.keys() if 'uB ' in k]]
+    ub = df[[k for k in df.keys() if 'ub ' in k]]
+    uH = df[[k for k in df.keys() if 'Hydro' in k]]
+    u1_values = uB.values + uH.values #including dipole field
+    u2_values = ub.values + uH.values #disturbance energy
+    u1_keys = ['Utot'.join(k.split('uB ')) for k in df.keys()if 'uB ' in k]
+    u2_keys = ['Utot2'.join(k.split('uB ')) for k in df.keys()if 'uB 'in k]
+    for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
+    for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
     if kwargs.get('do_cms', False):
         u = ' [W]'
-        for direction in ['_acqu', '_forf', '_net']:
-            '''
-            newterms.update({'uHydro'+direction+u:
-                                      [results['Eth'+direction+u][0]+
-                                       results['KE'+direction+u][0]]})
-            newterms.update({'Utot'+direction+u:
-                                  [newterms['uHydro'+direction+u][0]+
-                                    results['uB'+direction+u][0]]})
-            '''
-            #for loc in['Day', 'Flank', 'Tail', 'OpenN', 'OpenS', 'Closed']:
-            for loc in['','OpenN','OpenS','Closed']:
-                newterms.update({'uHydro'+direction+loc+u:
-                                [results['Eth'+direction+loc+u][0]+
-                                 results['KE'+direction+loc+u][0]]})
-                newterms.update({'Utot'+direction+loc+u:
-                                [newterms['uHydro'+direction+loc+u][0]+
-                                 results['uB'+direction+loc+u][0]]})
+        #Combine 'acquisitions' and 'forfeitures' back into net
+        acqus = df[[k for k in df.keys()if 'acqu' in k]]
+        forfs = df[[k for k in df.keys()if 'forf' in k]]
+        net_values = acqus.values+forfs.values
+        net_keys = ['_net'.join(k.split('_acqu')) for k in df.keys()
+                    if 'acqu' in k]
+        for k in enumerate(net_keys):df[k[1]]=net_values[0][k[0]]
+    for key in df.keys(): newterms[key] = [df[key].values[0]]
     return newterms
 
 def virial_post_integr(results):
@@ -148,7 +145,9 @@ def get_energy_integrands(state_var):
     eq = tp.data.operate.execute_equation
     existing_variables = state_var.dataset.variable_names
     #Integrands
-    integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
+    #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
+    integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','ub [J/Re^3]',
+                  'uHydro [J/Re^3]']
     for term in integrands:
         name = term.split(' ')[0]
         if 'Pth' in term:
@@ -187,11 +186,11 @@ def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
             eq('{'+name+'_forf}=IF({delta_volume}==-1,'+
                                                 '{'+term[0]+'}/'+td+',0)',
                                                              zones=[zone])
-            eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
-                                                             zones=[zone])
+            #eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
+            #                                                 zones=[zone])
             mobiledict.update({name+'_acqu':outputname+'_acqu '+units,
-                               name+'_forf':outputname+'_forf '+units,
-                               name+'_net':outputname+'_net '+units})
+                               name+'_forf':outputname+'_forf '+units})
+                              #name+'_net':outputname+'_net '+units})
     return mobiledict
 
 def volume_analysis(state_var, **kwargs):
@@ -242,12 +241,15 @@ def volume_analysis(state_var, **kwargs):
         mobile_terms = get_mobile_integrands(global_zone,integrands,
                                              kwargs.get('deltatime',60),
                                              analysis_type)
-        if 'mp' in state_var.name:
-            #Integral bounds for spatially parsing results
-            #mobile_terms.update(get_dft_integrands(global_zone,
-            #                                       mobile_terms))
-            mobile_terms.update(get_open_close_integrands(global_zone,
-                                                          mobile_terms))
+        if kwargs.get('do_interfacing',False):
+            pass
+        else:
+            if 'mp' in state_var.name:
+                #Integral bounds for spatially parsing results
+                #mobile_terms.update(get_dft_integrands(global_zone,
+                #                                       mobile_terms))
+                mobile_terms.update(get_open_close_integrands(global_zone,
+                                                             mobile_terms))
         integrands.update(mobile_terms)
     ###################################################################
     #Evaluate integrals
@@ -273,6 +275,7 @@ def volume_analysis(state_var, **kwargs):
         results.update(virial_post_integr(results))
     if 'energy' in analysis_type:
         results.update(energy_post_integr(results, **kwargs))
+        '''
         if kwargs.get('do_cms', False):
             for direction in ['_acqu', '_forf','_net']:
                 results.pop('Eth'+direction+' [W]')
@@ -281,6 +284,7 @@ def volume_analysis(state_var, **kwargs):
                 for loc in['OpenN','OpenS','Closed']:
                     results.pop('Eth'+direction+loc+' [W]')
                     results.pop('KE'+direction+loc+' [W]')
+        '''
     blank.active = False
     return pd.DataFrame(results)
 
