@@ -478,6 +478,7 @@ def get_swmf_data(datapath,**kwargs):
         parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True)
+    geoindexdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
     geoindexdata.index = geoindexdata['Time [UTC]']
     geoindexdata.drop(columns=['Time [UTC]'],inplace=True)
     ##SIMULATION LOG
@@ -485,6 +486,7 @@ def get_swmf_data(datapath,**kwargs):
         parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True)
+    swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
     swmflogdata.index = swmflogdata['Time [UTC]']
     swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
     ##SIMULATION SOLARWIND
@@ -493,6 +495,7 @@ def get_swmf_data(datapath,**kwargs):
                                    'hour','min','sec','msec']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
+    swdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
     swdata.index = swdata['Time [UTC]']
     swdata.drop(columns=['Time [UTC]'],inplace=True)
     swdata=swdata[swdata.index < geoindexdata.index[-1]]

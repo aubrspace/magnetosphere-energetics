@@ -49,11 +49,11 @@ def load_hdf_sort(hdf, **kwargs):
 
         #check units OoM
         mp = check_units(mp)
-        inner_mp = check_units(gmdict['/mp_iso_betastar_inner_surface'])
+        #inner_mp = check_units(gmdict['/mp_iso_betastar_inner_surface'])
 
         #repackage in dictionary
         data.update({'mpdict': {'ms_full':mp}})
-        data.update({'inner_mp': inner_mp})
+        #data.update({'inner_mp': inner_mp})
 
     if iedict!={}:
         #repackage in dictionary
@@ -65,14 +65,19 @@ def load_hdf_sort(hdf, **kwargs):
 
     #define subzones with relevant pieces
     msdict = {}
-    for key in gmdict.keys():
-        print(key)
-        if 'ms' in key:
-            cleaned_df = check_timing(gmdict[key],gmtimes)
-            if any(['Virial' in k for k in gmdict[key].keys()]):
-                cleaned_df = check_units(cleaned_df)
-            else:
-                cleaned_df = gmdict[key]
+    for vol,surf in [(k.split('_surface')[0]+'_volume',k) for k in
+                            gmdict.keys() if 'ms' in k and 'surface' in k]:
+        print(vol+'\t'+surf)
+        key = vol.split('_volume')[0]
+        cleaned_vol = check_timing(gmdict[vol],gmtimes)
+        cleaned_surf = check_timing(gmdict[surf],gmtimes)
+        if any(['Virial' in k for k in gmdict[vol].keys()]):
+            cleaned_vol = check_units(cleaned_vol)
+            cleaned_surf = check_units(cleaned_surf)
+        else:
+            cleaned_vol = check_units(cleaned_vol)
+            cleaned_surf = check_units(cleaned_surf)
+            cleaned_df=gather_magnetopause(cleaned_surf,cleaned_vol,gmtimes)
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
                                                   columns=['Time [UTC]'])})
     if msdict!={}:
@@ -130,6 +135,10 @@ def check_units(df,*, smallunit='[nT]', bigunit='[J]', factor=-8e13):
     """
     #Check for small unit in entry and watch out for large values
     for key in df.keys():
+        if (' [' not in key) and ('[' in key):
+            fixed = ' ['.join(key.split('['))
+            warnings.warn("Entry "+key+" fixed to be "+fixed, UserWarning)
+            df[fixed] = df[key]
         if (smallunit in key) and any(abs(df[key])>1e6):
             warnings.warn("Entry "+key+" >1e6! dividing by virial factor",
                           UserWarning)
@@ -153,9 +162,9 @@ def group_subzones(msdict, mode='3zone'):
                         'missing':msdict['missed']}
     elif ('3zone' in mode):
         msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
-                        'closedRegion':msdict['ps']+msdict['qDp'],
-                        'rc':msdict['rc'],
-                        'missing':msdict['missed']}
+                      'closedRegion':msdict['ps']+msdict['qDp'],
+                      'rc':msdict['rc'],
+                      'missing':msdict['missed']}
     elif ('lobes' in mode):
         msdict ={'nlobe':msdict['nlobe'],
                        'slobe':msdict['slobe'],
@@ -177,7 +186,7 @@ def get_subzone_contrib(mpdict, msdict, **kwargs):
     #Quantify amount missing from sum of all subzones
     missing_volume, summed_volume = pd.DataFrame(), pd.DataFrame()
     szkeys = [sz for sz in msdict.values()][0].keys()
-    for key in [k for k in full.keys() if k in szkeys]:
+    for key in [k for k in full.keys() if k in szkeys and '[J]' in k]:
         if key in szkeys:
             fullvalue = full[key]
             added = [m for m in msdict.values()][0][key]

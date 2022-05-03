@@ -77,7 +77,7 @@ def general_plot_settings(ax, **kwargs):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel(kwargs.get('xlabel',''))
     #Ylabel
-    ax.set_ylim(kwargs.get('ylim',None))
+    #ax.set_ylim(kwargs.get('ylim',None))
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.set_ylabel(kwargs.get('ylabel',''))
     ax.tick_params(which='major', length=9)
