@@ -1721,7 +1721,8 @@ def calc_state(mode, sourcezone, **kwargs):
     elif 'lcb' in mode:
         assert kwargs.get('do_trace',False) == False, (
                             "lcb mode only works with do_trace==False!")
-        assert closed_zone != None, ('No closed_zone present! Cant do lcb')
+        assert closed_zone is not None,('No closed_zone present!'+
+                                                 ' Cant do lcb')
         zonename = closed_zone.name
         if 'future' in sourcezone.name:
             state_index = sourcezone.dataset.variable(
@@ -1732,8 +1733,7 @@ def calc_state(mode, sourcezone, **kwargs):
         if 'future' in sourcezone.name:
             mpvar = sourcezone.dataset.variable('future_mp*')
         else:
-            mpvar = kwargs.get('mpvar', sourcezone.dataset.variable('mp*'))
-        from IPython import embed;embed()
+            mpvar = kwargs.get('mpvar',sourcezone.dataset.variable('mp*'))
         #TODO: -figure out why sz future values arent being found and the
         #       assertions are triggering
         #      -make it so future zones are only used for the delta state
@@ -1753,14 +1753,14 @@ def calc_state(mode, sourcezone, **kwargs):
         else:
             state_index = calc_lobe_state(mpvar.name, 'both', sourcezone)
     elif 'rc' in mode:
-        assert type(closed_zone) != type(None), ('No'+
+        assert closed_zone is not None, ('No'+
                                        ' closed_zone present! Cant do rc')
         zonename = 'ms_'+mode
         state_index = calc_rc_state(closed_zone.name,
                                     str(kwargs.get('lshelllim',7)),
                                     sourcezone, **kwargs)
     elif 'ps' in mode:
-        assert type(closed_zone) != type(None), ('No'+
+        assert closed_zone is not None, ('No'+
                                        ' closed_zone present! Cant do ps')
         zonename = 'ms_'+mode
         state_index = calc_ps_qDp_state('ps', closed_zone.name,
@@ -1768,7 +1768,7 @@ def calc_state(mode, sourcezone, **kwargs):
                                         str(kwargs.get('bxmax',10)),
                                         sourcezone)
     elif 'qDp' in mode:
-        assert type(closed_zone) != type(None), ('No'+
+        assert closed_zone is not None, ('No'+
                                       ' closed_zone present! Cant do qDp')
         zonename = 'ms_'+mode
         state_index = calc_ps_qDp_state('qDp', closed_zone.name,
@@ -1776,7 +1776,7 @@ def calc_state(mode, sourcezone, **kwargs):
                                         str(kwargs.get('bxmax',10)),
                                         sourcezone)
     elif 'closed' in mode:
-        assert type(closed_zone) != type(None), ('No'+
+        assert closed_zone is not None, ('No'+
                                    ' closed_zone present! Cant do closed')
         zonename = 'ms_'+mode
         state_index = calc_ps_qDp_state('closed', closed_zone.name,
@@ -2038,19 +2038,19 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,*,
     if 'future' in sourcezone.name: state = 'future_ms_'+ps_qDp+'_L>'
     else: state = 'ms_'+ps_qDp+'_L>'
     if ps_qDp == 'ps':
-        eq('{'+state+lshelllim+'} = if({'+closed_var+'}['+src+']==1&&'+
+        eq('{'+state+lshelllim+'} = if({'+closed_var+'}==1&&'+
                                      '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
                                      '{r [R]}>3&&'+
                                     'abs({B_x [nT]}['+src+'])<'+bxmax+'&&'+
                                      '{X [R]}<0,1,0)',zones=[0])
     elif ps_qDp == 'qDp':
-        eq('{'+state+lshelllim+'} = if({'+closed_var+'}['+src+']>0&&'+
+        eq('{'+state+lshelllim+'} = if({'+closed_var+'}>0&&'+
                                     '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
                                     '{r [R]}>3&&'+
                                     '(abs({B_x [nT]}['+src+'])>'+bxmax+'||'+
                                     '{X [R]}>0),1,0)',zones=[0])
     elif ps_qDp == 'closed':
-        eq('{'+state+lshelllim+'} = if({'+closed_var+'}['+src+']>0&&'+
+        eq('{'+state+lshelllim+'} = if({'+closed_var+'}>0&&'+
                                     '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
                                     '{r [R]}>3,1,0)',zones=[0])
     return sourcezone.dataset.variable(state+lshelllim).index
@@ -2072,7 +2072,7 @@ def calc_rc_state(closed_var, lshellmax, sourcezone, *,
     src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
     if 'future' in sourcezone.name: state = 'future_ms_rc_L='
     else: state = 'ms_rc_L='
-    eq('{'+state+lshellmax+'} = if({'+closed_var+'}['+src+']==1&&'+
+    eq('{'+state+lshellmax+'} = if({'+closed_var+'}==1&&'+
                            '{r [R]}>'+str(kwargs.get('inner_r',3))+'&&'+
                                     '{'+Lvar+'}['+src+']<'+lshellmax+',1,0)',
                                     zones=[0])
@@ -2096,13 +2096,13 @@ def calc_lobe_state(mp_var, northsouth, sourcezone, *, status='Status'):
     if'future'in sourcezone.name: state = 'future_'+state
     #calculate
     if northsouth == 'north':
-        eq('{'+state+'} = if({'+mp_var+'}['+src+']==1&&'+
+        eq('{'+state+'} = if({'+mp_var+'}==1&&'+
                             '{'+status+'}['+src+']==2,1,0)',zones=[0])
     elif northsouth == 'south':
-        eq('{'+state+'} = if({'+mp_var+'}['+src+']==1&&'+
+        eq('{'+state+'} = if({'+mp_var+'}==1&&'+
                             '{'+status+'}['+src+']==1,1,0)',zones=[0])
     else:
-        eq('{'+state+'} = if({'+mp_var+'}['+src+']==1&&'+
+        eq('{'+state+'} = if({'+mp_var+'}==1&&'+
                 '({'+status+'}['+src+']==1 ||{'+status+'}['+src+']==1),1,0)',
                 zones=[0])
     return sourcezone.dataset.variable(state).index
@@ -2177,7 +2177,7 @@ def calc_delta_state(t0state, t1state):
                           future times
     """
     eq = tp.data.operate.execute_equation
-    eq('{delta_volume} = IF({'+t1state+'}==1 && {'+t0state+'}==0, 1,'+
+    eq('{delta_'+t0state+'}=IF({'+t1state+'}==1 && {'+t0state+'}==0, 1,'+
                         'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
                         value_location=ValueLocation.CellCentered)
 

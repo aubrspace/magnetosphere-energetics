@@ -108,9 +108,9 @@ def work(mhddatafile):
         marktime=time.time()
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=True,integrate_volume=True,
-                                analysis_type='energy_virial_trackIM',
-                                    mpbetastar=0.7,
+                                    do_cms=True,analysis_type='energy',
+                                    do_interfacing=True,tshift=45,
+                            modes=['iso_betastar','lobes','closed','rc'],
                                     outputpath=CONTEXT['OUTPUTPATH'])
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
@@ -195,13 +195,13 @@ if __name__ == '__main__':
     #    raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
-    RUNDIR = 'usermod'
-    #RUNDIR = 'starlink'
+    #RUNDIR = 'usermod'
+    RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_febstorm')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -225,16 +225,8 @@ if __name__ == '__main__':
         #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
         for png in donelist:
             parseddonelist.append(png.split('/')[-1].split('.')[0])
-            #yr,mo,dy,hr,mn = png.split('-')
-            #yr = yr.split('_')[-1]
-            #mn = mn.split('.')[0]
-            #parsed = (yr+twodigit(int(mo))+twodigit(int(dy))+'-'+
-            #                           twodigit(int(hr))+twodigit(int(mn)))
-            #parseddonelist.append(parsed)
         for plt in all_solution_times:
             parsednotdone.append(plt.split('e')[-1].split('.')[0])
-            #parsednotdone.append(plt.split('e')[-1].split('.')[0].split(
-            #                                                     '00-')[0])
         solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt' for item
                     in parsednotdone if item not in parseddonelist]
     else:
@@ -267,7 +259,7 @@ if __name__ == '__main__':
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                                 OUTPUTPATH)
-        #shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
+        shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

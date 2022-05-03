@@ -104,7 +104,7 @@ def todimensional(dataset, **kwargs):
     dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
 
 def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
-                     do_trace):
+                     do_trace, tshift):
     """Function checks compatibility of selected settings and displays
         if in verbose mode
     Inputs
@@ -154,6 +154,7 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
             deltatime = (futuretime-eventtime).seconds
         else:
             deltatime=0
+    eventtime+=dt.timedelta(minutes=tshift)
 
     #Check to make sure that dimensional variables are given
     if ('X' in field_data.variable_names and
@@ -338,11 +339,12 @@ def generate_3Dobj(sourcezone, **kwargs):
                     zone.name = kwargs.get('zone_rename','')+'_'+m
                 if source==futurezone:
                     zone.name='future_'+zone.name
-                    calc_delta_state(
-                            sourcezone.dataset.variable(state_index).name,
+                    calc_delta_state(sourcezone.dataset.variable(
+                                    state_index).name.split('future_')[-1],
                             futurezone.dataset.variable(state_index).name)
-                zonelist.append(zone)
-                state_indices.append(state_index)
+                else:
+                    zonelist.append(zone)
+                    state_indices.append(state_index)
                 if 'modes' in kwargs:
                     get_surf_geom_variables(zone)
 
@@ -470,7 +472,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     do_trace, eventtime, deltatime = validate_preproc(field_data, mode,
                                                       source,outputpath,
                                                       do_cms, verbose,
-                                              kwargs.get('do_trace',False))
+                                              kwargs.get('do_trace',False),
+                                              kwargs.get('tshift',0))
     if do_trace:
         lon_bounds = kwargs.get('lon_bounds', 10)
         n_fieldlines = kwargs.get('n_fieldlines', 5)

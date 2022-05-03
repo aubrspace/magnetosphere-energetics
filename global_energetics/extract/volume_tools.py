@@ -159,16 +159,18 @@ def get_energy_integrands(state_var):
             energydict.update({name+state:name+' [J]'})
     return energydict
 
-def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
+def get_mobile_integrands(zone,state_var,integrands,tdelta, analysis_type):
     """Creates dict of integrands for surface motion effects
     Inputs
         zone(Zone)- tecplot Zone
+        state_var(Variable)- tecplot variable used to isolate vol in zone
         integrands(dict{str:str})- (static) in/output terms to calculate
         tdelta(float)- timestep between output files
     Outputs
         mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
+    dstate = 'delta_'+str(state_var.name)
     #for term in integrands.items():
     #Don't proliferate IM tracking variables
     for term in [(t,d) for t,d in integrands.items() if'track' not in t]:
@@ -180,10 +182,10 @@ def get_mobile_integrands(zone, integrands, tdelta, analysis_type):
                 units = '[J]'
             else:
                 units = '[W]'
-            eq('{'+name+'_acqu}=IF({delta_volume}==1,'+
+            eq('{'+name+'_acqu}=IF({'+dstate+'}==1,'+
                                             '-1*{'+term[0]+'}/'+td+',0)',
                                                              zones=[zone])
-            eq('{'+name+'_forf}=IF({delta_volume}==-1,'+
+            eq('{'+name+'_forf}=IF({'+dstate+'}==-1,'+
                                                 '{'+term[0]+'}/'+td+',0)',
                                                              zones=[zone])
             #eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
@@ -209,8 +211,8 @@ def volume_analysis(state_var, **kwargs):
                                        'calculate global variables first!')
     if 'analysis_type' in kwargs:
         analysis_type = kwargs.pop('analysis_type')
-    if 'mp' not in state_var.name:
-        kwargs.update({'do_cms':False})
+    #if 'mp' not in state_var.name:
+    #    kwargs.update({'do_cms':False})
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     global_zone = state_var.dataset.zone(0)
@@ -238,7 +240,8 @@ def volume_analysis(state_var, **kwargs):
     #Integral bounds modifications THIS ACCOUNTS FOR SURFACE MOTION
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
                                         ('energy' in analysis_type)):
-        mobile_terms = get_mobile_integrands(global_zone,integrands,
+        mobile_terms = get_mobile_integrands(global_zone,state_var,
+                                             integrands,
                                              kwargs.get('deltatime',60),
                                              analysis_type)
         if kwargs.get('do_interfacing',False):
@@ -265,8 +268,8 @@ def volume_analysis(state_var, **kwargs):
                                       'Volume [Re^3]'), global_zone))
                                   #**{'VariableOption':'LengthAreaVolume'}))
         if kwargs.get('do_cms',False):
-            results.update(calc_integral(('delta_volume','dVolume [Re^3]'),
-                                         global_zone))
+            results.update(calc_integral(('delta_'+str(state_var.name),
+                                          'dVolume [Re^3]'), global_zone))
         if kwargs.get('verbose',False):
             print(state_var.name+' Volume integration done')
     ###################################################################
