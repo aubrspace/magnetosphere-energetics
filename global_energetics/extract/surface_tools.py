@@ -45,9 +45,9 @@ def post_proc_interface(results,**kwargs):
         if day.empty: day=df[[k for k in df.keys() if'Dayside'in k]].copy()
         if poles.empty:poles=df[[k for k in df.keys() if'Poles'in k]].copy()
         if midlat.empty:
-            midlat =df[[k for k in df.keys()if'Midlat'in k]].copy()
+            midlat =df[[k for k in df.keys()if'MidLat'in k]].copy()
         if lowlat.empty:
-            lowlat=df[[k for k in df.keys()if'Lowlat'in k]].copy()
+            lowlat=df[[k for k in df.keys()if'LowLat'in k]].copy()
         if l7.empty:
             l7=df[[k for k in df.keys()if'L7'in k]].copy()
     #Fill the empty interfaces with opposite non-empty copy

@@ -526,22 +526,23 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                                 '1DExB_net [W/Re^2]']:
                     savemeshvars[kwargs.get('modes')[0]].append(name)
-        if(('iso_betastar' in kwargs.get('modes'))and('mp_' in zone.name)
-                                           and ('inner' not in zone.name)):
-            #integrate power on innerboundary surface
-            inner_mesh = {}
-            inner_zone = field_data.zone('*innerbound*')
-            print('Working on: '+inner_zone.name)
-            inner_surf_results = surface_analysis(inner_zone, **kwargs)
-            inner_surf_results['Time [UTC]'] = eventtime
-            data_to_write.update({zonelist[0].name+'_inner_surface':
+            if(('iso_betastar' in kwargs.get('modes'))and('mp_' in zone.name)
+                                              and ('inner' not in zone.name)):
+                #integrate power on innerboundary surface
+                inner_mesh = {}
+                inner_zone = field_data.zone('*innerbound*')
+                print('Working on: '+inner_zone.name)
+                inner_surf_results = surface_tools.surface_analysis(inner_zone,
+                                                                    **kwargs)
+                inner_surf_results['Time [UTC]'] = eventtime
+                data_to_write.update({zonelist[0].name+'_inner_surface':
                                                        inner_surf_results})
-            if save_mesh:
-                #save inner boundary mesh to the mesh file
-                for var in savemeshvars[kwargs.get('modes')[0]]:
-                    inner_mesh[var]=inner_zone.values(
+                if save_mesh:
+                    #save inner boundary mesh to the mesh file
+                    for var in savemeshvars[kwargs.get('modes')[0]]:
+                        inner_mesh[var]=inner_zone.values(
                                     var.split(' ')[0]+'*').as_numpy_array()
-                inner_mesh.update({'Time [UTC]':
+                    inner_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
         #quick post_proc, saves on number of integration calls
         data_to_write = surface_tools.post_proc(data_to_write,

@@ -34,6 +34,8 @@ if __name__ == "__main__":
     #pass in arguments
     starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
                 'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
+    febstorm = ('localdbug/feb2014/3d__var_1_e20140218-060300-037.plt',
+                'localdbug/feb2014/3d__var_1_e20140218-060400-033.plt')
     trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
                'localdbug/trackim/3d__var_1_e20140219-020100-000.plt')
     paleo=('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
@@ -46,7 +48,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [starlink]:
+    for inputs in [febstorm]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -64,6 +66,7 @@ if __name__ == "__main__":
                                                     outputpath='babyrun/',
                                                     do_interfacing=True,
                                                     do_cms=True,
+                                                    integrate_volume=True,
                               modes=['iso_betastar','lobes','closed','rc'],
                                                     verbose=True,
                                                    analysis_type='energy')

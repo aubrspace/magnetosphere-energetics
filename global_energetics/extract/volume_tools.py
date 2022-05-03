@@ -37,8 +37,8 @@ def energy_post_integr(results, **kwargs):
     uH = df[[k for k in df.keys() if 'Hydro' in k]]
     u1_values = uB.values + uH.values #including dipole field
     u2_values = ub.values + uH.values #disturbance energy
-    u1_keys = ['Utot'.join(k.split('uB ')) for k in df.keys()if 'uB ' in k]
-    u2_keys = ['Utot2'.join(k.split('uB ')) for k in df.keys()if 'uB 'in k]
+    u1_keys = ['Utot '.join(k.split('uB ')) for k in df.keys()if 'uB ' in k]
+    u2_keys = ['Utot2 '.join(k.split('uB ')) for k in df.keys()if 'uB 'in k]
     for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
     for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
     if kwargs.get('do_cms', False):

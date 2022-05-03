@@ -110,6 +110,7 @@ def work(mhddatafile):
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,analysis_type='energy',
                                     do_interfacing=True,tshift=45,
+                                    integrate_volume=True,
                             modes=['iso_betastar','lobes','closed','rc'],
                                     outputpath=CONTEXT['OUTPUTPATH'])
     if log.level==10:
@@ -201,7 +202,7 @@ if __name__ == '__main__':
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_febstorm')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb_cleanup')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -237,7 +238,6 @@ if __name__ == '__main__':
     # Set up the pool with initializing function and associated arguments
     num_workers = min(numproc, len(solution_times))
     print(num_workers)
-    '''
     pool = multiprocessing.Pool(num_workers, initializer=init,
             initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
                       PNGPATH, all_solution_times,LOGLEVEL))
@@ -253,7 +253,6 @@ if __name__ == '__main__':
                 os.removedirs(f)
             except: OSError
     ########################################
-    '''
 
     #Combine and delete individual energetics files
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
