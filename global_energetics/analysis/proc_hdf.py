@@ -198,7 +198,7 @@ def get_subzone_contrib(mpdict, msdict, **kwargs):
     #Identify percentage contribution from each piece
     for ms in msdict.values():
         for key in ms.keys():
-            if key in full.keys():
+            if key in full.keys() and ('[J]' in key or '[Re^3]' in key):
                 ms[key.split('[')[0]+'[%]'] = (100*ms[key]/full[key])
     return mpdict, msdict
 

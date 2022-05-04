@@ -84,8 +84,11 @@ def plot_power(axis, dfdict, times, **kwargs):
     #Update default legend_loc
     kwargs.update({'legend_loc':kwargs.get('legend_loc','upper right')})
     #helper dictionaries
-    keydict = {'inj':'K_injection [W]','esc':'K_escape [W]',
-               'net':'K_net [W]'}
+    keydict = {} #load piece by piece allowing kwargs to get a say
+    keydict.update({'inj':kwargs.get('inj','K_injection [W]')})
+    keydict.update({'esc':kwargs.get('esc','K_escape [W]')})
+    keydict.update({'net':kwargs.get('net','K_net [W]')})
+
     labeldict = {'inj':r'Injection','esc':r'Escape','net':r'Net'}
     colordict = {'inj':'mediumvioletred','esc':'peru','net':'black'}
     fcolordict = {'inj':'palevioletred','esc':'peachpuff','net':'silver'}

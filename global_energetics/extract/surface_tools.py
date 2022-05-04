@@ -51,17 +51,21 @@ def post_proc_interface(results,**kwargs):
         if l7.empty:
             l7=df[[k for k in df.keys()if'L7'in k]].copy()
     #Fill the empty interfaces with opposite non-empty copy
+    #   CAVEAT: for subzone surfaces (dayside,flank,tail)
+    #           the surfaces are identical for the magnetopause
+    #           subsurface as the subvolume surface interface
+    #           so these will NOT be multiplied by -1
     for name, df in results.items():
         #Magnetopause: Flank+Tail_l+Tail_c+Dayside
         if ('mp' in name) and ('inner' not in name):
             if df[[k for k in df.keys() if 'Flank' in k]].empty:
-                for k in flank.keys(): df[k]=flank[k]*-1
+                for k in flank.keys(): df[k]=flank[k]
             if df[[k for k in df.keys() if 'Tail_lobe'in k]].empty:
-                for k in tail_l.keys(): df[k]=tail_l[k]*-1
+                for k in tail_l.keys(): df[k]=tail_l[k]
             if df[[k for k in df.keys() if'Tail_close'in k]].empty:
-                for k in tail_c.keys(): df[k]=tail_c[k]*-1
+                for k in tail_c.keys(): df[k]=tail_c[k]
             if df[[k for k in df.keys() if'Dayside'in k]].empty:
-                for k in day.keys(): df[k]=day[k]*-1
+                for k in day.keys(): df[k]=day[k]
         ##InnerBoundary: Poles+MidLat+LowLat
         if 'inner' in name:
             if df[[k for k in df.keys() if 'Poles' in k]].empty:
@@ -73,21 +77,21 @@ def post_proc_interface(results,**kwargs):
         ##Lobes: Flank+Poles+Tail_l+AuroralOvalProjection
         if 'lobe' in name:
             if df[[k for k in df.keys() if 'Flank' in k]].empty:
-                for k in flank.keys(): df[k]=flank[k]*-1
+                for k in flank.keys(): df[k]=flank[k]
             if df[[k for k in df.keys() if 'Poles' in k]].empty:
                 for k in poles.keys(): df[k]=poles[k]*-1
             if df[[k for k in df.keys() if 'Tail_lobe' in k]].empty:
-                for k in tail_l.keys(): df[k]=tail_l[k]*-1
+                for k in tail_l.keys(): df[k]=tail_l[k]
         ##Closed: Dayside+L7+AOP+MidLat+Tail_c
         if 'close' in name:
             if df[[k for k in df.keys() if 'Dayside' in k]].empty:
-                for k in day.keys(): df[k]=day[k]*-1
+                for k in day.keys(): df[k]=day[k]
             if df[[k for k in df.keys() if 'L7' in k]].empty:
                 for k in l7.keys(): df[k]=l7[k]*-1
             if df[[k for k in df.keys() if 'MidLat' in k]].empty:
                 for k in midlat.keys(): df[k]=midlat[k]*-1
             if df[[k for k in df.keys()if'Tail_close' in k]].empty:
-                for k in tail_c.keys(): df[k]=tail_c[k]*-1
+                for k in tail_c.keys(): df[k]=tail_c[k]
         ##RingCurrent: LowLat+L7
         if 'rc' in name:
             if df[[k for k in df.keys() if 'LowLat' in k]].empty:

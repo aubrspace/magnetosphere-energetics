@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
-from global_energetics.analysis.plot_tools import (pyplotsetup,
+from global_energetics.analysis.plot_tools import (pyplotsetup,safelabel,
                                                    general_plot_settings,
                                                    plot_stack_distr,
                                                    plot_stack_contrib)
@@ -21,6 +21,7 @@ from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.proc_hdf import (load_hdf_sort,
                                                  group_subzones,
                                                  get_subzone_contrib)
+from global_energetics.analysis.analyze_energetics import plot_power
 
 def get_interfaces(sz):
     """Gets list of interfaces given a subzone region
@@ -90,7 +91,7 @@ if __name__ == "__main__":
         os.makedirs(path,exist_ok=True)
 
     #setting pyplot configurations
-    plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
+    plt.rcParams.update(pyplotsetup(mode='print_presentation'))
     #Log files and observational indices
     febObs = read_indices(inPath, prefix='feb2014_', read_supermag=False,
                           tshift=45)
@@ -248,7 +249,6 @@ if __name__ == "__main__":
 
 
     ##Interface generic multiplot
-    Plabel = r'Power $\left[ TW\right]$'
     for szkey in ['ms_full','lobes','closed','rc']:
         if 'full' in szkey: sz = feb_mpdict_mn1[szkey]
         else: sz = feb_msdict_mn1[szkey]
@@ -258,16 +258,14 @@ if __name__ == "__main__":
                                           sharex=True,
                                           figsize=[14,4*len(interfaces)])
         for ax in enumerate(axes):
-            ylims = [sz['K_injection'+interfaces[ax[0]]+' [W]'].min()/1e12,
-                     sz['K_escape'+interfaces[ax[0]]+' [W]'].max()/1e12]
-            ax[1].plot(sz.index,
-                       sz['K_injection'+interfaces[ax[0]]+' [W]']/1e12,
-                       label=r'$'+interfaces[ax[0]]+' injection$')
-            ax[1].plot(sz.index,
-                       sz['K_escape'+interfaces[ax[0]]+' [W]']/1e12,
-                       label=r'$'+interfaces[ax[0]]+' escape$')
-            general_plot_settings(ax[1],ylabel=Plabel,do_xlabel=False,
-                                  ylim=ylims)
+            Plabel = ('Power '+safelabel(interfaces[ax[0]])+
+                                                     r'$\left[ TW\right]$')
+            terms = ['K_'+direc+interfaces[ax[0]]+' [W]'
+                    for direc in ['injection','escape','net']]
+            termdict = {}
+            for d,t in zip(['inj','esc','net'],terms):termdict.update({d:t})
+            plot_power(ax[1], {szkey:sz}, sz.index, **termdict,
+                    ylabel=Plabel,do_xlabel=False,legend_loc='upper left')
         general_plot_settings(ax[-1],ylabel=Plabel,do_xlabel=True,
                                   xlabel=Tlabel)
         interf1.tight_layout(pad=1)
