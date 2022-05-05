@@ -58,6 +58,10 @@ def locate_phase(dfdict,phasekey,**kwargs):
         impact = starlink_impact
         peak1 = starlink_endMain1
         peak2 = starlink_endMain2
+    else:
+        impact = times[0]
+        peak1 = times[round(len(times)/2)]
+        peak2 = times[-1]
 
     #Set condition based on dividers and phase requested
     if 'qt' in phasekey:
@@ -98,7 +102,8 @@ if __name__ == "__main__":
     #starObs = read_indices(inPath, prefix='starlink_', read_supermag=False)
 
     #HDF data, will be sorted and cleaned
-    febSim = load_hdf_sort(inPath+'feb2014_results.h5')
+    #febSim = load_hdf_sort(inPath+'feb2014_results.h5')
+    febSim = load_hdf_sort(inPath+'feb2014_test.h5')
     #starSim = load_hdf_sort(inPath+'starlink_results.h5')
 
     ##Construct "grouped" set of subzones, then get %contrib for each
@@ -109,6 +114,7 @@ if __name__ == "__main__":
                                        febSim['mpdict'],febSim['msdict'])
     #febSim['msdict'] = group_subzones(febSim['msdict'],mode='3zone')
 
+    '''
     ######################################################################
     ##Quiet time
     #parse storm phase
@@ -169,6 +175,7 @@ if __name__ == "__main__":
     qt_contr.tight_layout(pad=1)
     qt_contr.savefig(outQT+'/quiet_contr_energy.png')
     plt.close(qt_contr)
+    '''
     ######################################################################
     ##Main phase
     #parse storm phase

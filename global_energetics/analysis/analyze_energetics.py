@@ -110,7 +110,7 @@ def plot_power(axis, dfdict, times, **kwargs):
             powdict = {'inj':data[keydict['inj']]/1e12,
                        'esc':data[keydict['esc']]/1e12,
                        'net':data[keydict['net']]/1e12}
-            axis.set_ylim([-20, 20])
+            #axis.set_ylim([-20, 20])
         ##PLOT
         for term in ['inj','esc','net']:
             axis.plot(times,powdict[term],label=labeldict[term],
