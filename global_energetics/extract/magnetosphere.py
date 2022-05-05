@@ -223,6 +223,7 @@ def prep_field_data(field_data, **kwargs):
     if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
         x_subsolar = float(aux['x_subsolar'])
         x_nexl = float(aux['x_nexl'])
+        inner_l = float(aux['inner_l'])
         if do_cms:
             future_x_subsolar = float(future_aux['x_subsolar'])
             future_x_nexl = float(future_aux['x_nexl'])
@@ -265,9 +266,13 @@ def prep_field_data(field_data, **kwargs):
         x_nexl = -1*kwargs.get('inner_r',3)
         x_nexl = min(x_nexl,
                 field_data.zone(closed_zone.index).values('X *').min())
-        print('x_subsolar: {}, x_nexl: {}'.format(x_subsolar, x_nexl))
+        inner_l = min(kwargs.get('lshelllim',7),
+                field_data.zone(closed_zone.index).values('Lshell').min())
+        print('x_subsolar: {}, x_nexl: {},inner_L: {}'.format(
+                                                  x_subsolar, x_nexl,inner_l))
         aux['x_subsolar'] = x_subsolar
         aux['x_nexl'] = x_nexl
+        aux['inner_l'] = inner_l
         if do_cms:
             future_x_subsolar = 1
             future_x_subsolar = max(future_x_subsolar,
@@ -275,8 +280,11 @@ def prep_field_data(field_data, **kwargs):
             future_x_nexl = -1*kwargs.get('inner_r',3)
             future_x_nexl = min(future_x_nexl,
              field_data.zone(future_closed_zone.index).values('X *').min())
+            future_inner_l = min(kwargs.get('lshelllim',7),
+             field_data.zone(future_closed_zone.index).values('Lshell').min())
             future_aux['x_subsolar'] = future_x_subsolar
             future_aux['x_nexl'] = future_x_nexl
+            future_aux['inner_l'] = future_inner_l
         if do_trace:
             #delete streamzone
             field_data.delete_zones(closedzone_index)
@@ -487,6 +495,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     # !!! kwargs updated !!!
     kwargs.update({'x_subsolar':float(aux['x_subsolar'])})
     kwargs.update({'x_nexl':float(aux['x_nexl'])})
+    kwargs.update({'lshelllim':float(aux['inner_l'])})
     kwargs.update({'closed_zone':closed_zone})
     kwargs.update({'future_closed_zone':future_closed_zone})
     main_frame = [fr for fr in tp.frames('main')][0]
@@ -511,6 +520,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 #Add x_subsolar
                 surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
                 surf_results['X_NEXL [Re]'] = float(aux['x_nexl'])
+                surf_results['L_min [L]'] = float(aux['inner_l'])
                 mp_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
             surf_results['Time [UTC]'] = eventtime

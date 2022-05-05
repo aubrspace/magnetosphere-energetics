@@ -1639,6 +1639,7 @@ def setup_isosurface(iso_value, varindex, zonename, *,
     #Check for blanking conditions
     if blankvar != '':
         plt.value_blanking.active = True
+        plt.value_blanking.cell_mode = ValueBlankCellMode.PrimaryValue
         blank = plt.value_blanking.constraint(1)
         blank.active = True
         blank.variable = ds.variable(blankvar)
@@ -1684,9 +1685,9 @@ def calc_state(mode, sourcezone, **kwargs):
     #####################################################################
     #Call calc_XYZ_state and return state_index and create zonename
     if 'future' in sourcezone.name:
-        closed_zone = kwargs.get('closed_zone')
-    else:
         closed_zone = kwargs.get('future_closed_zone')
+    else:
+        closed_zone = kwargs.get('closed_zone')
     if 'iso_betastar' in mode:
         zonename = 'mp_'+mode
         state_index = calc_betastar_state(zonename,sourcezone,**kwargs)
@@ -2021,8 +2022,7 @@ def calc_bs_state(sonicspeed, betastarblank, xtail, sourcezone, *,
                           zones=[0])
     return sourcezone.dataset.variable('ext_bs_Cs').index
 
-def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,*,
-                      Lvar='Lshell'):
+def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,**kwargs):
     """Function creates equation for the plasmasheet or quasi diploar
         region within the confines of closed field line surface indicated
         by closed_var
@@ -2034,26 +2034,27 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,*,
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
+    Lvar = kwargs.get('Lvar','Lshell')
     src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
     if 'future' in sourcezone.name: state = 'future_ms_'+ps_qDp+'_L>'
     else: state = 'ms_'+ps_qDp+'_L>'
     if ps_qDp == 'ps':
-        eq('{'+state+lshelllim+'} = if({'+closed_var+'}==1&&'+
+        eq('{'+state+'} = if({'+closed_var+'}==1&&'+
                                      '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
                                      '{r [R]}>3&&'+
                                     'abs({B_x [nT]}['+src+'])<'+bxmax+'&&'+
                                      '{X [R]}<0,1,0)',zones=[0])
     elif ps_qDp == 'qDp':
-        eq('{'+state+lshelllim+'} = if({'+closed_var+'}>0&&'+
+        eq('{'+state+'} = if({'+closed_var+'}>0&&'+
                                     '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
                                     '{r [R]}>3&&'+
                                     '(abs({B_x [nT]}['+src+'])>'+bxmax+'||'+
                                     '{X [R]}>0),1,0)',zones=[0])
     elif ps_qDp == 'closed':
-        eq('{'+state+lshelllim+'} = if({'+closed_var+'}>0&&'+
-                                    '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
-                                    '{r [R]}>3,1,0)',zones=[0])
-    return sourcezone.dataset.variable(state+lshelllim).index
+        eq('{'+state+'} = if({'+closed_var+'}>0&&'+
+                                    '{'+Lvar+'}['+src+']>='+lshelllim+'&&'+
+                                    '{r [R]}>=3,1,0)',zones=[0])
+    return sourcezone.dataset.variable(state).index
 
 
 def calc_rc_state(closed_var, lshellmax, sourcezone, *,
@@ -2072,11 +2073,11 @@ def calc_rc_state(closed_var, lshellmax, sourcezone, *,
     src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
     if 'future' in sourcezone.name: state = 'future_ms_rc_L='
     else: state = 'ms_rc_L='
-    eq('{'+state+lshellmax+'} = if({'+closed_var+'}==1&&'+
-                           '{r [R]}>'+str(kwargs.get('inner_r',3))+'&&'+
+    eq('{'+state+'} = if({'+closed_var+'}==1&&'+
+                           '{r [R]}>='+str(kwargs.get('inner_r',3))+'&&'+
                                     '{'+Lvar+'}['+src+']<'+lshellmax+',1,0)',
                                     zones=[0])
-    return sourcezone.dataset.variable(state+lshellmax).index
+    return sourcezone.dataset.variable(state).index
 
 def calc_lobe_state(mp_var, northsouth, sourcezone, *, status='Status'):
     """Function creates equation for north or south lobe within the

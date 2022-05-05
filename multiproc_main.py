@@ -202,7 +202,7 @@ if __name__ == '__main__':
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb_cleanup')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb_test')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0::5]
+                                key=makevideo.time_sort)[820:965:5]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

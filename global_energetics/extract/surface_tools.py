@@ -98,6 +98,16 @@ def post_proc_interface(results,**kwargs):
                 for k in lowlat.keys(): df[k]=lowlat[k]*-1
             if df[[k for k in df.keys() if 'L7' in k]].empty:
                 for k in l7.keys(): df[k]=l7[k]*-1
+        ##Reverse 'injection' 'escape' to stay with consistent conventions
+        true_esc = [(k,v.values[0]) for k,v in df.items()
+                    if ('injection' in k) and (v.values[0]>0)]
+        true_inj = [(k,v.values[0]) for k,v in df.items()
+                    if ('escape' in k) and (v.values[0]<0)]
+        for n,(kinj,vesc) in enumerate(true_esc):
+            df[kinj] = true_inj[n][1]
+            print(name+' '+kinj+' reversed!')
+            df[true_inj[n][0]] = vesc
+            print(name+' '+true_inj[n][0]+' reversed!')
     ##Finally, calculate AOP
     for name, df in results.items():
         if ('lobe' in name) or ('close' in name):
@@ -117,6 +127,7 @@ def post_proc_interface(results,**kwargs):
                     df[aop] = (df[k]-df[fl]-df[pl]-df[tl_l])
                 else:
                     df[aop] = (df[k]-df[dy]-df[l_7]-df[ml]-df[tl_c])
+                print(name+k+'\t'+str(df[aop].values))
     return results
 
 def post_proc(results,**kwargs):
@@ -258,11 +269,11 @@ def conditional_mod(integrands,conditions,modname,**kwargs):
                 new_eq+='({r [R]}!='+str(kwargs.get('inner_r',3))+') &&'
         if 'L7' in conditions:
             if '<' in conditions:
-                new_eq+='({Lshell}<7) &&'
+                new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
             elif '>' in conditions:
-                new_eq+='({Lshell}>7) &&'
+                new_eq+='({Lshell}>'+str(kwargs.get('L',7))+') &&'
             elif '=' in conditions:
-                new_eq+='({Lshell}==7) &&'
+                new_eq+='(abs({Lshell}-'+str(kwargs.get('L',7))+')<0.5) &&'
         if any([c in ['open','closed','tail','on_innerbound','L7'] for
                                                          c in conditions]):
             #chop hanging && and close up condition
@@ -308,9 +319,11 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #Poles
         interfaces.update(conditional_mod(integrands,['open'],'Poles'))
         #MidLatitude
-        interfaces.update(conditional_mod(integrands,['L7','>'],'MidLat'))
+        interfaces.update(conditional_mod(integrands,['L7','>'],'MidLat',
+                                          L=kwargs.get('lshelllim')))
         #LowLatitude
-        interfaces.update(conditional_mod(integrands,['L7','>'],'LowLat'))
+        interfaces.update(conditional_mod(integrands,['L7','<'],'LowLat',
+                                          L=kwargs.get('lshelllim')))
     ##Lobes
     if 'lobe' in zone.name:
         #Flank- but not really bc it's hard to infer
@@ -324,7 +337,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
     if 'close' in zone.name:
         #Dayside- again letting magnetopause lead here
         #L7
-        interfaces.update(conditional_mod(integrands,['L7','='],'L7'))
+        interfaces.update(conditional_mod(integrands,['L7','='],'L7',
+                                          L=kwargs.get('lshelllim')))
         #AuroralOvalProjection- skipped
         #MidLatitude
         interfaces.update(conditional_mod(integrands,
@@ -451,12 +465,12 @@ def surface_analysis(zone, **kwargs):
     ###################################################################
     #Integral bounds modifications spatially parsing results
     if kwargs.get('do_interfacing',False):
-        integrands.update(get_interface_integrands(zone,integrands))
+        integrands.update(get_interface_integrands(zone,integrands,**kwargs))
     else:
         if 'innerbound' not in zone.name and kwargs.get('doDFT',False):
             integrands.update(get_dft_integrands(zone, integrands))
         if 'innerbound' in zone.name:
-            integrands.update(get_low_lat_integrands(zone, integrands))
+            integrands.update(get_low_lat_integrands(zone, integrands,**kwargs))
         integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
@@ -464,6 +478,8 @@ def surface_analysis(zone, **kwargs):
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
             print(zone.name+term[1]+' integration done')
+    if 'closed' in zone.name:
+        for k in [k for k in results.keys() if 'AOP' in k]: print(results[k])
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doSurfaceArea', True):
