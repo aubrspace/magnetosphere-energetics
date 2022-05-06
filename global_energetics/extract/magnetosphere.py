@@ -567,6 +567,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                        **kwargs)
             energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name+'_volume':energies})
+        if kwargs.get('do_interfacing',False):
+            from IPython import embed; embed()
             if save_mesh:
                 for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                       'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:

@@ -844,11 +844,13 @@ def get_day_flank_tail(zone):
         tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
         eq('{Day} = IF({X [R]}>0,1,0)', zones=[zone.index])
         eq('{Tail} = IF(({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
-             '({X [R]}<-10&&{h}<'+str(tail_h)+'),1,0)',zones=[zone.index])
+             '({X [R]}<-10&&{h}<'+str(tail_h)+')||'+
+             '(abs({X [R]}-'+str(zone.values('X *').min())+')<0.5)'+
+             ',1,0)',zones=[zone.index])
         eq('{Flank} = IF({Day}==0&&{Tail}==0,1,0)', zones=[zone.index])
     elif 'lobe' in zone.name:
-        eq('{Tail} = IF({X [R]}=='+str(zone.values('X *').min())+',1,0)',
-                                                      zones=[zone.index])
+        eq('{Tail} = IF(abs({X [R]}-'+str(zone.values('X *').min())+
+                                          ')<0.5,1,0)',zones=[zone.index])
     '''
     ##############################################################
     #Day, flank, tail definitions
@@ -1656,8 +1658,10 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         blank.comparison_value = blankvalue
     try:
         macro = tp.macro.execute_command
-        macro('$!ExtractIsoSurfaces Group = {:d} '.format(isoindex+1)+
-                            'ExtractMode = OneZonePerConnectedRegion')
+        macro_cmd='$!ExtractIsoSurfaces Group = {:d} '.format(isoindex+1)
+        #if zonename!='ms_lobes':
+        macro_cmd+='ExtractMode = OneZonePerConnectedRegion'
+        macro(macro_cmd)
     except TecplotMacroError:
         print('Unable to create '+zonename+'!')
         return None
@@ -1744,24 +1748,20 @@ def calc_state(mode, sourcezone, **kwargs):
             mpvar = sourcezone.dataset.variable('future_mp*')
         else:
             mpvar = kwargs.get('mpvar',sourcezone.dataset.variable('mp*'))
-        #TODO: -figure out why sz future values arent being found and the
-        #       assertions are triggering
-        #      -make it so future zones are only used for the delta state
-        #       and not all the volume integrals
-        #TODO: check that all the desired quantities are being captured
-        #       run full 'babyrun' at 1hr cadence,if good start collection
-        #       move back to analysis scripts
         assert kwargs.get('do_trace',False) == False, (
                             "lobe mode only works with do_trace==False!")
         assert mpvar is not None,('magnetopause variable not found'+
                                   'cannot calculate lobe zone!')
         zonename = 'ms_'+mode
-        if mode.lower().find('slobe') != -1:
-            state_index = calc_lobe_state(mpvar.name, 'south', sourcezone)
-        elif mode.lower().find('nlobe') != -1:
-            state_index = calc_lobe_state(mpvar.name, 'north', sourcezone)
+        if 'slobe' in mode.lower():
+            state_index = calc_lobe_state(mpvar.name, 'south',
+                                          sourcezone,**kwargs)
+        elif 'nlobe' in mode.lower():
+            state_index = calc_lobe_state(mpvar.name, 'north',
+                                          sourcezone,**kwargs)
         else:
-            state_index = calc_lobe_state(mpvar.name, 'both', sourcezone)
+            state_index = calc_lobe_state(mpvar.name, 'both',
+                                          sourcezone,**kwargs)
     elif 'rc' in mode:
         assert closed_zone is not None, ('No'+
                                        ' closed_zone present! Cant do rc')
@@ -1826,9 +1826,10 @@ def calc_state(mode, sourcezone, **kwargs):
     else:
         assert False, ('mode not recognized!! Check "approved" list with'+
                        'available calc_state functions')
-    zone = setup_isosurface(1, state_index, zonename,
-                            blankvalue=kwargs.get('inner_r',3))
     if 'iso_betastar' in mode:
+        #Generate outersurface with blanking the inner boundary
+        zone = setup_isosurface(1, state_index, zonename,
+                                blankvalue=kwargs.get('inner_r',3))
         #Sphere at fixed radius
         innerzone = setup_isosurface(kwargs.get('inner_r',3),
                                 sourcezone.dataset.variable('r *').index,
@@ -1839,6 +1840,7 @@ def calc_state(mode, sourcezone, **kwargs):
             print('x_subsolar updated to {}'.format(new_subsolar))
             sourcezone.aux_data['x_subsolar'] = new_subsolar
     else:
+        zone = setup_isosurface(1, state_index, zonename)
         innerzone = None
     return zone, innerzone, state_index
 
@@ -2049,20 +2051,20 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,**kwargs):
     else: state = 'ms_'+ps_qDp+'_L>'
     if ps_qDp == 'ps':
         eq('{'+state+'} = if({'+closed_var+'}==1&&'+
-                                     '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
-                                     '{r [R]}>3&&'+
-                                    'abs({B_x [nT]}['+src+'])<'+bxmax+'&&'+
+                                    '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
+                            '{r [R]}>='+str(kwargs.get('inner_r',3))+'&&'+
+                                   'abs({B_x [nT]}['+src+'])<'+bxmax+'&&'+
                                      '{X [R]}<0,1,0)',zones=[0])
     elif ps_qDp == 'qDp':
         eq('{'+state+'} = if({'+closed_var+'}>0&&'+
                                     '{'+Lvar+'}['+src+']>'+lshelllim+'&&'+
-                                    '{r [R]}>3&&'+
-                                    '(abs({B_x [nT]}['+src+'])>'+bxmax+'||'+
+                            '{r [R]}>='+str(kwargs.get('inner_r',3))+'&&'+
+                                  '(abs({B_x [nT]}['+src+'])>'+bxmax+'||'+
                                     '{X [R]}>0),1,0)',zones=[0])
     elif ps_qDp == 'closed':
         eq('{'+state+'} = if({'+closed_var+'}>0&&'+
-                                    '{'+Lvar+'}['+src+']>='+lshelllim+'&&'+
-                                    '{r [R]}>=3,1,0)',zones=[0])
+                                  '{'+Lvar+'}['+src+']>='+lshelllim+'&&'+
+              '{r [R]}>='+str(kwargs.get('inner_r',3))+',1,0)',zones=[0])
     return sourcezone.dataset.variable(state).index
 
 
@@ -2088,7 +2090,7 @@ def calc_rc_state(closed_var, lshellmax, sourcezone, *,
                                     zones=[0])
     return sourcezone.dataset.variable(state).index
 
-def calc_lobe_state(mp_var, northsouth, sourcezone, *, status='Status'):
+def calc_lobe_state(mp_var, northsouth, sourcezone, **kwargs):
     """Function creates equation for north or south lobe within the
         confines of magnetopause surface indicated by mp_var
     Inputs
@@ -2099,21 +2101,24 @@ def calc_lobe_state(mp_var, northsouth, sourcezone, *, status='Status'):
         index- index for the created variable
     """
     eq = tp.data.operate.execute_equation
-    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed vars (XYZR)
+                               #mp_var is exception (lives in zone0)
+    status = kwargs.get('status','Status')
+    r = str(kwargs.get('inner_r',3))
     #set state name
     if 'both' in northsouth: state = 'Lobe'
     else: state = northsouth[0].upper()+'Lobe'
     if'future'in sourcezone.name: state = 'future_'+state
     #calculate
     if northsouth == 'north':
-        eq('{'+state+'} = if({'+mp_var+'}==1&&'+
+        eq('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
                             '{'+status+'}['+src+']==2,1,0)',zones=[0])
     elif northsouth == 'south':
-        eq('{'+state+'} = if({'+mp_var+'}==1&&'+
+        eq('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
                             '{'+status+'}['+src+']==1,1,0)',zones=[0])
     else:
-        eq('{'+state+'} = if({'+mp_var+'}==1&&'+
-                '({'+status+'}['+src+']==1 ||{'+status+'}['+src+']==1),1,0)',
+        eq('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
+            '({'+status+'}['+src+']==2 ||{'+status+'}['+src+']==1),1,0)',
                 zones=[0])
     return sourcezone.dataset.variable(state).index
 
@@ -2166,10 +2171,10 @@ def calc_betastar_state(zonename, srczone, **kwargs):
     eq = tp.data.operate.execute_equation
     if kwargs.get('sunward_pole',False):
         #PALEO variant for dipole facing subsolar point
-        eqstr=('{'+zonename+'}=IF({X [R]}>'+xmin+'&&'+'{r [R]}>'+core_r)
+        eqstr=('{'+zonename+'}=IF({X [R]}>'+xmin+'&&'+'{r [R]}>='+core_r)
     else:
         eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+
-                                 '{X [R]} <'+xmax+'&&{r [R]} > '+core_r)
+                                 '{X [R]} <'+xmax+'&&{r [R]} >='+core_r)
     eqstr=(eqstr+',IF({beta_star}['+srcZnIndex+']<'+betamax+',1,')
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')

@@ -160,6 +160,12 @@ def post_proc(results,**kwargs):
         for k in enumerate(K_keys):df[k[1]]=K_values[0][k[0]]
 
     if kwargs.get('do_interfacing',False):
+        #Combine north and south lobes into single 'lobes'
+        n = results.pop('ms_nlobe_surface')
+        s = results.pop('ms_slobe_surface')
+        t = n['Time [UTC]']
+        lobes=n.drop(columns=['Time [UTC]'])+s.drop(columns=['Time [UTC]'])
+        lobes['Time [UTC]'] = t
         results = post_proc_interface(results)
     return results
 
@@ -233,7 +239,7 @@ def get_open_close_integrands(zone, integrands):
                                   name+'OpenS':outputname+'OpenS ' +units})
     return openClose_dict
 
-def conditional_mod(integrands,conditions,modname,**kwargs):
+def conditional_mod(zone,integrands,conditions,modname,**kwargs):
     """Constructer function for common integrand modifications
     Inputs
         integrands(dict{str:str})- (static) in/output terms to calculate
@@ -255,36 +261,37 @@ def conditional_mod(integrands,conditions,modname,**kwargs):
         units = ' ['+term[1].split('[')[1].split(']')[0]+']'
         new_eq = '{'+name+modname+'} = IF('
         if ('open' in conditions) or ('closed' in conditions):
-            if (('not' in conditions) and ('open' in conditions)) or(
-                                                   'closed' in conditions):
+            if ('not open' in conditions) or('closed' in conditions):
                 new_eq+='({Status}==3) &&'#closed
             else:
                 new_eq+='({Status}==2 || {Status}==1) &&'#open
-        if 'tail' in conditions:
-            if 'not' in conditions:
+        if any(['tail' in c for c in conditions]):
+            if 'not tail' in conditions:
                 new_eq+='({Tail}==0) &&'
             else:
                 new_eq+='({Tail}==1) &&'
-        if 'on_innerbound' in conditions:
-            if 'not' in conditions:
+        if any(['on_innerbound' in c for c in conditions]):
+            if 'not on_innerbound' in conditions:
                 new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
                                                           ')>0.5) &&'][0]
             else:
                 new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
                                                           ')<0.5) &&'][0]
-        if 'L7' in conditions:
-            if '<' in conditions:
+        if any(['L7' in c for c in conditions]):
+            if '<L7' in conditions:
                 new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
-            elif '>' in conditions:
+            elif '>L7' in conditions:
                 new_eq+='({Lshell}>'+str(kwargs.get('L',7))+') &&'
-            elif '=' in conditions:
+            elif '=L7' in conditions:
                 new_eq+='(abs({Lshell}-'+str(kwargs.get('L',7))+')<0.5) &&'
-        if any([c in ['open','closed','tail','on_innerbound','L7'] for
-                                                         c in conditions]):
+        if any([a in c for c in conditions for a in
+                           ['open','closed','tail','on_innerbound','L7']]):
+        #if any([c in ['open','closed','tail','on_innerbound','L7'] for
+        #                                                 c in conditions]):
             #chop hanging && and close up condition
             new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
             print(new_eq)
-            eq(new_eq)
+            eq(new_eq,zones=[zone])
             mods.update({name+modname:outputname+modname+units})
     return mods
 
@@ -297,10 +304,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     #May need to identify the 'tail' portion of the surface
-    if ((('mp'in zone.name and 'inner' not in zone.name) or
-        ('lobe' in zone.name) or
-        ('close' in zone.name))and
-     (not any(['Tail' in n for n in zone.dataset.variable_names]))):
+    if (('mp'in zone.name and 'inner' not in zone.name) or
+        ('lobe' in zone.name) or ('close' in zone.name)):
         get_day_flank_tail(zone)
 
     interfaces, test_i = {}, [i.split(' ')[0] for i in integrands][0]
@@ -309,55 +314,56 @@ def get_interface_integrands(zone,integrands,**kwargs):
     ##Magnetopause
     if ('mp' in zone.name) and ('inner' not in zone.name):
         #Flank
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                                           ['open','not tail'],'Flank'))
         #Tail(lobe)
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                                           ['open','tail'],'Tail_lobe'))
         #Tail(closed/NearEarthXLine)
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                                           ['closed','tail'],'Tail_close'))
         #Dayside
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                                           ['closed','not tail'],'Dayside'))
     ##InnerBoundary
     if 'inner' in zone.name:
         #Poles
-        interfaces.update(conditional_mod(integrands,['open'],'Poles'))
+        interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
         #MidLatitude
-        interfaces.update(conditional_mod(integrands,['L7','>'],'MidLat',
+        interfaces.update(conditional_mod(zone,integrands,
+                                          ['>L7','closed'],'MidLat',
                                           L=kwargs.get('lshelllim')))
         #LowLatitude
-        interfaces.update(conditional_mod(integrands,['L7','<'],'LowLat',
+        interfaces.update(conditional_mod(zone,integrands,['<L7'],'LowLat',
                                           L=kwargs.get('lshelllim')))
     ##Lobes
     if 'lobe' in zone.name:
         #Flank- but not really bc it's hard to infer
         #Poles
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                 ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
         #Tail(lobe)
-        interfaces.update(conditional_mod(integrands,['tail'],'Tail_lobe'))
+        interfaces.update(conditional_mod(zone,integrands,['tail'],'Tail_lobe'))
         #AuroralOvalProjection- Very hard to infer, will save for post
     ##Closed
     if 'close' in zone.name:
         #Dayside- again letting magnetopause lead here
         #L7
-        interfaces.update(conditional_mod(integrands,['L7','='],'L7',
+        interfaces.update(conditional_mod(zone,integrands,['=L7'],'L7',
                                           L=kwargs.get('lshelllim')))
         #AuroralOvalProjection- skipped
         #MidLatitude
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
         #Tail(closed/NearEarthXLine)
-        interfaces.update(conditional_mod(integrands,['tail'],'Tail_close'))
+        interfaces.update(conditional_mod(zone,integrands,['tail'],'Tail_close'))
     ##RingCurrent
     if 'rc' in zone.name:
         #LowLatitude
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
         #L7
-        interfaces.update(conditional_mod(integrands,
+        interfaces.update(conditional_mod(zone,integrands,
            ['not on_innerbound'],'L7',inner_r=kwargs.get('inner_r',3)))
     return interfaces
 
