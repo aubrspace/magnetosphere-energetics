@@ -840,11 +840,15 @@ def get_day_flank_tail(zone):
     """
     eq = tp.data.operate.execute_equation
     #Check that geometry variables have already been calculated
-    tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
-    eq('{Day} = IF({X [R]}>0,1,0)', zones=[zone.index])
-    eq('{Tail} = IF(({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
+    if 'mp' in zone.name:
+        tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
+        eq('{Day} = IF({X [R]}>0,1,0)', zones=[zone.index])
+        eq('{Tail} = IF(({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
              '({X [R]}<-10&&{h}<'+str(tail_h)+'),1,0)',zones=[zone.index])
-    eq('{Flank} = IF({Day}==0&&{Tail}==0,1,0)', zones=[zone.index])
+        eq('{Flank} = IF({Day}==0&&{Tail}==0,1,0)', zones=[zone.index])
+    elif 'lobe' in zone.name:
+        eq('{Tail} = IF({X [R]}=='+str(zone.values('X *').min())+',1,0)',
+                                                      zones=[zone.index])
     '''
     ##############################################################
     #Day, flank, tail definitions
@@ -1287,6 +1291,8 @@ def equations(**kwargs):
         equations dict{dict{str(eqName):str(eqText)}}- nested dicts
     """
     equations = {}
+    #Testing function for verifying matching interfaces
+    equations['interface_testing'] = {'{test}':'1'}
     #Useful spatial variables
     equations['basic3d'] = {
                        '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
@@ -1522,6 +1528,9 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     """
     alleq = equations(aux=kwargs.get('aux'))
     cc = ValueLocation.CellCentered
+    #Testing variables
+    if kwargs.get('verbose',False):
+        eqeval(alleq['interface_testing'])
     #General equations
     if (any([var.find('J_')!=-1 for var in field_data.variable_names])and
         any([var.find('`mA')!=-1 for var in field_data.variable_names])):

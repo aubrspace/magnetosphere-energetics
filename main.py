@@ -66,8 +66,9 @@ if __name__ == "__main__":
                                                     outputpath='babyrun/',
                                                     do_interfacing=True,
                                                     do_cms=True,
-                                                    integrate_volume=True,
+                                                    integrate_volume=False,
                               modes=['iso_betastar','lobes','closed','rc'],
+                              customTerms={'test':'TestArea [Re^2]'},
                                                     verbose=True,
                                                    analysis_type='energy')
             #modes=['iso_betastar','rc'],

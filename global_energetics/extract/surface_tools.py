@@ -37,6 +37,7 @@ def post_proc_interface(results,**kwargs):
     l7 = pd.DataFrame()
     #Find the non-empty interfaces
     for name, df in results.items():
+        #if 'lobe' in name: from IPython import embed; embed()
         if flank.empty:flank=df[[k for k in df.keys()if'Flank'in k]].copy()
         if tail_l.empty:
             tail_l=df[[k for k in df.keys()if'Tail_lobe'in k]].copy()
@@ -113,16 +114,18 @@ def post_proc_interface(results,**kwargs):
         if ('lobe' in name) or ('close' in name):
             whole_keys=[k for k in df.keys()if ('_injection 'in k
                                                 or  '_escape 'in k
-                                                    or  '_net 'in k)]
+                                                    or  '_net 'in k
+                                                      or 'TestArea ' in k)]
             for k in whole_keys:
-                aop = k.split(' [W]')[0]+'AOP [W]'
-                fl = k.split(' [W]')[0]+'Flank [W]'
-                pl = k.split(' [W]')[0]+'Poles [W]'
-                tl_l = k.split(' [W]')[0]+'Tail_lobe [W]'
-                tl_c = k.split(' [W]')[0]+'Tail_close [W]'
-                dy = k.split(' [W]')[0]+'Dayside [W]'
-                l_7 = k.split(' [W]')[0]+'L7 [W]'
-                ml = k.split(' [W]')[0]+'MidLat [W]'
+                units = '['+k.split('[')[1].split(']')[0]+']'
+                aop = k.split(' [')[0]+'AOP '+units
+                fl = k.split(' [')[0]+'Flank '+units
+                pl = k.split(' [')[0]+'Poles '+units
+                tl_l = k.split(' [')[0]+'Tail_lobe '+units
+                tl_c = k.split(' [')[0]+'Tail_close '+units
+                dy = k.split(' [')[0]+'Dayside '+units
+                l_7 = k.split(' [')[0]+'L7 '+units
+                ml = k.split(' [')[0]+'MidLat '+units
                 if 'lobe' in name:
                     df[aop] = (df[k]-df[fl]-df[pl]-df[tl_l])
                 else:
@@ -244,8 +247,8 @@ def conditional_mod(integrands,conditions,modname,**kwargs):
     #Condition options:'open','closed','tail','on_innerbound','<L7','>L7'
 
     #Check that this interface hasn't already been done by another sz
-    if [i.split(' ')[0] for i in integrands][0]+modname in variables:
-        return mods
+    #if [i.split(' ')[0] for i in integrands][0]+modname in variables:
+    #    return mods
     for term in integrands.items():
         name = term[0].split(' [')[0]
         outputname = term[1].split(' [')[0]
@@ -264,9 +267,11 @@ def conditional_mod(integrands,conditions,modname,**kwargs):
                 new_eq+='({Tail}==1) &&'
         if 'on_innerbound' in conditions:
             if 'not' in conditions:
-                new_eq+='({r [R]}=='+str(kwargs.get('inner_r',3))+') &&'
+                new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
+                                                          ')>0.5) &&'][0]
             else:
-                new_eq+='({r [R]}!='+str(kwargs.get('inner_r',3))+') &&'
+                new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
+                                                          ')<0.5) &&'][0]
         if 'L7' in conditions:
             if '<' in conditions:
                 new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
@@ -278,6 +283,7 @@ def conditional_mod(integrands,conditions,modname,**kwargs):
                                                          c in conditions]):
             #chop hanging && and close up condition
             new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
+            print(new_eq)
             eq(new_eq)
             mods.update({name+modname:outputname+modname+units})
     return mods

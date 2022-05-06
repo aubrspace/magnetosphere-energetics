@@ -205,7 +205,8 @@ def prep_field_data(field_data, **kwargs):
         main_frame = tp.active_frame()
         print('Calculating global energetic variables')
         main_frame.name = 'main'
-        get_global_variables(field_data, analysis_type,aux=aux)
+        get_global_variables(field_data, analysis_type,aux=aux,
+                             verbose=kwargs.get('verbose',False))
         if do_1Dsw:
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
