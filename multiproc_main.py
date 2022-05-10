@@ -111,7 +111,7 @@ def work(mhddatafile):
                                     do_cms=True,analysis_type='energy',
                                     do_interfacing=True,tshift=45,
                                     integrate_volume=True,
-                            modes=['iso_betastar','lobes','closed','rc'],
+                  modes=['iso_betastar','nlobe','slobe','closed','rc'],
                                     outputpath=CONTEXT['OUTPUTPATH'])
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
@@ -197,12 +197,12 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'starlink'
+    RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_febstorm')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -218,7 +218,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[::15]
+                                key=makevideo.time_sort)[0::15]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

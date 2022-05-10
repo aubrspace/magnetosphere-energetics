@@ -32,8 +32,18 @@ if __name__ == "__main__":
     else:
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
+    #Nice condition
     starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
                 'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
+    #Current fails
+    #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
+    #            'starlink/3d__var_1_e20220202-050400-000.plt')
+    #Future fails
+    #starlink = ('starlink/3d__var_1_e20220202-050200-000.plt',
+    #            'starlink/3d__var_1_e20220202-050300-000.plt')
+    #Some other fail
+    #starlink = ('starlink/3d__var_1_e20220202-061500-000.plt',
+    #            'starlink/3d__var_1_e20220202-063000-000.plt')
     febstorm = ('localdbug/feb2014/3d__var_1_e20140218-060300-037.plt',
                 'localdbug/feb2014/3d__var_1_e20140218-060400-033.plt')
     trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
@@ -66,12 +76,11 @@ if __name__ == "__main__":
                                                     outputpath='babyrun/',
                                                     do_interfacing=True,
                                                     do_cms=True,
-                                                    integrate_volume=False,
-                      modes=['iso_betastar','nlobe','slobe','closed','rc'],
-                              customTerms={'test':'TestArea [Re^2]'},
+                                                    integrate_volume=True,
                                                     verbose=True,
-                                                   analysis_type='energy')
-            #modes=['iso_betastar','rc'],
+                                                   analysis_type='virial_biotsavart')
+                      #modes=['iso_betastar','nlobe','slobe','closed','rc'],
+                              #customTerms={'test':'TestArea [Re^2]'},
     #with tp.session.suspend():
     #    if True:#manually switch on or off
     #timestamp

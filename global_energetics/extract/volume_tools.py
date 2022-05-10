@@ -42,7 +42,6 @@ def energy_post_integr(results, **kwargs):
     for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
     for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
     if kwargs.get('do_cms', False):
-        u = ' [W]'
         #Combine 'acquisitions' and 'forfeitures' back into net
         acqus = df[[k for k in df.keys()if 'acqu' in k]]
         forfs = df[[k for k in df.keys()if 'forf' in k]]
@@ -53,7 +52,7 @@ def energy_post_integr(results, **kwargs):
     for key in df.keys(): newterms[key] = [df[key].values[0]]
     return newterms
 
-def virial_post_integr(results):
+def virial_post_integr(results,**kwargs):
     """Creates dictionary of key:value combos of existing results
     Inputs
         results(dict{str:[value]})
@@ -65,6 +64,15 @@ def virial_post_integr(results):
     newterms.update({'Virial Volume Total [J]':
                                           [results['Virial 2x Uk [J]'][0]+
                                             results['Virial Ub [J]'][0]]})
+    if kwargs.get('do_cms', False):
+        df = pd.DataFrame(results)
+        #Combine 'acquisitions' and 'forfeitures' back into net
+        acqus = df[[k for k in df.keys()if 'acqu' in k]]
+        forfs = df[[k for k in df.keys()if 'forf' in k]]
+        net_values = acqus.values+forfs.values
+        net_keys = ['_net'.join(k.split('_acqu')) for k in df.keys()
+                    if 'acqu' in k]
+        for k in enumerate(net_keys):df[k[1]]=net_values[0][k[0]]
     #Convert from J to nT
     for newterm in newterms.copy().items():
         newterms.update(energy_to_dB(newterm))
@@ -182,15 +190,16 @@ def get_mobile_integrands(zone,state_var,integrands,tdelta, analysis_type):
                 units = '[J]'
             else:
                 units = '[W]'
-            eq('{'+name+'_acqu}=IF({'+dstate+'}==1,'+
+            if dstate in zone.dataset.variable_names:
+                eq('{'+name+'_acqu}=IF({'+dstate+'}==1,'+
                                             '-1*{'+term[0]+'}/'+td+',0)',
                                                              zones=[zone])
-            eq('{'+name+'_forf}=IF({'+dstate+'}==-1,'+
+                eq('{'+name+'_forf}=IF({'+dstate+'}==-1,'+
                                                 '{'+term[0]+'}/'+td+',0)',
                                                              zones=[zone])
-            #eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
-            #                                                 zones=[zone])
-            mobiledict.update({name+'_acqu':outputname+'_acqu '+units,
+                #eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
+                #                                                 zones=[zone])
+                mobiledict.update({name+'_acqu':outputname+'_acqu '+units,
                                name+'_forf':outputname+'_forf '+units})
                               #name+'_net':outputname+'_net '+units})
     return mobiledict
@@ -268,7 +277,8 @@ def volume_analysis(state_var, **kwargs):
                                       'Volume [Re^3]'), global_zone))
                                   #**{'VariableOption':'LengthAreaVolume'}))
         if kwargs.get('do_cms',False):
-            results.update(calc_integral(('delta_'+str(state_var.name),
+            if 'delta_'+str(state_var.name) in state_var.dataset.variable_names:
+                results.update(calc_integral(('delta_'+str(state_var.name),
                                           'dVolume [Re^3]'), global_zone))
         if kwargs.get('verbose',False):
             print(state_var.name+' Volume integration done')

@@ -130,7 +130,6 @@ def post_proc_interface(results,**kwargs):
                     df[aop] = (df[k]-df[fl]-df[pl]-df[tl_l])
                 else:
                     df[aop] = (df[k]-df[dy]-df[l_7]-df[ml]-df[tl_c])
-                print(name+k+'\t'+str(df[aop].values))
     return results
 
 def post_proc(results,**kwargs):
@@ -161,11 +160,24 @@ def post_proc(results,**kwargs):
 
     if kwargs.get('do_interfacing',False):
         #Combine north and south lobes into single 'lobes'
-        n = results.pop('ms_nlobe_surface')
-        s = results.pop('ms_slobe_surface')
-        t = n['Time [UTC]']
+        #North
+        if 'ms_nlobe_surface' in results.keys():
+            n = results.pop('ms_nlobe_surface')
+            t = n['Time [UTC]']
+        elif 'ms_slobe_surface' in results.keys():
+            n = pd.DataFrame(columns=results['ms_slobe_surface'].keys())
+            t = results['ms_slobe_surface']['Time [UTC]']
+        else:
+            results = post_proc_interface(results)
+            return results
+        #South
+        if 'ms_slobe_surface' in results.keys():
+            s = results.pop('ms_slobe_surface')
+        elif 'ms_nlobe_surface' in results.keys():
+            s = pd.DataFrame(columns=results['ms_nlobe_surface'].keys())
         lobes=n.drop(columns=['Time [UTC]'])+s.drop(columns=['Time [UTC]'])
         lobes['Time [UTC]'] = t
+        results.update({'ms_lobes_surface':lobes})
         results = post_proc_interface(results)
     return results
 
@@ -273,24 +285,26 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         if any(['on_innerbound' in c for c in conditions]):
             if 'not on_innerbound' in conditions:
                 new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
-                                                          ')>0.5) &&'][0]
+                                          ')>{Cell Size [Re]}*0.75) &&'][0]
             else:
                 new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
-                                                          ')<0.5) &&'][0]
+                                          ')<{Cell Size [Re]}*0.75) &&'][0]
         if any(['L7' in c for c in conditions]):
             if '<L7' in conditions:
                 new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
+                #NOTE 0.75*cell size worked for everyone but L7,
+                #       which was optimized at 1*cell size
             elif '>L7' in conditions:
                 new_eq+='({Lshell}>'+str(kwargs.get('L',7))+') &&'
             elif '=L7' in conditions:
-                new_eq+='(abs({Lshell}-'+str(kwargs.get('L',7))+')<0.5) &&'
+                new_eq+=['(abs({Lshell}-'+str(kwargs.get('L',7))+')<'+
+                                              '{Cell Size [Re]}*1)&&'][0]
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7']]):
         #if any([c in ['open','closed','tail','on_innerbound','L7'] for
         #                                                 c in conditions]):
             #chop hanging && and close up condition
             new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
-            print(new_eq)
             eq(new_eq,zones=[zone])
             mods.update({name+modname:outputname+modname+units})
     return mods
@@ -343,7 +357,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                 ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
         #Tail(lobe)
-        interfaces.update(conditional_mod(zone,integrands,['tail'],'Tail_lobe'))
+        interfaces.update(conditional_mod(zone,integrands,['tail'],
+                                          'Tail_lobe'))
         #AuroralOvalProjection- Very hard to infer, will save for post
     ##Closed
     if 'close' in zone.name:
@@ -356,7 +371,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
         #Tail(closed/NearEarthXLine)
-        interfaces.update(conditional_mod(zone,integrands,['tail'],'Tail_close'))
+        #interfaces.update(conditional_mod(zone,integrands,['tail'],'Tail_close'))
     ##RingCurrent
     if 'rc' in zone.name:
         #LowLatitude

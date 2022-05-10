@@ -1298,6 +1298,7 @@ def equations(**kwargs):
     #Useful spatial variables
     equations['basic3d'] = {
                        '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
+                       '{Cell Size [Re]}':'{Cell Volume}**(1/3)',
                        '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
     #2D versions of spatial variables
     equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
@@ -1460,7 +1461,6 @@ def equations(**kwargs):
     #   current density magnitude
     #   /eta magnetic field diffusivity E/J
     #   /eta (unit change)
-    #   Cell size
     #   magnetic reynolds number (advection/magnetic diffusion)
     equations['reconnect'] = {
         '{minus_uxB_x}':'-({U_y [km/s]}*{B_z [nT]}-'+
@@ -1476,7 +1476,6 @@ def equations(**kwargs):
         '{eta [m/S]}':'IF({J [uA/m^2]}>0.002,'+
                                       '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)',
         '{eta [Re/S]}':'{eta [m/S]}/(6371*1000)',
-        '{Cell Size [Re]}':'{Cell Volume}**(1/3)',
         '{Reynolds_m_cell}':'4*pi*1e-4*'+
                  'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
                                    '{Cell Size [Re]}/({eta [Re/S]}+1e-9)'}
@@ -1541,6 +1540,10 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         field_data.variable('J_z*').name = 'J_z [uA/m^2]'
     #Useful spatial variables
     if kwargs.get('is3D',True):
+        tp.macro.execute_extended_command('CFDAnalyzer3',
+                                          'CALCULATE FUNCTION = '+
+                                          'CELLVOLUME VALUELOCATION = '+
+                                          'CELLCENTERED')
         aux = field_data.zone('global_field').aux_data
         eqeval(alleq['basic3d'])
         eqeval(alleq['dipole_coord'])
@@ -1574,10 +1577,6 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eqeval(alleq['energy_flux'],value_location=cc)
     #Reconnection variables
     if 'reconnect' in analysis_type:
-        tp.macro.execute_extended_command('CFDAnalyzer3',
-                                          'CALCULATE FUNCTION = '+
-                                          'CELLVOLUME VALUELOCATION = '+
-                                          'CELLCENTERED')
         eqeval(alleq['reconnect'],value_location=cc)
     #trackIM
     if'trackIM'in analysis_type:eqeval(alleq['trackIM'],value_location=cc)
@@ -1673,10 +1672,14 @@ def setup_isosurface(iso_value, varindex, zonename, *,
     zsizes=pd.DataFrame([(z, z.num_elements)for z in ds.zones('*region*')],
                                                   columns=['zone','size'])
     newzone=zsizes[zsizes['size']==zsizes['size'].max()]['zone'].values[0]
-    newzone.name = zonename
-    if len(zsizes)!=1:
+    if newzone.num_elements>200:
+        newzone.name = zonename
+        if len(zsizes) != 1:
+            ds.delete_zones([z.index for z in ds.zones('*region*')])
+        return newzone
+    else:
         ds.delete_zones([z.index for z in ds.zones('*region*')])
-    return newzone
+        return None
 
 def calc_state(mode, sourcezone, **kwargs):
     """Function selects which state calculation method to use

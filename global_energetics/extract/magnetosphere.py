@@ -342,20 +342,22 @@ def generate_3Dobj(sourcezone, **kwargs):
     #Create the tecplot objects from the source and store into lists
     for m in modes:
         for source in sources:
-            zone, inner_zone, state_index = calc_state(m, source, **kwargs)
-            if (type(zone) != type(None) or type(inner_zone)!=type(None)):
-                if 'zone_rename' in kwargs:
-                    zone.name = kwargs.get('zone_rename','')+'_'+m
-                if source==futurezone:
-                    zone.name='future_'+zone.name
-                    calc_delta_state(sourcezone.dataset.variable(
+            if ((source==sourcezone) or
+                        any([m in n for n in source.dataset.zone_names])):
+                zone,inner_zone,state_index=calc_state(m, source,**kwargs)
+                if(type(zone)!=type(None)or type(inner_zone)!=type(None)):
+                    if 'zone_rename' in kwargs:
+                        zone.name = kwargs.get('zone_rename','')+'_'+m
+                    if source==futurezone:
+                        zone.name='future_'+zone.name
+                        calc_delta_state(sourcezone.dataset.variable(
                                     state_index).name.split('future_')[-1],
                             futurezone.dataset.variable(state_index).name)
-                else:
-                    zonelist.append(zone)
-                    state_indices.append(state_index)
-                if 'modes' in kwargs:
-                    get_surf_geom_variables(zone)
+                    else:
+                        zonelist.append(zone)
+                        state_indices.append(state_index)
+                        if 'modes' in kwargs:
+                            get_surf_geom_variables(zone)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
@@ -568,7 +570,23 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name+'_volume':energies})
         if kwargs.get('do_interfacing',False):
-            from IPython import embed; embed()
+            #Combine north and south lobes into single 'lobes'
+            #North
+            if 'ms_nlobe_volume' in data_to_write.keys():
+                n = data_to_write.pop('ms_nlobe_volume')
+                t = n['Time [UTC]']
+            elif 'ms_slobe_volume' in data_to_write.keys():
+                n = pd.DataFrame(columns=data_to_write['ms_slobe_volume'].keys())
+                t = data_to_write['ms_slobe_volume']['Time [UTC]']
+            #South
+            if 'ms_slobe_volume' in data_to_write.keys():
+                s = data_to_write.pop('ms_slobe_volume')
+            elif 'ms_nlobe_volume' in data_to_write.keys():
+                s = pd.DataFrame(columns=data_to_write['ms_nlobe_volume'].keys())
+            lobes=[n.drop(columns=['Time [UTC]'])+
+                   s.drop(columns=['Time [UTC]'])][0]
+            lobes['Time [UTC]'] = t
+            data_to_write.update({'ms_lobes_volume':lobes})
             if save_mesh:
                 for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                       'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
