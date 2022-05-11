@@ -206,7 +206,7 @@ def get_dft_integrands(zone, integrands):
                              name+'Tail':outputname+'Tail '+units})
     return dft_dict
 
-def get_low_lat_integrands(zone, integrands):
+def get_low_lat_integrands(zone, integrands, **kwargs):
     """Creates dictionary of terms to integrated for virial of inner
         surface to indicate portion found at low latitude
     Inputs
@@ -216,6 +216,10 @@ def get_low_lat_integrands(zone, integrands):
         mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     lowlat_dict, eq = {}, tp.data.operate.execute_equation
+    #LowLatitude
+    lowlat_dict.update(conditional_mod(zone,integrands,['<L7'],'LowLat',
+                                          L=kwargs.get('lshelllim')))
+    '''
     for term in integrands.items():
         name = term[0].split(' [')[0]
         outputname = term[1].split(' [')[0]
@@ -224,6 +228,7 @@ def get_low_lat_integrands(zone, integrands):
             eq('{'+name+'Lowlat}=IF({Lshell}<7,'+
                                            '{'+term[0]+'},0)',zones=[zone])
             lowlat_dict.update({name+'Lowlat':outputname+'Lowlat '+units})
+    '''
     return lowlat_dict
 
 def get_open_close_integrands(zone, integrands):
@@ -497,7 +502,8 @@ def surface_analysis(zone, **kwargs):
         if 'innerbound' not in zone.name and kwargs.get('doDFT',False):
             integrands.update(get_dft_integrands(zone, integrands))
         if 'innerbound' in zone.name:
-            integrands.update(get_low_lat_integrands(zone, integrands,**kwargs))
+            integrands.update(get_low_lat_integrands(zone, integrands,
+                                                     **kwargs))
         integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals

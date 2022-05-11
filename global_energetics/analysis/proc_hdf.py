@@ -30,8 +30,8 @@ def load_hdf_sort(hdf, **kwargs):
     for key in store.keys():
         if ('mp' in key) or ('ms' in key):
             gmdict[key] = store[key].sort_values(by='Time [UTC]')
-            gmdict[key].index=gmdict[key]['Time [UTC]'].drop(
-                                                    columns=['Time [UTC]'])
+            gmdict[key].index=gmdict[key]['Time [UTC]']
+            gmdict[key].drop(columns=['Time [UTC]'],inplace=True)
         if 'ie' in key:
             iedict[key] = store[key]
         if 'ua' in key:
@@ -49,11 +49,11 @@ def load_hdf_sort(hdf, **kwargs):
 
         #check units OoM
         mp = check_units(mp)
-        #inner_mp = check_units(gmdict['/mp_iso_betastar_inner_surface'])
+        inner_mp = check_units(gmdict['/mp_iso_betastar_inner_surface'])
 
         #repackage in dictionary
         data.update({'mpdict': {'ms_full':mp}})
-        #data.update({'inner_mp': inner_mp})
+        data.update({'inner_mp': inner_mp})
 
     if iedict!={}:
         #repackage in dictionary
@@ -65,21 +65,25 @@ def load_hdf_sort(hdf, **kwargs):
 
     #define subzones with relevant pieces
     msdict = {}
-    for vol,surf in [(k.split('_surface')[0]+'_volume',k) for k in
-                            gmdict.keys() if 'ms' in k and 'surface' in k]:
-        print(vol+'\t'+surf)
-        key = vol.split('_volume')[0]
-        cleaned_vol = check_timing(gmdict[vol],gmtimes)
-        cleaned_surf = check_timing(gmdict[surf],gmtimes)
-        if any(['Virial' in k for k in gmdict[vol].keys()]):
+    vols = [k for k in gmdict.keys() if 'ms' in k and 'volume' in k]
+    surfs = [k for k in gmdict.keys() if 'ms' in k and 'surface' in k]
+    for i in range(0,max(len(vols),len(surfs))):
+        if vols!=[]:
+            cleaned_vol = check_timing(gmdict[vols[i]],gmtimes)
             cleaned_vol = check_units(cleaned_vol)
-            cleaned_surf = check_units(cleaned_surf)
-        else:
-            cleaned_vol = check_units(cleaned_vol)
-            cleaned_surf = check_units(cleaned_surf)
+            key = vols[i].split('_volume')[0]
+            print(vols[i])
+        if surfs!=[]:
+            cleaned_surf = check_timing(gmdict[surfs[i]],gmtimes)
+            key = surfs[i].split('_surface')[0]
+            print(surfs[i])
+        if vols!=[] and surfs!=[]:
             cleaned_df=gather_magnetopause(cleaned_surf,cleaned_vol,gmtimes)
-            msdict.update({key.split('/')[1].split('_')[1]:cleaned_df.drop(
-                                                  columns=['Time [UTC]'])})
+            msdict.update({key.split('/')[1].split('_')[1]:cleaned_df})
+        elif surfs==[]:
+            msdict.update({key.split('/')[1].split('_')[1]:cleaned_vol})
+        else:
+            msdict.update({key.split('/')[1].split('_')[1]:cleaned_surf})
     if msdict!={}:
         #repackage in dictionary
         data.update({'msdict':msdict})
@@ -112,8 +116,8 @@ def check_timing(df,times):
         interp_df
     """
     #Do nothing if times are already matching
-    if len(times) == len(df['Time [UTC]']):
-        if all(times == df['Time [UTC]']):
+    if len(times) == len(df.index):
+        if all(times == df.index):
             return df
     #Otw reconstruct on times column and interpolate
     #interp_df = pd.DataFrame({'Time [UTC]':times})
@@ -121,7 +125,7 @@ def check_timing(df,times):
     if times[0] not in df.index:
         df.loc[times[0]] = df.iloc[0]
         df.sort_index()
-    for key in df.keys().drop('Time [UTC]'):
+    for key in df.keys():
         interp_df[key] = df[key]
     interp_df.interpolate(method='time',inplace=True)
     return interp_df

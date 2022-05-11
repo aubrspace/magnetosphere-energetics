@@ -33,8 +33,9 @@ if __name__ == "__main__":
         os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
     #Nice condition
-    starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
-                'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
+    #starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
+    #            'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
+    starlink = ('localdbug/starlink/3d__var_1_e20220204-223000-000.plt')
     #Current fails
     #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
     #            'starlink/3d__var_1_e20220202-050400-000.plt')
@@ -60,7 +61,7 @@ if __name__ == "__main__":
 
     for inputs in [starlink]:
         tp.new_layout()
-        mhddatafile = inputs[0]
+        mhddatafile = inputs
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
         #python objects
         field_data = tp.data.load_tecplot(inputs)
@@ -74,15 +75,67 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath='babyrun/',
-                                                    do_interfacing=True,
-                                                    do_cms=True,
-                                                    integrate_volume=True,
-                                                    verbose=True,
-                                                   analysis_type='virial_biotsavart')
-                      #modes=['iso_betastar','nlobe','slobe','closed','rc'],
+                                                    do_interfacing=False,
+                                                    do_cms=False,
+                                                    integrate_volume=False,
+                                                    verbose=False,
+                                                   analysis_type='energy',
+                      modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
-    #with tp.session.suspend():
-    #    if True:#manually switch on or off
+    with tp.session.suspend():
+        #if True:#manually switch on or off
+        #adjust view settings
+        proc = 'Multi Frame Manager'
+        cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
+        tp.macro.execute_extended_command(command_processor_id=proc,
+                                          command=cmd)
+        mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
+        zone_hidekeys = ['sphere', 'box','shue','future','innerbound',
+                         'lcb']
+        timestamp=True
+        for frame in enumerate(tp.frames()):
+            frame[1].activate()
+            if frame[0]==0:
+                legend = False
+                timestamp = True
+                doslice = True
+                slicelegend = False
+                fieldlegend = True
+                fieldline=True
+            if frame[0]==1:
+                legend = True
+                timestamp = False
+                doslice = True
+                slicelegend = False
+                fieldlegend = False
+                fieldline=True
+            if frame[0]==2:
+                legend = False
+                timestamp = False
+                doslice = True
+                slicelegend = True
+                fieldlegend = False
+                fieldline=False
+            if frame[0]==3:
+                legend = True
+                save = True
+                timestamp = False
+                doslice = False
+                slicelegend = False
+                fieldlegend = False
+                fieldline=True
+                zone_hidekeys = ['sphere', 'box','shue','future','lcb']
+            view_set.display_single_iso(frame[1], mhddatafile,
+                                        mode=mode[frame[0]],
+                                        show_contour=True,
+                                        show_fieldline=fieldline,
+                                        show_legend=legend,
+                                        show_slegend=slicelegend,
+                                        show_flegend=fieldlegend,
+                                        show_slice=doslice,
+                                        timestamp_pos=[4,5],
+                                        zone_hidekeys=zone_hidekeys,
+                                        show_timestamp=timestamp)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

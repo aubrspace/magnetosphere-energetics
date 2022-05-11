@@ -337,7 +337,7 @@ def generate_3Dobj(sourcezone, **kwargs):
         futurezone = sourcezone.dataset.zone('future*')
         sources=[sourcezone,futurezone]
     else:
-        sources=sourcezone
+        sources=[sourcezone]
 
     #Create the tecplot objects from the source and store into lists
     for m in modes:
@@ -348,7 +348,7 @@ def generate_3Dobj(sourcezone, **kwargs):
                 if(type(zone)!=type(None)or type(inner_zone)!=type(None)):
                     if 'zone_rename' in kwargs:
                         zone.name = kwargs.get('zone_rename','')+'_'+m
-                    if source==futurezone:
+                    if 'future' in source.name:
                         zone.name='future_'+zone.name
                         calc_delta_state(sourcezone.dataset.variable(
                                     state_index).name.split('future_')[-1],
@@ -515,7 +515,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
-        for zone in zonelist:
+        for zone in zonelist[0:1]:
             #integrate power on created surface
             print('Working on: '+zone.name+' surface')
             surf_results = surface_tools.surface_analysis(zone,**kwargs)

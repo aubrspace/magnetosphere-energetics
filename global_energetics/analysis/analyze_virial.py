@@ -6,6 +6,7 @@ import sys
 import glob
 import time
 import numpy as np
+from scipy import signal
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import pandas as pd
@@ -15,7 +16,8 @@ from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
 from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.plot_tools import (general_plot_settings,
-                                                   pyplotsetup,
+                                                   pyplotsetup, plot_psd,
+                                                   plot_pearson_r,
                                                    get_omni_cdas)
 from global_energetics.analysis.analyze_energetics import (plot_swflowP,
                                                           plot_swbz,
@@ -177,27 +179,115 @@ if __name__ == "__main__":
     plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
 
     ##Loading data
-    #Log files and observational indices
-    [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
-                                                       read_supermag=False)
     #HDF data, will be sorted and cleaned
-    [mpdict,msdict,inner_mp,times,get_nonGM]=load_hdf_sort(
-                                                datapath+'virial_track.h5')
-    if get_nonGM:
-        #Check for non GM data
-        ie, ua_j, ua_e, ua_non, ua_ie= load_nonGM(datapath+'results.h5')
+    results = load_hdf_sort(datapath+'results.h5')
 
     ##Apply any mods and gather additional statistics
-    [mpdict,msdict,inner_mp] = process_virial(mpdict,msdict,inner_mp,times)
+    [mpdict,msdict,inner_mp] = process_virial(results)
     mp = [m for m in mpdict.values()][0]
 
     ##Construct "grouped" set of subzones
     msdict = group_subzones(msdict,mode='3zone')
 
+    #Log files and observational indices
+    obs = read_indices(datapath,read_supermag=False,
+                       start=mp.index[0],end=mp.index[-1])
+    #swmf_index, swmf_log, swmf_sw, omni
+    '''
+    sim_recovery = [(mp.index>dt.datetime(2022,2,4,22))&
+                    (~mp['Virial [nT]'].isna())][0]
+    obs_recovery = obs['swmf_sw'].index>dt.datetime(2022,2,4,22)
+    for p_obs,p_sim in [(obs_recovery,sim_recovery)]:
+        xraw_time = obs['swmf_sw'][p_obs].index
+        xraw_data = obs['swmf_sw'][p_obs]['bz']
+        yraw_time = mp[p_sim].index
+        yraw_data = mp[p_sim]['Virial [nT]'].values
+        xdata = np.interp(yraw_time, xraw_time, xraw_data)
+        ydata = yraw_data
+        cov = np.cov(np.stack((xdata,ydata)))[0][1]
+        r = cov/(xdata.std()*ydata.std())
+        plt.scatter(xdata, ydata, label='r = {:.2f}'.format(r))
+        plt.xlabel('IMF Bz')
+        plt.ylabel('Virial [nT]')
+        plt.legend()
+        plt.show()
+    '''
+
     ##Begin plots
+    ######################################################################
+    #Power spectrum plot
+    #TODO 
+    #   > bring in the phase locator from working title
+    #   > Move psd to it's own function
+    #   > Move pearson r to it's own function
+    #   > Make flow general for a given sim and obs key pair
+    #   > Run for both starlink main/recoveries and feb main/recovery
+    #   > Look at energy data for both closed field and lobe energy content
+    #   > See if there is a combination of sw drivers that can give a 
+    #       similar period
+    #   > Rerun results with the latest surface definitions @ 1min cadence
+    #   > If results aren't different for the events just choose one 
+    # WHY is the ~4hr substorm period showing up in the virial results?
+    #   Hyp:    Energy being released from the system as plasmoid
+    #   Hyp:    Mass being drawn in closer, reducing rhoU dot r
+    # COULD the variations be a symptom of missing energy in the accounting?
+    #Starlink
+    #   starlink_impact = dt.datetime(2022,2,3,0,0)
+    #   starlink_endMain1 = dt.datetime(2022,2,3,11,15)
+    #   starlink_endMain2 = dt.datetime(2022,2,4,13,10)
+    if True:
+        ##Set time periods for analysis
+        #Main Phase 1
+        sim_main = [(mp.index>mp.index[0]+dt.timedelta(minutes=60))&
+                    (mp.index<dt.datetime(2022,2,3,11,15))&
+                        (~mp['Virial [nT]'].isna())][0]
+        obs_main = [(obs['swmf_sw'].index>
+                        obs['swmf_sw'].index[0]+dt.timedelta(minutes=60))&
+                    (obs['swmf_sw'].index<dt.datetime(2022,2,3,11,15))][0]
+        #Final Recovery Phase
+        sim_recovery = [(mp.index>dt.datetime(2022,2,4,22))&
+                        (~mp['Virial [nT]'].isna())][0]
+        obs_recovery = obs['swmf_sw'].index>dt.datetime(2022,2,4,22)
+
+        for (simkey,obskey) in [('Virial [nT]','bz'),
+                                ('bioS_full [nT]','bz'),
+                                ('bioS [nT]','bz'),
+                                ('bioS_ext [nT]','bz')]:
+            #Figure setup
+            psd,ax = plt.subplots(nrows=2,ncols=2,figsize=[14,14])
+            psd_ylabel = r'Signal Power Density $\left[nT^2 / Hz \right]$'
+            psd_xlabel = r'Frequency $\left[Hz\right]$'
+            rcor_xlabel = r'Solar Wind $B_z \left[nT\right]$'
+            rcor_ylabel = r'Virial $\Delta B \left[nT\right]$'
+            simlabel = r'Virial $\Delta B$'
+            obslabel = r'Solar Wind $B_z$'
+
+            for (phase, (p_obs,p_sim)) in enumerate([(obs_main,sim_main),
+                                            (obs_recovery,sim_recovery)]):
+                #Time Series
+                t_sim = mp[p_sim].index
+                t_obs = obs['swmf_sw'][p_obs].index
+                sim_series = mp[p_sim][simkey].values
+                obs_series= obs['swmf_sw'][p_obs][obskey]
+
+                #Power Spectral Density analysis
+                plot_psd(ax[phase][0], t_sim, sim_series, label=simlabel,
+                        xlabel=psd_xlabel,ylabel=psd_ylabel)
+                plot_psd(ax[phase][0], t_obs, obs_series, label=obslabel,
+                        xlabel=psd_xlabel,ylabel=psd_ylabel)
+
+                #Pearson R Correlation
+                plot_pearson_r(ax[phase][1], t_sim, t_obs, sim_series,
+                               obs_series, xlabel=rcor_xlabel,
+                                           ylabel=rcor_ylabel)
+
+            psd.tight_layout(pad=1)
+            psd.savefig(figureout+'/'+simkey.split(' ')[0]+
+                        'frequency_analysis.png')
+            plt.close(psd)
     #MGU image: ie integrated joule heating, ua density@210km, lobe energy
     ######################################################################
-    if get_nonGM:
+    if False:
         #gmlabel = r'$\Delta B \left[nT\right]$'
         gmlabel = r'Energy $\left[J\right]$'
         gmlabel2 = r'Energy $\left[\%\right]$'

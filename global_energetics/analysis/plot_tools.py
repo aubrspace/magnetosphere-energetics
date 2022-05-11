@@ -3,6 +3,7 @@
 """
 import numpy as np
 import datetime as dt
+from scipy import signal
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
@@ -323,6 +324,50 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
     #General plot settings
     general_plot_settings(ax, **kwargs)
 
+def plot_psd(ax, t, series, **kwargs):
+    """plots estimated power spectral density from scipy.signal.periodogram
+    Inputs
+        ax (Axis object)- axis to plot on
+        t (timeIndex)- timeseries used, only tested with equally spaced
+        series array(floats)- signal data used
+        kwargs:
+            fs (float)- sampling frequency, will scale results
+            label-
+            ylim,xlabel,ylabel
+    Returns
+        None
+    """
+    f, Pxx = signal.periodogram(series, fs=kwargs.get('fs',1/300))
+    T_peak = (1/f[Pxx==Pxx.max()][0])/3600 #period in hours
+    ax.semilogy(f,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
+                                    +' Peak at  {:.2f} hrs'.format(T_peak))
+    ax.set_ylim(kwargs.get('ylim',[10e-2,10e6]))
+    ax.legend()
+    ax.set_xlabel(kwargs.get('xlabel'))
+    ax.set_ylabel(kwargs.get('ylabel'))
+
+def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
+    """plots scatter with attached r correlation value for XY series
+    Inputs
+        ax (Axis object)- axis to plot on
+        tx,ty (timeIndex)- timeseries used, only tested with equally spaced
+        xseries,yseries array(floats)- signal data used
+        kwargs:
+            label-
+            ylim,xlabel,ylabel
+    Returns
+        None
+    """
+    #Pearson R Correlation
+    xdata = np.interp(ty, tx, xseries)
+    ydata = yseries
+    cov = np.cov(np.stack((xdata,ydata)))[0][1]
+    r = cov/(xdata.std()*ydata.std())
+    #Plot with SW on X and Virial on Y
+    ax.scatter(xdata,ydata,label='r = {:.2f}'.format(r))
+    ax.legend()
+    ax.set_xlabel(kwargs.get('xlabel'))
+    ax.set_ylabel(kwargs.get('ylabel'))
 
 
 if __name__ == "__main__":

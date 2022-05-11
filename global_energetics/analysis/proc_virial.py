@@ -82,16 +82,14 @@ def calculate_mass_term(df,times):
     """
     #Get time delta for each step
     ftimes = times.copy()
-    ftimes.index=ftimes.index-1
-    ftimes.drop(index=[-1],inplace=True)
+    ftimes = ftimes.drop(ftimes[0]).append(pd.Index([ftimes[-1]]))
     dtimes = ftimes-times
-    #dtimes.iloc[-1] = dtimes.iloc[-2]
     #Forward difference of integrated positionally weighted density
     df['Um_static [J]'] = -1*df['rhoU_r [Js]']/[d.seconds for d in dtimes]
     f_n0 = df['rhoU_r [Js]']
     f_n1 = f_n0.copy()
-    f_n1.index=f_n1.index-1
-    f_n1 = f_n1.drop(index=[-1])
+    f_n1.index=f_n1.index-dtimes
+    f_n1 = f_n1.drop(index=[f_n1.index[0]])
     forward_diff = (f_n1-f_n0)/[d.seconds for d in dtimes]
     #Save as energy and as virial
     df['Um_static [J]'] = -1*forward_diff
@@ -178,7 +176,7 @@ def BIGMOD(mpdict,msdict,inner_mp,fix=None):
         scale = 1
     return mp, msdict, inner_mp, scale
 
-def process_virial(mpdict,msdict,inner_mp,times,**kwargs):
+def process_virial(results,**kwargs):
     """Wrapper function calls all processing steps for timeseries
         data intent for virial analysis
     Inputs
@@ -189,20 +187,25 @@ def process_virial(mpdict,msdict,inner_mp,times,**kwargs):
     """
     ##Term modification (usually just name changes, 
      #                   sometimes to hotfix simple calculation errors)
-    for group in [mpdict,msdict,inner_mp]:
-        for sz in group.keys():
-            df = group[sz]#copy subzone values to DataFrame
-            if 'Virial Volume Total [nT]' in df.keys():
-                moded = virial_mods(df, times)#changes for virial terms
-                moded = biot_mods(df, times)#changes for biot savart terms
-                group[sz] = moded
+    for group_name,group in results.items():
+        print(group_name)
+        if not 'time' in group_name:
+            for sz in group.keys():
+                df = group[sz]#copy subzone values to DataFrame
+                if 'Virial Volume Total [nT]' in df.keys():
+                    moded = virial_mods(df, df.index)
+                    moded = biot_mods(df, df.index)
+                    group[sz] = moded
 
     ##Grouping surface pieces on subzones into appropriate sub-totals
-    mpdict, msdict = virial_construction(mpdict, msdict, inner_mp)
+    mpdict, msdict = virial_construction(results['mpdict'],
+                                         results['msdict'],
+                                         results['inner_mp'])
 
     ## %contribution, diff between sums etc
-    mpdict, msdict = get_subzone_contrib(mpdict, msdict)
-    return mpdict,msdict,inner_mp
+    mpdict, msdict = get_subzone_contrib(results['mpdict'],
+                                         results['msdict'])
+    return mpdict,msdict,results['inner_mp']
 
 if __name__ == "__main__":
     print('this module processes virial and biot savart data, for plotting'+          ' see analyze_virial.py')
