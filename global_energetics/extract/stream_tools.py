@@ -977,6 +977,24 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 value_location=ValueLocation.CellCentered,
                 zones=[zone.index])
             ##############################################################
+            #Normal Mass Flux
+            eq('{'+add+'RhoU_net [kg/s/Re^2]} = {Rho [amu/cm^3]}*'+
+                                            '1.67*10e-12*6371**2*('+
+                                        '{U_x [km/s]}*{surface_normal_x}'+
+                                        '+{U_y [km/s]}*{surface_normal_y}'+
+                                        '+{U_z [km/s]}*{surface_normal_z})',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            #Split into + and - flux
+            eq('{'+add+'RhoU_escape [kg/s/Re^2]} ='+
+                        'max({'+add+'RhoU_net [kg/s/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            eq('{'+add+'RhoU_injection [kg/s/Re^2]} ='+
+                        'min({'+add+'RhoU_net [kg/s/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            ##############################################################
             #Normal Total Energy Flux
             eq('{'+add+'K_net [W/Re^2]}='+
                    '{P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
@@ -1013,7 +1031,7 @@ def get_1D_sw_variables(field_data, xmax, xmin, nx):
                                      columns=field_data.variable_names),
                                      ignore_index=False)
     #Create new global variables
-    for var in field_data.variable_names:
+    for var in [v for v in field_data.variable_names if 's ' in v]:
         #Make polynomial fit bc tec equation length is very limited
         p = np.polyfit(oneD_data['X [R]'], oneD_data[var],3)
         fx = xvalues**3*p[0]+xvalues**2*p[1]+xvalues*p[2]+p[3]
@@ -1366,6 +1384,7 @@ def equations(**kwargs):
                 Bdy_eq.split('=')[0]:Bdy_eq.split('=')[-1],
                 Bdz_eq.split('=')[0]:Bdz_eq.split('=')[-1],
                '{Bdmag [nT]}':'sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)'}
+        g = aux['GAMMA']
     ######################################################################
     #Volumetric energy terms, includes:
     #   Total Magnetic Energy per volume
@@ -1491,6 +1510,11 @@ def equations(**kwargs):
         '{trackWKE [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
                              '{trackKE_acc [J/Re^3]}/{dtime_acc [s]},0)'}
     ######################################################################
+    #Entropy and 1D things
+    equations['entropy'] = {
+        '{s [Re^4/s^2kg^2/3]}':'{P [nPa]}/{Rho [amu/cm^3]}**('+g+')*'+
+                                    '1.67**('+g+')/6.371**4*100'}
+    ######################################################################
     #Some extra's not normally included:
     equations['parallel'] = {
         '{KEpar [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
@@ -1580,6 +1604,9 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eqeval(alleq['reconnect'],value_location=cc)
     #trackIM
     if'trackIM'in analysis_type:eqeval(alleq['trackIM'],value_location=cc)
+    #specific entropy
+    if 'bs' in kwargs.get('modes',[]):
+        eqeval(alleq['entropy'],value_location=cc)
     #user_selected
     if 'add_eqset' in kwargs:
         for eq in [eq for eq in alleq if eq in kwargs.get('add_eqset')]:
@@ -1797,22 +1824,61 @@ def calc_state(mode, sourcezone, **kwargs):
                                         str(kwargs.get('bxmax',10)),
                                         sourcezone)
     elif 'bs' in mode:
+        #TODO: revive and refresh this to give a consistant result
+        #       -> then integrate only the forward projected area
+        #       -> Determine summary of geometric results: SA, standoff, flare
+        #       -> Main Q is: How does energy partition upstream of shock 
+        #                       affect the energy flux through the shock?
+        #                 or: Is the low beta ejecta portion of the event
+        #                       transfering more or less energy through the
+        #                       shock?
         zonename = 'ext_'+mode
-        state_index = calc_bs_state(kwargs.get('sonicspeed',34),
-                                    kwargs.get('betastarblank',2),
+        state_index = calc_bs_state2(kwargs.get('deltaS',3),
+                                    kwargs.get('betastarblank',0.8),
                                     kwargs.get('tail_cap',-20),
                                     sourcezone,
                                     mpexists=('mpvar' in kwargs.keys()))
-        #TEMPORARY REROUTE FOR BOW SHOCK MODE, SEEMS TO BE GRID RES ISSUE
-        #state_index = tp.active_frame().dataset.variable('Cs *').index
-        #zone, innerzone = setup_isosurface(kwargs.get('sonicspeed',34),
-        #                    state_index, zonename, blankvar = 'beta_star',
-        #                    blankvalue=kwargs.get('betastarblank',2))
-        zone, innerzone = setup_isosurface(kwargs.get('sonicspeed',34),
-                            state_index, zonename, blankvar = 'X *',
-                            blankvalue=kwargs.get('tail_cap',-20))
-        innerzone = None
-        return zone, innerzone, state_index
+        upstream = setup_isosurface(1,state_index,zonename, blankvar = 'X *',
+                                    blankvalue=kwargs.get('tail_cap',-20))
+        #TEMPORARY REROUTE FOR BOW SHOCK MODE
+        #   Bow shock detection finds upstream edge where sw properties are
+        #   still unshocked, to work around we will:
+        #       1. find the overshoot max * some factor (1.2) at the nose
+        #       2. copy and shift the whole surface back by this distance
+        #       3. reinterpolate the field data to the new surface
+        #       4. recalculate derived (global) variables
+
+        #       1.1 find the nose
+        ds = upstream.dataset
+        nose = upstream.values('X *').max()
+        #       1.2 extract values along a flow line passing through nose
+        tp.active_frame().plot().vector.u_variable = ds.variable('U_x *')
+        tp.active_frame().plot().vector.v_variable = ds.variable('U_y *')
+        tp.active_frame().plot().vector.w_variable = ds.variable('U_z *')
+        flow_line = tp.active_frame().plot().streamtraces
+        flow_line.add([nose,0,0],Streamtrace.VolumeLine,
+                      direction=StreamDir.Both)
+        flow_line.extract()
+        flow_line.delete_all()
+        #       1.3 find the overshoot max * some factor (1.2)
+        overshoot = ds.zone(-1).values('X *').as_numpy_array()[
+                            (ds.zone(-1).values('Rho *').as_numpy_array()==
+                                       ds.zone(-1).values('Rho *').max())][0]
+        #       2. copy and shift the whole surface back by this distance
+        downstream = ds.copy_zones(upstream)[0]
+        downstream.name = downstream.name+'_down'
+        upstream.name = upstream.name+'_up'
+        downstream.values('X *')[:]=(downstream.values('X *').as_numpy_array()
+                                     +1.2*(overshoot-nose))
+        #       3. reinterpolate the field data to the new surface
+        tp.data.operate.interpolate_linear(downstream,
+                                       source_zones=[sourcezone],
+                                       variables=[3,4,5,6,7,8,9,10,11,12,13])
+        #       4. recalculate derived (global) variables
+        get_global_variables(ds, kwargs.get('analysis_type'),
+                             aux=upstream.dataset.zone(0).aux_data,
+                             modes=kwargs.get('modes',[]),zones=[downstream])
+        return upstream, downstream, state_index
     elif 'Jpar' in mode:
         #Make sure we have a place to find the regions of intense FAC's
         assert any(
@@ -2035,6 +2101,29 @@ def calc_bs_state(sonicspeed, betastarblank, xtail, sourcezone, *,
                           '{X [R]}>'+str(xtail)+',{Cs [km/s]}['+src+'],0))',
                           zones=[0])
     return sourcezone.dataset.variable('ext_bs_Cs').index
+
+def calc_bs_state2(deltaS, betastarblank, xtail, sourcezone, *,
+                   mpexists=False):
+    """Function creates equation for the bow shock region
+    Inputs
+        deltaS- gas dynamics speed of sound: sqrt(gamma*P/rho)[km/s]
+        betastarblank- blanking condition for betastar
+        mpexists(boolean)- used to define the back end condition
+    Return
+        index- index for the created variable
+    """
+    eq = tp.data.operate.execute_equation
+    src=str(sourcezone.index+1)#Needs to be ref for non fixed variables XYZR
+    if 'future' in sourcezone.name:
+        state = 'future_ext_bs_Ds'
+    else:
+        state = 'ext_bs_Ds'
+    if True:
+        eq('{'+state+'}=if({beta_star}['+src+']>'+str(betastarblank)+
+                  '&& ({s [Re^4/s^2kg^2/3]}['+src+']/'+
+                      '({1Ds [Re^4/s^2kg^2/3]}['+src+']+1e-20)<'+str(deltaS)+
+                            '),1,0)',zones=[0])
+    return sourcezone.dataset.variable('ext_bs_Ds').index
 
 def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,sourcezone,**kwargs):
     """Function creates equation for the plasmasheet or quasi diploar

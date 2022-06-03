@@ -108,11 +108,14 @@ def work(mhddatafile):
         marktime=time.time()
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=True,analysis_type='energy',
-                                    do_interfacing=True,tshift=45,
-                                    integrate_volume=True,
-                  modes=['iso_betastar','nlobe','slobe','closed','rc'],
+                                    do_cms=False,
+                                    analysis_type='massenergy',
+                                    do_interfacing=False,
+                                    integrate_volume=False,
+                                    extract_flowline=True,
+                                    modes=['iso_betastar','bs'],
                                     outputpath=CONTEXT['OUTPUTPATH'])
+                                    #modes=['iso_betastar','nlobe','slobe','closed','rc'],
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
                                                            marktime))
@@ -197,12 +200,12 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'febstorm'
+    RUNDIR = 'starlink'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_febstorm')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'bs_output_starlink')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -218,7 +221,7 @@ if __name__ == '__main__':
 
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0::15]
+                                key=makevideo.time_sort)[0::5]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

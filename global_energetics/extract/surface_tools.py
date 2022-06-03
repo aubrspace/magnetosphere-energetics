@@ -433,6 +433,18 @@ def get_energy_dict():
         #Total flux K calculated in post
     return energy_dict
 
+def get_mass_dict():
+    """Creates dictionary of terms to be integrated for virial analysis
+    Inputs
+    Outputs
+        energy_dict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    flux_suffixes = ['_escape','_injection']#net will be calculated in post
+    units = ' [kg/s/Re^2]'; postunits = ' [kg/s]'; mass_dict = {}
+    for direction in flux_suffixes:
+        mass_dict.update({'RhoU'+direction+units:'M'+direction+postunits})
+    return mass_dict
+
 def get_virial_dict(zone):
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
@@ -493,6 +505,8 @@ def surface_analysis(zone, **kwargs):
         integrands.update(get_virial_dict(zone))
     if 'energy' in analysis_type:
         integrands.update(get_energy_dict())
+    if 'mass' in analysis_type:
+        integrands.update(get_mass_dict())
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications spatially parsing results
@@ -504,7 +518,7 @@ def surface_analysis(zone, **kwargs):
         if 'innerbound' in zone.name:
             integrands.update(get_low_lat_integrands(zone, integrands,
                                                      **kwargs))
-        integrands.update(get_open_close_integrands(zone, integrands))
+        #integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
     for term in integrands.items():

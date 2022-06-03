@@ -109,12 +109,48 @@ def vid_compile(infolder, outfolder, framerate, title):
         make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     os.system(make_vid_cmd)
 
+def add_timestamps(infolder):
+    """function adds timestamp labels in post in case you forgot (:
+    Inputs
+        infolder
+    Returns
+        copyfolder
+    """
+    from PIL import Image, ImageDraw, ImageFont
+    copyfolder = os.path.join(infolder,'copy_wstamps')
+    os.makedirs(copyfolder, exist_ok=True)
+    for i,infile in enumerate(sorted(glob.glob(infolder+'/*.png'),
+        key=time_sort)):
+        print(infile.split('/')[-1])
+        #Create the stamp
+        timestamp = get_time(infile)+dt.timedelta(minutes=45)
+        if i==0: tstart=timestamp
+        simtime = timestamp-tstart
+        stamp1 = str(timestamp)
+        stamp2 = 'tsim: '+str(simtime)
+
+        #Setup the image
+        image = Image.open(infile)
+        I1 = ImageDraw.Draw(image)
+        goodfont = ImageFont.truetype('FreeMono.ttf', 45)
+
+        #Attach and save
+        #I1.text((28,36), stamp1, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
+        #I1.text((28,97), stamp2, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
+        I1.text((828,1236), stamp1, font=goodfont, fill=(124,246,223))#BotRightCyan
+        I1.text((828,1297), stamp2, font=goodfont, fill=(124,246,223))#BotRightCyan
+        image.save(os.path.join(copyfolder,infile.split('/')[-1]))
+    return copyfolder
+
+
 #Main program
 if __name__ == '__main__':
     #Video settings
     RES = 400
-    FRAMERATE = 12
+    FRAMERATE = 36
     FOLDER = sys.argv[1]
+    if '-stamp' in sys.argv:
+        FOLDER = add_timestamps(FOLDER)
 
     #determine if already in img-??.png form
     if '-q' in sys.argv:

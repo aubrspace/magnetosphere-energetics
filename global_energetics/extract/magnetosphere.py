@@ -206,8 +206,9 @@ def prep_field_data(field_data, **kwargs):
         print('Calculating global energetic variables')
         main_frame.name = 'main'
         get_global_variables(field_data, analysis_type,aux=aux,
+                             modes=kwargs.get('modes',[]),
                              verbose=kwargs.get('verbose',False))
-        if do_1Dsw:
+        if do_1Dsw or 'bs' in kwargs.get('modes',[]):
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
     #Add imfclock angle if not there already
@@ -356,6 +357,10 @@ def generate_3Dobj(sourcezone, **kwargs):
                     else:
                         zonelist.append(zone)
                         state_indices.append(state_index)
+                        if 'bs' in kwargs.get('modes',[]):
+                            zonelist.append(inner_zone)
+                            state_indices.append(state_index)
+                            get_surf_geom_variables(inner_zone)
                         if 'modes' in kwargs:
                             get_surf_geom_variables(zone)
 
@@ -515,7 +520,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         savemeshvars.update({mode:[]})
     ################################################################
     if integrate_surface:
-        for zone in zonelist[0:1]:
+        for zone in zonelist:
             #integrate power on created surface
             print('Working on: '+zone.name+' surface')
             surf_results = surface_tools.surface_analysis(zone,**kwargs)
@@ -526,6 +531,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 surf_results['L_min [L]'] = float(aux['inner_l'])
                 mp_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
+            elif 'bs' in zone.name:
+                #Add x_subsolar
+                surf_results['X_subsolar [Re]'] = zone.values('X *').max()
             surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
             if save_mesh:
@@ -596,6 +604,24 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                             value_location=ValueLocation.CellCentered)
                     savemeshvars[kwargs.get('modes')[state_index[0]]].append(
                                                                      usename)
+    ################################################################
+    if kwargs.get('extract_flowline',False):
+        crossing = field_data.zone('Streamtrace')
+        upper = field_data.zone('ext_bs_up').values('X *').as_numpy_array(
+                                                                    ).max()+5
+        lower = field_data.zone('ext_bs_down').values('X *').as_numpy_array(
+                                                                    ).max()-5
+        cond = ((crossing.values('X *').as_numpy_array()<upper) &
+                (crossing.values('X *').as_numpy_array()>lower))
+        results = pd.DataFrame()
+        for var in ['X *','Y *','Z *', 'U_x *','U_y *','U_z *', 'P *', 'Rho *',
+                    'B_x *','B_y *','B_z *', 'J_x *','J_y *','J_z *']:
+            results[var.split(' ')[0]] = crossing.values(var).as_numpy_array(
+                                                                        )[cond]
+        results['nose'] = upper-5
+        results['overshoot'] = lower+5
+        results['Time [UTC]'] = eventtime
+        data_to_write.update({'crossing':results})
     ################################################################
     if save_mesh:
         #save mesh to hdf file

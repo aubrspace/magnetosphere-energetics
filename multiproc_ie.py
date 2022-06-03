@@ -55,6 +55,34 @@ def work(file):
     south = field_data.zone('IonS *')
     joule = field_data.variable('JouleHeat *')
     energy = field_data.variable('E-Flux *')
+    #dipole coordinates
+    eq = tp.data.operate.execute_equation
+    theta = field_data.zone(0).values('Theta *').as_numpy_array()
+    x = field_data.zone(0).values('X *').as_numpy_array()
+    y = field_data.zone(0).values('Y *').as_numpy_array()
+    z = field_data.zone(0).values('Z *').as_numpy_array()
+    tilt = str(theta[(abs(x)<0.2) & (abs(y)<0.2) & (abs(z-1)<0.2)][0])
+    dipole = {
+         '{mXhat_x}':'sin(('+tilt+'+90)*pi/180)',
+         '{mXhat_y}':'0',
+         '{mXhat_z}':'-1*cos(('+tilt+'+90)*pi/180)',
+         '{mZhat_x}':'sin('+tilt+'*pi/180)',
+         '{mZhat_y}':'0',
+         '{mZhat_z}':'-1*cos('+tilt+'*pi/180)'}
+    for lhs, rhs in dipole.items():
+        eq(lhs+'='+rhs)
+    #get biot savart equations
+    biot_savart = {
+               '{dB_x [nT]}':'-({Y [R]}*{Jz [`mA/m^2]}-'+
+                               '{Z [R]}*{Jy [`mA/m^2]})*1e-2',
+               '{dB_y [nT]}':'-({Z [R]}*{Jx [`mA/m^2]}-'+
+                               '{X [R]}*{Jz [`mA/m^2]})*1e-2',
+               '{dB_z [nT]}':'-({X [R]}*{Jy [`mA/m^2]}-'+
+                               '{Y [R]}*{Jx [`mA/m^2]})*1e-2',
+               '{dB [nT]}':'{dB_x [nT]}*{mZhat_x}+{dB_z [nT]}*{mZhat_z}'}
+    for lhs, rhs in biot_savart.items():
+        eq(lhs+'='+rhs)
+    bioS = field_data.variable('dB *')
 
     ##integrate
     conversion = 6371**2*1e3 #mW/m^2*Re^2 -> W
@@ -62,13 +90,18 @@ def work(file):
     sjoul = integrate_tecplot(joule,south)*conversion
     nenergy = integrate_tecplot(energy,north)*conversion*1e3
     senergy = integrate_tecplot(energy,south)*conversion*1e3
+    ndB = integrate_tecplot(bioS,north)
+    sdB = integrate_tecplot(bioS,south)
 
     ##save data
+    #TODO: save the ie biot savart data and check units
     ion.save_tofile(file,timestamp,outputdir=CONTEXT['OUTPUTPATH'],
                     nJouleHeat_W=[njoul],sJouleHeat_W=[sjoul],
-                    nEFlux_W=[nenergy],sEFlux_W=[senergy])
+                    nEFlux_W=[nenergy],sEFlux_W=[senergy],
+                    nBiotSavart=[ndB],sBiotSavart=[sdB])
 
     ##Display
+    print(ndB,sdB,ndB+sdB)
 
     ##Clean up
 
@@ -172,9 +205,10 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     STARLINKDIR = '/nfs/solsticedisk/tuija/starlink/IE/ionosphere/'
+    FEBDIR = '/nfs/solsticedisk/tuija/Feb2014_frontiers_run/run/IE/ionosphere/'
     ########################################
 
-    single_event_run(STARLINKDIR)
+    single_event_run(FEBDIR, outputdir='feb_ie_output')
 
     #timestamp
     ltime = time.time()-start_time

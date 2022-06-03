@@ -35,7 +35,8 @@ if __name__ == "__main__":
     #Nice condition
     #starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
     #            'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
-    starlink = ('localdbug/starlink/3d__var_1_e20220204-223000-000.plt')
+    starlink = ('starlink/3d__var_1_e20220204-223000-000.plt',
+                'starlink/3d__var_1_e20220204-224000-000.plt')
     #Current fails
     #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
     #            'starlink/3d__var_1_e20220202-050400-000.plt')
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     for inputs in [starlink]:
         tp.new_layout()
-        mhddatafile = inputs
+        mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
         #python objects
         field_data = tp.data.load_tecplot(inputs)
@@ -79,11 +80,13 @@ if __name__ == "__main__":
                                                     do_cms=False,
                                                     integrate_volume=False,
                                                     verbose=False,
-                                                   analysis_type='energy',
-                      modes=['iso_betastar','nlobe','slobe','closed','rc'])
+                                                    extract_flowline=True,
+                                                   analysis_type='massenergy',
+                                                   modes=['iso_betastar','bs'])
+                      #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
-    with tp.session.suspend():
-        #if True:#manually switch on or off
+    #with tp.session.suspend():
+    if False:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
