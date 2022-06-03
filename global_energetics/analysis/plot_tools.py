@@ -17,7 +17,7 @@ def pyplotsetup(*,mode='presentation',**kwargs):
     #Always
     settings={"text.usetex": True,
               "font.family": "sans-serif",
-              "font.size": 18,
+              "font.size": 28,
               "font.sans-serif": ["Helvetica"]}
     if 'presentation' in mode:
         #increase lineweights
@@ -78,7 +78,7 @@ def general_plot_settings(ax, **kwargs):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel(kwargs.get('xlabel',''))
     #Ylabel
-    #ax.set_ylim(kwargs.get('ylim',None))
+    ax.set_ylim(kwargs.get('ylim',None))
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.set_ylabel(kwargs.get('ylabel',''))
     ax.tick_params(which='major', length=9)
@@ -292,6 +292,7 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
             do_xlabel(boolean)- default False
             ylabel(str)- default ''
             legend_loc(see pyplot)- 'upper right' etc
+            omni
     """
     #Figure out value_key
     value_key = kwargs.get('value_key','Virial [nT]')
@@ -300,16 +301,26 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
     if not '%' in value_key:
         ax.axhline(0,color='white',linewidth=0.5)
         if ('Virial' in value_key) or ('bioS' in value_key):
+            if 'omni' in kwargs:
+                ax.plot(kwargs.get('omni')['Time [UTC]'],
+                        kwargs.get('omni')['sym_h'],color='white',
+                        ls='--', label='SYM-H')
+            else:
+                print('omni not loaded! No obs comparisons!')
+            '''
             try:
                 if all(omni['sym_h'].isna()): raise NameError
                 ax.plot(omni['Time [UTC]'],omni['sym_h'],color='white',
                     ls='--', label='SYM-H')
             except NameError:
                 print('omni not loaded! No obs comparisons!')
+            '''
         if ('bioS' in value_key) and ('bioS_ext [nT]' in mp.keys()):
             starting_value = mp['bioS_ext [nT]']
-            ax.plot(times, mp['bioS_ext [nT]'],color='#05BC54',linewidth=4,
-                    label='External')#light green color
+            starting_value = starting_value+ mp['bioS_int [nT]']
+            ax.plot(times, mp['bioS_ext [nT]']+mp['bioS_int [nT]'],
+                    color='#05BC54',linewidth=4,
+                    label='External+Internal')#light green color
     #Plot stacks
     for szlabel,sz in msdict.items():
         szval = sz[value_key]
@@ -337,11 +348,12 @@ def plot_psd(ax, t, series, **kwargs):
     Returns
         None
     """
-    f, Pxx = signal.periodogram(series, fs=kwargs.get('fs',1/300))
+    f, Pxx = signal.periodogram(series,fs=kwargs.get('fs',1/300),nfft=3000)
     T_peak = (1/f[Pxx==Pxx.max()][0])/3600 #period in hours
-    ax.semilogy(f,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
+    ax.semilogy(f*1e3,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
                                     +' Peak at  {:.2f} hrs'.format(T_peak))
-    ax.set_ylim(kwargs.get('ylim',[10e-2,10e6]))
+    ax.set_xlim(kwargs.get('xlim',[0,0.5]))
+    ax.set_ylim(kwargs.get('ylim',[1e-6*Pxx.max(),10*Pxx.max()]))
     ax.legend()
     ax.set_xlabel(kwargs.get('xlabel'))
     ax.set_ylabel(kwargs.get('ylabel'))

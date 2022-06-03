@@ -500,6 +500,10 @@ def get_swmf_data(datapath,**kwargs):
     swdata.drop(columns=['Time [UTC]'],inplace=True)
     swdata=swdata[swdata.index < geoindexdata.index[-1]]
     swdata =swdata[swdata.index > geoindexdata.index[0]]
+    #solar wind dynamic pressure
+    convert = 1.6726e-27*1e6*(1e3)**2*1e9
+    swdata['v']=np.sqrt(swdata['vx']**2+swdata['vy']**2+swdata['vz']**2)
+    swdata['pdyn'] = swdata['density']*swdata['v']**2*convert
     #times Time [UTC]
     geoindexdata['times'] = geoindexdata.index
     swmflogdata['times'] = swmflogdata.index

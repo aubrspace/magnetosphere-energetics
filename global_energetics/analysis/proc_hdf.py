@@ -161,12 +161,12 @@ def group_subzones(msdict, mode='3zone'):
         msdict['missed']=0
     if ('closed' in msdict.keys()) and ('3zone' in mode):
         msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
-                        'closedRegion':msdict['closed'],
+                        'closed':msdict['closed'],
                         'rc':msdict['rc'],
                         'missing':msdict['missed']}
     elif ('3zone' in mode):
         msdict = {'lobes':msdict['nlobe']+msdict['slobe'],
-                      'closedRegion':msdict['ps']+msdict['qDp'],
+                      'closed':msdict['ps']+msdict['qDp'],
                       'rc':msdict['rc'],
                       'missing':msdict['missed']}
     elif ('lobes' in mode):
@@ -190,7 +190,8 @@ def get_subzone_contrib(mpdict, msdict, **kwargs):
     #Quantify amount missing from sum of all subzones
     missing_volume, summed_volume = pd.DataFrame(), pd.DataFrame()
     szkeys = [sz for sz in msdict.values()][0].keys()
-    for key in [k for k in full.keys() if k in szkeys and '[J]' in k]:
+    for key in [k for k in full.keys() if k in szkeys and ('[J]' in k
+                                                         or 'bioS' in k)]:
         if key in szkeys:
             fullvalue = full[key]
             added = [m for m in msdict.values()][0][key]
@@ -198,7 +199,12 @@ def get_subzone_contrib(mpdict, msdict, **kwargs):
                 added = added+sub[key]
             missing_volume[key] = fullvalue-added
             summed_volume[key] = added
-    msdict.update({'missed':missing_volume,'summed':summed_volume})
+            if any(['Virial' in k for k in full.keys()])and'bioS'not in key:
+                dBkey = '[nT]'.join(key.split('[J]'))
+                missing_volume[dBkey] = (fullvalue-added)/(-8e13)
+                summed_volume[dBkey] = added/(-8e13)
+    #msdict.update({'missed':missing_volume,'summed':summed_volume})
+    msdict.update({'missed':missing_volume})
     #Identify percentage contribution from each piece
     for ms in msdict.values():
         for key in ms.keys():

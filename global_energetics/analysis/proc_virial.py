@@ -32,6 +32,7 @@ def virial_construction(mpdict, msdict, inner_mp, **kwargs):
             m['Utot [J]'] = m['uB [J]']+m['KE [J]']+m['Eth [J]']
         #Total virial contribution from surface and volume terms
         if 'Virial 2x Uk [J]' in m[1].keys():
+            print(m[0])
             if 'nlobe' in m[0]:
                 m[1]['Virial Surface Total [J]'] = (
                                        inner_mp['Virial FadvOpenN [J]']+
@@ -46,20 +47,27 @@ def virial_construction(mpdict, msdict, inner_mp, **kwargs):
                                        mp['Virial Surface TotalOpenS [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
                                       m[1]['Virial Surface Total [J]'])
+            elif 'lobes' in m[0]:
+                m[1]['Virial Surface Total [J]'] = (
+                                       inner_mp['Virial FadvPoles [J]']+
+                                       inner_mp['Virial b^2Poles [J]']+
+                                       mp['Virial Surface TotalFlank [J]'])
+                m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
+                                      m[1]['Virial Surface Total [J]'])
             elif ('qDp' in m[0]) or ('closed' in m[0]):
                 m[1]['Virial Surface Total [J]'] = (
-                                       inner_mp['Virial FadvClosed [J]']-
-                                       inner_mp['Virial FadvLowlat [J]']+
-                                       inner_mp['Virial b^2Closed [J]']-
-                                       inner_mp['Virial b^2Lowlat [J]']+
-                                      mp['Virial Surface TotalClosed [J]'])
+                                       inner_mp['Virial FadvMidLat [J]']+
+                                       inner_mp['Virial b^2MidLat [J]']+
+                                    mp['Virial Surface TotalDayside [J]']+
+                                 mp['Virial Surface TotalTail_close [J]'])
                 m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
                                       m[1]['Virial Surface Total [J]'])
             elif 'rc' in m[0]:
-                m[1]['Virial [J]'] = m[1]['Virial Volume Total [J]']
                 m[1]['Virial Surface Total [J]'] = (
-                                       inner_mp['Virial FadvLowlat [J]']+
-                                       inner_mp['Virial b^2Lowlat [J]'])
+                                       inner_mp['Virial FadvLowLat [J]']+
+                                       inner_mp['Virial b^2LowLat [J]'])
+                m[1]['Virial [J]'] = (m[1]['Virial Volume Total [J]']+
+                                      m[1]['Virial Surface Total [J]'])
             else:
                 m[1]['Virial [J]'] = m[1]['Virial Volume Total [J]']
                 m[1]['Virial Surface Total [J]'] = 0
@@ -84,13 +92,14 @@ def calculate_mass_term(df,times):
     ftimes = times.copy()
     ftimes = ftimes.drop(ftimes[0]).append(pd.Index([ftimes[-1]]))
     dtimes = ftimes-times
+    dtimes = dtimes.drop(dtimes[-1]).append(pd.Index(dtimes[-2:-1]))
     #Forward difference of integrated positionally weighted density
     df['Um_static [J]'] = -1*df['rhoU_r [Js]']/[d.seconds for d in dtimes]
     f_n0 = df['rhoU_r [Js]']
     f_n1 = f_n0.copy()
     f_n1.index=f_n1.index-dtimes
-    f_n1 = f_n1.drop(index=[f_n1.index[0]])
-    forward_diff = (f_n1-f_n0)/[d.seconds for d in dtimes]
+    f_n1 = f_n1.drop(index=[f_n1.index[0]]).append(f_n1[f_n1.index[-1::]])
+    forward_diff = (f_n1.values-f_n0.values)/[d.seconds for d in dtimes]
     #Save as energy and as virial
     df['Um_static [J]'] = -1*forward_diff
     df['Um_static [nT]'] = -1*forward_diff/(-8e13)
@@ -101,17 +110,6 @@ def calculate_mass_term(df,times):
     else:
         df['Um [J]'] = df['Um_static [J]']
         df['Um [nT]'] = df['Um_static [nT]']
-    return df
-
-def biot_mods(df, times):
-    """Function returns DataFrame with modified biotsavart columns
-    Inputs
-        df(DataFrame)
-    Returns
-        df(DataFrame)- modified
-    """
-    if ('bioS [nT]' in df.keys()) and ('bioS_full [nT]' in df.keys()):
-        df['bioS_ext [nT]'] = df['bioS_full [nT]']-df['bioS [nT]']
     return df
 
 def virial_mods(df, times):
@@ -145,8 +143,25 @@ def virial_mods(df, times):
         df['uB [J]'] = df['Virial Ub [J]']#mostly so it doesn't crash
     return df
 
+def biot_mods(df, logdata):
+    """Function returns DataFrame with modified biotsavart columns
+    Inputs
+        df(DataFrame)
+    Returns
+        df(DataFrame)- modified
+    """
+    loginterp_data = np.interp(df.index, logdata.index,
+                                         logdata['dst_sm'].values)
+    loginterp = pd.DataFrame({'dst_sm':loginterp_data})
+    loginterp.index = df.index
+    if ('bioS [nT]' in df.keys()) and ('bioS_full [nT]' in df.keys()):
+        df['bioS_ext [nT]'] = df['bioS_full [nT]']-df['bioS [nT]']
+        df['bioS_int [nT]'] = loginterp['dst_sm'] - df['bioS_full [nT]']
+        df['bioS_full [nT]'] = df['bioS_full [nT]']+df['bioS_int [nT]']
+    return df
+
 def BIGMOD(mpdict,msdict,inner_mp,fix=None):
-    """Function makes correction to virial data
+    """DEPRECIATED DONT USE - Function makes correction to virial data
     Inputs
         mp, msdict, inner_mp
     Returns
@@ -176,11 +191,16 @@ def BIGMOD(mpdict,msdict,inner_mp,fix=None):
         scale = 1
     return mp, msdict, inner_mp, scale
 
-def process_virial(results,**kwargs):
+def process_virial(results, logdata, **kwargs):
     """Wrapper function calls all processing steps for timeseries
         data intent for virial analysis
     Inputs
         mpdict,msdict,inner_mp (dict{DataFrames})- data that will be moded
+        logdata (DataFrame)- log data for biotsavart integration, used to
+                             find the contributions in the gap region
+                             between r1-rCurrents outside BATSRUS.
+                             Igors method works well so we're not trying to
+                             recalculate this piece
         kwargs:
     Returns
         mpdict,msdict,inner_mp- same as input, MODIFIED
@@ -194,7 +214,7 @@ def process_virial(results,**kwargs):
                 df = group[sz]#copy subzone values to DataFrame
                 if 'Virial Volume Total [nT]' in df.keys():
                     moded = virial_mods(df, df.index)
-                    moded = biot_mods(df, df.index)
+                    moded = biot_mods(moded, logdata)
                     group[sz] = moded
 
     ##Grouping surface pieces on subzones into appropriate sub-totals
@@ -203,8 +223,7 @@ def process_virial(results,**kwargs):
                                          results['inner_mp'])
 
     ## %contribution, diff between sums etc
-    mpdict, msdict = get_subzone_contrib(results['mpdict'],
-                                         results['msdict'])
+    mpdict, msdict = get_subzone_contrib(mpdict,msdict)
     return mpdict,msdict,results['inner_mp']
 
 if __name__ == "__main__":

@@ -33,9 +33,17 @@ def get_interfaces(sz):
     interfaces = [k.split('net')[-1].split(' [')[0]
                     for k in sz.keys() if 'K_net' in k]
     return interfaces
-def locate_phase(dfdict,phasekey,**kwargs):
+
+def locate_phase(indata,phasekey,**kwargs):
+    """Function returns subset of given data based on a phasekey
+    Inputs
+        indata (DataFrame, Series, or dict{df/s})- data to be subset
+        phasekey (str)- 'main', 'recovery', etc.
+    Returns
+        phase (same datatype given)
     """
-    """
+    assert (type(indata)==dict or type(indata)==pd.core.series.Series,
+            'Data type only excepts dict, DataFrame, or Series')
     phase = {}
     #Hand picked times
     start = dt.timedelta(minutes=kwargs.get('startshift',60))
@@ -46,10 +54,21 @@ def locate_phase(dfdict,phasekey,**kwargs):
     #Starlink
     starlink_impact = dt.datetime(2022,2,3,0,0)
     starlink_endMain1 = dt.datetime(2022,2,3,11,15)
-    starlink_endMain2 = dt.datetime(2022,2,4,13,10)
+    #starlink_endMain2 = dt.datetime(2022,2,4,13,10)
+    starlink_endMain2 = dt.datetime(2022,2,4,22,0)
+    #Starlink
+    ccmc_impact = dt.datetime(2019,5,13,0,0)
+    ccmc_endMain1 = dt.datetime(2019,5,14,7,45)
+    ccmc_endMain2 = dt.datetime(2019,5,14,7,45)
+
+    #Get time information based on given data type
+    if (type(indata) == pd.core.series.Series or
+        type(indata) == pd.core.frame.DataFrame):
+        times = indata.index
+    elif type(indata) == dict:
+        times = [df for df in indata.values()][0].index
 
     #Determine where dividers are based on specific event
-    times = [df for df in dfdict.values()][0].index
     if abs(times-feb2014_impact).min() < dt.timedelta(minutes=15):
         impact = feb2014_impact
         peak1 = feb2014_endMain1
@@ -58,10 +77,15 @@ def locate_phase(dfdict,phasekey,**kwargs):
         impact = starlink_impact
         peak1 = starlink_endMain1
         peak2 = starlink_endMain2
+    elif abs(times-ccmc_impact).min() < dt.timedelta(minutes=15):
+        impact = ccmc_impact
+        peak1 = ccmc_endMain1
+        peak2 = ccmc_endMain2
     else:
         impact = times[0]
         peak1 = times[round(len(times)/2)]
-        peak2 = times[-1]
+        peak2 = times[round(len(times)/2)]
+        #peak2 = times[-1]
 
     #Set condition based on dividers and phase requested
     if 'qt' in phasekey:
@@ -70,16 +94,19 @@ def locate_phase(dfdict,phasekey,**kwargs):
         if '2' in phasekey:
             cond = (times>peak1) & (times<peak2)
         else:
-            cond = (times>impact) & (times<peak2)
+            cond = (times>impact) & (times<peak1)
     elif 'rec' in phasekey:
         cond = times>peak2
 
-    #Reload new dictionary filtered by the condition
-    for key in dfdict.keys():
-       df = dfdict[key]
-       phase.update({key:df[cond]})
-
-    return phase
+    #Reload data filtered by the condition
+    if (type(indata) == pd.core.series.Series or
+        type(indata) == pd.core.frame.DataFrame):
+        return indata[cond]
+    elif type(indata) == dict:
+        for key in indata.keys():
+            df = indata[key]
+            phase.update({key:df[cond]})
+        return phase
 
 if __name__ == "__main__":
     #Need input path, then create output dir's
@@ -239,7 +266,6 @@ if __name__ == "__main__":
                                           figsize=[14,8])
 
     feb_msdict_mn1.pop('missed')
-    feb_msdict_mn1.pop('summed')
     #star_msdict_mn1.pop('missed')
     #plot
     plot_stack_contrib(ax1, febtime,feb_mp_mn1, feb_msdict_mn1,
