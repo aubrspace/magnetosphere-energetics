@@ -109,6 +109,7 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=False,
+                                    tshift=45,
                                     analysis_type='massenergy',
                                     do_interfacing=False,
                                     integrate_volume=False,
@@ -200,12 +201,12 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'starlink'
+    RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'bs_output_starlink')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'bs_output_febstorm')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################

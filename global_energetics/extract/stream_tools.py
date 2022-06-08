@@ -1331,7 +1331,10 @@ def equations(**kwargs):
          '{mZhat_x}':'sin('+aux['BTHETATILT']+'*pi/180)',
          '{mZhat_y}':'0',
          '{mZhat_z}':'-1*cos('+aux['BTHETATILT']+'*pi/180)',
-         '{lambda}':'asin(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})',
+         '{lambda}':'asin('+
+                        '(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})-'+
+                   'trunc(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})'+
+                        ')',
          '{Lshell}':'{r [R]}/cos({lambda})**2',
          '{theta [deg]}':'-180/pi*{lambda}'}
     ######################################################################
@@ -1851,6 +1854,10 @@ def calc_state(mode, sourcezone, **kwargs):
         #       1.1 find the nose
         ds = upstream.dataset
         nose = upstream.values('X *').max()
+        X = upstream.values('X *').as_numpy_array()
+        Y = upstream.values('Y *').as_numpy_array()
+        Z = upstream.values('Z *').as_numpy_array()
+
         #       1.2 extract values along a flow line passing through nose
         tp.active_frame().plot().vector.u_variable = ds.variable('U_x *')
         tp.active_frame().plot().vector.v_variable = ds.variable('U_y *')
@@ -1860,10 +1867,24 @@ def calc_state(mode, sourcezone, **kwargs):
                       direction=StreamDir.Both)
         flow_line.extract()
         flow_line.delete_all()
+        ds.zone(-1).name = 'flow_line_nose'
+        for yseed,zseed,tag in [[10,0,'+10Y'],[-10,0,'-10Y'],
+                                [0,10,'+10Z'],[0,-10,'-10Z']]:
+            if X[(abs(Y-yseed)<.5)&(abs(Z-zseed)<.5)] != []:
+                flow_line.add([X[(abs(Y-yseed)<.5)&(abs(Z-zseed)<.5)].max(),
+                           yseed,zseed], Streamtrace.VolumeLine,
+                           direction=StreamDir.Both)
+            else:
+                flow_line.add([X[(abs(Y-yseed)<1)&(abs(Z-zseed)<1)].max(),
+                           yseed,zseed], Streamtrace.VolumeLine,
+                           direction=StreamDir.Both)
+            flow_line.extract()
+            flow_line.delete_all()
+            ds.zone(-1).name = 'flow_line'+tag
         #       1.3 find the overshoot max * some factor (1.2)
-        overshoot = ds.zone(-1).values('X *').as_numpy_array()[
-                            (ds.zone(-1).values('Rho *').as_numpy_array()==
-                                       ds.zone(-1).values('Rho *').max())][0]
+        overshoot = ds.zone('flow_line_nose').values('X *').as_numpy_array()[
+                (ds.zone('flow_line_nose').values('Rho *').as_numpy_array()==
+                         ds.zone('flow_line_nose').values('Rho *').max())][0]
         #       2. copy and shift the whole surface back by this distance
         downstream = ds.copy_zones(upstream)[0]
         downstream.name = downstream.name+'_down'

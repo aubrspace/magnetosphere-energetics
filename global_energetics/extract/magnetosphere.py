@@ -606,6 +606,23 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                                                      usename)
     ################################################################
     if kwargs.get('extract_flowline',False):
+        for crossing in field_data.zones('flow_line*'):
+            upper = 30
+            lower = 5
+            cond = ((crossing.values('X *').as_numpy_array()<upper) &
+                    (crossing.values('X *').as_numpy_array()>lower))
+            results = pd.DataFrame()
+            for var in['X *','Y *','Z *','U_x *','U_y *','U_z *','P *','Rho *',
+                       'B_x *','B_y *','B_z *', 'J_x *','J_y *','J_z *']:
+                results[var.split(' ')[0]] = crossing.values(
+                                                   var).as_numpy_array()[cond]
+            results['nose'] = field_data.zone('ext_bs_up').values('X *'
+                                                      ).as_numpy_array().max()
+            results['overshoot'] = field_data.zone('ext_bs_down').values('X *'
+                                                      ).as_numpy_array().max()
+            results['Time [UTC]'] = eventtime
+            data_to_write.update({crossing.name:results})
+        '''
         crossing = field_data.zone('Streamtrace')
         upper = field_data.zone('ext_bs_up').values('X *').as_numpy_array(
                                                                     ).max()+5
@@ -622,6 +639,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         results['overshoot'] = lower+5
         results['Time [UTC]'] = eventtime
         data_to_write.update({'crossing':results})
+        '''
     ################################################################
     if save_mesh:
         #save mesh to hdf file
