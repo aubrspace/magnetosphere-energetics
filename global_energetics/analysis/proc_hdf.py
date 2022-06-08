@@ -26,7 +26,7 @@ def load_hdf_sort(hdf, **kwargs):
     store = pd.HDFStore(hdf)
 
     #keep only GM keys
-    gmdict, iedict, uadict = {}, {}, {}
+    gmdict, iedict, uadict, bsdict, crossdict = {}, {}, {}, {}, {}
     for key in store.keys():
         if ('mp' in key) or ('ms' in key):
             gmdict[key] = store[key].sort_values(by='Time [UTC]')
@@ -36,6 +36,13 @@ def load_hdf_sort(hdf, **kwargs):
             iedict[key] = store[key]
         if 'ua' in key:
             uadict[key] = store[key]
+        if 'bs' in key:
+            bsdict[key] = store[key]
+        if 'flow_line' in key or 'cross' in key:
+            #crossdict[key] = store[key]
+            crossdict[key] = store[key].sort_values(by=['Time [UTC]','X'])
+            crossdict[key].index=crossdict[key]['Time [UTC]']
+            crossdict[key].drop(columns=['Time [UTC]'],inplace=True)
     #strip times
     #gmtimes = gmdict[[k for k in gmdict.keys()][0]]['Time [UTC]']
     gmtimes = gmdict[[k for k in gmdict.keys()][0]].index
@@ -44,8 +51,12 @@ def load_hdf_sort(hdf, **kwargs):
 
     if gmdict!={}:
         #define magnetopause and inner_magnetopause will relevant pieces
-        mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
-                                 gmdict['/mp_iso_betastar_volume'],gmtimes)
+        if '/mp_iso_betastar_volume' in gmdict.keys():
+            mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
+                                     gmdict['/mp_iso_betastar_volume'],
+                                     gmtimes)
+        else:
+            mp = gmdict['/mp_iso_betastar_surface']
 
         #check units OoM
         mp = check_units(mp)
@@ -62,6 +73,14 @@ def load_hdf_sort(hdf, **kwargs):
     if uadict!={}:
         #repackage in dictionary
         data.update({'uadict': uadict})
+
+    if bsdict!={}:
+        #repackage in dictionary
+        data.update({'bsdict': bsdict})
+
+    if crossdict!={}:
+        #repackage in dictionary
+        data.update({'crossdict': crossdict})
 
     #define subzones with relevant pieces
     msdict = {}

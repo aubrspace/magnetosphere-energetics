@@ -42,6 +42,20 @@ def pyplotsetup(*,mode='presentation',**kwargs):
                    ['#FAFFB0', 'magenta', 'peru', 'chartreuse', 'wheat',
                     'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
         settings.update({'axes.prop_cycle': colorwheel})
+    elif 'solar' in mode:
+        #make non white backgrounds, adjust borders accordingly
+        settings.update({'axes.edgecolor': 'white',
+                         'axes.labelcolor': 'white',
+                         'axes.facecolor': '#788091',
+                         'figure.facecolor':'#788091',
+                         'text.color':'white',
+                         'ytick.color':'white',
+                         'xtick.color':'white'})
+        #Change colorcycler
+        colorwheel = plt.cycler('color',
+                   ['gold', 'aqua', 'salmon', 'darkred', 'wheat',
+                    'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
+        settings.update({'axes.prop_cycle': colorwheel})
     return settings
 
 def safelabel(label):
