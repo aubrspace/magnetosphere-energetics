@@ -503,7 +503,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     # !!! kwargs updated !!!
     kwargs.update({'x_subsolar':float(aux['x_subsolar'])})
     kwargs.update({'x_nexl':float(aux['x_nexl'])})
-    kwargs.update({'lshelllim':float(aux['inner_l'])})
+    #NOTE for const L lim kwargs.update({'lshelllim':float(aux['inner_l'])})
     kwargs.update({'closed_zone':closed_zone})
     kwargs.update({'future_closed_zone':future_closed_zone})
     main_frame = [fr for fr in tp.frames('main')][0]
@@ -534,6 +534,20 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             elif 'bs' in zone.name:
                 #Add x_subsolar
                 surf_results['X_subsolar [Re]'] = zone.values('X *').max()
+                if 'up' in zone.name:
+                    #Add compression ratio's
+                    for var in ['Rho*','Bmag*']:
+                        dn_zone=field_data.zone(
+                                              zone.name.split('up')[0]+'down')
+                        up_data = zone.values(var).as_numpy_array()
+                        dn_data = dn_zone.values(var).as_numpy_array()
+                        upcond = (zone.values('X *').as_numpy_array()==
+                                  zone.values('X *').as_numpy_array().max())
+                        dncond = (dn_zone.values('X *').as_numpy_array()==
+                                  dn_zone.values('X *').as_numpy_array().max())
+                        upstream = up_data[upcond].mean()
+                        dnstream = dn_data[dncond].mean()
+                        surf_results['r_'+var.split('*')[0]]=dnstream/upstream
             surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
             if save_mesh:
@@ -607,39 +621,17 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if kwargs.get('extract_flowline',False):
         for crossing in field_data.zones('flow_line*'):
-            upper = 30
+            #upper = 31
             lower = 5
-            cond = ((crossing.values('X *').as_numpy_array()<upper) &
-                    (crossing.values('X *').as_numpy_array()>lower))
+            cond = crossing.values('X *').as_numpy_array()>lower
             results = pd.DataFrame()
-            for var in['X *','Y *','Z *','U_x *','U_y *','U_z *','P *','Rho *',
-                       'B_x *','B_y *','B_z *', 'J_x *','J_y *','J_z *']:
+            for var in['X *','Y *','Z *','U_x *','U_y *','U_z *','P *',
+                       'Rho *','B_x *','B_y *','B_z *',
+                       'J_x *','J_y *','J_z *','1Ds *']:
                 results[var.split(' ')[0]] = crossing.values(
-                                                   var).as_numpy_array()[cond]
-            results['nose'] = field_data.zone('ext_bs_up').values('X *'
-                                                      ).as_numpy_array().max()
-            results['overshoot'] = field_data.zone('ext_bs_down').values('X *'
-                                                      ).as_numpy_array().max()
+                                                var).as_numpy_array()[cond]
             results['Time [UTC]'] = eventtime
             data_to_write.update({crossing.name:results})
-        '''
-        crossing = field_data.zone('Streamtrace')
-        upper = field_data.zone('ext_bs_up').values('X *').as_numpy_array(
-                                                                    ).max()+5
-        lower = field_data.zone('ext_bs_down').values('X *').as_numpy_array(
-                                                                    ).max()-5
-        cond = ((crossing.values('X *').as_numpy_array()<upper) &
-                (crossing.values('X *').as_numpy_array()>lower))
-        results = pd.DataFrame()
-        for var in ['X *','Y *','Z *', 'U_x *','U_y *','U_z *', 'P *', 'Rho *',
-                    'B_x *','B_y *','B_z *', 'J_x *','J_y *','J_z *']:
-            results[var.split(' ')[0]] = crossing.values(var).as_numpy_array(
-                                                                        )[cond]
-        results['nose'] = upper-5
-        results['overshoot'] = lower+5
-        results['Time [UTC]'] = eventtime
-        data_to_write.update({'crossing':results})
-        '''
     ################################################################
     if save_mesh:
         #save mesh to hdf file

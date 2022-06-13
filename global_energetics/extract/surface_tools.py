@@ -31,19 +31,21 @@ def post_proc_interface(results,**kwargs):
     tail_l = pd.DataFrame()
     tail_c = pd.DataFrame()
     day = pd.DataFrame()
+    day_in = pd.DataFrame()
     poles = pd.DataFrame()
     midlat = pd.DataFrame()
     lowlat = pd.DataFrame()
     l7 = pd.DataFrame()
     #Find the non-empty interfaces
     for name, df in results.items():
-        #if 'lobe' in name: from IPython import embed; embed()
         if flank.empty:flank=df[[k for k in df.keys()if'Flank'in k]].copy()
         if tail_l.empty:
             tail_l=df[[k for k in df.keys()if'Tail_lobe'in k]].copy()
         if tail_c.empty:
             tail_c=df[[k for k in df.keys()if'Tail_close'in k]].copy()
-        if day.empty: day=df[[k for k in df.keys() if'Dayside'in k]].copy()
+        if day.empty: day=df[[k for k in df.keys() if'Dayside_reg'in k]].copy()
+        if day_in.empty:
+            day_in = df[[k for k in df.keys() if 'Dayside_inner' in k]].copy()
         if poles.empty:poles=df[[k for k in df.keys() if'Poles'in k]].copy()
         if midlat.empty:
             midlat =df[[k for k in df.keys()if'MidLat'in k]].copy()
@@ -54,10 +56,10 @@ def post_proc_interface(results,**kwargs):
     #Fill the empty interfaces with opposite non-empty copy
     #   CAVEAT: for subzone surfaces (dayside,flank,tail)
     #           the surfaces are identical for the magnetopause
-    #           subsurface as the subvolume surface interface
+    #           subsurface and the subvolume surface interface
     #           so these will NOT be multiplied by -1
     for name, df in results.items():
-        #Magnetopause: Flank+Tail_l+Tail_c+Dayside
+        #Magnetopause: Flank+Tail_l+Tail_c+Dayside+Dayside_inner
         if ('mp' in name) and ('inner' not in name):
             if df[[k for k in df.keys() if 'Flank' in k]].empty:
                 for k in flank.keys(): df[k]=flank[k]
@@ -65,8 +67,10 @@ def post_proc_interface(results,**kwargs):
                 for k in tail_l.keys(): df[k]=tail_l[k]
             if df[[k for k in df.keys() if'Tail_close'in k]].empty:
                 for k in tail_c.keys(): df[k]=tail_c[k]
-            if df[[k for k in df.keys() if'Dayside'in k]].empty:
+            if df[[k for k in df.keys() if'Dayside_reg'in k]].empty:
                 for k in day.keys(): df[k]=day[k]
+            if df[[k for k in df.keys() if'Dayside_inner'in k]].empty:
+                for k in day_in.keys(): df[k]=day_in[k]
         ##InnerBoundary: Poles+MidLat+LowLat
         if 'inner' in name:
             if df[[k for k in df.keys() if 'Poles' in k]].empty:
@@ -75,7 +79,7 @@ def post_proc_interface(results,**kwargs):
                 for k in midlat.keys(): df[k]=midlat[k]*-1
             if df[[k for k in df.keys() if 'LowLat' in k]].empty:
                 for k in lowlat.keys(): df[k]=lowlat[k]*-1
-        ##Lobes: Flank+Poles+Tail_l+AuroralOvalProjection
+        ##Lobes: Flank+Poles+Tail_l+PlasmaSheetBoundaryLayer
         if 'lobe' in name:
             if df[[k for k in df.keys() if 'Flank' in k]].empty:
                 for k in flank.keys(): df[k]=flank[k]
@@ -83,9 +87,9 @@ def post_proc_interface(results,**kwargs):
                 for k in poles.keys(): df[k]=poles[k]*-1
             if df[[k for k in df.keys() if 'Tail_lobe' in k]].empty:
                 for k in tail_l.keys(): df[k]=tail_l[k]
-        ##Closed: Dayside+L7+AOP+MidLat+Tail_c
+        ##Closed: Dayside+L7+PSB+MidLat+Tail_c
         if 'close' in name:
-            if df[[k for k in df.keys() if 'Dayside' in k]].empty:
+            if df[[k for k in df.keys() if 'Dayside_reg' in k]].empty:
                 for k in day.keys(): df[k]=day[k]
             if df[[k for k in df.keys() if 'L7' in k]].empty:
                 for k in l7.keys(): df[k]=l7[k]*-1
@@ -99,6 +103,8 @@ def post_proc_interface(results,**kwargs):
                 for k in lowlat.keys(): df[k]=lowlat[k]*-1
             if df[[k for k in df.keys() if 'L7' in k]].empty:
                 for k in l7.keys(): df[k]=l7[k]*-1
+            if df[[k for k in df.keys() if'Dayside_inner'in k]].empty:
+                for k in day_in.keys(): df[k]=day_in[k]
         ##Reverse 'injection' 'escape' to stay with consistent conventions
         true_esc = [(k,v.values[0]) for k,v in df.items()
                     if ('injection' in k) and (v.values[0]>0)]
@@ -106,30 +112,32 @@ def post_proc_interface(results,**kwargs):
                     if ('escape' in k) and (v.values[0]<0)]
         for n,(kinj,vesc) in enumerate(true_esc):
             df[kinj] = true_inj[n][1]
-            print(name+' '+kinj+' reversed!')
             df[true_inj[n][0]] = vesc
-            print(name+' '+true_inj[n][0]+' reversed!')
-    ##Finally, calculate AOP
+    ##Finally, calculate PSB
     for name, df in results.items():
-        if ('lobe' in name) or ('close' in name):
+        if ('lobe' in name) or ('close' in name) or ('rc' in name):
             whole_keys=[k for k in df.keys()if ('_injection 'in k
                                                 or  '_escape 'in k
                                                     or  '_net 'in k
                                                       or 'TestArea ' in k)]
             for k in whole_keys:
                 units = '['+k.split('[')[1].split(']')[0]+']'
-                aop = k.split(' [')[0]+'AOP '+units
+                psb = k.split(' [')[0]+'PSB '+units
                 fl = k.split(' [')[0]+'Flank '+units
                 pl = k.split(' [')[0]+'Poles '+units
                 tl_l = k.split(' [')[0]+'Tail_lobe '+units
                 tl_c = k.split(' [')[0]+'Tail_close '+units
-                dy = k.split(' [')[0]+'Dayside '+units
+                dy = k.split(' [')[0]+'Dayside_reg '+units
+                dyi = k.split(' [')[0]+'Dayside_inner '+units
                 l_7 = k.split(' [')[0]+'L7 '+units
                 ml = k.split(' [')[0]+'MidLat '+units
+                ll = k.split(' [')[0]+'LowLat '+units
                 if 'lobe' in name:
-                    df[aop] = (df[k]-df[fl]-df[pl]-df[tl_l])
-                else:
-                    df[aop] = (df[k]-df[dy]-df[l_7]-df[ml]-df[tl_c])
+                    df[psb] = (df[k]-df[fl]-df[pl]-df[tl_l])
+                elif 'close' in name:
+                    df[psb] = (df[k]-df[dy]-df[l_7]-df[ml]-df[tl_c])
+                elif 'rc' in name:
+                    df[psb] = (df[k]-df[ll]-df[l_7]-df[dyi])
     return results
 
 def post_proc(results,**kwargs):
@@ -261,7 +269,7 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
     Inputs
         integrands(dict{str:str})- (static) in/output terms to calculate
         conditions (list[str,str,...])- keys for conditions will be AND
-        modname (str)- name for output ie:'Flank','AOP','Downtail_lobes'
+        modname (str)- name for output ie:'Flank','PSB','Downtail_lobes'
     Outputs
         interfaces(dict{str:str})- dictionary of terms w/ pre:post integral
     """
@@ -297,21 +305,24 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         if any(['L7' in c for c in conditions]):
             if '<L7' in conditions:
                 new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
-                #NOTE 0.75*cell size worked for everyone but L7,
-                #       which was optimized at 1*cell size
             elif '>L7' in conditions:
                 new_eq+='({Lshell}>'+str(kwargs.get('L',7))+') &&'
             elif '=L7' in conditions:
                 new_eq+=['(abs({Lshell}-'+str(kwargs.get('L',7))+')<'+
                                               '{Cell Size [Re]}*1)&&'][0]
+                #NOTE 0.75*cell size worked for everyone but L7,
+                #       which was optimized at 1*cell size
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7']]):
         #if any([c in ['open','closed','tail','on_innerbound','L7'] for
         #                                                 c in conditions]):
             #chop hanging && and close up condition
             new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
-            eq(new_eq,zones=[zone])
-            mods.update({name+modname:outputname+modname+units})
+            try:
+                eq(new_eq,zones=[zone])
+                mods.update({name+modname:outputname+modname+units})
+            except TecplotLogicError:
+                print('Equation eval failed!\n',new_eq,'\n')
     return mods
 
 def get_interface_integrands(zone,integrands,**kwargs):
@@ -343,7 +354,12 @@ def get_interface_integrands(zone,integrands,**kwargs):
                                           ['closed','tail'],'Tail_close'))
         #Dayside
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['closed','not tail'],'Dayside'))
+                                    ['closed','not tail','>L7'],'Dayside_reg',
+                                          L=kwargs.get('lshelllim',7)))
+        #Dayside_Inner- special case when closed pushed into 'ring current'
+        interfaces.update(conditional_mod(zone,integrands,
+                              ['closed','not tail','<L7'],'Dayside_inner',
+                                          L=kwargs.get('lshelllim',7)))
     ##InnerBoundary
     if 'inner' in zone.name:
         #Poles
@@ -351,10 +367,10 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #MidLatitude
         interfaces.update(conditional_mod(zone,integrands,
                                           ['>L7','closed'],'MidLat',
-                                          L=kwargs.get('lshelllim')))
+                                          L=kwargs.get('lshelllim',7)))
         #LowLatitude
         interfaces.update(conditional_mod(zone,integrands,['<L7'],'LowLat',
-                                          L=kwargs.get('lshelllim')))
+                                          L=kwargs.get('lshelllim',7)))
     ##Lobes
     if 'lobe' in zone.name:
         #Flank- but not really bc it's hard to infer
@@ -364,27 +380,33 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #Tail(lobe)
         interfaces.update(conditional_mod(zone,integrands,['tail'],
                                           'Tail_lobe'))
-        #AuroralOvalProjection- Very hard to infer, will save for post
+        #PlasmaSheetBoundaryLayer- Very hard to infer, will save for post
     ##Closed
     if 'close' in zone.name:
         #Dayside- again letting magnetopause lead here
         #L7
         interfaces.update(conditional_mod(zone,integrands,['=L7'],'L7',
-                                          L=kwargs.get('lshelllim')))
-        #AuroralOvalProjection- skipped
+                                          L=kwargs.get('lshelllim',7)))
+        #PlasmaSheetBoundaryLayer- skipped
         #MidLatitude
         interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
         #Tail(closed/NearEarthXLine)
-        #interfaces.update(conditional_mod(zone,integrands,['tail'],'Tail_close'))
+        interfaces.update(conditional_mod(zone,integrands,['tail'],
+                                          'Tail_close'))
     ##RingCurrent
     if 'rc' in zone.name:
+        #Dayside_Inner- will be 0 at many points as interface only occurs when
+        #               dayside closed field is < L7
+        #               *but yet again, it's much easier to let MP find this
+        #PlasmaSheetBoundaryLayer- same as above, only sometimes, *skipped
         #LowLatitude
         interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'LowLat',inner_r=kwargs.get('inner_r',3)))
         #L7
         interfaces.update(conditional_mod(zone,integrands,
-           ['not on_innerbound'],'L7',inner_r=kwargs.get('inner_r',3)))
+           ['not on_innerbound','=L7'],'L7',inner_r=kwargs.get('inner_r',3),
+                                              L=kwargs.get('lshelllim',7)))
     return interfaces
 
 
@@ -526,7 +548,7 @@ def surface_analysis(zone, **kwargs):
         if kwargs.get('verbose',False):
             print(zone.name+term[1]+' integration done')
     if 'closed' in zone.name:
-        for k in [k for k in results.keys() if 'AOP' in k]: print(results[k])
+        for k in [k for k in results.keys() if 'PSB' in k]: print(results[k])
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doSurfaceArea', True):

@@ -76,13 +76,14 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath='babyrun/',
-                                                    do_interfacing=False,
-                                                    do_cms=False,
-                                                    integrate_volume=False,
-                                                    verbose=False,
-                                                    extract_flowline=True,
-                                                   analysis_type='massenergy',
-                                                   modes=['iso_betastar','bs'])
+                                                    do_interfacing=True,
+                                                    do_cms=True,
+                                                    integrate_volume=True,
+                                                    verbose=True,
+                                                    extract_flowline=False,
+                                                   analysis_type='energy',
+                                    customTerms={'test':'TestArea [Re^2]'},
+                        modes=['iso_betastar','nlobe','slobe','closed','rc'])
                       #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
     #with tp.session.suspend():

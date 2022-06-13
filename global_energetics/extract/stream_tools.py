@@ -1647,7 +1647,7 @@ def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
 
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, global_key='global_field',
-                                            blankvar='r *',blankvalue=2,
+                                            blankvar='r *',blankvalue=3,
                                               blankop=RelOp.LessThan):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
@@ -1705,8 +1705,10 @@ def setup_isosurface(iso_value, varindex, zonename, *,
     if newzone.num_elements>200:
         newzone.name = zonename
         if len(zsizes) != 1:
-            ds.delete_zones([z.index for z in ds.zones('*region*')])
-        return newzone
+            for i in reversed([z.index for z in ds.zones('*region*')]):
+                ds.delete_zones([i])
+        return ds.zone(-1)#NOTE we return this way bc the index may change!
+                          #     so the 'newzone' reference is no longer safe
     else:
         ds.delete_zones([z.index for z in ds.zones('*region*')])
         return None

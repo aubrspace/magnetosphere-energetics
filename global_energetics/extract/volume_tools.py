@@ -215,6 +215,10 @@ def volume_analysis(state_var, **kwargs):
     Outputs
         magnetic_energy- volume integrated magnetic energy B2/2mu0
     """
+    #TODO: somewhere around here explore a way to represent
+    #       integrated energy vs Lshell over time (maybe that contour style)
+    #       especially for the closed field line region, specifically
+    #       broken up by dayside (X>0) vs nightside (X<0)
     #Check for global variables
     assert 'r [R]' in state_var.dataset.variable_names, ('Need to'+
                                        'calculate global variables first!')
