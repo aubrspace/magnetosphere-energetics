@@ -533,7 +533,8 @@ def surface_analysis(zone, **kwargs):
     ###################################################################
     #Integral bounds modifications spatially parsing results
     if kwargs.get('do_interfacing',False):
-        integrands.update(get_interface_integrands(zone,integrands,**kwargs))
+        integrands.update(get_interface_integrands(zone, integrands,
+                                                   **kwargs))
     else:
         if 'innerbound' not in zone.name and kwargs.get('doDFT',False):
             integrands.update(get_dft_integrands(zone, integrands))
@@ -548,7 +549,7 @@ def surface_analysis(zone, **kwargs):
         if kwargs.get('verbose',False):
             print(zone.name+term[1]+' integration done')
     if 'closed' in zone.name:
-        for k in [k for k in results.keys() if 'PSB' in k]: print(results[k])
+        for k in [k for k in results.keys()if 'PSB' in k]:print(results[k])
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doSurfaceArea', True):

@@ -126,42 +126,38 @@ if __name__ == "__main__":
     #Log files and observational indices
     febObs = read_indices(inPath, prefix='feb2014_', read_supermag=False,
                           tshift=45)
-    #starObs = read_indices(inPath, prefix='starlink_', read_supermag=False)
+    starObs = read_indices(inPath, prefix='starlink_', read_supermag=False)
 
     #HDF data, will be sorted and cleaned
-    #febSim = load_hdf_sort(inPath+'feb2014_results.h5')
-    febSim = load_hdf_sort(inPath+'feb2014_test.h5')
-    #starSim = load_hdf_sort(inPath+'starlink_results.h5')
+    febSim = load_hdf_sort(inPath+'feb2014_results.h5')
+    starSim = load_hdf_sort(inPath+'starlink_results.h5')
 
     ##Construct "grouped" set of subzones, then get %contrib for each
-    #starSim['mpdict'],starSim['msdict'] = get_subzone_contrib(
-    #                                   starSim['mpdict'],starSim['msdict'])
-    #starSim['msdict'] = group_subzones(starSim['msdict'],mode='3zone')
+    starSim['mpdict'],starSim['msdict'] = get_subzone_contrib(
+                                       starSim['mpdict'],starSim['msdict'])
     febSim['mpdict'],febSim['msdict'] = get_subzone_contrib(
                                        febSim['mpdict'],febSim['msdict'])
-    #febSim['msdict'] = group_subzones(febSim['msdict'],mode='3zone')
 
-    '''
     ######################################################################
     ##Quiet time
     #parse storm phase
     feb_mp_qt = locate_phase(febSim['mpdict'],'qt')['ms_full']
     febtime = [dt.datetime(2000,1,1)+r for r in
                feb_mp_qt.index-feb_mp_qt.index[0]]
-    #star_mp_qt = locate_phase(starSim['mpdict'],'qt')['ms_full']
-    #startime = [dt.datetime(2000,1,1)+r for r in
-    #            star_mp_qt.index-star_mp_qt.index[0]]
+    star_mp_qt = locate_phase(starSim['mpdict'],'qt')['ms_full']
+    startime = [dt.datetime(2000,1,1)+r for r in
+                star_mp_qt.index-star_mp_qt.index[0]]
     #parse storm phase
     feb_mpdict_qt = locate_phase(febSim['mpdict'],'qt')
     feb_mp_qt = feb_mpdict_qt['ms_full']
     feb_msdict_qt = locate_phase(febSim['msdict'],'qt')
     febtime = [dt.datetime(2000,1,1)+r for r in
                feb_mp_qt.index-feb_mp_qt.index[0]]
-    #star_mpdict_qt = locate_phase(starSim['mpdict'],'qt')
-    #star_mp_qt = star_mpdict_qt['ms_full']
-    #star_msdict_qt = locate_phase(starSim['msdict'],'qt')
-    #startime = [dt.datetime(2000,1,1)+r for r in
-    #            star_mp_qt.index-star_mp_qt.index[0]]
+    star_mpdict_qt = locate_phase(starSim['mpdict'],'qt')
+    star_mp_qt = star_mpdict_qt['ms_full']
+    star_msdict_qt = locate_phase(starSim['msdict'],'qt')
+    startime = [dt.datetime(2000,1,1)+r for r in
+                star_mp_qt.index-star_mp_qt.index[0]]
 
     #setup figure
     qt_energy, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
@@ -173,9 +169,9 @@ if __name__ == "__main__":
 
     #plot
     ax1.plot(febtime, feb_mp_qt['Utot2 [J]'],label=feblabel)
-    #ax2.plot(startime, star_mp_qt['Utot [J]'],label=starlabel)
+    ax2.plot(startime, star_mp_qt['Utot [J]'],label=starlabel)
     general_plot_settings(ax1,ylabel=Elabel,do_xlabel=False,xlabel=Tlabel)
-    #general_plot_settings(ax2,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
+    general_plot_settings(ax2,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
 
     #save
     qt_energy.tight_layout(pad=1)
@@ -188,21 +184,37 @@ if __name__ == "__main__":
                                        figsize=[14,8])
 
     feb_msdict_qt.pop('missed')
-    feb_msdict_qt.pop('summed')
-    #star_msdict_qt.pop('missed')
+    star_msdict_qt.pop('missed')
     #plot
     plot_stack_contrib(ax1, febtime,feb_mp_qt, feb_msdict_qt,
                          value_key='Utot [J]', label=feblabel,
                          ylabel=Elabel,legend_loc='upper left')
-    #plot_stack_contrib(ax2, startime,star_mp_qt, star_msdict_qt,
-    #                     value_key='Utot [J]', label=starlabel,
-    #                     ylabel=Elabel,legend_loc='upper left')
+    plot_stack_contrib(ax2, startime,star_mp_qt, star_msdict_qt,
+                         value_key='Utot [J]', label=starlabel,
+                         ylabel=Elabel,legend_loc='upper left')
 
     #save
     qt_contr.tight_layout(pad=1)
     qt_contr.savefig(outQT+'/quiet_contr_energy.png')
     plt.close(qt_contr)
-    '''
+    #TODO: summary bar plot with space for contour of time vs L vs energy
+    ##Bar plot with energy distribution summary
+    #setup figure
+    qt_bar, [ax_top,ax_bot] = plt.subplots(2,1,sharey=False,sharex=False,
+                                           figsize=[8,8])
+
+    #plot bars for each region
+    ax_top.bar(feb_msdict_qt.keys(), [feb_msdict_qt[k]['Utot2 [J]'].mean()
+                                        for k in feb_msdict_qt.keys()])
+    general_plot_settings(ax_top,ylabel=Elabel,do_xlabel=False,
+                          iscontour=True)
+    #save
+    qt_bar.tight_layout(pad=1)
+    qt_bar.savefig(outQT+'/quiet_bar_energy.png')
+    plt.close(qt_bar)
+    print(feb_msdict_qt['closed']['Utot [J]']-
+          feb_msdict_qt['closed']['Utot2 [J]'])
+    from IPython import embed; embed()
     ######################################################################
     ##Main phase
     #parse storm phase
@@ -211,15 +223,29 @@ if __name__ == "__main__":
     feb_msdict_mn1 = locate_phase(febSim['msdict'],'main1')
     febtime = [dt.datetime(2000,1,1)+r for r in
                feb_mp_mn1.index-feb_mp_mn1.index[0]]
-    #star_mpdict_mn1 = locate_phase(starSim['mpdict'],'main1')
-    #star_mp_mn1 = star_mpdict_mn1['ms_full']
-    #star_msdict_mn1 = locate_phase(starSim['msdict'],'main1')
-    #startime = [dt.datetime(2000,1,1)+r for r in
-    #            star_mp_mn1.index-star_mp_mn1.index[0]]
+    star_mpdict_mn1 = locate_phase(starSim['mpdict'],'main1')
+    star_mp_mn1 = star_mpdict_mn1['ms_full']
+    star_msdict_mn1 = locate_phase(starSim['msdict'],'main1')
+    startime = [dt.datetime(2000,1,1)+r for r in
+                star_mp_mn1.index-star_mp_mn1.index[0]]
+
+    '''
+    #FAKE (all times)
+    feb_mpdict_mn1 = febSim['mpdict']
+    feb_mp_mn1 = feb_mpdict_mn1['ms_full']
+    feb_msdict_mn1 = febSim['msdict']
+    febtime = [dt.datetime(2000,1,1)+r for r in
+               feb_mp_mn1.index-feb_mp_mn1.index[0]]
+    star_mpdict_mn1 = starSim['mpdict']
+    star_mp_mn1 = star_mpdict_mn1['ms_full']
+    star_msdict_mn1 = starSim['msdict']
+    startime = [dt.datetime(2000,1,1)+r for r in
+                star_mp_mn1.index-star_mp_mn1.index[0]]
+    '''
 
     ##Line plot Energy
     #setup figure
-    main1_energy, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+    main1_energy, [ax1,ax2] = plt.subplots(2,1,sharey=False,sharex=True,
                                            figsize=[14,8])
     feblabel = 'Feb 2014'
     starlabel = 'Feb 2022'
@@ -228,9 +254,9 @@ if __name__ == "__main__":
 
     #plot
     ax1.plot(febtime, feb_mp_mn1['Utot2 [J]'],label=feblabel)
-    #ax2.plot(startime, star_mp_mn1['Utot [J]'],label=starlabel)
+    ax2.plot(startime, star_mp_mn1['Utot [J]'],label=starlabel)
     general_plot_settings(ax1,ylabel=Elabel,do_xlabel=False,xlabel=Tlabel)
-    #general_plot_settings(ax2,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
+    general_plot_settings(ax2,ylabel=Elabel,do_xlabel=True,xlabel=Tlabel)
 
     #save
     main1_energy.tight_layout(pad=1)
@@ -244,16 +270,16 @@ if __name__ == "__main__":
     Tlabel = r'Time $\left[ hr\right]$'
     for sz in ['ms_full','lobes','closed','rc']:
         #setup figures
-        main1_distr, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+        main1_distr, [ax1,ax2] = plt.subplots(2,1,sharey=False,sharex=True,
                                               figsize=[14,8])
 
         #plot
         plot_stack_distr(ax1, febtime,feb_mp_mn1, feb_msdict_mn1,
                          value_set='Energy2', doBios=False, label=feblabel,
                          ylabel=Elabel,legend_loc='upper left',subzone=sz)
-        #plot_stack_distr(ax2, startime,star_mp_mn1, star_msdict_mn1,
-        #                 value_set='Energy2', doBios=False, label=starlabel,
-        #                 ylabel=Elabel,legend_loc='upper left',subzone=sz)
+        plot_stack_distr(ax2, startime,star_mp_mn1, star_msdict_mn1,
+                         value_set='Energy2', doBios=False, label=starlabel,
+                         ylabel=Elabel,legend_loc='upper left',subzone=sz)
 
         #save
         main1_distr.tight_layout(pad=1)
@@ -262,18 +288,18 @@ if __name__ == "__main__":
 
     ##Stack plot Energy by region
     #setup figure
-    main1_contr, [ax1,ax2] = plt.subplots(2,1,sharey=True,sharex=True,
+    main1_contr, [ax1,ax2] = plt.subplots(2,1,sharey=False,sharex=True,
                                           figsize=[14,8])
 
     feb_msdict_mn1.pop('missed')
-    #star_msdict_mn1.pop('missed')
+    star_msdict_mn1.pop('missed')
     #plot
     plot_stack_contrib(ax1, febtime,feb_mp_mn1, feb_msdict_mn1,
                          value_key='Utot [J]', label=feblabel,
                          ylabel=Elabel,legend_loc='upper left')
-    #plot_stack_contrib(ax2, startime,star_mp_mn1, star_msdict_mn1,
-    #                     value_key='Utot [J]', label=starlabel,
-    #                     ylabel=Elabel,legend_loc='upper left')
+    plot_stack_contrib(ax2, startime,star_mp_mn1, star_msdict_mn1,
+                         value_key='Utot [J]', label=starlabel,
+                         ylabel=Elabel,legend_loc='upper left')
 
     #save
     main1_contr.tight_layout(pad=1)
@@ -282,26 +308,28 @@ if __name__ == "__main__":
 
 
     ##Interface generic multiplot
-    for szkey in ['ms_full','lobes','closed','rc']:
-        if 'full' in szkey: sz = feb_mpdict_mn1[szkey]
-        else: sz = feb_msdict_mn1[szkey]
-        interfaces = get_interfaces(sz)
-        #setup figure
-        interf1, axes = plt.subplots(len(interfaces),1,sharey=False,
+    for mpdict,msdict,tag in [(feb_mpdict_mn1, feb_msdict_mn1, 'feb'),
+                              (star_mpdict_mn1, star_msdict_mn1, 'star')]:
+        for szkey in ['ms_full','lobes','closed','rc']:
+            if 'full' in szkey: sz = feb_mpdict_mn1[szkey]
+            else: sz = star_msdict_mn1[szkey]
+            interfaces = get_interfaces(sz)
+            #setup figure
+            interf1, axes = plt.subplots(len(interfaces),1,sharey=False,
                                           sharex=True,
                                           figsize=[14,4*len(interfaces)])
-        for ax in enumerate(axes):
-            Plabel = ('Power '+safelabel(interfaces[ax[0]])+
+            for ax in enumerate(axes):
+                Plabel = ('Power '+safelabel(interfaces[ax[0]])+
                                                      r'$\left[ TW\right]$')
-            terms = ['K_'+direc+interfaces[ax[0]]+' [W]'
+                terms = ['K_'+direc+interfaces[ax[0]]+' [W]'
                     for direc in ['injection','escape','net']]
-            termdict = {}
-            for d,t in zip(['inj','esc','net'],terms):termdict.update({d:t})
-            plot_power(ax[1], {szkey:sz}, sz.index, **termdict,
+                termdict = {}
+                for d,t in zip(['inj','esc','net'],terms):termdict.update({d:t})
+                plot_power(ax[1], {szkey:sz}, sz.index, **termdict,
                     ylabel=Plabel,do_xlabel=False,legend_loc='upper left')
-        general_plot_settings(ax[-1],ylabel=Plabel,do_xlabel=True,
+            general_plot_settings(ax[-1],ylabel=Plabel,do_xlabel=True,
                                   xlabel=Tlabel)
-        interf1.tight_layout(pad=1)
-        interf1.savefig(outMN1+'/interf1'+szkey+'.png')
+            interf1.tight_layout(pad=1)
+            interf1.savefig(outMN1+'/interf1'+szkey+'.png')
 
     ######################################################################

@@ -33,12 +33,12 @@ def energy_post_integr(results, **kwargs):
     df = pd.DataFrame(results)
     #Combine MAG and HYDRO back into total energy
     uB = df[[k for k in df.keys() if 'uB ' in k]]
-    ub = df[[k for k in df.keys() if 'ub ' in k]]
+    ub = df[[k for k in df.keys() if 'u_db ' in k]]
     uH = df[[k for k in df.keys() if 'Hydro' in k]]
     u1_values = uB.values + uH.values #including dipole field
     u2_values = ub.values + uH.values #disturbance energy
     u1_keys = ['Utot '.join(k.split('uB ')) for k in df.keys()if 'uB ' in k]
-    u2_keys = ['Utot2 '.join(k.split('uB ')) for k in df.keys()if 'uB 'in k]
+    u2_keys=['Utot2 '.join(k.split('u_db '))for k in df.keys()if'u_db 'in k]
     for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
     for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
     if kwargs.get('do_cms', False):
@@ -154,7 +154,7 @@ def get_energy_integrands(state_var):
     existing_variables = state_var.dataset.variable_names
     #Integrands
     #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
-    integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','ub [J/Re^3]',
+    integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','u_db [J/Re^3]',
                   'uHydro [J/Re^3]']
     for term in integrands:
         name = term.split(' ')[0]
