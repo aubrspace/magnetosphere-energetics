@@ -92,34 +92,35 @@ def plot_power(axis, dfdict, times, **kwargs):
     labeldict = {'inj':r'Injection','esc':r'Escape','net':r'Net'}
     colordict = {'inj':'mediumvioletred','esc':'peru','net':'black'}
     fcolordict = {'inj':'palevioletred','esc':'peachpuff','net':'silver'}
-    for name,data in dfdict.items():
-        ##Yvalue dictionary
-        if kwargs.get('use_inner',False):
-            for item,value in keydict:
-                keydict.update({item:'inner'+value})
-        elif kwargs.get('use_surface',False):
-            keydict={'inj':'Utot_acquired [W]','esc':'Utot_forfeited [W]',
-                     'net':'Utot_net [W]'}
-        if kwargs.get('use_shield',False):
-            pass#NOTE come back to this
-        elif kwargs.get('use_average',False):
-            powdict = {'inj':data[keydict['inj']]/data['Area [Re^2]'],
-                       'esc':data[keydict['esc']]/data['Area [Re^2]'],
-                       'net':data[keydict['net']]/data['Area [Re^2]']}
-        else:
-            powdict = {'inj':data[keydict['inj']]/1e12,
-                       'esc':data[keydict['esc']]/1e12,
-                       'net':data[keydict['net']]/1e12}
-            #axis.set_ylim([-20, 20])
-        ##PLOT
-        for term in ['inj','esc','net']:
-            axis.plot(times,powdict[term],label=labeldict[term],
-                      linewidth=kwargs.get('lw',None),
-                      linestyle=kwargs.get('ls',None),
-                      color=kwargs.get(term+'color',colordict[term]))
+    ##Yvalue dictionary
+    if kwargs.get('use_inner',False):
+        for item,value in keydict:
+            keydict.update({item:'inner'+value})
+    elif kwargs.get('use_surface',False):
+        keydict={'inj':'Utot_acquired [W]','esc':'Utot_forfeited [W]',
+                    'net':'Utot_net [W]'}
+    if kwargs.get('use_shield',False):
+        pass#NOTE come back to this
+    elif kwargs.get('use_average',False):
+        powdict = {'inj':dfdict[keydict['inj']]/dfdict['Area [Re^2]'],
+                    'esc':dfdict[keydict['esc']]/dfdict['Area [Re^2]'],
+                    'net':dfdict[keydict['net']]/dfdict['Area [Re^2]']}
+    else:
+        powdict = {'inj':dfdict[keydict['inj']]/1e12,
+                    'esc':dfdict[keydict['esc']]/1e12,
+                    'net':dfdict[keydict['net']]/1e12}
+        #axis.set_ylim([-20, 20])
+    ##PLOT
+    for term in ['inj','esc','net']:
+        axis.plot(times,powdict[term],label=labeldict[term],
+                    linewidth=kwargs.get('lw',None),
+                    linestyle=kwargs.get('ls',None),
+                    color=kwargs.get(term+'color',colordict[term]))
         if kwargs.get('dofill',True):
             axis.fill_between(times,powdict[term],
-                         color=kwargs.get(term+'fcolor',fcolordict[term]))
+                            fc=kwargs.get(term+'fcolor',fcolordict[term]),
+                            ec=kwargs.get(term+'color',colordict[term]),
+                            hatch=kwargs.get('hatch'),lw=0.0)
     #General plot settings
     general_plot_settings(axis, **kwargs)
 

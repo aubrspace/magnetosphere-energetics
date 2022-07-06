@@ -25,7 +25,7 @@ def pyplotsetup(*,mode='presentation',**kwargs):
     if 'print' in mode:
         #Change colorcycler
         colorwheel = plt.cycler('color',
-                ['tab:blue', 'tab:orange', 'tab:pink', 'tab:brown',
+                ['maroon', 'magenta', 'tab:blue', 'green',
                  'tab:olive','tab:cyan'])
         settings.update({'axes.prop_cycle': colorwheel})
     elif 'digital' in mode:
@@ -96,7 +96,8 @@ def general_plot_settings(ax, **kwargs):
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.set_ylabel(kwargs.get('ylabel',''))
     ax.tick_params(which='major', length=9)
-    ax.legend(loc=kwargs.get('legend_loc',None))
+    if kwargs.get('legend',True):
+        ax.legend(loc=kwargs.get('legend_loc',None))
 
 def get_omni_cdas(start,end,as_df=True,**variables):
     from cdasws import CdasWs
@@ -262,7 +263,7 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
     values = {'Virial':['Virial 2x Uk [nT]', 'Virial Ub [nT]','Um [nT]',
                         'Virial Surface Total [nT]'],
               'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
-              'Energy2':['uB [J]', 'uHydro [J]'],
+              'Energy2':['u_db [J]', 'uHydro [J]'],
               'Virial%':['Virial 2x Uk [%]', 'Virial Ub [%]',
                                'Virial Surface Total [%]'],
               'Energy%':['Virial Ub [%]', 'KE [%]', 'Eth [%]']}
@@ -288,7 +289,7 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
     for value in values[value_set]:
         label = value.split(' [')[0].split('Virial ')[-1]
         ax.fill_between(times,starting_value,starting_value+data[value],
-                        label=label)
+                        label=safelabel(label))
         starting_value = starting_value+data[value]
     if (not '%' in value_set) and kwargs.get('doBios',True):
         if any(['bioS' in k for k in data.keys()]):
@@ -339,8 +340,9 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
     for szlabel,sz in msdict.items():
         szval = sz[value_key]
         #times, d = times[~d.isna()], d[~d.isna()]
-        ax.fill_between(times,starting_value,starting_value+szval,
-                        label=szlabel)
+        ax.fill_between(times,starting_value/1e15,
+                              (starting_value+szval)/1e15,
+                        label=szlabel,hatch=kwargs.get('hatch'))
         starting_value = starting_value+szval
     ax.set_xlim([times[0],times[-1]])
     #Optional plot settings

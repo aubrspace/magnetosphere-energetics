@@ -617,10 +617,23 @@ if __name__ == "__main__":
     plt.close(fig)
     #AGU image: SW Bz+Bmagnitude, Pdyn
     ######################################################################
-    swBlabel = r'$B \left[nT\right]$'
+    swBlabel = r'$B_z \left[nT\right]$'
     swPlabel = r'$P_{ram} \left[nPa\right]$'
     Allabel = r'AL $\left[nT\right]$'
     SYMhlabel = r'SYM-H $\left[nT\right]$'
+    colorwheel = plt.cycler('color',
+                    ['tab:blue', 'magenta', 'navy', 'maroon', 'wheat',
+                    'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
+                   #matte blue, lightgreen, vibrant red
+    plt.rcParams.update({'figure.facecolor':'white',
+                         'axes.prop_cycle': colorwheel,
+                         'text.color':'black',
+                         'ytick.color':'black',
+                         'xtick.color':'black',
+                         'axes.edgecolor': 'black',
+                         'axes.facecolor': 'white',
+                         'axes.labelcolor': 'black'})
+    '''
     colorwheel = plt.cycler('color',
                    ['#375e95', '#05BC54', 'black', 'chartreuse', 'wheat',
                     'lightgrey', 'springgreen', 'coral', 'plum', 'salmon'])
@@ -633,8 +646,9 @@ if __name__ == "__main__":
                          'axes.edgecolor': 'black',
                          'axes.facecolor': '#FBFFE7',
                          'axes.labelcolor': 'black'})
+    '''
     #figure settings
-    fig,ax = plt.subplots(nrows=7,ncols=1,sharex=True,figsize=[14,12],
+    fig,ax = plt.subplots(nrows=7,ncols=1,sharex=True,figsize=[20,20],
                           gridspec_kw={'height_ratios':[1,1,1,1,1,1,2]})
     #Solar wind Bz
     for axis,obs in [(ax[0],f14obs), (ax[3],starobs)]:
@@ -647,7 +661,7 @@ if __name__ == "__main__":
                                                   obs['swmf_sw']['bz']**2),
                                      color='grey',label=r'$|B|$')
         general_plot_settings(axis, ylabel=swBlabel,ylim=[-20,20],
-                              legend_loc='lower left')
+                              legend_loc='lower right')
         axis.set_xlabel(None)
     #Ram pressure
     for axis,obs in [(ax[1],f14obs), (ax[4],starobs)]:
@@ -665,12 +679,12 @@ if __name__ == "__main__":
                   label='Sim')
         axis.plot(obstime,obs['omni']['al'],label='Obs')
         general_plot_settings(axis, ylabel=Allabel,ylim=[-1500,0],
-                              legend_loc='upper left')
+                              legend_loc='upper right')
         axis.set_xlabel(None)
         #axis.get_legend().remove()
     #Dst
-    #for axis,obs in [(ax[6],f14obs), (ax[6],starobs)]:
-    for axis,obs in [(ax[6],f14obs)]:
+    for axis,obs in [(ax[6],f14obs), (ax[6],starobs)]:
+    #for axis,obs in [(ax[6],f14obs)]:
         obstime = [dt.datetime(2000,1,1)+r for r in
                     obs['swmf_log'].index-obs['swmf_log'].index[0]]
         #axis.plot(mp.index, mp['bioS [nT]'],linewidth=2,label='Sim')
@@ -681,7 +695,7 @@ if __name__ == "__main__":
         axis.plot(omnitime,obs['omni']['sym_h'],label='Obs')
         general_plot_settings(axis, ylabel=SYMhlabel)
     #Save
-    fig.tight_layout(pad=1)
+    fig.tight_layout(pad=0.2)
     fig.savefig(figureout+'/egu2022_side.png')
     plt.close(fig)
     #Pressure, External Perturbations, Volume
