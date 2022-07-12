@@ -53,6 +53,9 @@ if __name__ == "__main__":
     paleo=('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
     ccmc  = ('output/CCMC/3d__var_1_e20130713-204700-037.plt',
              'output/CCMC/3d__var_1_e20130713-204700-037.plt')
+    ccmc2  = (
+            'ccmc_2019-08-30/3d__var_1_e20190830-165000-001.plt',
+            'ccmc_2019-08-30/3d__var_1_e20190830-165100-032.plt')
 
     '''
     #load from file
@@ -60,7 +63,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [starlink]:
+    for inputs in [ccmc2]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -73,6 +76,7 @@ if __name__ == "__main__":
         main.name = 'main'
 
         #Perform data extraction
+        from IPython import embed; embed()
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath='babyrun/',
@@ -87,7 +91,7 @@ if __name__ == "__main__":
                       #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
     #with tp.session.suspend():
-    if False:#manually switch on or off
+    if True:#manually switch on or off
         #adjust view settings
         proc = 'Multi Frame Manager'
         cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

@@ -89,7 +89,8 @@ def todimensional(dataset, **kwargs):
         if 'status' not in var.lower() and '[' not in var:
             if var in units.keys():
                 unit = units[var]
-                conversion = No2Si[var]/Io2Si[var]
+                #NOTE default is no modification
+                conversion = No2Si.get(var,1)/Io2Si.get(var,1)
                 print('Changing '+var+' by multiplying by '+str(conversion))
                 eq('{'+var+' '+unit+'} = {'+var+'}*'+str(conversion))
                 print('Removing '+var)

@@ -107,6 +107,7 @@ def work(mhddatafile):
                                                            marktime))
         marktime=time.time()
     #Caclulate surfaces
+    '''
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=False,
                                     analysis_type='massenergy',
@@ -117,6 +118,17 @@ def work(mhddatafile):
                                     modes=['iso_betastar','bs'],
                                     outputpath=CONTEXT['OUTPUTPATH'])
                                     #modes=['iso_betastar','nlobe','slobe','closed','rc'],
+                                    #customTerms={'test':'TestArea [Re^2]'},
+    '''
+    magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+                                    do_cms=True,
+                                    analysis_type='energy',
+                                    do_interfacing=True,
+                                    integrate_volume=True,
+                                    verbose=False,
+                                    extract_flowline=False,
+                                    modes=['iso_betastar','nlobe','slobe','closed','rc'],
+                                    outputpath=CONTEXT['OUTPUTPATH'])
                                     #customTerms={'test':'TestArea [Re^2]'},
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
@@ -202,12 +214,14 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'ccmc_2019-05-13'
+    RUNDIR = 'ccmc_2019-08-30'
+    #RUNDIR = 'starlink'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'bs_output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_aug2019')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
