@@ -20,7 +20,10 @@ def plot_Temp(ax, data, ylabel, **kwargs):
     """
     for key in ['times', 'temp']:
         if key not in data.keys():
-            raise KeyError (key+'not in dataset, check column names!')
+            if any(['temp' in k for k in data.keys()]):
+                data['temp'] = data['temperature']
+            else:
+                raise KeyError (key+'not in dataset, check column names!')
     #plot components
     ax.plot(data['times'],data['temp'],color='tomato')
     ax.set_ylabel(ylabel)
@@ -38,7 +41,10 @@ def plot_Rho(ax, data, ylabel, **kwargs):
     """
     for key in ['times', 'dens']:
         if key not in data.keys():
-            raise KeyError (key+'not in dataset, check column names!')
+            if any(['dens' in k for k in data.keys()]):
+                data['dens'] = data['density']
+            else:
+                raise KeyError (key+'not in dataset, check column names!')
     #plot components
     ax.plot(data['times'],data['dens'],color='green')
     ax.set_ylabel(ylabel)
