@@ -12,6 +12,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import swmfpy
 from global_energetics.analysis.plot_tools import get_omni_cdas
+from global_energetics.extract.shue import r0_alpha_1998
 #from global_energetics.analysis.proc_virial import (pyplotsetup,
 #                                                    general_plot_settings)
 
@@ -504,6 +505,36 @@ def get_swmf_data(datapath,**kwargs):
     convert = 1.6726e-27*1e6*(1e3)**2*1e9
     swdata['v']=np.sqrt(swdata['vx']**2+swdata['vy']**2+swdata['vz']**2)
     swdata['pdyn'] = swdata['density']*swdata['v']**2*convert
+    if kwargs.get('doBetaMa',True):
+        #solar wind plasma beta,beta*,Valfven,Ma
+        swdata['P']=swdata['density']*1.3807e-23*swdata['temperature']*1e15
+        swdata['B']=np.sqrt(swdata['bx']**2+swdata['by']**2+swdata['bz']**2)
+        swdata['Beta'] = swdata['P']/(swdata['B']**2/(4*np.pi*1e-7*1e9))
+        swdata['Beta*'] = (swdata['P']+swdata['pdyn'])/(swdata['B']**2/
+                                                    (4*np.pi*1e-7*1e9))
+        swdata['Va'] = np.sqrt(swdata['B']**2/(4*np.pi)/
+                           swdata['density']/1.67)*1e5
+        swdata['Ma'] = swdata['v']*1e3/swdata['Va']
+    if kwargs.get('doStandoff',True):
+        #Shue standoff distance
+        swdata['r_shue98'], swdata['alpha'] = (
+                                r0_alpha_1998(swdata['bz'],swdata['pdyn']))
+    if kwargs.get('doCoupls',True):
+        #coupling functions
+        Cmp = 1000 #Followed
+        #https://supermag.jhuapl.edu/info/data.php?page=swdata
+        #term comes from Cai and Clauer[2013].
+        #Note that SuperMAG lists the term as 100,
+        #however from the paper: "From our work,
+        #                       α is estimated to be on order of 10^3"
+        swdata['clock'] = np.arctan2(swdata['by'],swdata['bz'])
+        swdata['Newell']=Cmp*((swdata['v']*1e3)**(4/3)*np.sqrt(
+                    (swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)**(2/3)*
+                                   abs(np.sin(swdata['clock']/2))**(8/3))
+        l = 7*6371*1000
+        swdata['eps'] = (swdata['B']**2*swdata['v']*
+                                    np.sin(swdata['clock']/2)**4*l**2*
+                                              1e3*1e-9**2 / (4*np.pi*1e-7))
     #times Time [UTC]
     geoindexdata['times'] = geoindexdata.index
     swmflogdata['times'] = swmflogdata.index

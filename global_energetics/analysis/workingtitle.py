@@ -60,13 +60,13 @@ def locate_phase(indata,phasekey,**kwargs):
     starlink_endMain1 = dt.datetime(2022,2,4,13,10)
     starlink_endMain2 = dt.datetime(2022,2,4,22,0)
     #May2019
-    may2019_impact = dt.datetime(2019,5,13,0,0)
+    may2019_impact = dt.datetime(2019,5,13,19,0)
     may2019_endMain1 = dt.datetime(2019,5,14,7,45)
     may2019_endMain2 = dt.datetime(2019,5,14,7,45)
     #Aug2019
-    aug2019_impact = dt.datetime(2019,8,30,11,56)
-    aug2019_endMain1 = dt.datetime(2019,8,31,12,0)
-    aug2019_endMain2 = dt.datetime(2019,8,31,12,0)
+    aug2019_impact = dt.datetime(2019,8,30,20,56)
+    aug2019_endMain1 = dt.datetime(2019,8,31,18,0)
+    aug2019_endMain2 = dt.datetime(2019,8,31,18,0)
 
     #Get time information based on given data type
     if (type(indata) == pd.core.series.Series or
@@ -88,12 +88,10 @@ def locate_phase(indata,phasekey,**kwargs):
         impact = may2019_impact
         peak1 = may2019_endMain1
         peak2 = may2019_endMain2
-    elif abs(times-may2019_impact).min() < dt.timedelta(minutes=15):
+    elif abs(times-aug2019_impact).min() < dt.timedelta(minutes=15):
         impact = aug2019_impact
         peak1 = aug2019_endMain1
         peak2 = aug2019_endMain2
-        #TODO find the points and see if aug2019 is being loaded wrong
-        from IPython import embed; embed()
     else:
         impact = times[0]
         peak1 = times[round(len(times)/2)]
@@ -147,21 +145,23 @@ if __name__ == "__main__":
     ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
     ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
+    ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
 
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
                                     read_supermag=False, tshift=45)
     ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
                                      read_supermag=False)
+    ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
+                                    read_supermag=False)
     ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
-                                     read_supermag=False)
+                                    read_supermag=False)
 
     #NOTE hotfix for closed region tail_closed
-    for t in[t for t in ds['feb']['msdict']['closed'].keys()
+    for ev in ds.keys():
+        for t in[t for t in ds[ev]['msdict']['closed'].keys()
                                                     if 'Tail_close'in t]:
-        for event in ds.keys():
-            ds[event]['msdict']['closed'][t] = ds[event]['mpdict'][
-                                                              'ms_full'][t]
+            ds[ev]['msdict']['closed'][t] = ds[ev]['mpdict']['ms_full'][t]
 
     ##Construct "grouped" set of subzones, then get %contrib for each
     for event in ds.keys():
@@ -172,32 +172,17 @@ if __name__ == "__main__":
                                'closed':ds[event]['msdict']['closed'],
                                'lobes':ds[event]['msdict']['lobes']}
                                #'missed':ds[event]['msdict']['missed']}
-    #TODO: refactor to add more toplevels to have one master "dataset" mega
-    #      dict with entries for each event
-    #       - mp->full + ms-> rc, lobe, close
-    #           - qt, mn1, rec
-    #               - data + time
     ##Parse storm phases
-    for event in ds.keys():
-        #quiet time
-        ds[event]['mp_qt'], ds[event]['time_qt'] = locate_phase(
-                                       ds[event]['mpdict']['ms_full'],'qt')
-        ds[event]['msdict_qt'], _ = locate_phase(
-                                                  ds[event]['msdict'],'qt')
-        #Main phase
-        ds[event]['mp_mn1'], ds[event]['time_mn1'] = locate_phase(
-                                    ds[event]['mpdict']['ms_full'],'main1')
-        ds[event]['msdict_mn1'], _ = locate_phase(
-                                               ds[event]['msdict'],'main1')
-        ds[event]['obs_mn1'], ds[event]['otime_mn1'] = locate_phase(
-                                       ds[event]['obs']['swmf_sw'],'main1')
-        #Recovery
-        ds[event]['mp_rec'], ds[event]['time_rec'] = locate_phase(
-                                    ds[event]['mpdict']['ms_full'],'rec')
-        ds[event]['msdict_rec'], _ = locate_phase(
-                                               ds[event]['msdict'],'rec')
-        ds[event]['obs_rec'], ds[event]['otime_rec'] = locate_phase(
-                                       ds[event]['obs']['swmf_sw'],'rec')
+    for ev in ds.keys():
+        obs_srcs = list(ds[ev]['obs'].keys())
+        for ph in ['_qt','_main','_rec']:
+            #from IPython import embed; embed()
+            ds[ev]['mp'+ph], ds[ev]['time'+ph] = locate_phase(
+                                            ds[ev]['mpdict']['ms_full'],ph)
+            ds[ev]['msdict'+ph], _ = locate_phase(ds[ev]['msdict'],ph)
+            for src in obs_srcs:
+                ds[ev]['obs'][src+ph],ds[ev][src+'_otime'+ph]=(
+                               locate_phase(ds[ev]['obs'][src],ph))
 
     ######################################################################
     ##Quiet time
@@ -304,7 +289,7 @@ if __name__ == "__main__":
     #h_ratios=[6,2,2,8,1,6,1,1,1]
     h_ratios=[3,3,1,1,1,1,4,4,1,1,3,3,1,1,1,1,1,1]
 
-    for ph,path in [('_mn1',outMN1),('_rec',outRec)]:
+    for ph,path in [('_main',outMN1),('_rec',outRec)]:
         ##Stack plot Energy by type (hydro,magnetic) for each region
         for sz in ['ms_full','lobes','closed','rc']:
             #setup figures
@@ -343,7 +328,8 @@ if __name__ == "__main__":
         plt.close(contr)
 
         ##Lineplots for event comparison 1 axis per interface
-        interf_fig, ax = plt.subplots(2*len(interface_list),sharex=True,
+        interf_fig, ax = plt.subplots(len(ds.keys())*len(interface_list),
+                                      sharex=True,
                          figsize=[9,3*len(interface_list)*len(ds.keys())])
                             #gridspec_kw={'height_ratios':h_ratios})
         for i,ev in enumerate(ds.keys()):
@@ -373,7 +359,6 @@ if __name__ == "__main__":
         plt.close(interf_fig)
 
     ######################################################################
-    #TODO: 2 panels:
     ##Bonus plot
     #setup figure
     bonus, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
@@ -382,16 +367,16 @@ if __name__ == "__main__":
     for i,ev in enumerate(ds.keys()):
         if i==1:ylabel=''
         else:ylabel=r'Lobe Power/Energy'
-        for j,ph in enumerate(['_mn1','_rec']):
+        for j,ph in enumerate(['_main','_rec']):
             dic = ds[ev]['msdict'+ph]['lobes']
-            obs = ds[ev]['obs'+ph]
+            obs = ds[ev]['obs']['swmf_sw'+ph]
             if j>0:
                 times = [t+(times[-1]-times[0]) for t in ds[ev]['time'+ph]]
-                ot    = [t+(ot[-1]-ot[0]) for t in ds[ev]['otime'+ph]]
+                ot = [t+(ot[-1]-ot[0]) for t in ds[ev]['swmf_sw_otime'+ph]]
                 h='_'
             else:
                 times = ds[ev]['time'+ph]
-                ot    = ds[ev]['otime'+ph]
+                ot    = ds[ev]['swmf_sw_otime'+ph]
                 h=''
             #twin axis with fill (grey) of Energy in lobes
             ax[i].fill_between(times,dic['Utot2 [J]']/1e15,fc='thistle',
@@ -420,13 +405,201 @@ if __name__ == "__main__":
     bonus.savefig(outRec+'/bonus.png')
     plt.close(bonus)
 
-    #TODO: 4 panels:
-    #setup figure
-    sw, [ax1,ax2,ax3,ax4] = plt.subplots(4,1,sharey=True,sharex=True,
-                                          figsize=[14,8])
-    #       Event info, standard "side" format
-    #       Overlay the phases (Quiet, main, recovery)
+    ######################################################################
+    #Series of solar wind observatioins/inputs/indices
+    #IMF
+    imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        trange = dt.timedelta(minutes=0)
+        orange = dt.timedelta(minutes=0)
+        for j,ph in enumerate(['_qt','_main','_rec']):
+            mp = ds[ev]['mp'+ph]
+            ms = ds[ev]['msdict'+ph]
+            obs = ds[ev]['obs']['swmf_sw'+ph]
+            times = [t+trange for t in ds[ev]['time'+ph]]
+            ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
+            trange += times[-1]-times[0]
+            orange += ot[-1]-ot[0]
+            if j==0:
+                h=''
+            else:
+                h='_'
+            ax[i].fill_between(ot,obs['B'], ec='dimgrey',fc='thistle',
+                               hatch=hatches[i], label=h+r'$|B|$')
+            ax[i].plot(ot,obs['bx'],label=h+r'$B_x$',c='maroon')
+            ax[i].plot(ot,obs['by'],label=h+r'$B_y$',c='magenta')
+            ax[i].plot(ot,obs['bz'],label=h+r'$B_z$',c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'$B\left[nT\right]$'+ev,
+                              legend=(i==0),
+                              xlabel=r'Time $\left [Hr\right]$',
+                              do_xlabel=(i==len(ds.keys())-1))
     #save
-    sw.tight_layout(pad=1)
-    sw.savefig(outRec+'/reco_contr_energy.png')
-    plt.close(sw)
+    imf.tight_layout(pad=0.8)
+    imf.savefig(unfiled+'/imf.png')
+    plt.close(imf)
+
+    #Pdyn and Vxyz
+    pVel, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        trange = dt.timedelta(minutes=0)
+        orange = dt.timedelta(minutes=0)
+        for j,ph in enumerate(['_qt','_main','_rec']):
+            mp = ds[ev]['mp'+ph]
+            ms = ds[ev]['msdict'+ph]
+            obs = ds[ev]['obs']['swmf_sw'+ph]
+            times = [t+trange for t in ds[ev]['time'+ph]]
+            ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
+            trange += times[-1]-times[0]
+            orange += ot[-1]-ot[0]
+            if j==0:
+                h=''
+            else:
+                h='_'
+            ax[i].fill_between(ot,obs['pdyn']*10,ec='dimgrey',fc='thistle',
+                               hatch=hatches[i],label=h+r'10x$P_{dyn}$')
+            ax2 = ax[i].twinx()
+            ax2.plot(ot,-1*obs['vx'],label=h+r'$V_x$',c='maroon')
+            ax2.set_ylim([0,800])
+            ax[i].plot(ot,obs['vy'],label=h+r'$V_y$',c='magenta')
+            ax[i].plot(ot,obs['vz'],label=h+r'$V_z$',c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'$V,P\left[km,nPa\right]$'+ev,
+                              legend=(i==0),
+                              xlabel=r'Time $\left [Hr\right]$',
+                              do_xlabel=(i==len(ds.keys())-1))
+    #save
+    pVel.tight_layout(pad=0.8)
+    pVel.savefig(unfiled+'/pVel.png')
+    plt.close(pVel)
+
+    #Alfven Mach number and plasma beta
+    betaMa, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        trange = dt.timedelta(minutes=0)
+        orange = dt.timedelta(minutes=0)
+        for j,ph in enumerate(['_qt','_main','_rec']):
+            mp = ds[ev]['mp'+ph]
+            ms = ds[ev]['msdict'+ph]
+            obs = ds[ev]['obs']['swmf_sw'+ph]
+            times = [t+trange for t in ds[ev]['time'+ph]]
+            ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
+            trange += times[-1]-times[0]
+            orange += ot[-1]-ot[0]
+            if j==0:
+                h=''
+            else:
+                h='_'
+            ax[i].plot(ot,obs['Ma'],label=h+r'$M_{Alf}$',c='magenta')
+            ax[i].plot(ot,obs['Beta'],label=h+r'$\beta$',c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'$M_{Alf},\beta$'+ev,
+                              legend=(i==0),
+                              xlabel=r'Time $\left [Hr\right]$',
+                              do_xlabel=(i==len(ds.keys())-1))
+    #save
+    betaMa.tight_layout(pad=0.8)
+    betaMa.savefig(unfiled+'/betaMa.png')
+    plt.close(betaMa)
+
+    #Dst index
+    dst, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        srange = dt.timedelta(minutes=0)
+        orange = dt.timedelta(minutes=0)
+        for j,ph in enumerate(['_qt','_main','_rec']):
+            sim = ds[ev]['obs']['swmf_log'+ph]
+            obs = ds[ev]['obs']['omni'+ph]
+            st = [t+srange for t in ds[ev]['swmf_log_otime'+ph]]
+            ot = [t+orange for t in ds[ev]['omni_otime'+ph]]
+            srange += st[-1]-st[0]
+            orange += ot[-1]-ot[0]
+            if j==0:
+                h=''
+            else:
+                h='_'
+            ax[i].plot(ot,obs['sym_h'],label=h+r'SYM-H(OMNI)',c='magenta')
+            ax[i].plot(st,sim['dst_sm'],label=h+r'sim',c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'$\Delta B\left[nT\right]$ '+ev,
+                              legend=(i==0),
+                              xlabel=r'Time $\left [Hr\right]$',
+                              do_xlabel=(i==len(ds.keys())-1))
+    #save
+    dst.tight_layout(pad=0.8)
+    dst.savefig(unfiled+'/dst.png')
+    plt.close(dst)
+
+    #Magnetopause standoff
+    mpStan, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        trange = dt.timedelta(minutes=0)
+        srange = dt.timedelta(minutes=0)
+        for j,ph in enumerate(['_qt','_main','_rec']):
+            mp = ds[ev]['mp'+ph]
+            sw = ds[ev]['obs']['swmf_sw'+ph]
+            times = [t+trange for t in ds[ev]['time'+ph]]
+            st = [t+srange for t in ds[ev]['swmf_sw_otime'+ph]]
+            trange += times[-1]-times[0]
+            srange += st[-1]-st[0]
+            if j==0:
+                h=''
+            else:
+                h='_'
+            ax[i].plot(st,sw['r_shue98'],label=h+r'Shue98',c='magenta')
+            ax[i].plot(times,mp['X_subsolar [Re]'],label=h+r'sim',
+                       c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'Standoff $R_e$'+ev,
+                              legend=(i==0),
+                              xlabel=r'Time $\left [Hr\right]$',
+                              do_xlabel=(i==len(ds.keys())-1))
+    #save
+    mpStan.tight_layout(pad=0.8)
+    mpStan.savefig(unfiled+'/mpStan.png')
+    plt.close(mpStan)
+
+    #Coupling functions and CPCP
+    coupl, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    months = [2,2,5,9]
+    for i,ev in enumerate(ds.keys()):
+        lrange = dt.timedelta(minutes=0)
+        srange = dt.timedelta(minutes=0)
+        orange = dt.timedelta(minutes=0)
+        ax2 = ax[i].twinx()
+        for j,ph in enumerate(['_qt','_main','_rec']):
+            log = ds[ev]['obs']['swmf_log'+ph]
+            sw = ds[ev]['obs']['swmf_sw'+ph]
+            obs = ds[ev]['obs']['omni'+ph]
+            lt = [t+lrange for t in ds[ev]['swmf_log_otime'+ph]]
+            st = [t+srange for t in ds[ev]['swmf_sw_otime'+ph]]
+            ot = [t+orange for t in ds[ev]['omni_otime'+ph]]
+            lrange += lt[-1]-lt[0]
+            srange += st[-1]-st[0]
+            orange += ot[-1]-ot[0]
+            if j==0:
+                h=''
+            else:
+                h='_'
+            ax[i].plot(st,sw['Newell']/1e3,label=h+r'Newell',c='magenta')
+            T = 2*pi*(months[i]/12)
+            ax[i].plot(ot,29.28 - 3.31*sin(T+1.49)+17.81*obs['pc_n'],
+                       label=h+r'Ridley and Kihn',c='black')
+            ax[i].set_ylim([0,250])
+            try:
+                ax[i].plot(lt,log['cpcpn'],label=h+r'cpcpN',c='tab:blue')
+                ax[i].plot(lt,log['cpcps'],label=h+r'cpcpS',c='lightblue')
+            except: KeyError
+            ax2.plot(st,sw['eps']/1e12,label=h+r'$\epsilon$',c='maroon')
+            ax2.spines['right'].set_color('maroon')
+            ax2.set_ylabel(r'$\epsilon\left[TW\right]$')
+        general_plot_settings(ax[i],
+                              ylabel=r'Potential $\left[kV\right]$ '+ev,
+                              legend=(i==0),
+                              xlabel=r'Time $\left [Hr\right]$',
+                              do_xlabel=(i==len(ds.keys())-1))
+    #save
+    coupl.tight_layout(pad=0.8)
+    coupl.savefig(unfiled+'/coupl.png')
+    plt.close(coupl)
