@@ -107,19 +107,6 @@ def work(mhddatafile):
                                                            marktime))
         marktime=time.time()
     #Caclulate surfaces
-    '''
-    magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=False,
-                                    analysis_type='massenergy',
-                                    do_interfacing=False,
-                                    integrate_volume=False,
-                                    verbose=False,
-                                    extract_flowline=True,
-                                    modes=['iso_betastar','bs'],
-                                    outputpath=CONTEXT['OUTPUTPATH'])
-                                    #modes=['iso_betastar','nlobe','slobe','closed','rc'],
-                                    #customTerms={'test':'TestArea [Re^2]'},
-    '''
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
                                     analysis_type='energy',
@@ -207,21 +194,21 @@ def work(mhddatafile):
 
 if __name__ == '__main__':
     start_time = time.time()
-    #if sys.version_info < (3, 5):
-    #    raise Exception('This script requires Python version 3.5+')
-    #if tp.session.connected():
-    #    raise Exception('This script must be run in batch mode')
+    if sys.version_info < (3, 5):
+        raise Exception('This script requires Python version 3.5+')
+    if tp.session.connected():
+        raise Exception('This script must be run in batch mode')
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'ccmc_2019-08-30'
+    RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_aug2019')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -231,52 +218,54 @@ if __name__ == '__main__':
     os.makedirs(OUTPUTPATH+'/indices', exist_ok=True)
     os.makedirs(OUTPUTPATH+'/png', exist_ok=True)
     ########################################
-    ########### MULTIPROCESSING ###########
-    #Pytecplot requires spawn method
-    multiprocessing.set_start_method('spawn')
+    if '-noproc' not in sys.argv:
+        ########### MULTIPROCESSING ###########
+        #Pytecplot requires spawn method
+        multiprocessing.set_start_method('spawn')
 
-    # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0::]
-    #Pick up only the files that haven't been processed
-    if os.path.exists(OUTPUTPATH+'/energeticsdata'):
-        parseddonelist, parsednotdone = [], []
-        donelist = glob.glob(OUTPUTPATH+'/png/*.png')
-        #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
-        for png in donelist:
-            parseddonelist.append(png.split('/')[-1].split('.')[0])
-        for plt in all_solution_times:
-            parsednotdone.append(plt.split('e')[-1].split('.')[0])
-        solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt' for item
-                    in parsednotdone if item not in parseddonelist]
-    else:
-        solution_times = all_solution_times
-    print(len(solution_times))
-    numproc = multiprocessing.cpu_count()-1
+        # Get the set of data files to be processed (solution times)
+        all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
+                                    key=makevideo.time_sort)[0::]
+        #Pick up only the files that haven't been processed
+        if os.path.exists(OUTPUTPATH+'/energeticsdata'):
+            parseddonelist, parsednotdone = [], []
+            donelist = glob.glob(OUTPUTPATH+'/png/*.png')
+            #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
+            for png in donelist:
+                parseddonelist.append(png.split('/')[-1].split('.')[0])
+            for plt in all_solution_times:
+                parsednotdone.append(plt.split('e')[-1].split('.')[0])
+            solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt' for item
+                        in parsednotdone if item not in parseddonelist]
+        else:
+            solution_times = all_solution_times
+        print(len(solution_times))
+        numproc = multiprocessing.cpu_count()-1
 
-    # Set up the pool with initializing function and associated arguments
-    num_workers = min(numproc, len(solution_times))
-    print(num_workers)
-    pool = multiprocessing.Pool(num_workers, initializer=init,
-            initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
-                      PNGPATH, all_solution_times,LOGLEVEL))
-    try:
-        # Map the work function to each of the job arguments
-        pool.map(work, solution_times)
-    finally:
-        # Join the process pool before exit so Tec cleans up & no core dump
-        pool.close()
-        pool.join()
-        for f in [f for f in glob.glob(MHDDIR+'/*') if os.path.isdir(f)]:
-            try:
-                os.removedirs(f)
-            except: OSError
-    ########################################
-    #Combine and delete individual energetics files
-    if os.path.exists(OUTPUTPATH+'/energeticsdata'):
-        write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
+        # Set up the pool with initializing function and associated arguments
+        num_workers = min(numproc, len(solution_times))
+        print(num_workers)
+        pool = multiprocessing.Pool(num_workers, initializer=init,
+                initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
+                        PNGPATH, all_solution_times,LOGLEVEL))
+        try:
+            # Map the work function to each of the job arguments
+            pool.map(work, solution_times)
+        finally:
+            # Join the process pool before exit so Tec cleans up & no core dump
+            pool.close()
+            pool.join()
+            for f in [f for f in glob.glob(MHDDIR+'/*') if os.path.isdir(f)]:
+                try:
+                    os.removedirs(f)
+                except: OSError
+        ########################################
+    if '-noclean' not in sys.argv:
+        #Combine and delete individual energetics files
+        if os.path.exists(OUTPUTPATH+'/energeticsdata'):
+            write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                                 OUTPUTPATH)
-        shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
+            shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
