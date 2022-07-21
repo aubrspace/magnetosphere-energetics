@@ -360,8 +360,10 @@ if __name__ == '__main__':
     path_to_ori_file = None
     #start = dt.datetime(2019,5,13,12,0)
     #end = dt.datetime(2019,5,15,12,0)
-    start = dt.datetime(2014,2,18,4,0)
-    end = dt.datetime(2014,2,25,0,0)
+    #start = dt.datetime(2014,2,18,4,0)
+    #end = dt.datetime(2014,2,25,0,0)
+    start = dt.datetime(2022,2,2,5)
+    end = dt.datetime(2022,2,5,12)
     outpath = './'
     plot_data = True
     #######################################################################

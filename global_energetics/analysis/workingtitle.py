@@ -145,7 +145,10 @@ if __name__ == "__main__":
     ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
     ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
-    ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
+    #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
+    ds['may'] = load_hdf_sort(inPath+'temp/may2019_Lshell.h5')
+    #test = load_hdf_sort(inPath+'temp/may2019_Lshell.h5')
+    #from IPython import embed; embed()
 
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
@@ -165,9 +168,9 @@ if __name__ == "__main__":
 
     ##Construct "grouped" set of subzones, then get %contrib for each
     for event in ds.keys():
-        ds[event]['mpdict'],ds[event]['msdict'] = get_subzone_contrib(
-                                                       ds[event]['mpdict'],
-                                                       ds[event]['msdict'])
+        #ds[event]['mpdict'],ds[event]['msdict'] = get_subzone_contrib(
+        #                                               ds[event]['mpdict'],
+        #                                               ds[event]['msdict'])
         ds[event]['msdict'] = {'rc':ds[event]['msdict']['rc'],
                                'closed':ds[event]['msdict']['closed'],
                                'lobes':ds[event]['msdict']['lobes']}
@@ -316,11 +319,13 @@ if __name__ == "__main__":
         for i,ev in enumerate(ds.keys()):
             plot_stack_contrib(ax[i], ds[ev]['time'+ph],ds[ev]['mp'+ph],
                                       ds[ev]['msdict'+ph],
-                            value_key='Utot2 [J]', label=ev,ylim=[0,15],
+                            value_key='Utot2 [J]',label=ev,ylim=[0,15],
                             legend=(i==0),ylabel=Elabel,
                             legend_loc='upper right', hatch=hatches[i],
                             do_xlabel=(i==len(ds.keys())-1),
                             xlabel=r'Time $\left[Hr\right]$')
+            #if ev=='feb' and ph=='_rec':
+            #    from IPython import embed; embed()
 
         #save
         contr.tight_layout(pad=1)
@@ -358,6 +363,29 @@ if __name__ == "__main__":
         interf_fig.savefig(path+'/interf'+ph+'.png')
         plt.close(interf_fig)
 
+    ######################################################################
+    #Actually put something here, now have data for May2019 event for 
+    #   closed region in a few Lshell bins
+    ##Lshell plot
+    for qty in ['Utot2','u_db','uHydro','Utot']:
+        for ph,path in [('_main',outMN1),('_rec',outRec)]:
+            #setup figure
+            lshell,ax=plt.subplots(len(ds.keys()),1,sharey=False,
+                                 sharex=True,figsize=[14,4*len(ds.keys())])
+            for i,ev in enumerate(ds.keys()):
+                closed = ds[ev]['msdict'+ph]['closed']
+                times = ds[ev]['time'+ph]
+                for term in [k for k in closed.keys() if qty+'_l' in k]:
+                    ax[i].plot(times,closed[term]/1e15,
+                               label=safelabel(term))
+                general_plot_settings(ax[i],legend=True,
+                             ylabel=safelabel(qty)+r'$\left[PJ\right]$'+ev,
+                                    xlabel=r'Time $\left [Hr\right]$',
+                                    do_xlabel=(i==len(ds.keys())-1))
+            #save
+            lshell.tight_layout(pad=0.2)
+            lshell.savefig(path+'/'+qty+'_lshell'+ph+'.png')
+            plt.close(lshell)
     ######################################################################
     ##Bonus plot
     #setup figure

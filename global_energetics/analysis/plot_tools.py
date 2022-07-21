@@ -264,6 +264,8 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
                         'Virial Surface Total [nT]'],
               'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
               'Energy2':['u_db [J]', 'uHydro [J]'],
+              'Report':['Utot2 [J]', 'Utot [J]','uB [J]','uB_dipole [J]',
+                        'u_db [J]', 'uHydro [J]'],
               'Virial%':['Virial 2x Uk [%]', 'Virial Ub [%]',
                                'Virial Surface Total [%]'],
               'Energy%':['Virial Ub [%]', 'KE [%]', 'Eth [%]']}
@@ -280,17 +282,22 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
                 data[value.split('[')[0]+'[%]'] = data[value]/total*100
     #Optional layers depending on value_key
     starting_value = 0
-    if (not '%' in value_set) and (not 'Energy' in value_set):
+    if (not '%' in value_set) and ('Virial' in value_set):
         ax.plot(times, data['Virial Surface Total [nT]'], color='#05BC54',
                 linewidth=4,label='Boundary Stress')#light green color
         starting_value = data['Virial Surface Total [nT]']
         values[value_set].remove('Virial Surface Total [nT]')
         ax.axhline(0,color='white',linewidth=0.5)
-    for value in values[value_set]:
-        label = value.split(' [')[0].split('Virial ')[-1]
-        ax.fill_between(times,starting_value,starting_value+data[value],
-                        label=safelabel(label))
-        starting_value = starting_value+data[value]
+    if kwargs.get('dolog',False):
+        for value in values[value_set]:
+            label = value.split(' [')[0].split('Virial ')[-1]
+            ax.semilogy(times,data[value],label=safelabel(label))
+    else:
+        for value in values[value_set]:
+            label = value.split(' [')[0].split('Virial ')[-1]
+            ax.fill_between(times,starting_value,starting_value+data[value],
+                            label=safelabel(label))
+            starting_value = starting_value+data[value]
     if (not '%' in value_set) and kwargs.get('doBios',True):
         if any(['bioS' in k for k in data.keys()]):
             ax.plot(times, data['bioS [nT]'], color='white', ls='--',
@@ -340,10 +347,13 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
     for szlabel,sz in msdict.items():
         szval = sz[value_key]
         #times, d = times[~d.isna()], d[~d.isna()]
-        ax.fill_between(times,starting_value/1e15,
+        if kwargs.get('dolog',False):
+            ax.semilogy(times,szval,label=szlabel)
+        else:
+            ax.fill_between(times,starting_value/1e15,
                               (starting_value+szval)/1e15,
                         label=szlabel,hatch=kwargs.get('hatch'))
-        starting_value = starting_value+szval
+            starting_value = starting_value+szval
     ax.set_xlim([times[0],times[-1]])
     #Optional plot settings
     if ('bioS' in value_key) and ('%' in value_key):
