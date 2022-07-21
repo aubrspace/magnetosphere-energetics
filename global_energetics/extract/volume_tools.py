@@ -32,13 +32,14 @@ def energy_post_integr(results, **kwargs):
     newterms = {}
     df = pd.DataFrame(results)
     #Combine MAG and HYDRO back into total energy
-    uB = df[[k for k in df.keys() if 'uB ' in k]]
-    ub = df[[k for k in df.keys() if 'u_db ' in k]]
+    uB = df[[k for k in df.keys() if ('uB' in k)and('uB_dipole'not in k)]]
+    ub = df[[k for k in df.keys() if 'u_db' in k]]
     uH = df[[k for k in df.keys() if 'Hydro' in k]]
     u1_values = uB.values + uH.values #including dipole field
     u2_values = ub.values + uH.values #disturbance energy
-    u1_keys = ['Utot '.join(k.split('uB ')) for k in df.keys()if 'uB ' in k]
-    u2_keys=['Utot2 '.join(k.split('u_db '))for k in df.keys()if'u_db 'in k]
+    u1_keys = ['Utot'.join(k.split('uB')) for k in df.keys()if('uB' in k)and
+                                                         ('uB_dipole'not in k)]
+    u2_keys=['Utot2'.join(k.split('u_db'))for k in df.keys()if'u_db'in k]
     for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
     for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
     if kwargs.get('do_cms', False):
@@ -204,6 +205,50 @@ def get_mobile_integrands(zone,state_var,integrands,tdelta, analysis_type):
                               #name+'_net':outputname+'_net '+units})
     return mobiledict
 
+def get_lshell_integrands(zone,state_var,integrands,**kwargs):
+    """Creates dict of integrands for lshell distribution of integrated
+        quantities
+    Inputs
+        zone(Zone)- tecplot Zone
+        state_var(Variable)- tecplot variable used to isolate vol in zone
+        integrands(dict{str:str})- (static) in/output terms to calculate
+        kwargs
+            lshell_vars(array/list)- lshell cuttoff limits, lower and upper
+                                 bounds with be added inclusively
+                                 eg. [7,9,11] -> <7, 7-9, 9-11, >11
+            split_dayNight(bool) -True
+    Returns
+        lshelldict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    lshelldict, aplist, eq = {}, {}, tp.data.operate.execute_equation
+    lvar =['{'+name+'}' for name in zone.dataset.variable_names
+                                            if 'lshell' in name.lower()][0]
+    #only do Lshell splitting for limitted set of quantities
+    approved = kwargs.get('lshell_vars',['test'])
+    for t,d in integrands.items():
+        for ap in approved:
+            if ap in t: aplist.update({t:d})
+    lshells = kwargs.get('lshells',[7,9,11])
+    lshells.append('end')
+    for term in aplist.items():
+        for i,l in enumerate(lshells):
+            if i==0:
+                tag='<'+str(l)
+                cond=lvar+tag
+            elif l=='end':
+                tag='>'+str(lshells[i-1])
+                cond=lvar+tag
+            else:
+                tag = str(lshells[i-1])+'-'+str(l)
+                cond= lvar+'<'+str(l)+'&&'+lvar+'>'+str(lshells[i-1])
+            name = term[0].split(' [')[0]+tag
+            outputname = term[1].split(' [')[0]+'_l'+tag
+            units = ' ['+term[1].split('[')[1].split(']')[0]+']'
+            #Construct new variable and add it to the dictionary
+            eq('{'+name+'}=IF('+cond+',{'+term[0]+'},0)',zones=[zone])
+            lshelldict.update({name:outputname+units})
+    return lshelldict
+
 def volume_analysis(state_var, **kwargs):
     """Function to calculate forms of total energy inside magnetopause or
     other zones
@@ -223,7 +268,7 @@ def volume_analysis(state_var, **kwargs):
     assert 'r [R]' in state_var.dataset.variable_names, ('Need to'+
                                        'calculate global variables first!')
     if 'analysis_type' in kwargs:
-        analysis_type = kwargs.pop('analysis_type')
+        analysis_type = kwargs.get('analysis_type')
     #if 'mp' not in state_var.name:
     #    kwargs.update({'do_cms':False})
     #initialize empty dictionary that will make up the results of calc
@@ -267,6 +312,9 @@ def volume_analysis(state_var, **kwargs):
                 mobile_terms.update(get_open_close_integrands(global_zone,
                                                              mobile_terms))
         integrands.update(mobile_terms)
+    if ('Lshell' in analysis_type) and ('closed' in state_var.name):
+        integrands.update(get_lshell_integrands(global_zone,state_var,
+                                                integrands,**kwargs))
     ###################################################################
     #Evaluate integrals
     for term in integrands.items():

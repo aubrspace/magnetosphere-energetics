@@ -109,7 +109,7 @@ def vid_compile(infolder, outfolder, framerate, title):
         make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     os.system(make_vid_cmd)
 
-def add_timestamps(infolder):
+def add_timestamps(infolder,*, tshift=0):
     """function adds timestamp labels in post in case you forgot (:
     Inputs
         infolder
@@ -123,11 +123,11 @@ def add_timestamps(infolder):
         key=time_sort)):
         print(infile.split('/')[-1])
         #Create the stamp
-        timestamp = get_time(infile)+dt.timedelta(minutes=45)
+        timestamp = get_time(infile)+dt.timedelta(minutes=tshift)
         if i==0: tstart=timestamp
         simtime = timestamp-tstart
-        stamp1 = str(timestamp)
-        stamp2 = 'tsim: '+str(simtime)
+        stamp1 = str(timestamp)[0:-10]
+        stamp2 = 'tsim: '+str(simtime)[0:-10]
 
         #Setup the image
         image = Image.open(infile)
@@ -135,10 +135,10 @@ def add_timestamps(infolder):
         goodfont = ImageFont.truetype('FreeMono.ttf', 45)
 
         #Attach and save
-        #I1.text((28,36), stamp1, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
-        #I1.text((28,97), stamp2, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
-        I1.text((828,1236), stamp1, font=goodfont, fill=(124,246,223))#BotRightCyan
-        I1.text((828,1297), stamp2, font=goodfont, fill=(124,246,223))#BotRightCyan
+        I1.text((28,936), stamp1, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
+        I1.text((28,997), stamp2, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
+        #I1.text((828,1236), stamp1, font=goodfont, fill=(124,246,223))#BotRightCyan
+        #I1.text((828,1297), stamp2, font=goodfont, fill=(124,246,223))#BotRightCyan
         image.save(os.path.join(copyfolder,infile.split('/')[-1]))
     return copyfolder
 
@@ -147,10 +147,13 @@ def add_timestamps(infolder):
 if __name__ == '__main__':
     #Video settings
     RES = 400
-    FRAMERATE = 36
+    FRAMERATE = 18
     FOLDER = sys.argv[1]
     if '-stamp' in sys.argv:
-        FOLDER = add_timestamps(FOLDER)
+        if '-tshift' in sys.argv:
+            FOLDER = add_timestamps(FOLDER, tshift=45)
+        else:
+            FOLDER = add_timestamps(FOLDER)
 
     #determine if already in img-??.png form
     if '-q' in sys.argv:

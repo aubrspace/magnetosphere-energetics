@@ -63,7 +63,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [ccmc2]:
+    for inputs in [febstorm]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -76,55 +76,58 @@ if __name__ == "__main__":
         main.name = 'main'
 
         #Perform data extraction
-        from IPython import embed; embed()
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                                     outputpath='babyrun/',
-                                                    do_interfacing=True,
-                                                    do_cms=True,
-                                                    integrate_volume=True,
-                                                    verbose=True,
+                                                    do_interfacing=False,
+                                                    do_cms=False,
+                                                    integrate_volume=False,
+                                                    integrate_surface=False,
+                                                    verbose=False,
                                                     extract_flowline=False,
-                                                   analysis_type='energy',
-                                    customTerms={'test':'TestArea [Re^2]'},
-                        modes=['iso_betastar','nlobe','slobe','closed','rc'])
+                                              analysis_type='energy',
+                      modes=['iso_betastar','nlobe','slobe','closed','rc'])
+                                              #lshell_vars=['uB','uB_dipole',
+                                              #            'u_db','uHydro'],
+                                              #            modes=['closed'])
+                      #customTerms={'test':'TestArea [Re^2]'},
                       #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
     #with tp.session.suspend():
     if True:#manually switch on or off
         #adjust view settings
-        proc = 'Multi Frame Manager'
-        cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-        tp.macro.execute_extended_command(command_processor_id=proc,
-                                          command=cmd)
+        #proc = 'Multi Frame Manager'
+        #cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
+        #tp.macro.execute_extended_command(command_processor_id=proc,
+        #                                  command=cmd)
         mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
         zone_hidekeys = ['sphere', 'box','shue','future','innerbound',
                          'lcb']
         timestamp=True
-        for frame in enumerate(tp.frames()):
-            frame[1].activate()
-            if frame[0]==0:
+        for n, frame in enumerate(tp.frames()):
+            #frame[1].activate()
+            if n==0:
                 legend = False
                 timestamp = True
                 doslice = True
                 slicelegend = False
                 fieldlegend = True
                 fieldline=True
-            if frame[0]==1:
+            if n==1:
                 legend = True
                 timestamp = False
                 doslice = True
                 slicelegend = False
                 fieldlegend = False
                 fieldline=True
-            if frame[0]==2:
+            if n==2:
                 legend = False
                 timestamp = False
                 doslice = True
                 slicelegend = True
                 fieldlegend = False
                 fieldline=False
-            if frame[0]==3:
+            if n==3:
                 legend = True
                 save = True
                 timestamp = False
@@ -133,8 +136,8 @@ if __name__ == "__main__":
                 fieldlegend = False
                 fieldline=True
                 zone_hidekeys = ['sphere', 'box','shue','future','lcb']
-            view_set.display_single_iso(frame[1], mhddatafile,
-                                        mode=mode[frame[0]],
+            view_set.display_single_iso(frame, mhddatafile,
+                                        mode=mode[n],
                                         show_contour=True,
                                         show_fieldline=fieldline,
                                         show_legend=legend,

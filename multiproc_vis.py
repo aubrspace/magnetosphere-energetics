@@ -22,33 +22,36 @@ if __name__ == '__main__':
     #master = '/home/aubr/Desktop/paleo_closeup_gap.lay'
     #master = 'egu_video/recovery_loop.lay'
     #master = 'egu_video/basic_loop.lay'
-    master = 'egu_video/balance_loop.lay'
+    #master = 'egu_video/balance_loop.lay'
+    master = '/home/aubr/Desktop/lobe_rangers.lay'
     #for epoch in glob.glob('/home/aubr/Code/paleo/*.plt'):
     #for infile in glob.glob('starlink/*.plt'):
+    #TODO: use tecplot 'stylesheet' instead of loading the source data eachtime
     for infile in glob.glob('febstorm/*.plt'):
         intime = get_time(infile)
         #if (intime>dt.datetime(2022,2,4,22,0) and
         #    intime<dt.datetime(2022,2,5,6,30)):
-        if (intime>dt.datetime(2014,2,19,3,15) and
-            intime<dt.datetime(2014,2,19,5,15)):
+        if not (intime>dt.datetime(2014,2,19,2,15) and
+                intime<dt.datetime(2014,2,19,8,16)):
             marktime = time.time()
             outlabel = infile.split('var_1_')[-1].split('.plt')[0]
             print(infile)
             tempfile = './tempfile.plt'
             tp.new_layout()
-            path = 'egu_video/balance.map'
-            tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
+            #path = 'egu_video/balance.map'
+            #tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
             ds = tp.data.load_tecplot(infile)
             ds.zone(0).name = 'global_field'
             magnetosphere.get_magnetosphere(ds,save_mesh=False,
-                                            tail_cap=-20,
-                                            do_cms=False,
-                                            integrate_volume=False,
-                                            integrate_surface=True,
-                                            analysis_type='energy',
-                      modes=['iso_betastar','nlobe','slobe','closed','rc'],
-                                            mpbetastar=0.7)
-                                            #inner_r=2,sunward_pole=True,
+                                                    outputpath='babyrun/',
+                                                    do_interfacing=False,
+                                                    do_cms=False,tshift=45,
+                                                    integrate_volume=False,
+                                                    integrate_surface=False,
+                                                    verbose=False,
+                                                    extract_flowline=False,
+                                              analysis_type='energy',
+                      modes=['iso_betastar','nlobe','slobe','closed','rc'])
             tp.data.save_tecplot_plt(tempfile)
             newvars = ds.variable_names
             tp.new_layout()
@@ -60,6 +63,7 @@ if __name__ == '__main__':
             if not all([any(n in o for o in oldvars) for n in newvars]):
                 warnings.warn("Variable lists don't match!!",
                               UserWarning)
+            '''
             f1,f2 = [f for f in tp.frames()]
             f1.activate()
             f1.plot().contour(0).levels.reset_levels(np.linspace(-1*3e9,3e9,11))
@@ -69,8 +73,9 @@ if __name__ == '__main__':
             f2.plot().contour(0).levels.reset_levels(np.linspace(-1*3e9,3e9,11))
             f2.plot().contour(0).colormap_filter.distribution=ColorMapDistribution.Banded
             f2.plot().contour(0).variable = f2.dataset.variable('K_net *')
+            '''
 
-            tp.save_png('egu_video/balance/'+outlabel+'.png',
+            tp.save_png('/home/aubr/Desktop/lobe_dist/'+outlabel+'.png',
                         width=1600)
             ltime = time.time()-marktime
             print(infile+' DONE')

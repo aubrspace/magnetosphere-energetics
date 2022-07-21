@@ -69,11 +69,11 @@ def todimensional(dataset, **kwargs):
              'J_x':1e-6,                    #microA/m^2
              'J_y':1e-6,                    #microA/m^2
              'J_z':1e-6,                    #microA/m^2
-             'theta_1':pi/180,              #degrees
-             'theta_2':pi/180,              #degrees
-             'phi_1':pi/180,                #degrees
-             'phi_2':pi/180                 #degrees
-            }
+             }#'theta_1':pi/180,              #degrees
+             #'theta_2':pi/180,              #degrees
+             #'phi_1':pi/180,                #degrees
+             #'phi_2':pi/180                 #degrees
+            #}
     units = {'X':'[R]','Y':'[R]','Z':'[R]',
              'Rho':'[amu/cm^3]',
              'U_x':'[km/s]','U_y':'[km/s]','U_z':'[km/s]',
@@ -366,7 +366,7 @@ def generate_3Dobj(sourcezone, **kwargs):
                             get_surf_geom_variables(zone)
 
     #Assign magnetopause variable
-    kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
+    kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
 
     '''
     if (sourcezone.dataset.variable('mp*') is not None)and'modes'not in kwargs:
@@ -606,10 +606,11 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 s = data_to_write.pop('ms_slobe_volume')
             elif 'ms_nlobe_volume' in data_to_write.keys():
                 s = pd.DataFrame(columns=data_to_write['ms_nlobe_volume'].keys())
-            lobes=[n.drop(columns=['Time [UTC]'])+
-                   s.drop(columns=['Time [UTC]'])][0]
-            lobes['Time [UTC]'] = t
-            data_to_write.update({'ms_lobes_volume':lobes})
+            if'lobes' in kwargs.get('modes'):
+                lobes=[n.drop(columns=['Time [UTC]'])+
+                       s.drop(columns=['Time [UTC]'])][0]
+                lobes['Time [UTC]'] = t
+                data_to_write.update({'ms_lobes_volume':lobes})
             if save_mesh:
                 for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                       'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
