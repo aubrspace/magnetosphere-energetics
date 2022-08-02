@@ -11,6 +11,7 @@ import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib import ticker, colors
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
 from global_energetics.analysis.plot_tools import (pyplotsetup,safelabel,
@@ -22,6 +23,7 @@ from global_energetics.analysis.proc_hdf import (load_hdf_sort,
                                                  group_subzones,
                                                  get_subzone_contrib)
 from global_energetics.analysis.analyze_energetics import plot_power
+from global_energetics.analysis.proc_energy_spatial import reformat_lshell
 
 def get_interfaces(sz):
     """Gets list of interfaces given a subzone region
@@ -143,20 +145,18 @@ if __name__ == "__main__":
     #HDF data, will be sorted and cleaned
     ds = {}
     ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
-    ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
+    #ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
     ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
     #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
-    ds['may'] = load_hdf_sort(inPath+'temp/may2019_Lshell.h5')
     #test = load_hdf_sort(inPath+'temp/may2019_Lshell.h5')
-    #from IPython import embed; embed()
 
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
                                     read_supermag=False, tshift=45)
-    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-                                     read_supermag=False)
-    ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
-                                    read_supermag=False)
+    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+    #                                 read_supermag=False)
+    #ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
+    #                                read_supermag=False)
     ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
                                     read_supermag=False)
 
@@ -364,8 +364,6 @@ if __name__ == "__main__":
         plt.close(interf_fig)
 
     ######################################################################
-    #Actually put something here, now have data for May2019 event for 
-    #   closed region in a few Lshell bins
     ##Lshell plot
     for qty in ['Utot2','u_db','uHydro','Utot']:
         for ph,path in [('_main',outMN1),('_rec',outRec)]:
@@ -374,14 +372,44 @@ if __name__ == "__main__":
                                  sharex=True,figsize=[14,4*len(ds.keys())])
             for i,ev in enumerate(ds.keys()):
                 closed = ds[ev]['msdict'+ph]['closed']
+                x_sub = ds[ev]['mp'+ph]['X_subsolar [Re]']
+                mptimes = ((x_sub.index-x_sub.index[0]).days*1440+
+                           (x_sub.index-x_sub.index[0]).seconds/60)/60
                 times = ds[ev]['time'+ph]
-                for term in [k for k in closed.keys() if qty+'_l' in k]:
-                    ax[i].plot(times,closed[term]/1e15,
-                               label=safelabel(term))
-                general_plot_settings(ax[i],legend=True,
-                             ylabel=safelabel(qty)+r'$\left[PJ\right]$'+ev,
-                                    xlabel=r'Time $\left [Hr\right]$',
-                                    do_xlabel=(i==len(ds.keys())-1))
+                #for term in [k for k in closed.keys() if qty+'_l' in k]:
+                if any([qty+'_l' in k for k in closed.keys()]):
+                    l_data = reformat_lshell(closed, '_l')
+                    times = ((l_data.index-l_data.index[0]).days*1440+
+                             (l_data.index-l_data.index[0]).seconds/60)/60
+                    l_data['t'] = times.values
+                    l_data['qty'] = l_data[qty+' [J]']
+                    day = l_data['L']>0
+                    night = l_data['L']<0
+                    for j,cond in enumerate([day,night]):
+                        lev_exp = np.linspace(
+                           np.floor(np.log10(
+                                 l_data['qty'][cond].describe()['25%'])-1),
+                            np.ceil(np.log10(l_data['qty'][cond].max())+0),
+                                             21)
+                        levs = np.power(10,lev_exp)
+                        X_u = np.sort(l_data['t'][cond].unique())
+                        Y_u = np.sort(l_data['L'][cond].unique())
+                        X,Y = np.meshgrid(X_u,Y_u)
+                        Z = l_data[cond].pivot_table(index='t',columns='L',
+                                                    values='qty').T.values
+                        U2alt_ = ax[i+j].contourf(X,Y,Z, cmap='plasma',
+                                                 levels=levs,extend='both',
+                                                 norm=colors.LogNorm())
+                        cbarU2alt = lshell.colorbar(U2alt_,ax=ax[i+j],
+                                            ticks=ticker.LogLocator(),
+                                                 label=safelabel(qty))
+                        if j==0:
+                            ax[i+j].plot(mptimes,x_sub,color='white')
+                        general_plot_settings(ax[i+j],legend=False,
+                                    ylabel=r'LShell $\left[R_e\right]$'+ev,
+                                         xlabel=r'Time $\left [Hr\right]$',
+                                          iscontour=True, do_xlabel=(j==1))
+                        ax[i+j].grid()
             #save
             lshell.tight_layout(pad=0.2)
             lshell.savefig(path+'/'+qty+'_lshell'+ph+'.png')
