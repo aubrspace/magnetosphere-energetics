@@ -44,7 +44,6 @@ def load_hdf_sort(hdf, **kwargs):
             crossdict[key].index=crossdict[key]['Time [UTC]']
             crossdict[key].drop(columns=['Time [UTC]'],inplace=True)
     #strip times
-    #gmtimes = gmdict[[k for k in gmdict.keys()][0]]['Time [UTC]']
     gmtimes = gmdict[[k for k in gmdict.keys()][0]].index
     data.update({'times':gmtimes})
     store.close()
@@ -55,12 +54,18 @@ def load_hdf_sort(hdf, **kwargs):
             mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
                                      gmdict['/mp_iso_betastar_volume'],
                                      gmtimes)
-        else:
+        elif '/mp_iso_betastar_surface' in gmdict.keys():
             mp = gmdict['/mp_iso_betastar_surface']
+        else:
+            mp = pd.DataFrame()
+        if '/mp_iso_betastar_inner_surface' in gmdict.keys():
+            inner_mp = gmdict['/mp_iso_betastar_surface']
+        else:
+            inner_mp = pd.DataFrame()
 
         #check units OoM
         mp = check_units(mp)
-        inner_mp = check_units(gmdict['/mp_iso_betastar_inner_surface'])
+        inner_mp = check_units(inner_mp)
 
         #repackage in dictionary
         data.update({'mpdict': {'ms_full':mp}})

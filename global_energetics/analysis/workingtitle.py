@@ -45,9 +45,9 @@ def locate_phase(indata,phasekey,**kwargs):
         phase (same datatype given)
         rel_time (series object of times starting from 0)
     """
-    assert (type(indata)==dict or type(indata)==pd.core.series.Series,
+    assert (type(indata)==dict or type(indata)==pd.core.frame.DataFrame or
+            type(indata)==pd.core.series.Series,
             'Data type only excepts dict, DataFrame, or Series')
-    phase = {}
     #Hand picked times
     start = dt.timedelta(minutes=kwargs.get('startshift',60))
     #Feb
@@ -73,9 +73,12 @@ def locate_phase(indata,phasekey,**kwargs):
     #Get time information based on given data type
     if (type(indata) == pd.core.series.Series or
         type(indata) == pd.core.frame.DataFrame):
-        times = indata.index
+        if indata.empty:
+            return indata, indata
+        else:
+            times = indata.index
     elif type(indata) == dict:
-        times = [df for df in indata.values()][0].index
+        times = [df for df in indata.values() if not df.empty][0].index
 
     #Determine where dividers are based on specific event
     if abs(times-feb2014_impact).min() < dt.timedelta(minutes=15):
@@ -118,7 +121,8 @@ def locate_phase(indata,phasekey,**kwargs):
                     indata[cond].index-indata[cond].index[0]]
         return indata[cond], rel_time
     elif type(indata) == dict:
-        for key in indata.keys():
+        phase = indata.copy()
+        for key in [k for k in indata.keys() if not indata[k].empty]:
             df = indata[key]
             phase.update({key:df[cond]})
             rel_time = [dt.datetime(2000,1,1)+r for r in
@@ -144,19 +148,18 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     ds = {}
-    ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
+    #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     #ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
+    ds['may'] = load_hdf_sort(inPath+'may2019_lshell.h5')
     ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
-    #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
-    #test = load_hdf_sort(inPath+'temp/may2019_Lshell.h5')
 
     #Log files and observational indices
-    ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
-                                    read_supermag=False, tshift=45)
+    #ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
+    #                                read_supermag=False, tshift=45)
     #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
     #                                 read_supermag=False)
-    #ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
-    #                                read_supermag=False)
+    ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
+                                    read_supermag=False)
     ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
                                     read_supermag=False)
 
@@ -171,15 +174,15 @@ if __name__ == "__main__":
         #ds[event]['mpdict'],ds[event]['msdict'] = get_subzone_contrib(
         #                                               ds[event]['mpdict'],
         #                                               ds[event]['msdict'])
-        ds[event]['msdict'] = {'rc':ds[event]['msdict']['rc'],
-                               'closed':ds[event]['msdict']['closed'],
-                               'lobes':ds[event]['msdict']['lobes']}
+        ds[event]['msdict'] = {
+                'rc':ds[event]['msdict'].get('rc',pd.DataFrame()),
+                'closed':ds[event]['msdict'].get('closed',pd.DataFrame()),
+                'lobes':ds[event]['msdict'].get('lobes',pd.DataFrame())}
                                #'missed':ds[event]['msdict']['missed']}
     ##Parse storm phases
     for ev in ds.keys():
         obs_srcs = list(ds[ev]['obs'].keys())
         for ph in ['_qt','_main','_rec']:
-            #from IPython import embed; embed()
             ds[ev]['mp'+ph], ds[ev]['time'+ph] = locate_phase(
                                             ds[ev]['mpdict']['ms_full'],ph)
             ds[ev]['msdict'+ph], _ = locate_phase(ds[ev]['msdict'],ph)
@@ -209,10 +212,11 @@ if __name__ == "__main__":
     for i,ev in enumerate(ds.keys()):
         bar_labels = ds[ev]['msdict_qt'].keys()
         bar_ticks = np.arange(len(bar_labels))
+        v_keys = [k for k in ['rc','lobes','closed']
+                    if not ds[ev]['msdict'][k].empty]
         ax_top.bar(bar_ticks+shifts[i],
-         [ds[ev]['msdict_qt'][k]['Utot2 [J]'].mean()/1e15
-                                        for k in ['rc','lobes','closed']],
-                    0.4,label=ev,ec='black',fc='silver',hatch=hatches[i])
+         [ds[ev]['msdict_qt'][k]['Utot2 [J]'].mean()/1e15 for k in v_keys],
+                      0.4,label=ev,ec='black',fc='silver',hatch=hatches[i])
     ax_top.set_xticklabels(['']+list(ds[ev]['msdict_qt'].keys())+[''])
     general_plot_settings(ax_top,ylabel=Plabel,do_xlabel=False,
                           iscontour=True,legend_loc='upper left')
@@ -231,27 +235,28 @@ if __name__ == "__main__":
         for interf in interface_list:
             bar_labels += [safelabel(interf.split('_reg')[0])]
             #bar_labels += ['']
+            z0 = pd.DataFrame({'dummy':[0,0]})
             if interf in closed:
-                clo_inj+=[dic['closed']
-                            ['K_injection'+interf+' [W]'].mean()/1e12]
-                clo_esc+=[dic['closed']
-                            ['K_escape'+interf+' [W]'].mean()/1e12]
-                clo_net += [dic['closed']
-                            ['K_net'+interf+' [W]'].mean()/1e12]
+                clo_inj+=[dic['closed'].get(
+                 ['K_injection'+interf+' [W]'],z0).mean().values[0]/1e12]
+                clo_esc+=[dic['closed'].get(
+                 ['K_escape'+interf+' [W]'],z0).mean().values[0]/1e12]
+                clo_net += [dic['closed'].get(
+                 ['K_net'+interf+' [W]'],z0).mean().values[0]/1e12]
             elif interf in lobes:
-                lob_inj+=[dic['lobes']
-                            ['K_injection'+interf+' [W]'].mean()/1e12]
-                lob_esc+=[dic['lobes']
-                            ['K_escape'+interf+' [W]'].mean()/1e12]
-                lob_net += [dic['lobes']
-                            ['K_net'+interf+' [W]'].mean()/1e12]
+                lob_inj+=[dic['lobes'].get(
+                 ['K_injection'+interf+' [W]'],z0).mean().values[0]/1e12]
+                lob_esc+=[dic['lobes'].get(
+                 ['K_escape'+interf+' [W]'],z0).mean().values[0]/1e12]
+                lob_net += [dic['lobes'].get(
+                 ['K_net'+interf+' [W]'],z0).mean().values[0]/1e12]
             elif interf in ring_c:
-                rc_inj += [dic['rc']
-                            ['K_injection'+interf+' [W]'].mean()/1e12]
-                rc_esc += [dic['rc']
-                            ['K_escape'+interf+' [W]'].mean()/1e12]
-                rc_net += [dic['rc']
-                            ['K_net'+interf+' [W]'].mean()/1e12]
+                rc_inj += [dic['rc'].get(
+                 ['K_injection'+interf+' [W]'],z0).mean().values[0]/1e12]
+                rc_esc += [dic['rc'].get(
+                 ['K_escape'+interf+' [W]'],z0).mean().values[0]/1e12]
+                rc_net += [dic['rc'].get(
+                 ['K_net'+interf+' [W]'],z0).mean().values[0]/1e12]
         bar_ticks = np.arange(len(interface_list))+shifts[i]
         ax_bot.bar(bar_ticks,clo_inj+lob_inj+rc_inj,0.4,label=ev+'Inj',
                 ec='mediumvioletred',fc='palevioletred',hatch=hatches[i])
@@ -301,8 +306,9 @@ if __name__ == "__main__":
 
             #plot
             for i,ev in enumerate(ds.keys()):
-                plot_stack_distr(ax[i],ds[ev]['time'+ph],ds[ev]['mp'+ph],
-                                       ds[ev]['msdict'+ph],
+                if not ds[ev]['mp'+ph].empty:
+                    plot_stack_distr(ax[i],ds[ev]['time'+ph],
+                                     ds[ev]['mp'+ph],ds[ev]['msdict'+ph],
                             value_set='Energy2', doBios=False, label=ev,
                           ylabel=Elabel,legend_loc='upper left',subzone=sz)
             #save
@@ -317,7 +323,8 @@ if __name__ == "__main__":
 
         #plot
         for i,ev in enumerate(ds.keys()):
-            plot_stack_contrib(ax[i], ds[ev]['time'+ph],ds[ev]['mp'+ph],
+            if not ds[ev]['mp'+ph].empty:
+                plot_stack_contrib(ax[i],ds[ev]['time'+ph],ds[ev]['mp'+ph],
                                       ds[ev]['msdict'+ph],
                             value_key='Utot2 [J]',label=ev,ylim=[0,15],
                             legend=(i==0),ylabel=Elabel,
@@ -325,7 +332,6 @@ if __name__ == "__main__":
                             do_xlabel=(i==len(ds.keys())-1),
                             xlabel=r'Time $\left[Hr\right]$')
             #if ev=='feb' and ph=='_rec':
-            #    from IPython import embed; embed()
 
         #save
         contr.tight_layout(pad=1)
@@ -346,8 +352,9 @@ if __name__ == "__main__":
                     sz = 'lobes'
                 elif interf in ring_c:
                     sz = 'rc'
-                #plot
-                plot_power(ax[len(ds.keys())*j+i],dic[sz],
+                if not dic[sz].empty and('K_net'+interf+' [W]' in dic[sz]):
+                    #plot
+                    plot_power(ax[len(ds.keys())*j+i],dic[sz],
                            ds[ev]['time'+ph],legend=False,
                            inj='K_injection'+interf+' [W]',
                            esc='K_escape'+interf+' [W]',
@@ -355,9 +362,10 @@ if __name__ == "__main__":
                            ylabel=safelabel(interf.split('_reg')[0]),
                            hatch=hatches[i],ylim=ylims[j],
                        do_xlabel=(j==len(ds.keys())*len(interface_list)-1))
-                if ph=='_rec':
-                    ax[len(ds.keys())*j+i].yaxis.tick_right()
-                    ax[len(ds.keys())*j+i].yaxis.set_label_position('right')
+                    if ph=='_rec':
+                        ax[len(ds.keys())*j+i].yaxis.tick_right()
+                        ax[len(ds.keys())*j+i].yaxis.set_label_position(
+                                                                   'right')
         #save
         interf_fig.tight_layout(pad=0.2)
         interf_fig.savefig(path+'/interf'+ph+'.png')
@@ -372,9 +380,10 @@ if __name__ == "__main__":
                                  sharex=True,figsize=[14,4*len(ds.keys())])
             for i,ev in enumerate(ds.keys()):
                 closed = ds[ev]['msdict'+ph]['closed']
-                x_sub = ds[ev]['mp'+ph]['X_subsolar [Re]']
-                mptimes = ((x_sub.index-x_sub.index[0]).days*1440+
-                           (x_sub.index-x_sub.index[0]).seconds/60)/60
+                if 'X_subsolar [Re]' in ds[ev]['mp'+ph]:
+                    x_sub = ds[ev]['mp'+ph]['X_subsolar [Re]']
+                    mptimes = ((x_sub.index-x_sub.index[0]).days*1440+
+                               (x_sub.index-x_sub.index[0]).seconds/60)/60
                 times = ds[ev]['time'+ph]
                 #for term in [k for k in closed.keys() if qty+'_l' in k]:
                 if any([qty+'_l' in k for k in closed.keys()]):
@@ -403,7 +412,7 @@ if __name__ == "__main__":
                         cbarU2alt = lshell.colorbar(U2alt_,ax=ax[i+j],
                                             ticks=ticker.LogLocator(),
                                                  label=safelabel(qty))
-                        if j==0:
+                        if j==0 and ('X_subsolar [Re]' in ds[ev]['mp'+ph]):
                             ax[i+j].plot(mptimes,x_sub,color='white')
                         general_plot_settings(ax[i+j],legend=False,
                                     ylabel=r'LShell $\left[R_e\right]$'+ev,
@@ -420,7 +429,8 @@ if __name__ == "__main__":
     bonus, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                                           figsize=[14,4*len(ds.keys())])
     #plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
-    for i,ev in enumerate(ds.keys()):
+    for i,ev in enumerate([k for k in ds.keys()
+                           if not (ds[k]['msdict']['lobes'].empty)]):
         if i==1:ylabel=''
         else:ylabel=r'Lobe Power/Energy'
         for j,ph in enumerate(['_main','_rec']):
@@ -467,15 +477,10 @@ if __name__ == "__main__":
     imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                                           figsize=[14,4*len(ds.keys())])
     for i,ev in enumerate(ds.keys()):
-        trange = dt.timedelta(minutes=0)
         orange = dt.timedelta(minutes=0)
         for j,ph in enumerate(['_qt','_main','_rec']):
-            mp = ds[ev]['mp'+ph]
-            ms = ds[ev]['msdict'+ph]
             obs = ds[ev]['obs']['swmf_sw'+ph]
-            times = [t+trange for t in ds[ev]['time'+ph]]
             ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
-            trange += times[-1]-times[0]
             orange += ot[-1]-ot[0]
             if j==0:
                 h=''
@@ -499,15 +504,10 @@ if __name__ == "__main__":
     pVel, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                                           figsize=[14,4*len(ds.keys())])
     for i,ev in enumerate(ds.keys()):
-        trange = dt.timedelta(minutes=0)
         orange = dt.timedelta(minutes=0)
         for j,ph in enumerate(['_qt','_main','_rec']):
-            mp = ds[ev]['mp'+ph]
-            ms = ds[ev]['msdict'+ph]
             obs = ds[ev]['obs']['swmf_sw'+ph]
-            times = [t+trange for t in ds[ev]['time'+ph]]
             ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
-            trange += times[-1]-times[0]
             orange += ot[-1]-ot[0]
             if j==0:
                 h=''
@@ -533,15 +533,10 @@ if __name__ == "__main__":
     betaMa, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                                           figsize=[14,4*len(ds.keys())])
     for i,ev in enumerate(ds.keys()):
-        trange = dt.timedelta(minutes=0)
         orange = dt.timedelta(minutes=0)
         for j,ph in enumerate(['_qt','_main','_rec']):
-            mp = ds[ev]['mp'+ph]
-            ms = ds[ev]['msdict'+ph]
             obs = ds[ev]['obs']['swmf_sw'+ph]
-            times = [t+trange for t in ds[ev]['time'+ph]]
             ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
-            trange += times[-1]-times[0]
             orange += ot[-1]-ot[0]
             if j==0:
                 h=''
@@ -595,17 +590,19 @@ if __name__ == "__main__":
         for j,ph in enumerate(['_qt','_main','_rec']):
             mp = ds[ev]['mp'+ph]
             sw = ds[ev]['obs']['swmf_sw'+ph]
-            times = [t+trange for t in ds[ev]['time'+ph]]
+            if not mp.empty:
+                times = [t+trange for t in ds[ev]['time'+ph]]
+                trange += times[-1]-times[0]
             st = [t+srange for t in ds[ev]['swmf_sw_otime'+ph]]
-            trange += times[-1]-times[0]
             srange += st[-1]-st[0]
             if j==0:
                 h=''
             else:
                 h='_'
             ax[i].plot(st,sw['r_shue98'],label=h+r'Shue98',c='magenta')
-            ax[i].plot(times,mp['X_subsolar [Re]'],label=h+r'sim',
-                       c='tab:blue')
+            if not mp.empty:
+                ax[i].plot(times,mp['X_subsolar [Re]'],label=h+r'sim',
+                           c='tab:blue')
         general_plot_settings(ax[i],ylabel=r'Standoff $R_e$'+ev,
                               legend=(i==0),
                               xlabel=r'Time $\left [Hr\right]$',
