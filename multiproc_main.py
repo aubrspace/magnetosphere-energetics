@@ -114,13 +114,15 @@ def work(mhddatafile):
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     verbose=False,
-                                     modes=['iso_betastar','nlobe','slobe',
-                                            'closed','rc'],
                                     extract_flowline=False,
-                                    outputpath=CONTEXT['OUTPUTPATH'])
-                                    #modes=['closed'],
+                                    modes=['iso_betastar','nlobe','slobe',
+                                            'closed','rc'],
+                                    outputpath=CONTEXT['OUTPUTPATH'],
+                                    logger=log)
                                     #lshell_vars=['uB','uB_dipole',
                                     #             'u_db','uHydro'],
+                                    #lshells=[7,8,9,10,11,12],
+                                    #modes=['closed'],
                                     #customTerms={'test':'TestArea [Re^2]'},
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
@@ -206,16 +208,16 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    #RUNDIR = 'ccmc_2019-05-13'
+    RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
-    RUNDIR = 'febstorm'
+    #RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -225,28 +227,27 @@ if __name__ == '__main__':
     os.makedirs(OUTPUTPATH+'/indices', exist_ok=True)
     os.makedirs(OUTPUTPATH+'/png', exist_ok=True)
     ########################################
+    # Get the set of data files to be processed (solution times)
+    all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
+                                key=makevideo.time_sort)[0::5]
+    #Pick up only the files that haven't been processed
+    if os.path.exists(OUTPUTPATH+'/energeticsdata'):
+        parseddonelist, parsednotdone = [], []
+        donelist = glob.glob(OUTPUTPATH+'/png/*.png')
+        #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
+        for png in donelist:
+            parseddonelist.append(png.split('/')[-1].split('.')[0])
+        for plt in all_solution_times:
+            parsednotdone.append(plt.split('e')[-1].split('.')[0])
+        solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt' for item
+                          in parsednotdone if item not in parseddonelist]
+    else:
+        solution_times = all_solution_times
+    print(len(solution_times))
     if '-noproc' not in sys.argv:
         ########### MULTIPROCESSING ###########
         #Pytecplot requires spawn method
         multiprocessing.set_start_method('spawn')
-
-        # Get the set of data files to be processed (solution times)
-        all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                    key=makevideo.time_sort)[0::5]
-        #Pick up only the files that haven't been processed
-        if os.path.exists(OUTPUTPATH+'/energeticsdata'):
-            parseddonelist, parsednotdone = [], []
-            donelist = glob.glob(OUTPUTPATH+'/png/*.png')
-            #donelist = glob.glob(OUTPUTPATH+'/energeticsdata/*.h5')
-            for png in donelist:
-                parseddonelist.append(png.split('/')[-1].split('.')[0])
-            for plt in all_solution_times:
-                parsednotdone.append(plt.split('e')[-1].split('.')[0])
-            solution_times = [MHDDIR+'/3d__var_1_e'+item+'.plt' for item
-                        in parsednotdone if item not in parseddonelist]
-        else:
-            solution_times = all_solution_times
-        print(len(solution_times))
         numproc = multiprocessing.cpu_count()-1
 
         # Set up the pool with initializing function and associated arguments
@@ -273,6 +274,8 @@ if __name__ == '__main__':
             write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                                 OUTPUTPATH)
             shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
+    if ('-noproc' in sys.argv) and ('-noclean' in sys.argv):
+        print(solution_times)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

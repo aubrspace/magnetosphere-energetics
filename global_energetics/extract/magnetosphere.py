@@ -562,14 +562,14 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                                 '1DExB_net [W/Re^2]']:
                     savemeshvars[kwargs.get('modes')[0]].append(name)
-            if(('iso_betastar' in kwargs.get('modes'))and('mp_' in zone.name)
-                                              and ('inner' not in zone.name)):
+            if(('iso_betastar'in kwargs.get('modes'))and('mp_'in zone.name)
+                                           and ('inner' not in zone.name)):
                 #integrate power on innerboundary surface
                 inner_mesh = {}
                 inner_zone = field_data.zone('*innerbound*')
                 print('Working on: '+inner_zone.name)
-                inner_surf_results = surface_tools.surface_analysis(inner_zone,
-                                                                    **kwargs)
+                inner_surf_results = surface_tools.surface_analysis(
+                                                       inner_zone,**kwargs)
                 inner_surf_results['Time [UTC]'] = eventtime
                 data_to_write.update({zonelist[0].name+'_inner_surface':
                                                        inner_surf_results})
@@ -601,11 +601,15 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             elif 'ms_slobe_volume' in data_to_write.keys():
                 n = pd.DataFrame(columns=data_to_write['ms_slobe_volume'].keys())
                 t = data_to_write['ms_slobe_volume']['Time [UTC]']
+                if 'log' in kwargs:
+                    kwargs.get('logger').debug('North lobe not found!!')
             #South
             if 'ms_slobe_volume' in data_to_write.keys():
                 s = data_to_write.pop('ms_slobe_volume')
-            elif 'ms_nlobe_volume' in data_to_write.keys():
-                s = pd.DataFrame(columns=data_to_write['ms_nlobe_volume'].keys())
+            else:
+                s = pd.DataFrame(columns=n.keys())
+                if 'log' in kwargs:
+                    kwargs.get('logger').debug('South lobe not found!!')
             if'lobes' in kwargs.get('modes'):
                 lobes=[n.drop(columns=['Time [UTC]'])+
                        s.drop(columns=['Time [UTC]'])][0]

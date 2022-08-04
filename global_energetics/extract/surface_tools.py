@@ -181,8 +181,8 @@ def post_proc(results,**kwargs):
         #South
         if 'ms_slobe_surface' in results.keys():
             s = results.pop('ms_slobe_surface')
-        elif 'ms_nlobe_surface' in results.keys():
-            s = pd.DataFrame(columns=results['ms_nlobe_surface'].keys())
+        else:
+            s = pd.DataFrame(columns=n.keys())
         lobes=n.drop(columns=['Time [UTC]'])+s.drop(columns=['Time [UTC]'])
         lobes['Time [UTC]'] = t
         results.update({'ms_lobes_surface':lobes})

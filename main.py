@@ -81,20 +81,20 @@ if __name__ == "__main__":
                                                     outputpath='babyrun/',
                                                     do_interfacing=False,
                                                     do_cms=False,
-                                                    integrate_volume=False,
+                                                    integrate_volume=True,
                                                     integrate_surface=False,
                                                     verbose=False,
                                                     extract_flowline=False,
-                                              analysis_type='energy',
-                      modes=['iso_betastar','nlobe','slobe','closed','rc'])
-                                              #lshell_vars=['uB','uB_dipole',
-                                              #            'u_db','uHydro'],
-                                              #            modes=['closed'])
+                                              analysis_type='energyLshell',
+                                              lshell_vars=['uB','uB_dipole',
+                                                          'u_db','uHydro'],
+                                                          modes=['closed'])
+                      #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                       #customTerms={'test':'TestArea [Re^2]'},
                       #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
     #with tp.session.suspend():
-    if True:#manually switch on or off
+    if False:#manually switch on or off
         #adjust view settings
         #proc = 'Multi Frame Manager'
         #cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'

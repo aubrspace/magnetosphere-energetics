@@ -232,21 +232,31 @@ def get_lshell_integrands(zone,state_var,integrands,**kwargs):
     lshells.append('end')
     for term in aplist.items():
         for i,l in enumerate(lshells):
-            if i==0:
-                tag='<'+str(l)
-                cond=lvar+tag
-            elif l=='end':
-                tag='>'+str(lshells[i-1])
-                cond=lvar+tag
+            if kwargs.get('split_dayNight',True):
+                sectors=['_day','_night']
             else:
-                tag = str(lshells[i-1])+'-'+str(l)
-                cond= lvar+'<'+str(l)+'&&'+lvar+'>'+str(lshells[i-1])
-            name = term[0].split(' [')[0]+tag
-            outputname = term[1].split(' [')[0]+'_l'+tag
-            units = ' ['+term[1].split('[')[1].split(']')[0]+']'
-            #Construct new variable and add it to the dictionary
-            eq('{'+name+'}=IF('+cond+',{'+term[0]+'},0)',zones=[zone])
-            lshelldict.update({name:outputname+units})
+                sectors=['']
+            for dayNight in sectors:
+                if i==0:
+                    tag='<'+str(l)
+                    cond=lvar+tag
+                elif l=='end':
+                    tag='>'+str(lshells[i-1])
+                    cond=lvar+tag
+                else:
+                    tag = str(lshells[i-1])+'-'+str(l)
+                    cond= lvar+'<'+str(l)+'&&'+lvar+'>'+str(lshells[i-1])
+                tag+=dayNight
+                if 'day' in dayNight:
+                    cond+='&&{X [R]}>0'
+                elif 'night' in dayNight:
+                    cond+='&&{X [R]}<0'
+                name = term[0].split(' [')[0]+tag
+                outputname = term[1].split(' [')[0]+'_l'+tag
+                units = ' ['+term[1].split('[')[1].split(']')[0]+']'
+                #Construct new variable and add it to the dictionary
+                eq('{'+name+'}=IF('+cond+',{'+term[0]+'},0)',zones=[zone])
+                lshelldict.update({name:outputname+units})
     return lshelldict
 
 def volume_analysis(state_var, **kwargs):
