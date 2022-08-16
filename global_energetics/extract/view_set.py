@@ -6,7 +6,7 @@ import tecplot as tp
 import time as realtime
 from tecplot.constant import *
 import numpy as np
-from numpy import deg2rad, linspace
+from numpy import deg2rad, linspace, pi, sin,cos,deg2rad
 import datetime as dt
 #from global_energetics.makevideo import get_time
 from global_energetics.makevideo import get_time
@@ -14,6 +14,7 @@ from global_energetics.extract.swmf_access import swmf_read_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import (abs_to_timestamp,
                                                     mag2cart)
+from global_energetics.extract.magnetometer import(get_stations_now)
 
 def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
                   strID):
@@ -127,7 +128,8 @@ def set_orientation_axis(frame, *, position=[91,7]):
     plot.axes.orientation_axis.position = position
     plot.axes.orientation_axis.color = Color.White
 
-def add_fieldlines(frame, filename, showleg=False, mode='not_supermag'):
+def add_fieldlines(frame, filename, *,showleg=False, mode='not_supermag',
+                                      station_file=''):
     """adds streamlines
     Inputs
         frame- frame to add to
@@ -140,21 +142,22 @@ def add_fieldlines(frame, filename, showleg=False, mode='not_supermag'):
     plot.vector.w_variable = ds.variable('B_z *')
     plot.show_streamtraces = True
     btilt = float(ds.zone(0).aux_data['BTHETATILT'])
-    if mode=='supermag':
+    if mode=='allstations' and station_file!='':
         #read in the station locations
-        #with open('supermag.dat','r') as s:
-        import pandas as pd
-        stations_df = pd.read_csv('supermag.dat', delimiter='\t',
-                                  skiprows=[0,1,2,4])
-        latlons = stations_df[['MAGLAT','MAGLON']].values
+        stations,station_df = get_stations_now(station_file,get_time(filename),
+                                               tilt=btilt)
+        for sID in stations:
+            x,y,z = station_df[station_df['station']==sID][
+                                                       ['X','Y','Z']].values[0]
+            plot.streamtraces.add([x,y,z],Streamtrace.VolumeLine)
     else:
         localtime = get_time(filename)
         tshift = (localtime.hour+localtime.minute/60) * (360/24)
         lons = (np.linspace(0,360,36,endpoint=False) + tshift)%360
         lats = np.zeros(len(lons))+80
         latlons = [l for l in zip(lats,lons)]
-    for lat,lon in latlons:
-        plot.streamtraces.add(mag2cart(lat,lon,btilt),Streamtrace.VolumeLine)
+    #for lat,lon in latlons:
+    #    plot.streamtraces.add(mag2cart(lat,lon,btilt),Streamtrace.VolumeLine)
     """
     plot.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plot.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)
@@ -523,7 +526,7 @@ def manage_zones(frame, nslice, translucency, cont_num, zone_hidekeys,
     plot = frame.plot()
     show_list = []
     hide_keys = zone_hidekeys
-    shadings = {'mp_iso_betastar':Color.Cyan,
+    shadings = {'mp_iso_betastar':Color.White,
                 'mp_iso_betastarinnerbound':Color.Custom11,
                 'plasmasheet':Color.Custom9,
                 'ms_nlobe':Color.Custom18,
@@ -803,7 +806,9 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
             add_Bstar_slice(frame,frame.dataset.variable('beta_star').index,
                             showleg=default['show_slegend'])
     if default['show_fieldline']:
-        add_fieldlines(frame, filename, showleg=default['show_flegend'])
+        add_fieldlines(frame, filename, showleg=default['show_flegend'],
+                       mode='allstations',
+                    station_file='febstorm/magnetometers_e20140218-060000.mag')
     if default['show_shade_legend']:
         add_shade_legend(frame, zones_shown, default['shade_legend_pos'],
                          default['shade_markersize'])

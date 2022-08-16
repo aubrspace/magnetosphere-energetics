@@ -78,23 +78,26 @@ if __name__ == "__main__":
         #Perform data extraction
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
+                                                    save_mesh=False,
+                                                    write_data=False,
+                                                    disp_result=False,
                                                     outputpath='babyrun/',
                                                     do_interfacing=False,
-                                                    do_cms=False,
-                                                    integrate_volume=True,
+                                                    do_cms=False,tshift=45,
+                                                    integrate_volume=False,
                                                     integrate_surface=False,
                                                     verbose=False,
                                                     extract_flowline=False,
-                                              analysis_type='energyLshell',
-                                              lshell_vars=['uB','uB_dipole',
-                                                          'u_db','uHydro'],
-                                                          modes=['closed'])
-                      #modes=['iso_betastar','nlobe','slobe','closed','rc'])
+                                              analysis_type='')
+                     #modes=['iso_betastar','nlobe','slobe','closed','rc'])
+                                            #lshell_vars=['uB','uB_dipole',
+                                                          #'u_db','uHydro'],
+                                                          #modes=['closed'])
                       #customTerms={'test':'TestArea [Re^2]'},
                       #modes=['iso_betastar','nlobe','slobe','closed','rc'])
                               #customTerms={'test':'TestArea [Re^2]'},
     #with tp.session.suspend():
-    if False:#manually switch on or off
+    if True:#manually switch on or off
         #adjust view settings
         #proc = 'Multi Frame Manager'
         #cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
@@ -102,17 +105,17 @@ if __name__ == "__main__":
         #                                  command=cmd)
         mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
         zone_hidekeys = ['sphere', 'box','shue','future','innerbound',
-                         'lcb']
+                         'lcb','nlobe','slobe','closed','rc']
         timestamp=True
         for n, frame in enumerate(tp.frames()):
             #frame[1].activate()
             if n==0:
                 legend = False
                 timestamp = True
-                doslice = True
+                doslice = False#
                 slicelegend = False
                 fieldlegend = True
-                fieldline=True
+                fieldline=False
             if n==1:
                 legend = True
                 timestamp = False
@@ -138,7 +141,7 @@ if __name__ == "__main__":
                 zone_hidekeys = ['sphere', 'box','shue','future','lcb']
             view_set.display_single_iso(frame, mhddatafile,
                                         mode=mode[n],
-                                        show_contour=True,
+                                        show_contour=False,
                                         show_fieldline=fieldline,
                                         show_legend=legend,
                                         show_slegend=slicelegend,

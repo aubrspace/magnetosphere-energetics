@@ -108,21 +108,22 @@ def work(mhddatafile):
         marktime=time.time()
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=True,
-                                    analysis_type='energy',
-                                    do_interfacing=True,
-                                    integrate_surface=True,
+                                    do_cms=False,
+                                    analysis_type='energyLshell',
+                                    do_interfacing=False,
+                                    integrate_surface=False,
                                     integrate_volume=True,
+                                    lshell_vars=['uB','uB_dipole',
+                                                 'u_db','uHydro'],
+                                    lshells=[7,12,17,22,27,32],
+                                    modes=['closed'],
                                     verbose=False,
                                     extract_flowline=False,
-                                    modes=['iso_betastar','nlobe','slobe',
-                                            'closed','rc'],
                                     outputpath=CONTEXT['OUTPUTPATH'],
                                     logger=log)
-                                    #lshell_vars=['uB','uB_dipole',
-                                    #             'u_db','uHydro'],
-                                    #lshells=[7,8,9,10,11,12],
-                                    #modes=['closed'],
+                                    #modes=['iso_betastar','nlobe','slobe',
+                                    #        'closed','rc'],
+                                    #tshift=45,
                                     #customTerms={'test':'TestArea [Re^2]'},
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
@@ -216,8 +217,8 @@ if __name__ == '__main__':
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'lshell3_output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'lshell3_output_feb2014')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################

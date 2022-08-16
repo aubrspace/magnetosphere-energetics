@@ -10,6 +10,7 @@ import glob
 import tecplot as tp
 from tecplot.constant import *
 from tecplot.exception import *
+from global_energetics.extract import view_set
 from global_energetics.makevideo import get_time
 from global_energetics.extract import magnetosphere
 
@@ -23,7 +24,8 @@ if __name__ == '__main__':
     #master = 'egu_video/recovery_loop.lay'
     #master = 'egu_video/basic_loop.lay'
     #master = 'egu_video/balance_loop.lay'
-    master = '/home/aubr/Desktop/lobe_rangers.lay'
+    #master = '/home/aubr/Desktop/lobe_rangers.lay'
+    master = '/home/aubr/Desktop/magnetometer_vis/prelim.lay'
     #for epoch in glob.glob('/home/aubr/Code/paleo/*.plt'):
     #for infile in glob.glob('starlink/*.plt'):
     #TODO: use tecplot 'stylesheet' instead of loading the source data eachtime
@@ -31,8 +33,9 @@ if __name__ == '__main__':
         intime = get_time(infile)
         #if (intime>dt.datetime(2022,2,4,22,0) and
         #    intime<dt.datetime(2022,2,5,6,30)):
-        if not (intime>dt.datetime(2014,2,19,2,15) and
-                intime<dt.datetime(2014,2,19,8,16)):
+        #if  (intime>dt.datetime(2014,2,19,2,15) and
+        #     intime<dt.datetime(2014,2,19,2,16)):
+        if True:
             marktime = time.time()
             outlabel = infile.split('var_1_')[-1].split('.plt')[0]
             print(infile)
@@ -43,26 +46,29 @@ if __name__ == '__main__':
             ds = tp.data.load_tecplot(infile)
             ds.zone(0).name = 'global_field'
             magnetosphere.get_magnetosphere(ds,save_mesh=False,
-                                                    outputpath='babyrun/',
+                                                    write_data=False,
+                                                    disp_result=False,
                                                     do_interfacing=False,
                                                     do_cms=False,tshift=45,
                                                     integrate_volume=False,
                                                     integrate_surface=False,
                                                     verbose=False,
                                                     extract_flowline=False,
-                                              analysis_type='energy',
-                      modes=['iso_betastar','nlobe','slobe','closed','rc'])
+                                              analysis_type='')
             tp.data.save_tecplot_plt(tempfile)
             newvars = ds.variable_names
             tp.new_layout()
             tp.load_layout(master)
             tp.data.load_tecplot(tempfile,
-                                read_data_option=ReadDataOption.Replace,
-                                reset_style=False)
+                                 read_data_option=ReadDataOption.Replace,
+                                 reset_style=False)
             oldvars = tp.active_frame().dataset.variable_names
             if not all([any(n in o for o in oldvars) for n in newvars]):
                 warnings.warn("Variable lists don't match!!",
                               UserWarning)
+            view_set.add_fieldlines(tp.active_frame(), infile, showleg=True,
+                                    mode='allstations',
+                 station_file='febstorm/magnetometers_e20140218-060000.mag')
             '''
             f1,f2 = [f for f in tp.frames()]
             f1.activate()
@@ -75,7 +81,7 @@ if __name__ == '__main__':
             f2.plot().contour(0).variable = f2.dataset.variable('K_net *')
             '''
 
-            tp.save_png('/home/aubr/Desktop/lobe_dist/'+outlabel+'.png',
+            tp.save_png('/home/aubr/Desktop/magnetometer_vis/'+outlabel+'.png',
                         width=1600)
             ltime = time.time()-marktime
             print(infile+' DONE')
