@@ -350,8 +350,8 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
         if kwargs.get('dolog',False):
             ax.semilogy(times,szval,label=szlabel)
         else:
-            ax.fill_between(times,starting_value/1e15,
-                              (starting_value+szval)/1e15,
+            ax.fill_between(times,starting_value/kwargs.get('factor',1),
+                              (starting_value+szval)/kwargs.get('factor',1),
                         label=szlabel,hatch=kwargs.get('hatch'))
             starting_value = starting_value+szval
     ax.set_xlim([times[0],times[-1]])

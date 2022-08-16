@@ -26,6 +26,57 @@ def get_Lvalue(key_in,lparse):
                   float(valuestr.split('-')[1].split('l')[-1]))/2
     return Lvalue*sign
 
+def get_derivatives(df, keys, values, *, lparse='_l'):
+    """Function adds some lshell derivatives to the list of variables
+    Inputs
+        df (DataFrame)- dataframe object of input data
+        keys (list)- which keys to take derivative of
+        values (list)- Lshell values used to calculate finite differnce
+    Returns
+        df
+    """
+    for i,(key,L) in enumerate(zip(keys,values)):
+        #Parse overcomplicated key
+        meat,units = key.split(' ')
+        energy,spatial = meat.split(lparse)
+        ltag,daynight = spatial.split('_')
+        #Find next lshell
+        matchlist =[k for k in keys if(energy+'_l' in k)and(daynight in k)]
+        if key==matchlist[-1]:
+            nextLkey = key
+        else:
+            nextLkey = matchlist[matchlist.index(key)+1]#Assume nice order!
+        #calculate the Lshell difference
+        nextL = get_Lvalue(nextLkey,lparse)
+        dL = nextL - L
+        #calculate the value diff & make new key with dEdL value 
+        df.loc[:,'d'+meat+'dL '+units] = (df[nextLkey]-df[key])/dL
+        print('d'+meat+'dL '+units)
+        #dEdL = (df.copy()[nextLkey]-df.copy()[key])/dL
+        #df['d'+meat+'dL '+units] = dEdL
+        #TODO only doing one of the base energy variables
+    #from IPython import embed; embed()
+    return df
+
+def parse_lshells(df, lparse):
+    """Function interprets all keys from dataframe to gt lshell keys,values
+    Inputs
+        df (DataFrame)- dataframe object of input data
+        lparse (str)- info on how to find the right columns
+    Returns
+        lkeys (list)- subset of keys that are related to Lshell splitting
+        Lvalues (list)- list of each Lvalue associated with lkeys
+    """
+    #figure out which columns are the lshell variable ones
+    lkeys = [k for k in df.keys() if lparse in k]
+    #use lparse to deduce the lshell level, assign a meaninful value
+    qtys = set([qty.split(lparse)[0] for qty in lkeys])
+    Lvalues = len(lkeys) * [0]
+    for i, key in enumerate(lkeys):
+        Lvalues[i] = get_Lvalue(key,lparse)
+    Lvalues = set(Lvalues)
+    return lkeys, Lvalues
+
 def reformat_lshell(df_in, lparse, **kwargs):
     """Function restructures lshell splits so that coarse contour maps can
         be created
@@ -37,6 +88,8 @@ def reformat_lshell(df_in, lparse, **kwargs):
         df_out (DataFrame)- new dataframe, NOTE structure is altered and
                             only lshell data + time is maintained!
     """
+    lkeys, Lvalues = parse_lshells(df_in,lparse)
+    '''
     #figure out which columns are the lshell variable ones
     lkeys = [k for k in df_in.keys() if lparse in k]
     #use lparse to deduce the lshell level, assign a meaninful value
@@ -45,6 +98,11 @@ def reformat_lshell(df_in, lparse, **kwargs):
     for i, key in enumerate(lkeys):
         Lvalues[i] = get_Lvalue(key,lparse)
     Lvalues = set(Lvalues)
+    '''
+    if kwargs.get('derivatives',True):
+        df_in = get_derivatives(df_in,lkeys,Lvalues)
+        lkeys, Lvalues = parse_lshells(df_in,lparse)
+    #from IPython import embed; embed()
     #create new dataframe by duplicating with the L assignments
     df_out = pd.DataFrame()
     for Lvalue in Lvalues:

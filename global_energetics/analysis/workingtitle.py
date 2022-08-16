@@ -149,19 +149,21 @@ if __name__ == "__main__":
     #HDF data, will be sorted and cleaned
     ds = {}
     #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
-    #ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
-    ds['may'] = load_hdf_sort(inPath+'may2019_lshell.h5')
-    ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
+    ds['feb'] = load_hdf_sort(inPath+'feb2014_lshell3.h5')
+    ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
+    #ds['may'] = load_hdf_sort(inPath+'temp/may2019_results.h5')
+    #ds['may'] = load_hdf_sort(inPath+'may2019_lshell.h5')
+    #ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
 
     #Log files and observational indices
-    #ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
-    #                                read_supermag=False, tshift=45)
-    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-    #                                 read_supermag=False)
-    ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
-                                    read_supermag=False)
-    ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
-                                    read_supermag=False)
+    ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
+                                    read_supermag=False, tshift=45)
+    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+                                     read_supermag=False)
+    #ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
+    #                                read_supermag=False)
+    #ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
+    #                                read_supermag=False)
 
     #NOTE hotfix for closed region tail_closed
     for ev in ds.keys():
@@ -327,7 +329,7 @@ if __name__ == "__main__":
                 plot_stack_contrib(ax[i],ds[ev]['time'+ph],ds[ev]['mp'+ph],
                                       ds[ev]['msdict'+ph],
                             value_key='Utot2 [J]',label=ev,ylim=[0,15],
-                            legend=(i==0),ylabel=Elabel,
+                            legend=(i==0),ylabel=Elabel,factor=1e15,
                             legend_loc='upper right', hatch=hatches[i],
                             do_xlabel=(i==len(ds.keys())-1),
                             xlabel=r'Time $\left[Hr\right]$')
@@ -336,6 +338,35 @@ if __name__ == "__main__":
         #save
         contr.tight_layout(pad=1)
         contr.savefig(path+'/contr_energy'+ph+'.png')
+        plt.close(contr)
+
+        ##Stack plot Volume by region
+        #setup figure
+        contr,ax=plt.subplots(len(ds.keys()),1,sharey=True,
+                              sharex=True,figsize=[14,4*len(ds.keys())])
+
+        #plot
+        for i,ev in enumerate(ds.keys()):
+            if not ds[ev]['mp'+ph].empty:
+                plot_stack_contrib(ax[i],ds[ev]['time'+ph],ds[ev]['mp'+ph],
+                                      ds[ev]['msdict'+ph],
+                            value_key='Volume [Re^3]',label=ev,
+                            legend=(i==0),
+                            ylabel=r'Volume $\left[R_e^3\right]$',
+                            legend_loc='upper right', hatch=hatches[i],
+                            do_xlabel=(i==len(ds.keys())-1),
+                            xlabel=r'Time $\left[Hr\right]$')
+                #Calculate quiet time average value and plot as a h line
+                rc = ds[ev]['msdict_qt']['rc']['Volume [Re^3]'].mean()
+                close=ds[ev]['msdict_qt']['closed']['Volume [Re^3]'].mean()
+                lobe=ds[ev]['msdict_qt']['lobes']['Volume [Re^3]'].mean()
+                ax[i].axhline(rc,color='grey')
+                ax[i].axhline(rc+close,color='grey')
+                ax[i].axhline(rc+close+lobe,color='grey')
+
+        #save
+        contr.tight_layout(pad=1)
+        contr.savefig(path+'/contr_volume'+ph+'.png')
         plt.close(contr)
 
         ##Lineplots for event comparison 1 axis per interface
@@ -387,26 +418,44 @@ if __name__ == "__main__":
                 times = ds[ev]['time'+ph]
                 #for term in [k for k in closed.keys() if qty+'_l' in k]:
                 if any([qty+'_l' in k for k in closed.keys()]):
+                    qt_l = reformat_lshell(ds[ev]['msdict_qt']['closed'],
+                                           '_l')
                     l_data = reformat_lshell(closed, '_l')
                     times = ((l_data.index-l_data.index[0]).days*1440+
                              (l_data.index-l_data.index[0]).seconds/60)/60
                     l_data['t'] = times.values
                     l_data['qty'] = l_data[qty+' [J]']
+                    l_data['dEdt'] = l_data['qty'].diff()/(
+                                                     l_data['t'].diff()*60)
+                    qt_l['qty'] = qt_l[qty+' [J]']
+                    #TODO: once dEdL is in, need to get dEdt so gradE perp
+                    #       can be calculated, then report this slope(dL/dt)
+                    #from IPython import embed; embed()
                     day = l_data['L']>0
                     night = l_data['L']<0
+                    qt_dayNight = [qt_l['L']>0, qt_l['L']<0]
                     for j,cond in enumerate([day,night]):
-                        lev_exp = np.linspace(
-                           np.floor(np.log10(
-                                 l_data['qty'][cond].describe()['25%'])-1),
-                            np.ceil(np.log10(l_data['qty'][cond].max())+0),
-                                             21)
+                        #Get quiet time average
+                        qt_ave=np.log10(qt_l['qty'][qt_dayNight[j]].mean())
+                        quants = l_data['qty'][cond].quantile(
+                                               [0.1,0.2,0.3,0.4,.5]).values
+                        lower = np.floor(np.log10([q for q in quants
+                                                               if q>0][0]))
+                        upper =np.ceil(np.log10(l_data['qty'][cond].max()))
+                        dist = max(upper-qt_ave,qt_ave-lower)
+                        lev_exp = np.linspace(qt_ave-dist, qt_ave+dist)
+                        #lev_exp = np.linspace(
+                        #   np.floor(np.log10(
+                        #         l_data['qty'][cond].describe()['25%'])-1),
+                        #    np.ceil(np.log10(l_data['qty'][cond].max())+0),
+                        #                     21)
                         levs = np.power(10,lev_exp)
                         X_u = np.sort(l_data['t'][cond].unique())
                         Y_u = np.sort(l_data['L'][cond].unique())
                         X,Y = np.meshgrid(X_u,Y_u)
                         Z = l_data[cond].pivot_table(index='t',columns='L',
                                                     values='qty').T.values
-                        U2alt_ = ax[i+j].contourf(X,Y,Z, cmap='plasma',
+                        U2alt_ = ax[i+j].contourf(X,Y,Z, cmap='RdBu_r',
                                                  levels=levs,extend='both',
                                                  norm=colors.LogNorm())
                         cbarU2alt = lshell.colorbar(U2alt_,ax=ax[i+j],
