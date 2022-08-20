@@ -30,6 +30,16 @@ def read_station_locations(*,file_in='stations.loc'):
     stations.drop(columns='IAGA',inplace=True)
     return stations
 
+def lon2mlt(t):
+    """Function takes a datetime stamp and returns the associated local
+        timethat is pointing toward 0
+    Inputs
+        t (datetime)-
+    Returns
+        lon (float)- in degrees
+    """
+    return (t.hour+t.minute/60+t.second/3600)%24*180/12
+
 def where_stations_now(nowtime,**kwargs):
     """Function returns location in GSM of stations
     Inputs

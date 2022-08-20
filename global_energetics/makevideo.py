@@ -102,11 +102,11 @@ def vid_compile(infolder, outfolder, framerate, title):
         os.remove(outfolder+'/'+title+'.mp4')
     print(glob.glob(infolder+'/img-???.png'))
     if glob.glob(infolder+'/img-???.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%03d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%03d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     elif glob.glob(folder+'/img-??.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%02d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%02d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     elif glob.glob(folder+'/img-?.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%01d.png -vcodec libx264 -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%01d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
     os.system(make_vid_cmd)
 
 def add_timestamps(infolder,*, tshift=0):
