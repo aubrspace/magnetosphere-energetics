@@ -4,12 +4,13 @@ import glob
 import tecplot as tp
 
 if __name__ == '__main__':
-    header = 'files_for_paraview/'
+    #header = 'files_for_paraview/'
+    header = 'febstorm/copy_paraview_plt/'
     if '-c' in sys.argv:
         tp.session.connect()
-    for infile in glob.glob('febstorm/*.plt')[0:1]:
+    for i,infile in enumerate(glob.glob('febstorm/*.plt')):
         outfile = 'paraview'.join(infile.split('/')[-1].split('var'))
-        print('fixing '+outfile+'....')
+        print(str(i)+' fixing '+outfile+'....')
         ds = tp.data.load_tecplot(infile)
         ds.variable('X *').name = 'x'
         ds.variable('Y *').name = 'y'

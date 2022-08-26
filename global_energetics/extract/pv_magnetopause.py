@@ -196,6 +196,7 @@ def display_visuals(field,mp,renderView,**kwargs):
     # show iso surface
     mpDisplay = Show(mp, renderView, 'GeometryRepresentation')
 
+    '''
     # get color transfer function/color map for 'Status'
     statusLUT = GetColorTransferFunction('Status')
     # Apply a preset using its name. Note this may not work as expected
@@ -203,6 +204,12 @@ def display_visuals(field,mp,renderView,**kwargs):
     statusLUT.ApplyPreset('Rainbow Uniform', True)
     # set scalar coloring
     ColorBy(mpDisplay, ('POINTS', 'Status'))
+    '''
+    # change solid color
+    ColorBy(mpDisplay, None)
+    mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
+    mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
+
     # Properties modified on mpDisplay.DataAxesGrid
     mpDisplay.DataAxesGrid.GridAxesVisibility = 1
     # Properties modified on slice1Display
@@ -329,11 +336,10 @@ def setup_pipeline(infile,**kwargs):
 
     return sourcedata, pipelinehead, field, mp
 
-#if __name__ == "__main__":
-if True:
+if __name__ == "__main__":
     start_time = time.time()
-    path = '/home/aubr/Code/swmf-energetics/files_for_paraview/'
-    filelist = glob.glob(path+'*.plt')[0:2]
+    path = '/home/aubr/Code/swmf-energetics/febstorm/copy_paraview_plt/'
+    filelist = glob.glob(path+'*.plt')
     for infile in filelist[0:1]:
         print('processing '+infile.split('/')[-1]+'...')
         oldsource,pipelinehead,field,mp=setup_pipeline(infile,do_gradP=True)
@@ -342,7 +348,7 @@ if True:
 
         # Render and save screenshot
         RenderAllViews()
-        path = 'pv_testrun/'
+        path = 'output_pv_magnetosphere/'
         SaveScreenshot(path+infile.split('/')[-1].split('.plt')[0]+'.png',
                        renderView)
     for infile in filelist[1::]:
@@ -357,7 +363,6 @@ if True:
 
         # Render and save screenshot
         RenderAllViews()
-        path = 'pv_testrun/'
         SaveScreenshot(path+infile.split('/')[-1].split('.plt')[0]+'.png',
                        renderView)
 
