@@ -1312,6 +1312,7 @@ def equations(**kwargs):
     """
     equations = {}
     #Testing function for verifying matching interfaces
+    #TODO: test this with main.py and see why it's failing for may2019
     equations['interface_testing'] = {'{test}':'1'}
     #Useful spatial variables
     equations['basic3d'] = {
@@ -1557,7 +1558,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     alleq = equations(aux=kwargs.get('aux'))
     cc = ValueLocation.CellCentered
     #Testing variables
-    if kwargs.get('verbose',False):
+    if kwargs.get('verbose',False)or('test'in
+                                     kwargs.get('customTerms',{}).keys()):
         eqeval(alleq['interface_testing'])
     #General equations
     if (any([var.find('J_')!=-1 for var in field_data.variable_names])and

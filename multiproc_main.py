@@ -108,23 +108,23 @@ def work(mhddatafile):
         marktime=time.time()
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=False,
-                                    analysis_type='energyLshell',
-                                    do_interfacing=False,
-                                    integrate_surface=False,
+                                    do_cms=True,
+                                    analysis_type='energy',
+                                    do_interfacing=True,
+                                    integrate_surface=True,
                                     integrate_volume=True,
-                                    lshell_vars=['uB','uB_dipole',
-                                                 'u_db','uHydro'],
-                                    lshells=[7,12,17,22,27,32],
-                                    modes=['closed'],
+                                    modes=['iso_betastar','nlobe','slobe',
+                                            'closed','rc'],
                                     verbose=False,
                                     extract_flowline=False,
                                     outputpath=CONTEXT['OUTPUTPATH'],
+                                    customTerms={'test':'TestArea [Re^2]'},
                                     logger=log)
-                                    #modes=['iso_betastar','nlobe','slobe',
-                                    #        'closed','rc'],
+                                    #modes=['closed'],
                                     #tshift=45,
-                                    #customTerms={'test':'TestArea [Re^2]'},
+                                    #lshells=[7,12,17,22,27,32],
+                                    #lshell_vars=['uB','uB_dipole',
+                                    #             'u_db','uHydro'],
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
                                                            marktime))
@@ -206,6 +206,30 @@ if __name__ == '__main__':
         raise Exception('This script requires Python version 3.5+')
     if tp.session.connected():
         raise Exception('This script must be run in batch mode')
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print("""
+    Parallel processing script for global_energetics with pytecplot
+    Usage: (pytecplot env alias) multiproc_main.py [-flags]
+
+    Options:
+        -h  --help      prints this message then exit
+        -np --noproc    skip processing and go right to cleaning
+        -nc --noclean   skip cleaning step
+
+    Example:
+        multiPytec multiproc_main.py -np -nc
+            this will only print the filelist for remaining workload
+
+    Note: pytecplot env alias calls tec-env which comes with tecplot
+            dist along with "python" command. To create an alias put
+            something like below in ~/.bashrc (or whichever shellrc)
+
+            alias myAlias="/pathto_tec360-env/tec360-env -- python"
+
+        ex.
+            alias multiPytec="/usr/local/tecplot2/tecplot360ex2020r1_linux64/bin/tec360-env -- python"
+        """)
+        exit()
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
@@ -216,9 +240,9 @@ if __name__ == '__main__':
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'lshell3_output_starlink')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'lshell3_output_may2019')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'lshell3_output_feb2014')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -244,8 +268,8 @@ if __name__ == '__main__':
                           in parsednotdone if item not in parseddonelist]
     else:
         solution_times = all_solution_times
-    print(len(solution_times))
-    if '-noproc' not in sys.argv:
+    print('files remaining: ',len(solution_times))
+    if ('-np' not in sys.argv) and ('--noproc' not in sys.argv):
         ########### MULTIPROCESSING ###########
         #Pytecplot requires spawn method
         multiprocessing.set_start_method('spawn')
@@ -253,7 +277,7 @@ if __name__ == '__main__':
 
         # Set up the pool with initializing function and associated arguments
         num_workers = min(numproc, len(solution_times))
-        print(num_workers)
+        print('workers: ',num_workers)
         pool = multiprocessing.Pool(num_workers, initializer=init,
                 initargs=(RUNDIR, MHDDIR, IEDIR, IMDIR, SCRIPTDIR, OUTPUTPATH,
                         PNGPATH, all_solution_times,LOGLEVEL))
@@ -269,14 +293,15 @@ if __name__ == '__main__':
                     os.removedirs(f)
                 except: OSError
         ########################################
-    if '-noclean' not in sys.argv:
+    if ('-nc' not in sys.argv) and ('--noclean' not in sys.argv):
         #Combine and delete individual energetics files
         if os.path.exists(OUTPUTPATH+'/energeticsdata'):
             write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
                                 OUTPUTPATH)
             shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
-    if ('-noproc' in sys.argv) and ('-noclean' in sys.argv):
-        print(solution_times)
+    if ('--noproc' in sys.argv) or ('-np' in sys.argv):
+        if ('--noclean' in sys.argv) or ('-nc' in sys.argv):
+            print(solution_times)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

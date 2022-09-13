@@ -171,6 +171,12 @@ def post_proc(results,**kwargs):
         #North
         if 'ms_nlobe_surface' in results.keys():
             n = results.pop('ms_nlobe_surface')
+            pole_keys = [k for k in n.keys() if 'Poles' in k]
+            for k in [k for k in n.keys() if 'Poles' in k]:
+                northkey =' '.join([k.split(' ')[0]+'N',k.split(' ')[-1]])
+                southkey =' '.join([k.split(' ')[0]+'S',k.split(' ')[-1]])
+                n[northkey] = n[k]
+                n[southkey] = 0
             t = n['Time [UTC]']
         elif 'ms_slobe_surface' in results.keys():
             n = pd.DataFrame(columns=results['ms_slobe_surface'].keys())
@@ -181,9 +187,16 @@ def post_proc(results,**kwargs):
         #South
         if 'ms_slobe_surface' in results.keys():
             s = results.pop('ms_slobe_surface')
+            for k in [k for k in s.keys() if 'Poles' in k]:
+                northkey =' '.join([k.split(' ')[0]+'N',k.split(' ')[-1]])
+                southkey =' '.join([k.split(' ')[0]+'S',k.split(' ')[-1]])
+                s[northkey] = 0
+                s[southkey] = s[k]
         else:
             s = pd.DataFrame(columns=n.keys())
         lobes=n.drop(columns=['Time [UTC]'])+s.drop(columns=['Time [UTC]'])
+        nkey = 'TestAreaPolesN [Re^2]'
+        skey = 'TestAreaPolesS [Re^2]'
         lobes['Time [UTC]'] = t
         results.update({'ms_lobes_surface':lobes})
         results = post_proc_interface(results)
@@ -378,8 +391,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                 ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
         #Tail(lobe)
-        interfaces.update(conditional_mod(zone,integrands,['tail'],
-                                          'Tail_lobe'))
+        #interfaces.update(conditional_mod(zone,integrands,['tail'],
+        #                                  'Tail_lobe'))
         #PlasmaSheetBoundaryLayer- Very hard to infer, will save for post
     ##Closed
     if 'close' in zone.name:
@@ -392,8 +405,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
         #Tail(closed/NearEarthXLine)
-        interfaces.update(conditional_mod(zone,integrands,['tail'],
-                                          'Tail_close'))
+        #interfaces.update(conditional_mod(zone,integrands,['tail'],
+        #                                  'Tail_close'))
     ##RingCurrent
     if 'rc' in zone.name:
         #Dayside_Inner- will be 0 at many points as interface only occurs when

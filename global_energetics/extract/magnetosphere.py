@@ -208,7 +208,8 @@ def prep_field_data(field_data, **kwargs):
         main_frame.name = 'main'
         get_global_variables(field_data, analysis_type,aux=aux,
                              modes=kwargs.get('modes',[]),
-                             verbose=kwargs.get('verbose',False))
+                             verbose=kwargs.get('verbose',False),
+                             customTerms=kwargs.get('customTerms',{}))
         if do_1Dsw or 'bs' in kwargs.get('modes',[]):
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
@@ -610,11 +611,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 s = pd.DataFrame(columns=n.keys())
                 if 'log' in kwargs:
                     kwargs.get('logger').debug('South lobe not found!!')
-            if'lobes' in kwargs.get('modes'):
-                lobes=[n.drop(columns=['Time [UTC]'])+
-                       s.drop(columns=['Time [UTC]'])][0]
-                lobes['Time [UTC]'] = t
-                data_to_write.update({'ms_lobes_volume':lobes})
+            lobes=[n.drop(columns=['Time [UTC]'])+
+                   s.drop(columns=['Time [UTC]'])][0]
+            lobes['Time [UTC]'] = t
+            data_to_write.update({'ms_lobes_volume':lobes})
             if save_mesh:
                 for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                       'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
