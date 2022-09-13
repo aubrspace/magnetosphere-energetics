@@ -3,11 +3,276 @@
 #paraview.compatibility.major = 5
 #paraview.compatibility.minor = 10
 
-import glob
+import os
 import time
+import glob
 import numpy as np
 #### import the simple module from paraview
 from paraview.simple import *
+
+def equations(**kwargs):
+    """Defines equations that will be used for global variables
+    Inputs- none
+    Return
+        equations dict{dict{str(eqName):str(eqText)}}- nested dicts
+    """
+    equations = {}
+    #Testing function for verifying matching interfaces
+    equations['interface_testing'] = {'{test}':'1'}
+    #Useful spatial variables
+    equations['basic3d'] = {
+                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
+                       '{Cell Size [Re]}':'{Cell Volume}**(1/3)',
+                       '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
+    #2D versions of spatial variables
+    equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
+    equations['basic2d_XZ'] = {'{r [R]}':'sqrt({X [R]}**2 + {Z [R]}**2)'}
+    #Dipolar coordinate variables
+    if 'aux' in kwargs:
+        aux=kwargs.get('aux')
+        equations['dipole_coord'] = {
+         '{mXhat_x}':'sin(('+aux['BTHETATILT']+'+90)*pi/180)',
+         '{mXhat_y}':'0',
+         '{mXhat_z}':'-1*cos(('+aux['BTHETATILT']+'+90)*pi/180)',
+         '{mZhat_x}':'sin('+aux['BTHETATILT']+'*pi/180)',
+         '{mZhat_y}':'0',
+         '{mZhat_z}':'-1*cos('+aux['BTHETATILT']+'*pi/180)',
+         '{lambda}':'asin('+
+                        '(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})-'+
+                   'trunc(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})'+
+                        ')',
+         '{Lshell}':'{r [R]}/cos({lambda})**2',
+         '{theta [deg]}':'-180/pi*{lambda}'}
+    ######################################################################
+    #Physical quantities including:
+    #   Dynamic Pressure
+    #   Sonic speed
+    #   Plasma Beta
+    #   Plasma Beta* using total pressure
+    #   B magnitude
+    equations['basic_physics'] = {
+     '{Dp [nPa]}':'{Rho [amu/cm^3]}*1e6*1.6605e-27*'+
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
+     '{Cs [km/s]}':'sqrt(5/3*{P [nPa]}/{Rho [amu/cm^3]}/6.022)*10**3',
+     '{beta}':'({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                '*(2*4*pi*1e-7)*1e9',
+     '{beta_star}':'({P [nPa]}+{Dp [nPa]})/'+
+                          '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
+                '*(2*4*pi*1e-7)*1e9',
+     '{Bmag [nT]}':'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'}
+    ######################################################################
+    #Fieldlinemaping
+    equations['fieldmapping'] = {
+        '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
+        '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
+        '{phi}':'atan2({Y [R]}, {Xd [R]})',
+        '{req}':'2.7/(cos({lambda})**2)',
+        '{lambda2}':'sqrt(acos(1/{req}))',
+        '{X_r1project}':'1*cos({phi})*sin(pi/2-{lambda2})',
+        '{Y_r1project}':'1*sin({phi})*sin(pi/2-{lambda2})',
+        '{Z_r1project}':'1*cos(pi/2-{lambda2})'}
+    ######################################################################
+    #Virial only intermediate terms, includes:
+    #   Density times velocity between now and next timestep
+    #   Advection term
+    equations['virial_intermediate'] = {
+        '{rhoUx_cc}':'{Rho [amu/cm^3]}*{U_x [km/s]}',
+        '{rhoUy_cc}':'{Rho [amu/cm^3]}*{U_y [km/s]}',
+        '{rhoUz_cc}':'{Rho [amu/cm^3]}*{U_z [km/s]}',
+        '{rhoU_r [Js/Re^3]}':'{Rho [amu/cm^3]}*1.6605e6*6.371**4*('+
+                                                 '{U_x [km/s]}*{X [R]}+'+
+                                                 '{U_y [km/s]}*{Y [R]}+'+
+                                                 '{U_z [km/s]}*{Z [R]})'}
+    ######################################################################
+    #Dipole field (requires coordsys and UT information!!!)
+    if 'aux' in kwargs:
+        aux=kwargs.get('aux')
+        Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
+        equations['dipole'] = {
+                Bdx_eq.split('=')[0]:Bdx_eq.split('=')[-1],
+                Bdy_eq.split('=')[0]:Bdy_eq.split('=')[-1],
+                Bdz_eq.split('=')[0]:Bdz_eq.split('=')[-1],
+               '{Bdmag [nT]}':'sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)'}
+        g = aux['GAMMA']
+    else:
+        g = '1.6667'
+    ######################################################################
+    #Volumetric energy terms, includes:
+    #   Total Magnetic Energy per volume
+    #   Thermal Pressure in Energy units
+    #   Kinetic energy per volume
+    #   Dipole magnetic Energy
+    #+Constructions:
+    #   Hydrodynamic Energy Density
+    #   Total Energy Density
+    equations['volume_energy'] = {
+               '{uB [J/Re^3]}':'{Bmag [nT]}**2'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{Pth [J/Re^3]}':'{P [nPa]}*6371**3',
+               '{KE [J/Re^3]}':'{Dp [nPa]}/2*6371**3',
+               '{uHydro [J/Re^3]}':'({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
+               '{uB_dipole [J/Re^3]}':'{Bdmag [nT]}**2'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{u_db [J/Re^3]}':'(({B_x [nT]}-{Bdx})**2+'+
+                                '({B_y [nT]}-{Bdy})**2+'+
+                                '({B_z [nT]}-{Bdz})**2)'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{Utot [J/Re^3]}':'{uHydro [J/Re^3]}+{uB [J/Re^3]}'}
+
+    ######################################################################
+    #Virial Volumetric energy terms, includes:
+    #   Disturbance Magnetic Energy per volume
+    #   Special construction of hydrodynamic energy density for virial
+    equations['virial_volume_energy'] = {
+               '{Virial Ub [J/Re^3]}':'(({B_x [nT]}-{Bdx})**2+'+
+                                       '({B_y [nT]}-{Bdy})**2+'+
+                                       '({B_z [nT]}-{Bdz})**2)'+
+                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
+               '{Virial 2x Uk [J/Re^3]}':'2*{KE [J/Re^3]}+{Pth [J/Re^3]}'}
+    ######################################################################
+    #Biot Savart terms, includes:
+    # delta B in nT
+    equations['biot_savart'] = {
+               '{dB_x [nT]}':'-({Y [R]}*{J_z [uA/m^2]}-'+
+                               '{Z [R]}*{J_y [uA/m^2]})*637.1/{r [R]}**3',
+               '{dB_y [nT]}':'-({Z [R]}*{J_x [uA/m^2]}-'+
+                               '{X [R]}*{J_z [uA/m^2]})*637.1/{r [R]}**3',
+               '{dB_z [nT]}':'-({X [R]}*{J_y [uA/m^2]}-'+
+                               '{Y [R]}*{J_x [uA/m^2]})*637.1/{r [R]}**3',
+               '{dB [nT]}':'{dB_x [nT]}*{mZhat_x}+{dB_z [nT]}*{mZhat_z}'}
+    ######################################################################
+    #Energy Flux terms including:
+    #   Magnetic field unit vectors
+    #   Field Aligned Current Magntitude
+    #   Poynting Flux
+    #   Total pressure Flux (plasma energy flux)
+    #   Total Energy Flux
+    equations['energy_flux'] = {
+        '{unitbx}':'{B_x [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+        '{unitby}':'{B_y [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+        '{unitbz}':'{B_z [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+        '{J_par [uA/m^2]}':'{unitbx}*{J_x [uA/m^2]} + '+
+                              '{unitby}*{J_y [uA/m^2]} + '+
+                              '{unitbz}*{J_z [uA/m^2]}',
+        '{ExB_x [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                              '{U_x [km/s]})-{B_x [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{ExB_y [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                              '{U_y [km/s]})-{B_y [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{ExB_z [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                              '{U_z [km/s]})-{B_z [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{P0_x [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          '*{U_x [km/s]}',
+        '{P0_y [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          '*{U_y [km/s]}',
+        '{P0_z [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
+                          '*{U_z [km/s]}',
+        '{K_x [W/Re^2]}':'{P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
+        '{K_y [W/Re^2]}':'{P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
+        '{K_z [W/Re^2]}':'{P0_z [W/Re^2]}+{ExB_z [W/Re^2]}'}
+    ######################################################################
+    #Reconnection variables: 
+    #   -u x B (electric field in mhd limit)
+    #   E (unit change)
+    #   current density magnitude
+    #   /eta magnetic field diffusivity E/J
+    #   /eta (unit change)
+    #   magnetic reynolds number (advection/magnetic diffusion)
+    equations['reconnect'] = {
+        '{minus_uxB_x}':'-({U_y [km/s]}*{B_z [nT]}-'+
+                                               '{U_z [km/s]}*{B_y [nT]})',
+        '{minus_uxB_y}':'-({U_z [km/s]}*{B_x [nT]}-'+
+                                               '{U_x [km/s]}*{B_z [nT]})',
+        '{minus_uxB_z}':'-({U_x [km/s]}*{B_y [nT]}-'+
+                                               '{U_y [km/s]}*{B_x [nT]})',
+        '{E [uV/m]}':'sqrt({minus_uxB_x}**2+'+
+                                     '{minus_uxB_y}**2+{minus_uxB_z}**2)',
+        '{J [uA/m^2]}':'sqrt({J_x [uA/m^2]}**2+'+
+                                   '{J_y [uA/m^2]}**2+{J_z [uA/m^2]}**2)',
+        '{eta [m/S]}':'IF({J [uA/m^2]}>0.002,'+
+                                      '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)',
+        '{eta [Re/S]}':'{eta [m/S]}/(6371*1000)',
+        '{Reynolds_m_cell}':'4*pi*1e-4*'+
+                 'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
+                                   '{Cell Size [Re]}/({eta [Re/S]}+1e-9)'}
+    ######################################################################
+    #Tracking IM GM overwrites
+    equations['trackIM'] = {
+        '{trackEth_acc [J/Re^3]}':'{dp_acc [nPa]}*6371**3',
+        '{trackDp_acc [nPa]}':'{drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
+              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
+        '{trackKE_acc [J/Re^3]}':'{trackDp_acc [nPa]}*6371**3',
+        '{trackWth [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
+                             '{trackEth_acc [J/Re^3]}/{dtime_acc [s]},0)',
+        '{trackWKE [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
+                             '{trackKE_acc [J/Re^3]}/{dtime_acc [s]},0)'}
+    ######################################################################
+    #Entropy and 1D things
+    equations['entropy'] = {
+        '{s [Re^4/s^2kg^2/3]}':'{P [nPa]}/{Rho [amu/cm^3]}**('+g+')*'+
+                                    '1.67**('+g+')/6.371**4*100'}
+    ######################################################################
+    #Some extra's not normally included:
+    equations['parallel'] = {
+        '{KEpar [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
+                                    '(({U_x [km/s]}*{unitbx})**2+'+
+                                    '({U_y [km/s]}*{unitby})**2+'+
+                                    '({U_z [km/s]}*{unitbz})**2) *'+
+                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
+        '{KEperp [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
+                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
+                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
+                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
+                                       '*1e6*1.6605e-27*1e6*1e9*6371**3'}
+    ######################################################################
+    #Terms with derivatives (experimental) !Can take a long time!
+    #   vorticity (grad x u)
+    equations['development'] = {
+        '{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
+                              '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
+                              '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)'}
+    ######################################################################
+    return equations
+
+def tec2para(instr):
+    badchars = ['{','}','[',']']
+    replacements = {' [':'_','**':'^','1e':'10^','pi':'3.14159',#generic
+          '/Re':'_Re', 'amu/cm':'amu_cm','km/s':'km_s','/m':'_m',#specific
+                    'm^':'m','e^':'e'}#very specific, for units only
+            #'/':'_',
+    outstr = instr
+    for was_,is_ in replacements.items():
+        outstr = is_.join(outstr.split(was_))
+        #NOTE this order to find "{var [unit]}" cases (space before [unit])
+    for bc in badchars:
+        outstr = ''.join(outstr.split(bc))
+    #print('WAS: ',instr,'\tIS: ',outstr)
+    return outstr
+
+def eqeval(eqset,pipeline,**kwargs):
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        var = Calculator(registrationName=lhs, Input=pipeline)
+        var.Function = rhs
+        var.ResultArrayName = lhs
+        pipeline = var
+    return pipeline
+
 def read_tecplot(infile):
     """Function reads tecplot binary file
     Inputs
@@ -29,31 +294,54 @@ def read_tecplot(infile):
     sourcedata.PointArrayStatus = arraylist
     return sourcedata
 
+def fix_names(pipeline,**kwargs):
+    names = ProgrammableFilter(registrationName='names', Input=pipeline)
+    names.Script = """
+        #Get upstream data
+        data = inputs[0]
+        #These are the variables names that cause issues
+        rho = data.PointData["Rho_amu_cm^3"]
+        jx = data.PointData["J_x_`mA_m^2"]
+        jy = data.PointData["J_y_`mA_m^2"]
+        jz = data.PointData["J_z_`mA_m^2"]
+        #Copy input to output so we don't lose any data
+        output.ShallowCopy(inputs[0].VTKObject)#maintaining other variables
+        #Now append the copies of the variables with better names
+        output.PointData.append(rho,'Rho_amu_cm3')
+        output.PointData.append(jx,'J_x_uA_m2')
+        output.PointData.append(jy,'J_y_uA_m2')
+        output.PointData.append(jz,'J_z_uA_m2')
+    """
+    pipeline = names
+    return pipeline
+
 def get_vectors(pipeline,**kwargs):
     """Function sets up calculator filters to turn components into vector
         objects (this will allow field tracing and other things)
     Inputs
         pipeline (filter/source)- upstream that calculator will process
         kwargs:
-            vector_comps (dict)- defaults below, change if needed
-                               {'B_nT':['B_x_nT','B_y_nT','B_z_nT'],
-                                'U_km_s':['U_x_km_s','U_y_km_s','U_z_km_s'],
-            '"J_`mA_m^2"':['"J_x_`mA_m^2"','"J_y_`mA_m^2"','"J_z_`mA_m^2"']}
+            vector_comps (dict)- default empty, will try to detect some
     Return
         pipeline (filter)- last filter applied keeping a straight pipeline
     """
     ###Get Vectors from field variable components
-    vector_comps = kwargs.get('vector_comps',
-                   {'B_nT':['B_x_nT','B_y_nT','B_z_nT'],
-                    'U_km_s':['U_x_km_s','U_y_km_s','U_z_km_s'],
-            '"J_`mA_m^2"':['"J_x_`mA_m^2"','"J_y_`mA_m^2"','"J_z_`mA_m^2"']})
-    for vecName in vector_comps.keys():
-        vector = Calculator(registrationName=vecName.split('_')[0],
-                            Input=pipeline)
-        vector.Function = [vector_comps[vecName][0]+'*iHat+'+
-                           vector_comps[vecName][1]+'*jHat+'+
-                           vector_comps[vecName][2]+'*kHat'][0]
-        vector.ResultArrayName = vecName
+    vector_comps = kwargs.get('vector_comps',{})
+    #Dig for the variable names so all variables can be vectorized
+    info = pipeline.GetPointDataInformation()
+    n_arr = info.GetNumberOfArrays()
+    var_names = ['']*n_arr
+    for i in range(0,n_arr):
+        var_names[i] = info.GetArray(i).Name
+    deconlist=dict([(v.split('_')[0],'_'+'_'.join(v.split('_')[2::]))
+                          for v in var_names if('_x' in v or '_y' in v or
+                                                             '_z' in v)])
+    for (base,tail) in deconlist.items():
+        vector = Calculator(registrationName=base,Input=pipeline)
+        vector.Function = [base+'_x'+tail+'*iHat+'+
+                           base+'_y'+tail+'*jHat+'+
+                           base+'_z'+tail+'*kHat'][0]
+        vector.ResultArrayName = base+tail
         pipeline=vector
     return pipeline
 
@@ -99,7 +387,7 @@ def get_magnetopause_filter(pipeline,**kwargs):
         pipeline (filter)- last filter applied keeping a straight pipeline
     """
     #Must have the following conditions met first
-    assert FindSource('betastar') != None
+    assert FindSource('beta_star') != None
     betastar_max = kwargs.get('betastar_max',0.7)
     closed_value = kwargs.get('status_closed',3)
     mp_state =ProgrammableFilter(registrationName='mp_state',Input=pipeline)
@@ -108,11 +396,11 @@ def get_magnetopause_filter(pipeline,**kwargs):
     from paraview.vtk.numpy_interface import algorithms as algs
     # Get input
     data = inputs[0]
-    betastar = data.PointData['betastar']
+    beta_star = data.PointData['beta_star']
     status = data.PointData['Status']
 
     #Compute magnetopause as logical combination
-    mp_state = ((betastar<"""+str(betastar_max)+""")|
+    mp_state = ((beta_star<"""+str(betastar_max)+""")|
                 (status=="""+str(closed_value)+""")).astype(int)
 
     #Assign to output
@@ -175,6 +463,65 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
         outputsource = iso
 
     return outputsource
+
+def point2cell(inputsource, fluxes):
+    point2cell = PointDatatoCellData(registrationName='surface_p2cc',
+                                     Input=inputsource)
+    point2cell.ProcessAllArrays = 0
+    convert_list = [f[0] for f in fluxes]
+    convert_list.append('Normals')
+    point2cell.PointDataArraytoprocess = convert_list
+    return point2cell
+
+def get_surface_flux(source,variable,name,**kwargs):
+    #Create calculator filter that is flux
+    flux = Calculator(registrationName=name,Input=source)
+    flux.AttributeType = 'Cell Data'
+    flux.Function = 'dot('+variable+',Normals)'
+    flux.ResultArrayName = name
+    # create a new 'Integrate Variables'
+    result = IntegrateVariables(registrationName=name, Input=flux)
+    return result
+
+def setup_table(**kwargs):
+    """Function sets up a table (spreadsheet view) so data can be exported
+    Inputs
+        kwargs
+            layout_name
+            view_name
+    Returns
+        tableLayout
+        tableView
+    """
+    # create new layout object 'Layout #2'
+    tableLayout=CreateLayout(name=kwargs.get('layout_name','tableLayout'))
+    # set active view
+    SetActiveView(None)
+
+    # Create a new 'SpreadSheet View'
+    tableView = CreateView('SpreadSheetView')
+    tableView.ColumnToSort = ''
+    tableView.BlockSize = 1024
+
+    # assign view to a particular cell in the layout
+    AssignViewToLayout(view=tableView, layout=tableLayout, hint=0)
+    return tableLayout, tableView
+
+def save_table_data(source, view, path, table_name):
+    """Function exports tabular data from a given source to output file
+    Inputs
+        source
+        view
+        path
+        table_name
+    Returns
+        None
+    """
+    # show data in view
+    display = Show(source, view, 'SpreadSheetRepresentation')
+    # export view
+    ExportView(path+table_name+'.csv', view=view)
+
 
 def display_visuals(field,mp,renderView,**kwargs):
     """Function standin for separate file governing visual representations
@@ -293,23 +640,16 @@ def setup_pipeline(infile,**kwargs):
     pipelinehead = mergeBlocks1
     pipeline = mergeBlocks1
 
+
+    ###Rename some tricky variables
+    pipeline = fix_names(pipeline)
+    ###Build functions up to betastar
+    alleq = equations()
+    pipeline = eqeval(alleq['basic_physics'],pipeline)
+    ###Energy flux variables
+    pipeline = eqeval(alleq['energy_flux'],pipeline)
     ###Get Vectors from field variable components
     pipeline = get_vectors(pipeline)
-
-    ###Build functions up to betastar
-    #TODO: generalize similar to tecplot equations fnc in stream_tools.py
-    # Dynamic Pressure
-    pdyn = Calculator(registrationName='Pdyn', Input=pipeline)
-    pdyn.Function = '"Rho_amu_cm^3"*1.6605*10^-6*mag(U_km_s)^2'
-    pdyn.ResultArrayName = 'Pdyn_nPa'
-    pipeline = pdyn
-
-    # Beta*
-    betastar = Calculator(registrationName='betastar', Input=pipeline)
-    betastar.Function = '(P_nPa+Pdyn_nPa)/mag(B_nT)^2*8*3.14159*100'
-    betastar.ResultArrayName = 'betastar'
-    pipeline = betastar
-
 
     ###Programmable filters
     # Pressure gradient, optional variable
@@ -324,33 +664,43 @@ def setup_pipeline(infile,**kwargs):
 
     ###Contour (iso-surface) of the magnetopause
     mp = create_iso_surface(pipeline, 'mp_state', 'mp')
-    """How to calculate fluxes at surface use 'PerpendicularScale'
-    # create a new 'Surface Vectors'
-    surfaceVectors1 = SurfaceVectors(registrationName='SurfaceVectors1', Input=contour1)
-    surfaceVectors1.SelectInputVectors = ['POINTS', '"J_`mA_m^2"']
-
-    # Properties modified on surfaceVectors1
-    surfaceVectors1.SelectInputVectors = ['POINTS', 'GradP_nPa_Re']
-    surfaceVectors1.ConstraintMode = 'Perpendicular'
-    """
 
     return sourcedata, pipelinehead, field, mp
 
-if __name__ == "__main__":
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
     path = '/home/aubr/Code/swmf-energetics/febstorm/copy_paraview_plt/'
+    outpath = 'output_pv_magnetosphere/'
+    if not os.path.exists(path):
+        path='/Users/ngpdl/Code/swmf-energetics/localdbug/paraview_cleaned/'
+        outpath = '/Users/ngpdl/Code/swmf-energetics/output/pv_test/'
     filelist = glob.glob(path+'*.plt')
     for infile in filelist[0:1]:
         print('processing '+infile.split('/')[-1]+'...')
-        oldsource,pipelinehead,field,mp=setup_pipeline(infile,do_gradP=True)
+        oldsource,pipelinehead,field,mp=setup_pipeline(infile)
+        ###Surface flux on magnetopause
+        #decide which values to calculate (will need to make cell data)
+        fluxes = [('K_W_Re2','k_flux'),('P0_W_Re2','h_flux'),
+                  ('ExB_W_Re2','p_flux')]
+        mp_cc = point2cell(mp,fluxes)#mp object with cell centered data
+        #mp_K_flux = get_surface_flux(mp, 'K_W_Re2','k_flux')
+        mp_S_flux = get_surface_flux(mp_cc, 'ExB_W_Re2','s_net_flux')
         renderView = GetActiveViewOrCreate('RenderView')
+        #TODO find how to limit integration variables and group all together
+        tableLayout, tableView = setup_table()
+        save_table_data(mp_S_flux, tableView, outpath,'s_net_flux')
+        SetActiveView(renderView)
         display_visuals(field,mp,renderView)
 
+        '''
         # Render and save screenshot
         RenderAllViews()
-        path = 'output_pv_magnetosphere/'
-        SaveScreenshot(path+infile.split('/')[-1].split('.plt')[0]+'.png',
+        SaveScreenshot(outpath+
+                       infile.split('/')[-1].split('.plt')[0]+'.png',
                        renderView)
+        '''
+    '''
     for infile in filelist[1::]:
         print('processing '+infile.split('/')[-1]+'...')
         #Read in new file unattached to current pipeline
@@ -363,11 +713,13 @@ if __name__ == "__main__":
 
         # Render and save screenshot
         RenderAllViews()
-        SaveScreenshot(path+infile.split('/')[-1].split('.plt')[0]+'.png',
+        SaveScreenshot(outpath+
+                       infile.split('/')[-1].split('.plt')[0]+'.png',
                        renderView)
 
         # Set the current source to be replaced on next loop
         oldsource = newsource
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

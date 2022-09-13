@@ -609,7 +609,7 @@ if __name__ == "__main__":
     ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     #ds['feb'] = load_hdf_sort(inPath+'feb2014_lshell3.h5')
     ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
-    #ds['may'] = load_hdf_sort(inPath+'temp/may2019_results.h5')
+    ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
     #ds['may'] = load_hdf_sort(inPath+'may2019_lshell.h5')
     #ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
 
