@@ -123,7 +123,7 @@ def get_stations_now(file_in,nowtime,**kwargs):
     #Read in extra data
     aux_data_path = kwargs.get('aux_path',
                       '/'.join(file_in.split('/')[0:-1])+'/station_data/')
-    read_station_values(aux_data_path, station_df, nowtime)
+    #read_station_values(aux_data_path, station_df, nowtime)
     return stations, station_df
 
 #Function that calculates error

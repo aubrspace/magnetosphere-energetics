@@ -56,6 +56,9 @@ if __name__ == "__main__":
     ccmc2  = (
             'ccmc_2019-08-30/3d__var_1_e20190830-165000-001.plt',
             'ccmc_2019-08-30/3d__var_1_e20190830-165100-032.plt')
+    ccmc3  = (
+            'ccmc_2019-05-13/3d__var_1_e20190513-225800-010.plt',
+            'ccmc_2019-05-13/3d__var_1_e20190513-225900-036.plt')
 
     '''
     #load from file
@@ -63,7 +66,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [febstorm]:
+    for inputs in [ccmc2]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -83,7 +86,7 @@ if __name__ == "__main__":
                                                     disp_result=False,
                                                     outputpath='babyrun/',
                                                     do_interfacing=False,
-                                                    do_cms=False,tshift=45,
+                                                    do_cms=False,tshift=0,
                                                     integrate_volume=False,
                                                     integrate_surface=False,
                                                     verbose=False,
@@ -150,6 +153,10 @@ if __name__ == "__main__":
                                         timestamp_pos=[4,5],
                                         zone_hidekeys=zone_hidekeys,
                                         show_timestamp=timestamp)
+            view_set.add_fieldlines(tp.active_frame(),mhddatafile,showleg=True,
+                                    mode='allstations',
+                                    station_file=
+                         'ccmc_2019-08-30/magnetometers_e20190830-161300.mag')
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
