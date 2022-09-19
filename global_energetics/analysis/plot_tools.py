@@ -90,9 +90,10 @@ def general_plot_settings(ax, **kwargs):
         if kwargs.get('do_xlabel',False):
             ax.set_xlabel(kwargs.get('xlabel',r'Time $\left[ Hr\right]$'))
         else:
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%-H:%M'))
-            ax.set_xlabel(
-                     kwargs.get('xlabel',r'Time $\left[ Hr:Mn\right]$'))
+            #ax.xaxis.set_major_formatter(mdates.DateFormatter('%-H:%M'))
+            #ax.set_xlabel(
+            #         kwargs.get('xlabel',r'Time $\left[ Hr:Mn\right]$'))
+            pass
         ax.xaxis.set_minor_locator(AutoMinorLocator(6))
     else:
         ax.set_xlim(kwargs.get('xlim',None))

@@ -299,12 +299,38 @@ def polar_cap_area_fig(ds,ph,path):
     #setup figure
     pca,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                         figsize=[14,4*len(ds.keys())])
+    pca_asym,ax2=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                        figsize=[14,4*len(ds.keys())])
     #plot
     for i,ev in enumerate(ds.keys()):
         lobe = ds[ev]['msdict'+ph]['lobes']
+        inner = ds[ev]['inner_mp'+ph]
+        obs = ds[ev]['obs']['swmf_sw'+ph]
+        obstime = ds[ev]['swmf_sw_otime'+ph]
+        #from IPython import embed; embed()
+        #time.sleep(3)
         if not lobe.empty:
-            ax[i].plot(ds[ev]['time'+ph],lobe['Area [Re^2]'],label=ev)
-            general_plot_settings(ax[i],ylabel=r'Area $\left[ Re^2\right]$'
+            #Polar cap areas compared with Newell Coupling function
+            ax[i].fill_between(obstime, obs['Newell'],label=ev+'By',
+                               fc='steelblue')
+            ax[i].spines['left'].set_color('steelblue')
+            ax[i].tick_params(axis='y',colors='steelblue')
+            #ax[i].set_ylabel(r'$B_y \left[ nT\right]$')
+            ax[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
+            rax = ax[i].twinx()
+            rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaPolesN [Re^2]',
+                                                   np.zeros(len(lobe))),
+                       label=ev+'N')
+            rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaPolesS [Re^2]',
+                                                   np.zeros(len(lobe))),
+                       label=ev+'S')
+            rax.plot(ds[ev]['time'+ph],inner.get('TestAreaPoles [Re^2]',
+                                                   np.zeros(len(lobe))),
+                       label=ev+'fromInner')
+            rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaPoles [Re^2]',
+                                                   np.zeros(len(lobe))),
+                       label=ev+'fromLobes')
+            general_plot_settings(rax,ylabel=r'Area $\left[ Re^2\right]$'
                                   ,do_xlabel=(i==len(ds.keys())-1),
                                   legend=True)
     #save
@@ -606,24 +632,24 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     ds = {}
-    ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
+    #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     #ds['feb'] = load_hdf_sort(inPath+'feb2014_lshell3.h5')
-    ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
-    ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
+    ds['feb'] = load_hdf_sort(inPath+'trial_feb2014_results.h5')
+    #ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
+    #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
     #ds['may'] = load_hdf_sort(inPath+'may2019_lshell.h5')
+    ds['may'] = load_hdf_sort(inPath+'trial_may2019_results.h5')
     #ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
 
-    '''
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
                                     read_supermag=False, tshift=45)
-    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-                                     read_supermag=False)
-    #ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
-    #                                read_supermag=False)
+    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+    #                                 read_supermag=False)
+    ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
+                                    read_supermag=False)
     #ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
     #                                read_supermag=False)
-    '''
 
     #NOTE hotfix for closed region tail_closed
     for ev in ds.keys():
@@ -643,24 +669,26 @@ if __name__ == "__main__":
                                #'missed':ds[event]['msdict']['missed']}
     ##Parse storm phases
     for ev in ds.keys():
-        #obs_srcs = list(ds[ev]['obs'].keys())
+        obs_srcs = list(ds[ev]['obs'].keys())
         for ph in ['_qt','_main','_rec','_interv']:
             ds[ev]['mp'+ph], ds[ev]['time'+ph] = locate_phase(
                                             ds[ev]['mpdict']['ms_full'],ph)
+            ds[ev]['inner_mp'+ph], _ = locate_phase(
+                                            ds[ev]['inner_mp'],ph)
             ds[ev]['msdict'+ph], _ = locate_phase(ds[ev]['msdict'],ph)
-            #for src in obs_srcs:
-            #    ds[ev]['obs'][src+ph],ds[ev][src+'_otime'+ph]=(
-            #                   locate_phase(ds[ev]['obs'][src],ph))
+            for src in obs_srcs:
+                ds[ev]['obs'][src+ph],ds[ev][src+'_otime'+ph]=(
+                               locate_phase(ds[ev]['obs'][src],ph))
 
     ######################################################################
     ##Quiet time
     #quiet_figures(ds)
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(ds)
+    main_rec_figures(ds)
     ######################################################################
     ##Short zoomed in interval
-    interval_figures(ds)
+    #interval_figures(ds)
     ######################################################################
     ##Lshell plots
     #lshell_figures(ds)

@@ -258,6 +258,7 @@ def tec2para(instr):
     for was_,is_ in replacements.items():
         outstr = is_.join(outstr.split(was_))
         #NOTE this order to find "{var [unit]}" cases (space before [unit])
+        #TODO see .replace
     for bc in badchars:
         outstr = ''.join(outstr.split(bc))
     #print('WAS: ',instr,'\tIS: ',outstr)
