@@ -233,15 +233,15 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    #RUNDIR = 'ccmc_2019-05-13'
-    RUNDIR = 'starlink'
+    RUNDIR = 'ccmc_2019-05-13'
+    #RUNDIR = 'starlink'
     #RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG

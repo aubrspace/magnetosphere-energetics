@@ -1934,7 +1934,7 @@ def calc_state(mode, sourcezone, **kwargs):
             print('x_subsolar updated to {}'.format(new_subsolar))
             sourcezone.aux_data['x_subsolar'] = new_subsolar
     else:
-        zone = setup_isosurface(1, state_index, zonename)
+        zone = setup_isosurface(1, state_index, zonename,blankvar='')
         innerzone = None
     return zone, innerzone, state_index
 

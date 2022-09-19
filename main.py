@@ -48,6 +48,8 @@ if __name__ == "__main__":
     #            'starlink/3d__var_1_e20220202-063000-000.plt')
     febstorm = ('localdbug/feb2014/3d__var_1_e20140218-060300-037.plt',
                 'localdbug/feb2014/3d__var_1_e20140218-060400-033.plt')
+    feb_asym = ('febstorm/3d__var_1_e20140219-130000-000.plt',
+                'febstorm/3d__var_1_e20140219-130100-010.plt')
     trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
                'localdbug/trackim/3d__var_1_e20140219-020100-000.plt')
     paleo=('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
@@ -59,6 +61,9 @@ if __name__ == "__main__":
     ccmc3  = (
             'ccmc_2019-05-13/3d__var_1_e20190513-225800-010.plt',
             'ccmc_2019-05-13/3d__var_1_e20190513-225900-036.plt')
+    ccmc4  = (
+            'ccmc_2019-05-13/3d__var_1_e20190514-025600-028.plt',
+            'ccmc_2019-05-13/3d__var_1_e20190514-025700-023.plt')
 
     '''
     #load from file
@@ -66,7 +71,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [ccmc2]:
+    for inputs in [feb_asym]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -81,26 +86,19 @@ if __name__ == "__main__":
         #Perform data extraction
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
-                                                    save_mesh=False,
-                                                    write_data=False,
-                                                    disp_result=False,
-                                                    outputpath='babyrun/',
-                                                    do_interfacing=False,
-                                                    do_cms=False,tshift=0,
-                                                    integrate_volume=False,
-                                                    integrate_surface=False,
-                                                    verbose=False,
-                                                    extract_flowline=False,
-                                              analysis_type='')
-                     #modes=['iso_betastar','nlobe','slobe','closed','rc'])
-                                            #lshell_vars=['uB','uB_dipole',
-                                                          #'u_db','uHydro'],
-                                                          #modes=['closed'])
-                      #customTerms={'test':'TestArea [Re^2]'},
-                      #modes=['iso_betastar','nlobe','slobe','closed','rc'])
-                              #customTerms={'test':'TestArea [Re^2]'},
+                                      do_cms=True,
+                                      analysis_type='energy',
+                                      do_interfacing=True,
+                                      integrate_surface=True,
+                                      integrate_volume=True,
+                                      modes=['iso_betastar','nlobe',
+                                             'slobe','closed','rc'],
+                                      verbose=False,
+                                      extract_flowline=False,
+                                      outputpath='babyrun/',
+                                      customTerms={'test':'TestArea [Re^2]'})
     #with tp.session.suspend():
-    if True:#manually switch on or off
+    if False:#manually switch on or off
         #adjust view settings
         #proc = 'Multi Frame Manager'
         #cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
