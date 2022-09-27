@@ -149,7 +149,7 @@ def locate_phase(indata,phasekey,**kwargs):
                         df[cond].index-df[cond].index[0]]
         return phase, rel_time
 
-def plot_contour(ax,df,lower,upper,xkey,ykey,zkey,**kwargs):
+def plot_contour(fig,ax,df,lower,upper,xkey,ykey,zkey,**kwargs):
     """Function sets up and plots contour
     Inputs
         ax (Axis)- axis to plot on
@@ -176,10 +176,28 @@ def plot_contour(ax,df,lower,upper,xkey,ykey,zkey,**kwargs):
     Y_u = np.sort(df[ykey].unique())
     X,Y = np.meshgrid(X_u,Y_u)
     Z = df.pivot_table(index=xkey,columns=ykey,values=zkey).T.values
+    #TODO try:
+    '''
+        df[xkey] = df.index
+        tab = df.pivot(index=xkey,columns=ykey,values=zkey)
+        #iterate through levels
+            tab[lev] = np.NaN
+        #reorder the values so the table is in ascending level order
+        tab.resample('30s').asfreq().interpolate()
+        tab.interpolate(axis=1)
+        #Isolate values that have a certain threshold
+    '''
+    from IPython import embed; embed()
+    time.sleep(3)
     conplot = ax.contourf(X,Y,Z, cmap=kwargs.get('cmap','RdBu_r'),
                           levels=levs,extend='both',**contour_kw)
-    cbarconplot = lshell.colorbar(conplot,ax=ax,label=safelabel(zkey),
+    cbarconplot = fig.colorbar(conplot,ax=ax,label=safelabel(zkey),
                                   **cbar_kw)
+    ax.scatter(df[abs(df[zkey]-1e14)<9e13][xkey],
+               df[abs(df[zkey]-1e14)<9e13][ykey])
+    #for i,path in enumerate(conplot.collections[11].get_paths()):
+    #    x,y = path.vertices[:,0], path.vertices[:,1]
+    #    ax.plot(x[0:int(len(x)/2)],y[0:int(len(x)/2)])
     general_plot_settings(ax, **kwargs)
     ax.grid()
 
@@ -257,8 +275,10 @@ def stack_energy_region_fig(ds,ph,path,hatches):
                                do_xlabel=(i==len(ds.keys())-1))
     #save
     contr.tight_layout(pad=1)
-    contr.savefig(path+'/contr_energy'+ph+'.png')
+    figname = path+'/contr_energy'+ph+'.png'
+    contr.savefig(figname)
     plt.close(contr)
+    print('Created ',figname)
 
 def stack_energy_type_fig(ds,ph,path):
     """Stack plot Energy by type (hydro,magnetic) for each region
@@ -284,8 +304,58 @@ def stack_energy_type_fig(ds,ph,path):
                                  legend_loc='upper left',subzone=sz)
         #save
         distr.tight_layout(pad=1)
-        distr.savefig(path+'/distr_energy'+ph+sz+'.png')
+        figname = path+'/distr_energy'+ph+sz+'.png'
+        distr.savefig(figname)
         plt.close(distr)
+        print('Created ',figname)
+
+def tail_cap_fig(ds,ph,path):
+    """Line plot of the tail cap areas
+    Inputs
+        ds (DataFrame)- Main data object which contains data
+        ph (str)- phase ('main','rec', etc)
+        path (str)- where to save figure
+    Returns
+        None
+    """
+    #setup figure
+    tail,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                        figsize=[14,4*len(ds.keys())])
+    #plot
+    for i,ev in enumerate(ds.keys()):
+        lobe = ds[ev]['msdict'+ph]['lobes']
+        inner = ds[ev]['inner_mp'+ph]
+        obs = ds[ev]['obs']['swmf_sw'+ph]
+        obstime = ds[ev]['swmf_sw_otime'+ph]
+        #from IPython import embed; embed()
+        #time.sleep(3)
+        if not lobe.empty:
+            #Polar cap areas compared with Newell Coupling function
+            ax[i].fill_between(obstime, obs['Newell'],label=ev+'By',
+                               fc='grey')
+            ax[i].spines['left'].set_color('grey')
+            ax[i].tick_params(axis='y',colors='grey')
+            #ax[i].set_ylabel(r'$B_y \left[ nT\right]$')
+            ax[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
+            rax = ax[i].twinx()
+            rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaTail_lobe [Re^2]',
+                                                   np.zeros(len(lobe))),
+                       label=ev+'S')
+            rax.plot(ds[ev]['time'+ph],lobe.get('ExB_injectionTail_lobe [W]',
+                                                np.zeros(len(lobe)))/-1e9,
+                       label=r'$S_{inj}\left[ GW\right]$')
+            rax.plot(ds[ev]['time'+ph],lobe.get('ExB_escapeTail_lobe [W]',
+                                                np.zeros(len(lobe)))/1e9,
+                       label=r'$S_{esc}\left[ GW\right]$')
+            general_plot_settings(rax,ylabel=r'Area $\left[ Re^2\right]$'
+                                  ,do_xlabel=(i==len(ds.keys())-1),
+                                  legend=True)
+    #save
+    tail.tight_layout(pad=1)
+    figname = path+'/tail_cap_lobe'+ph+'.png'
+    tail.savefig(figname)
+    plt.close(tail)
+    print('Created ',figname)
 
 def polar_cap_area_fig(ds,ph,path):
     """Line plot of the polar cap areas (projected to inner boundary)
@@ -312,31 +382,30 @@ def polar_cap_area_fig(ds,ph,path):
         if not lobe.empty:
             #Polar cap areas compared with Newell Coupling function
             ax[i].fill_between(obstime, obs['Newell'],label=ev+'By',
-                               fc='steelblue')
-            ax[i].spines['left'].set_color('steelblue')
-            ax[i].tick_params(axis='y',colors='steelblue')
+                               fc='grey')
+            ax[i].spines['left'].set_color('grey')
+            ax[i].tick_params(axis='y',colors='grey')
             #ax[i].set_ylabel(r'$B_y \left[ nT\right]$')
             ax[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
             rax = ax[i].twinx()
-            rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaPolesN [Re^2]',
-                                                   np.zeros(len(lobe))),
-                       label=ev+'N')
             rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaPolesS [Re^2]',
                                                    np.zeros(len(lobe))),
                        label=ev+'S')
-            rax.plot(ds[ev]['time'+ph],inner.get('TestAreaPoles [Re^2]',
-                                                   np.zeros(len(lobe))),
-                       label=ev+'fromInner')
-            rax.plot(ds[ev]['time'+ph],lobe.get('TestAreaPoles [Re^2]',
-                                                   np.zeros(len(lobe))),
-                       label=ev+'fromLobes')
+            rax.plot(ds[ev]['time'+ph],lobe.get('ExB_injectionPolesS [W]',
+                                                np.zeros(len(lobe)))/-1e11,
+                       label=r'$S_{inj}\left[ -10\times TW\right]$')
+            rax.plot(ds[ev]['time'+ph],lobe.get('ExB_escapePolesS [W]',
+                                                np.zeros(len(lobe)))/1e11,
+                       label=r'$S_{esc}\left[ 10\times TW\right]$')
             general_plot_settings(rax,ylabel=r'Area $\left[ Re^2\right]$'
                                   ,do_xlabel=(i==len(ds.keys())-1),
                                   legend=True)
     #save
     pca.tight_layout(pad=1)
-    pca.savefig(path+'/polar_cap_area_'+ph+'.png')
+    figname = path+'/polar_cap_area'+ph+'.png'
+    pca.savefig(figname)
     plt.close(pca)
+    print('Created ',figname)
 
 def stack_volume_fig(ds,ph,path,hatches):
     """Stack plot Volume by region
@@ -370,8 +439,11 @@ def stack_volume_fig(ds,ph,path,hatches):
             ax[i].axhline(rc+close+lobe,color='grey')
         #save
         contr.tight_layout(pad=1)
-        contr.savefig(path+'/contr_volume'+ph+'.png')
+        figname = path+'/contr_volume'+ph+'.png'
+        contr.savefig(figname)
         plt.close(contr)
+        print('Created ',figname)
+
 def interf_power_fig(ds,ph,path,hatches):
     """Lineplots for event comparison 1 axis per interface
     Inputs
@@ -420,8 +492,10 @@ def interf_power_fig(ds,ph,path,hatches):
                                                                   'right')
     #save
     interf_fig.tight_layout(pad=0.2)
-    interf_fig.savefig(path+'/interf'+ph+'.png')
+    figname = path+'/interf'+ph+'.png'
+    interf_fig.savefig(figname)
     plt.close(interf_fig)
+    print('Created ',figname)
 
 
 def region_interface_averages(ds):
@@ -505,16 +579,18 @@ def region_interface_averages(ds):
                           legend=False, iscontour=True)
     #save
     qt_bar.tight_layout(pad=1)
-    qt_bar.savefig(outQT+'/quiet_bar_energy.png')
+    figname = outQT+'/quiet_bar_energy.png'
+    qt_bar.savefig(figname)
     plt.close(qt_bar)
+    print('Created ',figname)
 
 def lshell_contour_figure(ds):
     ##Lshell plot
     for qty in ['Utot2','u_db','uHydro','Utot']:
         for ph,path in [('_main',outMN1),('_rec',outRec)]:
             #Plot contours of quantitiy as well as dLdt of quantity
-            #for z in [qty+' [J]','dLdt_'+qty]:
-            for z in ['dLdt_'+qty]:
+            for z in [qty+' [J]']:
+            #for z in ['dLdt_'+qty]:
                 u = 'd'+qty+'dt'
                 v = 'd'+qty+' [J]'
                 #setup figure
@@ -543,8 +619,8 @@ def lshell_contour_figure(ds):
                                 l_copy = l_data[z][cond].copy()
                                 l_copy.dropna(inplace=True)
                                 l_copy = l_copy[abs(l_copy)!=np.inf]
-                                #lower = l_copy.min()
-                                #upper = l_copy.max()
+                                lower = l_copy.min()
+                                upper = l_copy.max()
                                 low = -8
                                 up = 8
                             else:
@@ -563,22 +639,54 @@ def lshell_contour_figure(ds):
                                   'ylabel':r'LShell $\left[R_e\right]$'+ev,
                                        'iscontour':True,
                                        'do_xlabel':(j==1)}
-                            plot_quiver(ax[i+j],l_data[cond],
-                                        low,up,
-                                        't','L',u,v,
-                                        **settings)
-                            #plot_contour(ax[i+j],l_data[cond],
-                            #             l,u,
-                            #             't','L',z,
-                            #             doLog=('dLdt_' not in z),
-                            #             **settings)
+                            #plot_quiver(ax[i+j],l_data[cond],
+                            #            low,up,
+                            #            't','L',u,v,
+                            #            **settings)
+                            plot_contour(lshell,ax[i+j],l_data[cond],
+                                         low,up,
+                                         't','L',z,
+                                         doLog=True,#doLog=('dLdt_' not in z),
+                                         **settings)
                             if j==0 and(
                                     'X_subsolar [Re]'in ds[ev]['mp'+ph]):
                                 ax[i+j].plot(mptimes,x_sub,color='white')
                 #save
                 lshell.tight_layout(pad=0.2)
-                lshell.savefig(path+'/'+z.split(' ')[0]+'_lshell'+ph+'.png')
+                figname = path+'/'+z.split(' ')[0]+'_lshell'+ph+'.png'
+                lshell.savefig(figname)
                 plt.close(lshell)
+                print('Created ',figname)
+
+def static_motional_fig(ds,ph,path):
+    """Line plots of the static vs motional flux
+    Inputs
+        ds (DataFrame)- Main data object which contains data
+        ph (str)- phase ('main','rec', etc)
+        path (str)- where to save figure
+    Returns
+        None
+    """
+    #setup figure
+    fig1,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                        figsize=[14,4*len(ds.keys())])
+    #plot
+    for i,ev in enumerate(ds.keys()):
+        times = ds[ev]['time'+ph]
+        lobe = ds[ev]['msdict'+ph]['lobes']
+        closed = ds[ev]['msdict'+ph]['closed']
+        rc = ds[ev]['msdict'+ph]['rc']
+        ax[i].plot(times,lobe['Utot2_acqu [W]'],label='lobeacqu')
+        #ax[i].plot(times,closed['Utot2_acqu [W]'],label='closed_acqu')
+        ax[i].plot(times,rc['Utot2_acqu [W]'],label='rcacqu')
+        general_plot_settings(ax[i],ylabel=r'Energy Flux $\left[ W\right]$',
+                              do_xlabel=(i==len(ds.keys())-1),legend=True)
+    #save
+    fig1.tight_layout(pad=1)
+    figname = path+'/motional_flux_'+ph+'.png'
+    fig1.savefig(figname)
+    plt.close(fig1)
+    print('Created ',figname)
 
 def quiet_figures(ds):
     region_interface_averages(ds)
@@ -587,11 +695,13 @@ def main_rec_figures(ds):
     ##Main + Recovery phase
     hatches = ['','*','x','o']
     for ph,path in [('_main',outMN1),('_rec',outRec)]:
-        stack_energy_type_fig(ds,ph,path)
-        stack_energy_region_fig(ds,ph,path,hatches)
-        stack_volume_fig(ds,ph,path,hatches)
-        interf_power_fig(ds,ph,path,hatches)
+        #stack_energy_type_fig(ds,ph,path)
+        #stack_energy_region_fig(ds,ph,path,hatches)
+        #stack_volume_fig(ds,ph,path,hatches)
+        #interf_power_fig(ds,ph,path,hatches)
         polar_cap_area_fig(ds,ph,path)
+        tail_cap_fig(ds,ph,path)
+        #static_motional_fig(ds,ph,path)
 
 def interval_figures(ds):
     hatches = ['','*','x','o']
@@ -603,8 +713,7 @@ def interval_figures(ds):
         polar_cap_area_fig(ds,ph,path)
 
 def lshell_figures(ds):
-    #lshell_contour_figure(ds)
-    pass
+    lshell_contour_figure(ds)
 
 def bonus_figures(ds):
     pass
@@ -632,14 +741,9 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     ds = {}
-    #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
-    #ds['feb'] = load_hdf_sort(inPath+'feb2014_lshell3.h5')
     ds['feb'] = load_hdf_sort(inPath+'trial_feb2014_results.h5')
     #ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
-    #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
-    #ds['may'] = load_hdf_sort(inPath+'may2019_lshell.h5')
     ds['may'] = load_hdf_sort(inPath+'trial_may2019_results.h5')
-    #ds['aug'] = load_hdf_sort(inPath+'aug2019_results.h5')
 
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
@@ -648,25 +752,19 @@ if __name__ == "__main__":
     #                                 read_supermag=False)
     ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
                                     read_supermag=False)
-    #ds['aug']['obs'] = read_indices(inPath, prefix='aug2019_',
-    #                                read_supermag=False)
 
     #NOTE hotfix for closed region tail_closed
-    for ev in ds.keys():
-        for t in[t for t in ds[ev]['msdict']['closed'].keys()
-                                                    if 'Tail_close'in t]:
-            ds[ev]['msdict']['closed'][t] = ds[ev]['mpdict']['ms_full'][t]
+    #for ev in ds.keys():
+    #    for t in[t for t in ds[ev]['msdict']['closed'].keys()
+    #                                                if 'Tail_close'in t]:
+    #        ds[ev]['msdict']['closed'][t] = ds[ev]['mpdict']['ms_full'][t]
 
     ##Construct "grouped" set of subzones, then get %contrib for each
     for event in ds.keys():
-        #ds[event]['mpdict'],ds[event]['msdict'] = get_subzone_contrib(
-        #                                               ds[event]['mpdict'],
-        #                                               ds[event]['msdict'])
         ds[event]['msdict'] = {
                 'rc':ds[event]['msdict'].get('rc',pd.DataFrame()),
                 'closed':ds[event]['msdict'].get('closed',pd.DataFrame()),
                 'lobes':ds[event]['msdict'].get('lobes',pd.DataFrame())}
-                               #'missed':ds[event]['msdict']['missed']}
     ##Parse storm phases
     for ev in ds.keys():
         obs_srcs = list(ds[ev]['obs'].keys())
