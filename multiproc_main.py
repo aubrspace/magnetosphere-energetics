@@ -109,19 +109,19 @@ def work(mhddatafile):
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
-                                    analysis_type='energy',
+                                    analysis_type='energymassmag',
                                     do_interfacing=True,
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     modes=['iso_betastar','nlobe','slobe',
                                             'closed','rc'],
                                     verbose=False,
+                                    tshift=45,
                                     extract_flowline=False,
                                     outputpath=CONTEXT['OUTPUTPATH'],
                                     customTerms={'test':'TestArea [Re^2]'},
                                     logger=log)
                                     #modes=['closed'],
-                                    #tshift=45,
                                     #lshells=[7,12,17,22,27,32],
                                     #lshell_vars=['uB','uB_dipole',
                                     #             'u_db','uHydro'],
@@ -129,65 +129,8 @@ def work(mhddatafile):
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
                                                            marktime))
         marktime=time.time()
-    log.info('Begining visuals')
-    if log.level==10:
-        marktime=time.time()
     if False:#manually switch on or off
-        #adjust view settings
-        proc = 'Multi Frame Manager'
-        cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-        tp.macro.execute_extended_command(command_processor_id=proc,
-                                          command=cmd)
-        mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
-        zone_hidekeys = ['sphere', 'box','shue','future','innerbound',
-                         'lcb']
-        timestamp=True
-        for frame in enumerate(tp.frames()):
-            frame[1].activate()
-            if frame[0]==0:
-                legend = False
-                timestamp = True
-                doslice = True
-                slicelegend = False
-                fieldlegend = True
-                fieldline=True
-            if frame[0]==1:
-                legend = True
-                timestamp = False
-                doslice = True
-                slicelegend = False
-                fieldlegend = False
-                fieldline=True
-            if frame[0]==2:
-                legend = False
-                timestamp = False
-                doslice = True
-                slicelegend = True
-                fieldlegend = False
-                fieldline=False
-            if frame[0]==3:
-                legend = True
-                save = True
-                timestamp = False
-                doslice = False
-                slicelegend = False
-                fieldlegend = False
-                fieldline=True
-                zone_hidekeys = ['sphere', 'box','shue','future','lcb']
-            view_set.display_single_iso(frame[1], mhddatafile,
-                                        mode=mode[frame[0]],
-                                        pngpath=CONTEXT['PNGPATH'],
-                                        outputname=OUTPUTNAME,
-                                        IDstr=str(CONTEXT['id']),
-                                        show_contour=True,
-                                        show_fieldline=fieldline,
-                                        show_legend=legend,
-                                        show_slegend=slicelegend,
-                                        show_flegend=fieldlegend,
-                                        show_slice=doslice,
-                                        timestamp_pos=[4,5],
-                                        zone_hidekeys=zone_hidekeys,
-                                        show_timestamp=timestamp)
+        pass
     else:
         with open(CONTEXT['PNGPATH']+'/'+OUTPUTNAME+'.png','wb') as png:
             png.close()
@@ -198,7 +141,7 @@ def work(mhddatafile):
         log.debug('Png and Wrapup: --- {:.2f}s ---'.format(time.time()-
                                                                marktime))
         marktime=time.time()
-    #print(time.ctime())
+    print(time.ctime())
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -233,15 +176,16 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'ccmc_2019-05-13'
+    #RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
-    #RUNDIR = 'febstorm'
+    RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'testoutput_feb2014')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
@@ -254,7 +198,7 @@ if __name__ == '__main__':
     ########################################
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0::5]
+                                key=makevideo.time_sort)[0:15:5]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

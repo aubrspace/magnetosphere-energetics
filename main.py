@@ -87,16 +87,17 @@ if __name__ == "__main__":
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       do_cms=True,
-                                      analysis_type='energy',
+                                      analysis_type='energymagmass',
+                                      modes=['iso_betastar','nlobe',
+                                             'slobe','closed','rc'],
                                       do_interfacing=True,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                                      modes=['iso_betastar','nlobe',
-                                             'slobe','closed','rc'],
-                                      verbose=False,
+                                      verbose=True,
                                       extract_flowline=False,
                                       outputpath='babyrun/',
                                       customTerms={'test':'TestArea [Re^2]'})
+                                      #analysis_type='energymassmag',
     #with tp.session.suspend():
     if False:#manually switch on or off
         #adjust view settings

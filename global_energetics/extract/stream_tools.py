@@ -937,11 +937,11 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                             zones=[zone.index])
             ##############################################################
             #Normal Poynting Flux
-            eq('{'+add+'ExB_net [W/Re^2]} = {Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
+            eq('{'+add+'ExB_net [W/Re^2]}={Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
                                             '*6371**2*('+
-                                        '{U_x [km/s]}*{surface_normal_x}'+
-                                        '+{U_y [km/s]}*{surface_normal_y}'+
-                                        '+{U_z [km/s]}*{surface_normal_z})-'+
+                                      '{U_x [km/s]}*{surface_normal_x}'+
+                                     '+{U_y [km/s]}*{surface_normal_y}'+
+                                     '+{U_z [km/s]}*{surface_normal_z})-'+
                 '({B_x [nT]}*({U_x [km/s]})+'+
                 '{B_y [nT]}*({U_y [km/s]})+'+
                 '{B_z [nT]}*({U_z [km/s]}))'+
@@ -977,6 +977,41 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 value_location=ValueLocation.CellCentered,
                 zones=[zone.index])
             ##############################################################
+            #Normal Total Energy Flux
+            eq('{'+add+'K_net [W/Re^2]}='+
+                   '{P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            #Split into + and - flux
+            eq('{'+add+'K_escape [W/Re^2]}=max({'+add+'K_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            eq('{'+add+'K_injection [W/Re^2]} ='+
+                         'min({'+add+'K_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+    if 'mag' in analysis_type:
+        for add in prefixlist:
+            ##############################################################
+            #Normal Magnetic Flux
+            eq('{'+add+'Bf_net [Wb/Re^2]} =({B_x [nT]}*{surface_normal_x}'+
+                                      '+{B_y [nT]}*{surface_normal_y}'+
+                                      '+{B_z [nT]}*{surface_normal_z})'+
+                                      '*6.371**2*1e3',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            #Split into + and - flux
+            eq('{'+add+'Bf_escape [Wb/Re^2]} ='+
+                        'max({'+add+'Bf_net [Wb/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+            eq('{'+add+'Bf_injection [Wb/Re^2]} ='+
+                        'min({'+add+'Bf_net [Wb/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=[zone.index])
+    if 'mass' in analysis_type:
+        for add in prefixlist:
+            ##############################################################
             #Normal Mass Flux
             eq('{'+add+'RhoU_net [kg/s/Re^2]} = {Rho [amu/cm^3]}*'+
                                             '1.67*10e-12*6371**2*('+
@@ -992,20 +1027,6 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 zones=[zone.index])
             eq('{'+add+'RhoU_injection [kg/s/Re^2]} ='+
                         'min({'+add+'RhoU_net [kg/s/Re^2]},0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
-            ##############################################################
-            #Normal Total Energy Flux
-            eq('{'+add+'K_net [W/Re^2]}='+
-                   '{P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
-            #Split into + and - flux
-            eq('{'+add+'K_escape [W/Re^2]}=max({'+add+'K_net [W/Re^2]},0)',
-                value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
-            eq('{'+add+'K_injection [W/Re^2]} ='+
-                         'min({'+add+'K_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
                 zones=[zone.index])
 
@@ -2310,8 +2331,8 @@ def calc_delta_state(t0state, t1state):
     """
     eq = tp.data.operate.execute_equation
     eq('{delta_'+t0state+'}=IF({'+t1state+'}==1 && {'+t0state+'}==0, 1,'+
-                        'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
-                        value_location=ValueLocation.CellCentered)
+                            'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
+                                zones=[0])
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south,
                        sourcezone):

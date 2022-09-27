@@ -452,6 +452,20 @@ def calc_integral(term, zone, **kwargs):
     result = {term[1]:[value]}
     return result
 
+def get_mag_dict():
+    """Creates dictionary of terms to be integrated for magnetic flux
+    Inputs
+    Outputs
+        mag_dict(dict{str:str})- dictionary w/ pre:post integral
+    """
+    flux_suffixes = ['_escape','_injection']#net will be calculated in post
+    units = ' [Wb/Re^2]'
+    postunits = ' [Wb]'
+    mag_dict = {}
+    for direction in flux_suffixes:
+        mag_dict.update({'Bf'+direction+units:'Bf'+direction+postunits})
+    return mag_dict
+
 def get_energy_dict():
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
@@ -540,6 +554,8 @@ def surface_analysis(zone, **kwargs):
         integrands.update(get_virial_dict(zone))
     if 'energy' in analysis_type:
         integrands.update(get_energy_dict())
+    if 'mag' in analysis_type:
+        integrands.update(get_mag_dict())
     if 'mass' in analysis_type:
         integrands.update(get_mass_dict())
     integrands.update(kwargs.get('customTerms', {}))
@@ -557,10 +573,14 @@ def surface_analysis(zone, **kwargs):
         #integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
+    if kwargs.get('verbose',False):
+        print('{:<30}{:<35}{:<9}'.format('Surface','Term','Value'))
+        print('{:<30}{:<35}{:<9}'.format('******','****','*****'))
     for term in integrands.items():
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
-            print(zone.name+term[1]+' integration done')
+            print('{:<30}{:<35}{:>.3}'.format(
+                      zone.name,term[1],results[term[1]][0]))
     if 'closed' in zone.name:
         for k in [k for k in results.keys()if 'PSB' in k]:print(results[k])
     ###################################################################
@@ -569,7 +589,8 @@ def surface_analysis(zone, **kwargs):
         results.update(calc_integral((' ','Area [Re^2]'), zone,
                         VariableOption='LengthAreaVolume'))
         if kwargs.get('verbose',False):
-            print(zone.name+' Surface Area integration done')
+            print('{:<30}{:<35}{:>.3}'.format(
+                      zone.name,'Area [Re^2]',results['Area [Re^2]'][0]))
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:

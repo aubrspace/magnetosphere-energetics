@@ -180,7 +180,6 @@ def get_mobile_integrands(zone,state_var,integrands,tdelta, analysis_type):
     """
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
     dstate = 'delta_'+str(state_var.name)
-    #for term in integrands.items():
     #Don't proliferate IM tracking variables
     for term in [(t,d) for t,d in integrands.items() if'track' not in t]:
         if ('energy' in analysis_type) or ('rhoU_r' in term[0]):
@@ -192,17 +191,26 @@ def get_mobile_integrands(zone,state_var,integrands,tdelta, analysis_type):
             else:
                 units = '[W]'
             if dstate in zone.dataset.variable_names:
+                #NOTE Undo naming convention previously created where volume
+                # energy is only INTERIOR to state volume, the delta volume
+                # (acquired specifically) is strictly OUTSIDE state volume.
+                # This means we need to undo the renaming done in
+                # 'get_(somecore)_integrands'
+                if 'J' in term[1]:
+                    basevar = term[1].replace('J]','J/Re^3]')
+                elif 'Area' in term[1]:
+                    basevar = term[0]
+
+                #Assign the base variable value (from CURRENT time)
+                #NOTE could explore averaging soln @ tn,tn+1
                 eq('{'+name+'_acqu}=IF({'+dstate+'}==1,'+
-                                            '-1*{'+term[0]+'}/'+td+',0)',
+                                            '-1*{'+basevar+'}/'+td+',0)',
                                                              zones=[zone])
                 eq('{'+name+'_forf}=IF({'+dstate+'}==-1,'+
-                                                '{'+term[0]+'}/'+td+',0)',
+                                                '{'+basevar+'}/'+td+',0)',
                                                              zones=[zone])
-                #eq('{'+name+'_net} ={delta_volume} * -1*{'+term[0]+'}/'+td,
-                #                                                 zones=[zone])
                 mobiledict.update({name+'_acqu':outputname+'_acqu '+units,
-                               name+'_forf':outputname+'_forf '+units})
-                              #name+'_net':outputname+'_net '+units})
+                                   name+'_forf':outputname+'_forf '+units})
     return mobiledict
 
 def get_lshell_integrands(zone,state_var,integrands,**kwargs):
@@ -327,10 +335,14 @@ def volume_analysis(state_var, **kwargs):
                                                 integrands,**kwargs))
     ###################################################################
     #Evaluate integrals
+    if kwargs.get('verbose',False):
+        print('{:<20}{:<25}{:<9}'.format('Volume','Term','Value'))
+        print('{:<20}{:<25}{:<9}'.format('******','****','*****'))
     for term in integrands.items():
         results.update(calc_integral(term, global_zone))
         if kwargs.get('verbose',False):
-            print(state_var.name+term[1]+' integration done')
+            print('{:<20}{:<25}{:>.3}'.format(
+                      state_var.name,term[1],results[term[1]][0]))
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):
@@ -338,12 +350,16 @@ def volume_analysis(state_var, **kwargs):
         results.update(calc_integral(('Volume '+state_var.name,
                                       'Volume [Re^3]'), global_zone))
                                   #**{'VariableOption':'LengthAreaVolume'}))
+        if kwargs.get('verbose',False):
+            print('{:<20}{:<25}{:>.3}'.format(state_var.name,
+                               'Volume [Re^3]',results['Volume [Re^3]'][0]))
         if kwargs.get('do_cms',False):
             if 'delta_'+str(state_var.name) in state_var.dataset.variable_names:
                 results.update(calc_integral(('delta_'+str(state_var.name),
                                           'dVolume [Re^3]'), global_zone))
-        if kwargs.get('verbose',False):
-            print(state_var.name+' Volume integration done')
+            if kwargs.get('verbose',False):
+                print('{:<20}{:<25}{:>.3}'.format(state_var.name,
+                             'dVolume [Re^3]',results['dVolume [Re^3]'][0]))
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:

@@ -524,7 +524,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if integrate_surface:
         for zone in zonelist:
             #integrate power on created surface
-            print('Working on: '+zone.name+' surface')
+            print('\nWorking on: '+zone.name+' surface')
             surf_results = surface_tools.surface_analysis(zone,**kwargs)
             if ('mp_' in zone.name) and ('inner' not in zone.name):
                 #Add x_subsolar
@@ -568,7 +568,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 #integrate power on innerboundary surface
                 inner_mesh = {}
                 inner_zone = field_data.zone('*innerbound*')
-                print('Working on: '+inner_zone.name)
+                print('\nWorking on: '+inner_zone.name)
                 inner_surf_results = surface_tools.surface_analysis(
                                                        inner_zone,**kwargs)
                 inner_surf_results['Time [UTC]'] = eventtime
@@ -588,7 +588,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     if integrate_volume:
         for state_index in enumerate(state_indices):
             region = zonelist[state_index[0]]
-            print('Working on: '+region.name+' volume')
+            print('\nWorking on: '+region.name+' volume')
             energies = volume_analysis(field_data.variable(state_index[1]),
                                        **kwargs)
             energies['Time [UTC]'] = eventtime

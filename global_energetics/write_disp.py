@@ -45,8 +45,8 @@ def write_to_hdf(filename, data):
             if '/'+df[0] in store.keys():
                 data[df[0]] = store[df[0]].append(data[df[0]],
                                                   ignore_index=True)
-            print(df[1])
-            print(data[df[0]])
+            #print(df[1])
+            #print(data[df[0]])
             store['/'+df[0]] = data[df[0]]
 
 def display_progress(meshfile, integralfile, zonename):
