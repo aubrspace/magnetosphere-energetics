@@ -292,8 +292,8 @@ def volume_analysis(state_var, **kwargs):
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     global_zone = state_var.dataset.zone(0)
-    #TRYING THIS OUT
-    if True:
+    #Seems to change values by ~3-10%, mostly affects differential qtys
+    if False:
         plt = tp.active_frame().plot()
         plt.value_blanking.active = True
         blank = plt.value_blanking.constraint(1)
@@ -366,16 +366,6 @@ def volume_analysis(state_var, **kwargs):
         results.update(virial_post_integr(results))
     if 'energy' in analysis_type:
         results.update(energy_post_integr(results, **kwargs))
-        '''
-        if kwargs.get('do_cms', False):
-            for direction in ['_acqu', '_forf','_net']:
-                results.pop('Eth'+direction+' [W]')
-                results.pop('KE'+direction+' [W]')
-                #for loc in['Day','Flank','Tail','OpenN','OpenS','Closed']:
-                for loc in['OpenN','OpenS','Closed']:
-                    results.pop('Eth'+direction+loc+' [W]')
-                    results.pop('KE'+direction+loc+' [W]')
-        '''
-    blank.active = False
+    #blank.active = False
     return pd.DataFrame(results)
 
