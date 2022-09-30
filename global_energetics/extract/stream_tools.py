@@ -1358,7 +1358,10 @@ def equations(**kwargs):
                    'trunc(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})'+
                         ')',
          '{Lshell}':'{r [R]}/cos({lambda})**2',
-         '{theta [deg]}':'-180/pi*{lambda}'}
+         '{theta [deg]}':'-180/pi*{lambda}',
+         '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
+         '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
+         '{phi}':'atan2({Y [R]}, {Xd [R]})'}
     ######################################################################
     #Physical quantities including:
     #   Dynamic Pressure
@@ -1379,9 +1382,6 @@ def equations(**kwargs):
     ######################################################################
     #Fieldlinemaping
     equations['fieldmapping'] = {
-        '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
-        '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
-        '{phi}':'atan2({Y [R]}, {Xd [R]})',
         '{req}':'2.7/(cos({lambda})**2)',
         '{lambda2}':'sqrt(acos(1/{req}))',
         '{X_r1project}':'1*cos({phi})*sin(pi/2-{lambda2})',
@@ -1808,8 +1808,12 @@ def calc_state(mode, sourcezone, **kwargs):
             mpvar = kwargs.get('mpvar',sourcezone.dataset.variable('mp*'))
         assert kwargs.get('do_trace',False) == False, (
                             "lobe mode only works with do_trace==False!")
-        assert mpvar is not None,('magnetopause variable not found'+
-                                  'cannot calculate lobe zone!')
+        #assert mpvar is not None,('magnetopause variable not found'+
+        #                          'cannot calculate lobe zone!')
+        #NOTE replaced assertion w emergency magnetopause variable creation
+        if mpvar is None:
+            calc_betastar_state('mp_iso_betastar', sourcezone,**kwargs)
+            mpvar = sourcezone.dataset.variable('mp*')
         zonename = 'ms_'+mode
         if 'slobe' in mode.lower():
             state_index = calc_lobe_state(mpvar.name, 'south',

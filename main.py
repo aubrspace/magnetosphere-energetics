@@ -71,7 +71,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [feb_asym]:
+    for inputs in [ccmc4]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -88,11 +88,10 @@ if __name__ == "__main__":
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       do_cms=True,
                                       analysis_type='energymagmass',
-                                      modes=['iso_betastar','nlobe',
-                                             'slobe','closed','rc'],
+                                      modes=['nlobe','slobe'],
                                       do_interfacing=True,
                                       integrate_surface=True,
-                                      integrate_volume=True,
+                                      integrate_volume=False,
                                       verbose=True,
                                       extract_flowline=False,
                                       outputpath='babyrun/',

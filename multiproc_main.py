@@ -112,16 +112,13 @@ def work(mhddatafile):
                                     analysis_type='energymassmag',
                                     do_interfacing=True,
                                     integrate_surface=True,
-                                    integrate_volume=True,
-                                    modes=['iso_betastar','nlobe','slobe',
-                                            'closed','rc'],
-                                    verbose=False,
-                                    tshift=45,
-                                    extract_flowline=False,
+                                    integrate_volume=False,
+                                    modes=['nlobe','slobe'],
                                     outputpath=CONTEXT['OUTPUTPATH'],
                                     customTerms={'test':'TestArea [Re^2]'},
                                     logger=log)
                                     #modes=['closed'],
+                                    #tshift=45,
                                     #lshells=[7,12,17,22,27,32],
                                     #lshell_vars=['uB','uB_dipole',
                                     #             'u_db','uHydro'],
@@ -176,16 +173,16 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    #RUNDIR = 'ccmc_2019-05-13'
+    RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
-    RUNDIR = 'febstorm'
+    #RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'testoutput_feb2014')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
@@ -198,7 +195,7 @@ if __name__ == '__main__':
     ########################################
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0:15:5]
+                                key=makevideo.time_sort)[0::5]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

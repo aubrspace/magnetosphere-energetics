@@ -114,30 +114,35 @@ def post_proc_interface(results,**kwargs):
             df[kinj] = true_inj[n][1]
             df[true_inj[n][0]] = vesc
     ##Finally, calculate PSB
-    for name, df in results.items():
-        if ('lobe' in name) or ('close' in name) or ('rc' in name):
-            whole_keys=[k for k in df.keys()if ('_injection 'in k
-                                                or  '_escape 'in k
-                                                    or  '_net 'in k
+    if (('lobe' in results.keys()) and
+        ('close' in results.keys())and
+        ('rc' in results.keys())):
+        for name, df in results.items():
+            if ('lobe' in name) or ('close' in name) or ('rc' in name):
+                whole_keys=[k for k in df.keys()if ('_injection 'in k
+                                                    or  '_escape 'in k
+                                                     or  '_net 'in k
                                                       or 'TestArea ' in k)]
-            for k in whole_keys:
-                units = '['+k.split('[')[1].split(']')[0]+']'
-                psb = k.split(' [')[0]+'PSB '+units
-                fl = k.split(' [')[0]+'Flank '+units
-                pl = k.split(' [')[0]+'Poles '+units
-                tl_l = k.split(' [')[0]+'Tail_lobe '+units
-                tl_c = k.split(' [')[0]+'Tail_close '+units
-                dy = k.split(' [')[0]+'Dayside_reg '+units
-                dyi = k.split(' [')[0]+'Dayside_inner '+units
-                l_7 = k.split(' [')[0]+'L7 '+units
-                ml = k.split(' [')[0]+'MidLat '+units
-                ll = k.split(' [')[0]+'LowLat '+units
-                if 'lobe' in name:
-                    df[psb] = (df[k]-df[fl]-df[pl]-df[tl_l])
-                elif 'close' in name:
-                    df[psb] = (df[k]-df[dy]-df[l_7]-df[ml]-df[tl_c])
-                elif 'rc' in name:
-                    df[psb] = (df[k]-df[ll]-df[l_7]-df[dyi])
+                for k in whole_keys:
+                    units = '['+k.split('[')[1].split(']')[0]+']'
+                    psb = k.split(' [')[0]+'PSB '+units
+                    fl = k.split(' [')[0]+'Flank '+units
+                    pl = k.split(' [')[0]+'Poles '+units
+                    tl_l = k.split(' [')[0]+'Tail_lobe '+units
+                    tl_c = k.split(' [')[0]+'Tail_close '+units
+                    dy = k.split(' [')[0]+'Dayside_reg '+units
+                    dyi = k.split(' [')[0]+'Dayside_inner '+units
+                    l_7 = k.split(' [')[0]+'L7 '+units
+                    ml = k.split(' [')[0]+'MidLat '+units
+                    ll = k.split(' [')[0]+'LowLat '+units
+                    if 'lobe' in name:
+                        df[psb] = (df[k]-df[fl]-df[pl]-df[tl_l])
+                    elif 'close' in name:
+                        df[psb] = (df[k]-df[dy]-df[l_7]-df[ml]-df[tl_c])
+                    elif 'rc' in name:
+                        df[psb] = (df[k]-df[ll]-df[l_7]-df[dyi])
+    else:
+        print('Plasma sheet boundary layer not calculated!!')
     return results
 
 def post_proc(results,**kwargs):
@@ -325,10 +330,13 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                                               '{Cell Size [Re]}*1)&&'][0]
                 #NOTE 0.75*cell size worked for everyone but L7,
                 #       which was optimized at 1*cell size
+        if ('day' in conditions) or ('night' in conditions):
+            if 'day' in conditions:
+                new_eq+='(abs({phi})<pi/2) &&'#Dayside
+            elif 'night' in conditions:
+                new_eq+='(abs({phi})>pi/2) &&'#Nightside
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7']]):
-        #if any([c in ['open','closed','tail','on_innerbound','L7'] for
-        #                                                 c in conditions]):
             #chop hanging && and close up condition
             new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
             try:
@@ -390,6 +398,14 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #Poles
         interfaces.update(conditional_mod(zone,integrands,
                 ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
+        #Poles dayside only
+        interfaces.update(conditional_mod(zone,integrands,
+                                        ['on_innerbound','day'],'PolesDay',
+                                          inner_r=kwargs.get('inner_r',3)))
+        #Poles nightside only
+        interfaces.update(conditional_mod(zone,integrands,
+                                    ['on_innerbound','night'],'PolesNight',
+                                        inner_r=kwargs.get('inner_r',3)))
         #Tail(lobe)
         #interfaces.update(conditional_mod(zone,integrands,['tail'],
         #                                  'Tail_lobe'))
