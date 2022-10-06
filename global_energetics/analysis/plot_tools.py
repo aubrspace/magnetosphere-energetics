@@ -6,7 +6,8 @@ import datetime as dt
 from scipy import signal
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator,
+                               FuncFormatter)
 
 def pyplotsetup(*,mode='presentation',**kwargs):
     """Creates dictionary to send to rcParams for pyplot defaults
@@ -81,7 +82,23 @@ def general_plot_settings(ax, **kwargs):
             iscontour(boolean)- default False
     """
     #Xlabel
-    if not kwargs.get('iscontour',False):
+    if kwargs.get('iscontour',False):
+        ax.set_xlim(kwargs.get('xlim',None))
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.set_xlabel(kwargs.get('xlabel',''))
+    if kwargs.get('timedelta',False):
+        tmin,tmax = ax.get_xlim()
+        def timedelta_ticks(x,pos):
+            if type(x)==type(dt.timedelta):
+                hrs = x.days*24+t1.seconds/3600
+            else:
+                hrs = x/(1e9*3600)
+            hours = int(hrs)
+            minutes = (int(abs(hrs*60)%60))
+            return "{:d}:{:02d}".format(hours,minutes)
+        formatter = FuncFormatter(timedelta_ticks)
+        ax.xaxis.set_major_formatter(formatter)
+    else:
         #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         tmin,tmax = ax.get_xlim()
         time_range = mdates.num2timedelta(tmax-tmin)
@@ -95,10 +112,6 @@ def general_plot_settings(ax, **kwargs):
             #         kwargs.get('xlabel',r'Time $\left[ Hr:Mn\right]$'))
             pass
         ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-    else:
-        ax.set_xlim(kwargs.get('xlim',None))
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel(kwargs.get('xlabel',''))
     #Ylabel
     ax.set_ylim(kwargs.get('ylim',None))
     ax.yaxis.set_minor_locator(AutoMinorLocator())
