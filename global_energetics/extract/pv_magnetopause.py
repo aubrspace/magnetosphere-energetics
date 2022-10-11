@@ -671,11 +671,17 @@ def setup_pipeline(infile,**kwargs):
 #if __name__ == "__main__":
 if True:
     start_time = time.time()
-    path = '/home/aubr/Code/swmf-energetics/febstorm/copy_paraview_plt/'
-    outpath = 'output_pv_magnetosphere/'
-    if not os.path.exists(path):
-        path='/Users/ngpdl/Code/swmf-energetics/localdbug/paraview_cleaned/'
-        outpath = '/Users/ngpdl/Code/swmf-energetics/output/pv_test/'
+    ######################################################################
+    # USER INPUTS
+    ######################################################################
+    path='/home/aubr/Code/swmf-energetics/localdbug/fte/copy_paraview_plt/'
+    outpath = 'output_fte_pv/'
+    ######################################################################
+
+    #Make the paths if they don't already exist
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(outpath, exist_ok=True)
+
     filelist = glob.glob(path+'*.plt')
     for infile in filelist[0:1]:
         print('processing '+infile.split('/')[-1]+'...')
@@ -694,14 +700,12 @@ if True:
         SetActiveView(renderView)
         display_visuals(field,mp,renderView)
 
-        '''
+    '''
         # Render and save screenshot
         RenderAllViews()
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',
                        renderView)
-        '''
-    '''
     for infile in filelist[1::]:
         print('processing '+infile.split('/')[-1]+'...')
         #Read in new file unattached to current pipeline

@@ -112,8 +112,9 @@ def work(mhddatafile):
                                     analysis_type='energymassmag',
                                     do_interfacing=True,
                                     integrate_surface=True,
-                                    integrate_volume=False,
-                                    modes=['nlobe','slobe'],
+                                    integrate_volume=True,
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe','rc'],
                                     outputpath=CONTEXT['OUTPUTPATH'],
                                     customTerms={'test':'TestArea [Re^2]'},
                                     logger=log)
@@ -175,15 +176,20 @@ if __name__ == '__main__':
     #RUNDIR = 'usermod'
     RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
+    #RUNDIR = 'ccmc_2022-02-02'
     #RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_may2019')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_may2019')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, '1min_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink2')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_may2019')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_feb2014')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_starlink')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_starlink2')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################
@@ -195,7 +201,7 @@ if __name__ == '__main__':
     ########################################
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0::5]
+                                key=makevideo.time_sort)[0::]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

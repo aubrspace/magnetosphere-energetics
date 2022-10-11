@@ -18,6 +18,66 @@ import pandas as pd
 from global_energetics.makevideo import get_time, time_sort
 from global_energetics.extract.stream_tools import integrate_tecplot
 
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+
+def read_idl_ascii(infile,**kwargs):
+    """Function reads .idl file that is ascii formatted
+    Inputs
+        infile
+        kwargs:
+    Returns
+        north,south (DataFrame)- data for north and south hemispheres
+        aux (dict)- dictionary of other information
+    """
+    headers = ['VALUES','TIME','SIMULATION','DIPOLE']
+    aux = {}
+    variables = []
+    i=0
+    with open(infile,'r') as f:
+        for line in f:
+            if 'TITLE' in line:
+                title = f.readline()
+                i+=1
+            elif 'VARIABLE' in line:
+                value = f.readline()
+                i+=1
+                isblank = all([c==''for c in value.split('\n')[0].split(' ')])
+                while not isblank:
+                    name= '_'.join([c.split('\n')[0] for c in value.split(' ')
+                                                    if c!='\n' and c!=''][1::])
+                    variables.append(name)
+                    value = f.readline()
+                    i+=1
+                    isblank=all([c==''for c in value.split('\n')[0].split(' ')])
+            elif any([h in line for h in headers]):
+                value = f.readline()
+                i+=1
+                isblank = all([c==''for c in value.split('\n')[0].split(' ')])
+                while not isblank:
+                    qty = [c for c in value.split(' ') if c!='\n' and c!=''][0]
+                    name= '_'.join([c.split('\n')[0] for c in value.split(' ')
+                                                    if c!='\n' and c!=''][1::])
+                    if qty.isnumeric(): qty = int(qty)
+                    elif isfloat(qty): qty = float(qty)
+                    aux[name] = qty
+                    value = f.readline()
+                    i+=1
+                    isblank=all([c==''for c in value.split('\n')[0].split(' ')])
+            elif 'BEGIN NORTH' in line:
+                i_ns, northstart = i, line
+            elif 'BEGIN SOUTH' in line:
+                i_ss, southstart = i, line
+            i+=1
+    north = pd.read_csv(infile,sep='\s+',skiprows=i_ns+1,names=variables,
+                        nrows=i_ss)
+    south = pd.read_csv(infile,sep='\s+',skiprows=i_ss+1,names=variables)
+    return north,south,aux
+
 def calc_shell_variables(ds, **kwargs):
     """Calculates helpful variables such as cell area (labeled as volume)
     """
@@ -126,25 +186,16 @@ if __name__ == "__main__":
     if '-c' in sys.argv:
         tp.session.connect()
         tp.new_layout()
-    #datapath = ('/nfs/solsticedisk/tuija/starlink/IE/ionosphere/')
-    datapath = ('/Users/ngpdl/Code/swmf-energetics/localdbug/ie/')
-    filelist = sorted(glob.glob(datapath+'it*.tec'), key=time_sort)
+    #datapath = ('/Users/ngpdl/Code/swmf-energetics/localdbug/ie/')
+    datapath = ('/nfs/solsticedisk/tuija/ccmc/2019-05-13/run/IE/ionosphere/')
+    filelist = sorted(glob.glob(datapath+'it*.idl'), key=time_sort)
     for file in filelist[0:1]:
-        field_data = tp.data.load_tecplot(file)
         #get timestamp
         timestamp = get_time(file)
-        #setup zones
-        north = field_data.zone('IonN *')
-        south = field_data.zone('IonS *')
-        joule = field_data.variable('JouleHeat *')
-        energy = field_data.variable('E-Flux *')
-        #integrate
-        conversion = 6371**2*1e3 #mW/m^2*Re^2 -> W
-        njoul = integrate_tecplot(joule,north)*conversion
-        sjoul = integrate_tecplot(joule,south)*conversion
-        nenergy = integrate_tecplot(energy,north)*conversion/1e3
-        senergy = integrate_tecplot(energy,south)*conversion/1e3
+        #read data
+        north,south,aux = read_idl_ascii(file)
+        #Integrate
         #save data
-        save_tofile(file,timestamp,
-                    nJouleHeat_W=[njoul],sJouleHeat_W=[sjoul],
-                    nEFlux_W=[nenergy],sEFlux_W=[senergy])
+        #save_tofile(file,timestamp,
+        #            nJouleHeat_W=[njoul],sJouleHeat_W=[sjoul],
+        #            nEFlux_W=[nenergy],sEFlux_W=[senergy])
