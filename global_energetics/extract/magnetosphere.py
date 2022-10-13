@@ -12,6 +12,7 @@ from tecplot.exception import *
 import pandas as pd
 #interpackage modules
 from global_energetics.extract import swmf_access
+from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract.stream_tools import (streamfind_bisection,
@@ -317,7 +318,7 @@ def generate_3Dobj(sourcezone, **kwargs):
             This used to apply conditions to achieve VOLUME integrations
         kwargs- we modify at least one arg depending on settings
     """
-    zonelist, state_indices = [], []
+    zonelist, zonelist1D, state_indices = [], [], []
     if kwargs=={}: print('Generating default zones:\n\t'+
                          'mode=iso_betastar\n\tanalysis_type=energy')
 
@@ -356,40 +357,28 @@ def generate_3Dobj(sourcezone, **kwargs):
                         calc_delta_state(sourcezone.dataset.variable(
                                     state_index).name.split('future_')[-1],
                             futurezone.dataset.variable(state_index).name)
+                    elif 'terminator' in m:
+                        zonelist1D.append(zone)#North
+                        zonelist1D.append(inner_zone)#South
+                        kwargs.update({'zonelist1D':zonelist1D})
                     else:
                         zonelist.append(zone)
                         state_indices.append(state_index)
                         if 'bs' in kwargs.get('modes',[]):
                             zonelist.append(inner_zone)
                             state_indices.append(state_index)
-                            get_surf_geom_variables(inner_zone)
+                            get_surf_geom_variables(inner_zone,**kwargs)
                         if 'modes' in kwargs:
-                            get_surf_geom_variables(zone)
+                            get_surf_geom_variables(zone,**kwargs)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
 
-    '''
-    if (sourcezone.dataset.variable('mp*') is not None)and'modes'not in kwargs:
-        kwargs.update({'mpvar':sourcezone.dataset.variable('mp*').name})
-        get_surf_geom_variables(sourcezone.dataset.zone('mp*'))
-        #get_surf_geom_variables(sourcezone.dataset.zone('ext_bs*'))
-    else:#now 'mpvar' could be a bit of a misnomer
-        kwargs.update({'mpvar':sourcezone.dataset.variable(state_index).name})
-        get_surf_geom_variables(zonelist[0])
-    if kwargs.get('do_cms','energy'in kwargs.get('analysis_type','energy')):
-        futurezone = sourcezone.dataset.zone('future*')
-        for cState in enumerate(state_indices):
-            _,__,fState = calc_state(modes[cState[0]],futurezone,**kwargs)
-            calc_delta_state(sourcezone.dataset.variable(cState[1]).name,
-                             sourcezone.dataset.variable(fState).name)
-        #_,j,future_state_index=calc_state(kwargs.get('mode','iso_betastar'),
-        #                                  futurezone,**kwargs)
-        #get state variable representing acquisitions/forfeitures
-        #calc_delta_state(sourcezone.dataset.variable(state_index).name,
-        #          sourcezone.dataset.variable(future_state_index).name)
-    '''
-    return zonelist, state_indices, kwargs
+    #Update kwargs dictionary rather than return
+    kwargs.update({'zonelist':zonelist})
+    kwargs.update({'state_indices':state_indices})
+
+    return kwargs #NOTE variable return based on what zones are made!
 
 
 def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
@@ -445,6 +434,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     xyzvar = kwargs.get('xyzvar', [0,1,2])
     zone_rename = kwargs.get('zone_rename', None)
     analysis_type = kwargs.get('analysis_type', 'energy')
+    integrate_line = kwargs.get('integrate_line', False)
     integrate_surface = kwargs.get('integrate_surface', True)
     tail_analysis_cap = kwargs.get('tail_analysis_cap',
                                    kwargs.get('tail_cap',-20))
@@ -511,7 +501,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     main_frame = [fr for fr in tp.frames('main')][0]
 
     # !!! kwargs updated !!!
-    zonelist, state_indices, kwargs = generate_3Dobj(globalzone, **kwargs)
+    #TODO add in the 1D objects as zones as well
+    kwargs = generate_3Dobj(globalzone, **kwargs)
+    zonelist = kwargs.get('zonelist')
+    state_indices = kwargs.get('state_indices')
 
     #perform integration for surface and volume quantities
     mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
@@ -625,6 +618,14 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     savemeshvars[kwargs.get('modes')[state_index[0]]].append(
                                                                      usename)
     ################################################################
+    if integrate_line:
+        for zone in kwargs.get('zonelist1D'):
+            #integrate fluxes across the 1D curve or line
+            print('\nWorking on: '+zone.name+' line')
+            line_results = line_tools.line_analysis(zone,**kwargs)
+            line_results['Time [UTC]'] = eventtime
+            data_to_write.update({zone.name:line_results})
+    ################################################################
     if kwargs.get('extract_flowline',False):
         for crossing in field_data.zones('flow_line*'):
             #upper = 31
@@ -661,7 +662,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
                             outputpath+'/energeticsdata/energetics_'+
                             datestring+'.h5',
-                            [zn.name for zn in zonelist])
+                            data_to_write.keys())
     return mp_mesh, data_to_write
 
 if __name__ == "__main__":

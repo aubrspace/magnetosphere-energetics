@@ -86,16 +86,18 @@ if __name__ == "__main__":
         #Perform data extraction
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
-                                      do_cms=True,
-                                      analysis_type='energymagmass',
-                                      modes=['nlobe','slobe'],
+                                      do_cms=False,
+                                      analysis_type='mag',
+                                      modes=['sphere','terminator'],
+                                      sp_rmax=2.65,
                                       do_interfacing=True,
+                                      integrate_line=True,
                                       integrate_surface=True,
                                       integrate_volume=False,
                                       verbose=True,
                                       extract_flowline=False,
-                                      outputpath='babyrun/',
-                                      customTerms={'test':'TestArea [Re^2]'})
+                                      outputpath='babyrun/')
+                                      #customTerms={'test':'TestArea [Re^2]'})
                                       #analysis_type='energymassmag',
     #with tp.session.suspend():
     if False:#manually switch on or off

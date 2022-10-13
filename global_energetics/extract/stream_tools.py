@@ -747,7 +747,7 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                                             'ID'].values
     field_data.zone(futureindex).values('SectorID')[::]=future_mesh[
                                                             'ID'].values
-def get_surf_geom_variables(zone):
+def get_surf_geom_variables(zone,**kwargs):
     """Function calculates variables for new zone based only on geometry,
         independent of what analysis will be performed on surface
     Inputs
@@ -891,6 +891,7 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     assert any([x!=0 for x in
         zone.values('surface_normal_x').as_numpy_array()]), ('Surface '+
                                               'geometry not calculated!')
+    ##Throw-away variables, these will be overwritten each time
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
     eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
@@ -903,6 +904,10 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered)
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
     eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
+
+    ##Variables now only applied to this zone
+    zonelist = [zone]
+
     if (('mp' in zone.name and 'innerbound' not in zone.name) or
                                             kwargs.get('find_DFT',False)):
         get_day_flank_tail(zone)
@@ -934,7 +939,7 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                                 '({U_y [km/s]}*{surface_normal_y})**2+'+
                                 '({U_z [km/s]}*{surface_normal_z})**2)',
                             value_location=ValueLocation.CellCentered,
-                            zones=[zone.index])
+                            zones=zonelist)
             ##############################################################
             #Normal Poynting Flux
             eq('{'+add+'ExB_net [W/Re^2]}={Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
@@ -950,14 +955,14 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                                         '{B_z [nT]}*{surface_normal_z})'+
                                             '/(4*pi*1e-7)*1e-9*6371**2',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             #Split into + and - flux
             eq('{'+add+'ExB_escape [W/Re^2]} = max({'+add+'ExB_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             eq('{'+add+'ExB_injection [W/Re^2]} = min({'+add+'ExB_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             ##############################################################
             #Normal Total Pressure Flux
             eq('{'+add+'P0_net [W/Re^2]} = (1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
@@ -966,31 +971,32 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                                         '+{U_y [km/s]}*{surface_normal_y}'+
                                         '+{U_z [km/s]}*{surface_normal_z})',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             #Split into + and - flux
             eq('{'+add+'P0_escape [W/Re^2]} ='+
                         'max({'+add+'P0_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             eq('{'+add+'P0_injection [W/Re^2]} ='+
                         'min({'+add+'P0_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             ##############################################################
             #Normal Total Energy Flux
             eq('{'+add+'K_net [W/Re^2]}='+
                    '{P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             #Split into + and - flux
             eq('{'+add+'K_escape [W/Re^2]}=max({'+add+'K_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             eq('{'+add+'K_injection [W/Re^2]} ='+
                          'min({'+add+'K_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
     if 'mag' in analysis_type:
+        prefixlist = ['']
         for add in prefixlist:
             ##############################################################
             #Normal Magnetic Flux
@@ -999,17 +1005,18 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                                       '+{B_z [nT]}*{surface_normal_z})'+
                                       '*6.371**2*1e3',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             #Split into + and - flux
             eq('{'+add+'Bf_escape [Wb/Re^2]} ='+
                         'max({'+add+'Bf_net [Wb/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             eq('{'+add+'Bf_injection [Wb/Re^2]} ='+
                         'min({'+add+'Bf_net [Wb/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
     if 'mass' in analysis_type:
+        prefixlist = ['']
         for add in prefixlist:
             ##############################################################
             #Normal Mass Flux
@@ -1019,16 +1026,16 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                                         '+{U_y [km/s]}*{surface_normal_y}'+
                                         '+{U_z [km/s]}*{surface_normal_z})',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             #Split into + and - flux
             eq('{'+add+'RhoU_escape [kg/s/Re^2]} ='+
                         'max({'+add+'RhoU_net [kg/s/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
             eq('{'+add+'RhoU_injection [kg/s/Re^2]} ='+
                         'min({'+add+'RhoU_net [kg/s/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
-                zones=[zone.index])
+                zones=zonelist)
 
 
 def get_1D_sw_variables(field_data, xmax, xmin, nx):
@@ -1333,7 +1340,6 @@ def equations(**kwargs):
     """
     equations = {}
     #Testing function for verifying matching interfaces
-    #TODO: test this with main.py and see why it's failing for may2019
     equations['interface_testing'] = {'{test}':'1'}
     #Useful spatial variables
     equations['basic3d'] = {
@@ -1361,7 +1367,17 @@ def equations(**kwargs):
          '{theta [deg]}':'-180/pi*{lambda}',
          '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
          '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
-         '{phi}':'atan2({Y [R]}, {Xd [R]})'}
+         '{phi}':'atan2({Y [R]}, {Xd [R]})',
+         '{U_xd [km/s]}':'{mXhat_x}*'+
+                        '({U_x [km/s]}*{mXhat_x}+{U_z [km/s]}*{mXhat_z})',
+         '{U_zd [km/s]}':'{mZhat_z}*'+
+                        '({U_x [km/s]}*{mZhat_x}+{U_z [km/s]}*{mZhat_z})',
+         '{U_r}':'({U_xd [km/s]}*{Xd [R]}+'+
+                  '{U_y [km/s]}*{Y [R]}+'+
+                  '{U_zd [km/s]}*{Zd [R]})/{r [R]}',
+         '{U_txd}':'{U_xd [km/s]}-{U_r}*{Xd [R]}/{r [R]}',
+         '{U_ty}':'{U_y [km/s]}-{U_r}*{Y [R]}/{r [R]}',
+         '{U_tzd}':'{U_zd [km/s]}-{U_r}*{Zd [R]}/{r [R]}'}
     ######################################################################
     #Physical quantities including:
     #   Dynamic Pressure
@@ -1378,7 +1394,9 @@ def equations(**kwargs):
      '{beta_star}':'({P [nPa]}+{Dp [nPa]})/'+
                           '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
                 '*(2*4*pi*1e-7)*1e9',
-     '{Bmag [nT]}':'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'}
+     '{Bmag [nT]}':'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+     '{Br [Wb/Re^2]}':'({B_x [nT]}*{X [R]}+{B_y [nT]}*{Y [R]}+'+
+                       '{B_z [nT]}*{Z [R]})/{r [R]}*6.371**2*1e3'}
     ######################################################################
     #Fieldlinemaping
     equations['fieldmapping'] = {
@@ -1771,6 +1789,13 @@ def calc_state(mode, sourcezone, **kwargs):
                                         kwargs.get('sp_rmax',3),
                                         sourcezone,
                                         rmin=kwargs.get('sp_rmin',0))
+    elif mode == 'terminator':
+        zonename = mode+str(kwargs.get('sp_rmax',3))
+        assert sourcezone.dataset.zone('sphere*') is not None, (
+                "No spherical zone, can't apply terminator!")
+        sp_zone = sourcezone.dataset.zone('sphere*')
+        north,south = calc_terminator_zone(zonename,sp_zone,**kwargs)
+        return north, south, None
     elif mode == 'box':
         zonename = mode
         state_index = calc_box_state(zonename,
@@ -1978,6 +2003,51 @@ def foot_dist(foot,target,tol):
     """Function returns True if foot (2 items) is near target (2 items)
     """
     return np.sqrt((foot[0]-target[0])**2+(foot[1]-target[1])**2)<tol
+
+def calc_terminator_zone(name, sp_zone, **kwargs):
+    """ Function takes spherical zone and creates zones for the north and
+        south 'terminators' (actually using forward/beind dipole)
+    Inputs
+        name (str)- for naming the new zone
+        sp_zone (Zone)- tecplot zone, everything sourced from here
+        kwargs:
+            npoints (300)- how many points to include in 1D zone
+            sp_rmax (3)- spherical radius, !!should match sp_zone!!
+    Returns
+        north,south (Zone)- tecplot zones of 1D objects in 3D
+    """
+    ## Create a signed radius
+    tp.data.operate.execute_equation('{rSigned}=sign({Zd [R]})*{r [R]}')
+    ## Change XYZ -> Xd,Y,r
+    plot = sp_zone.dataset.frame.plot()
+    plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
+    # No change in Y
+    plot.axes.z_axis.variable = sp_zone.dataset.variable('rSigned')
+
+    for hemi,stat in [('north',2),('south',1)]:
+        ## Get Y+- limits
+        status = sp_zone.values('Status').as_numpy_array()
+        y = sp_zone.values('Y *').as_numpy_array()
+        ymin = y[status==stat].min()
+        ymax = y[status==stat].max()
+
+        ## Extract line @ Xd=0, Y+- limits, r=r_sphere
+        npoints = kwargs.get('npoints',300)
+        xx = np.zeros(npoints)
+        yy = np.linspace(ymin,ymax,npoints)
+        if hemi=='north':
+            zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
+            north = tp.data.extract.extract_line(zip(xx,yy,zz))
+            north.name = name+hemi
+        else:
+            zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
+            south = tp.data.extract.extract_line(zip(xx,yy,zz))
+            south.name = name+hemi
+    ## Change XYZ back -> XYZ
+    plot.axes.x_axis.variable = sp_zone.dataset.variable('X *')
+    # No change in Y
+    plot.axes.z_axis.variable = sp_zone.dataset.variable('Z *')
+    return north, south
 
 def calc_Jpar_state(mode, sourcezone,  **kwargs):
     """Function creates equation for region of projected Jparallel (field

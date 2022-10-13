@@ -332,9 +332,9 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                 #       which was optimized at 1*cell size
         if ('day' in conditions) or ('night' in conditions):
             if 'day' in conditions:
-                new_eq+='(abs({phi})<pi/2) &&'#Dayside
+                new_eq+='({Xd [R]}>0) &&'#Dayside
             elif 'night' in conditions:
-                new_eq+='(abs({phi})>pi/2) &&'#Nightside
+                new_eq+='({Xd [R]}<0) &&'#Nightside
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7']]):
             #chop hanging && and close up condition
@@ -382,9 +382,15 @@ def get_interface_integrands(zone,integrands,**kwargs):
                               ['closed','not tail','<L7'],'Dayside_inner',
                                           L=kwargs.get('lshelllim',7)))
     ##InnerBoundary
-    if 'inner' in zone.name:
+    if ('inner' in zone.name) or ('sphere' in zone.name):
         #Poles
-        interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
+        #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
+        #Poles dayside only
+        interfaces.update(conditional_mod(zone,integrands,
+                                        ['open','day'],'PolesDay'))
+        #Poles nightside only
+        interfaces.update(conditional_mod(zone,integrands,
+                                    ['open','night'],'PolesNight'))
         #MidLatitude
         interfaces.update(conditional_mod(zone,integrands,
                                           ['>L7','closed'],'MidLat',
