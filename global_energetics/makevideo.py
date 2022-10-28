@@ -132,11 +132,11 @@ def add_timestamps(infolder,*, tshift=0):
         #Setup the image
         image = Image.open(infile)
         I1 = ImageDraw.Draw(image)
-        goodfont = ImageFont.truetype('FreeMono.ttf', 45)
+        font = ImageFont.truetype('fonts/roboto/Roboto-Black.ttf', 45)
 
         #Attach and save
-        I1.text((28,1236), stamp1, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
-        I1.text((28,1297), stamp2, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
+        I1.text((28,1236), stamp1, font=font, fill=(34,255,32))#TopLeftLimeGreen
+        I1.text((28,1297), stamp2, font=font, fill=(34,255,32))#TopLeftLimeGreen
         #I1.text((28,936), stamp1, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
         #I1.text((28,997), stamp2, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
         #I1.text((828,1236), stamp1, font=goodfont, fill=(124,246,223))#BotRightCyan
@@ -149,7 +149,7 @@ def add_timestamps(infolder,*, tshift=0):
 if __name__ == '__main__':
     #Video settings
     RES = 400
-    FRAMERATE = 18
+    FRAMERATE = 9
     FOLDER = sys.argv[1]
     if '-stamp' in sys.argv:
         if '-tshift' in sys.argv:

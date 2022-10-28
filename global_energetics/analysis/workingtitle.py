@@ -26,6 +26,28 @@ from global_energetics.analysis.proc_hdf import (load_hdf_sort,
 from global_energetics.analysis.analyze_energetics import plot_power
 from global_energetics.analysis.proc_energy_spatial import reformat_lshell
 
+def central_diff(df,dt,**kwargs):
+    """Takes central difference of the columns of a dataframe
+    Inputs
+        df (DataFrame)- data
+        dt (int)- spacing used for denominator
+        kwargs:
+            fill (float)- fill value for ends of diff
+    Returns
+        cdiff (DataFrame)
+    """
+    ogindex = df.index.copy()
+    df.reset_index(drop=True,inplace=True)
+    df_fwd = df.copy()
+    df_fwd.index = df.index-1
+    df_bck = df.copy()
+    df_bck.index = df.index+1
+    cdiff = (df_fwd-df_bck)/(2*dt)
+    cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
+    cdiff.index = ogindex
+    cdiff.fillna(value=kwargs.get('fill',0),inplace=True)
+    return cdiff
+
 def get_interfaces(sz):
     """Gets list of interfaces given a subzone region
     Inputs
@@ -58,7 +80,7 @@ def locate_phase(times,**kwargs):
     #Starlink
     starlink_impact = dt.datetime(2022,2,3,0,0)
     starlink_endMain1 = dt.datetime(2022,2,3,11,15)
-    starlink_endMain1 = dt.datetime(2022,2,4,13,10)
+    #starlink_endMain1 = dt.datetime(2022,2,4,13,10)
     starlink_endMain2 = dt.datetime(2022,2,4,22,0)
     starlink_inter_start = dt.datetime(2022,2,2,22,45)
     starlink_inter_end = dt.datetime(2022,2,3,1,15)
@@ -451,40 +473,72 @@ def polar_cap_flux_fig(ds,ph,path):
                         figsize=[14,6*len(ds.keys())])
     #plot
     for i,ev in enumerate(ds.keys()):
-        lobe = ds[ev]['msdict'+ph]['lobes']
+        #lobe = ds[ev]['msdict'+ph]['lobes']
+        if 'termdict' in ds[ev].keys():
+            lobe = ds[ev]['termdict'+ph]['sphere2.65_surface']
+            nterm = ds[ev]['termdict'+ph]['terminator2.65north']
+            sterm = ds[ev]['termdict'+ph]['terminator2.65south']
+        else:
+            lobe = ds[ev]['msdict'+ph]['lobes']
         inner = ds[ev]['inner_mp'+ph]
         obs = ds[ev]['obs']['swmf_sw'+ph]
         obstime = ds[ev]['swmf_sw_otime'+ph]
         omni = ds[ev]['obs']['omni'+ph]
         omni_t = ds[ev]['omni_otime'+ph]
-        if not lobe.empty:
+        if 'termdict' in ds[ev].keys():
+            rax = ax[i]
+            rax.plot(ds[ev]['time'+ph],
+                             (nterm['dPhidt_net [Wb/s]']),
+                              c='Black',label='terminator')
+        """
+            ax[2*i].fill_between(lobe.index,
+                                 nterm['dPhidt_day2night [Wb/s]'],
+                                 ec='Blue',fc='Lightblue')
+            ax[2*i+1].fill_between(lobe.index,
+                                   sterm['dPhidt_day2night [Wb/s]'],
+                                   ec='Blue', fc='Lightblue', ls='--')
+            ax[2*i].fill_between(lobe.index,
+                                 nterm['dPhidt_night2day [Wb/s]'],
+                                 ec='Red',fc='Palevioletred')
+            ax[2*i+1].fill_between(lobe.index,
+                                   sterm['dPhidt_night2day [Wb/s]'],
+                                   ec='Red', fc='Palevioletred', ls='--')
+            ax[2*i].fill_between(lobe.index,nterm['dPhidt_net [Wb/s]'],
+                                 ec='Black',fc='Grey')
+            ax[2*i+1].fill_between(lobe.index,sterm['dPhidt_net [Wb/s]'],
+                                   ec='Black', fc='Grey',ls='--')
+            general_plot_settings(ax[2*i+1],
+                            ylabel=r'Mag Flux Trans$\left[ Wb/s\right]$'
+                                  ,do_xlabel=(i==len(ds.keys())-1),
+                                legend=(i==0),timedelta=('lineup' in ph))
+        """
+        if not lobe.empty and 'termdict' in ds[ev].keys():
             #Polar cap mag flux compared with Newell coupling function
-            #ax[i].fill_between(obstime,10*obs['Newell'],label=ev+'Newell',
-            #                   fc='grey')
-            #ax[i].spines['left'].set_color('grey')
-            #ax[i].tick_params(axis='y',colors='grey')
-            #ax[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
-            if 'Bf_netPolesDayN [Wb]' in lobe.keys():
-                '''
+            ax[i].fill_between(obstime.values.astype('float64'),
+                               obs['Newell'],
+                               label=ev+'Newell',
+                               fc='grey')
+            ax[i].spines['right'].set_color('grey')
+            ax[i].tick_params(axis='y',colors='grey')
+            ax[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
+            if 'Bf_netPolesDay [Wb]' in lobe.keys():
+                dayN = central_diff(lobe['Bf_netPolesDayN [Wb]'],300)
+                dayS = central_diff(lobe['Bf_netPolesDayS [Wb]'],300)
+                nightN = central_diff(lobe['Bf_netPolesNightN [Wb]'],300)
+                nightS = central_diff(lobe['Bf_netPolesNightS [Wb]'],300)
+                rax.plot(ds[ev]['time'+ph],
+                           dayN-nterm['dPhidt_net [Wb/s]'],
+                           label=ev+'Nday')
+                #ax[i].plot(ds[ev]['time'+ph],
+                #           dayS-sterm['dPhidt_net [Wb/s]'],
+                #           label=ev+'Sday',ls='--')
                 ax[i].plot(ds[ev]['time'+ph],
-                         lobe['Bf_netPolesDayN [Wb]'].diff()/60,
-                         label=ev+'N')
-                ax[i].plot(ds[ev]['time'+ph],
-                         lobe['Bf_netPolesDayS [Wb]'].diff()/-60,
-                         label=ev+'S',ls='--')
-                '''
-                ax[i].plot(ds[ev]['time'+ph],
-                         lobe['Bf_netPolesDayN [Wb]'],
-                         label=ev+'Nday')
-                ax[i].plot(ds[ev]['time'+ph],
-                         lobe['Bf_netPolesDayS [Wb]'],
-                         label=ev+'Sday',ls='--')
-                ax[i].plot(ds[ev]['time'+ph],
-                         lobe['Bf_netPolesNightN [Wb]'],
-                         label=ev+'Nnight')
-                ax[i].plot(ds[ev]['time'+ph],
-                         lobe['Bf_netPolesNightS [Wb]'],
-                         label=ev+'Snight',ls='--')
+                           nightN+nterm['dPhidt_net [Wb/s]'],
+                           label=ev+'Nnight')
+                #ax[i].plot(ds[ev]['time'+ph],
+                #           nightS+sterm['dPhidt_net [Wb/s]'],
+                #           label=ev+'Snight',ls='--')
+                #ax[i].set_ylim([-1e5,1e5])
             #rax = ax[i].twinx()
             #rax.plot(omni_t,omni['al'],c='blue',label=ev+'AL')
             #rax.set_ylim([-1800,1800])
@@ -495,10 +549,10 @@ def polar_cap_flux_fig(ds,ph,path):
             #rax.plot(ds[ev]['time'+ph],lobe.get('Bf_netPolesS [Wb]',
             #                                    np.zeros(len(lobe)))*-1,
             #           label=ev+'S',ls='--')
-            general_plot_settings(ax[i],
-                                ylabel=r'Mag Flux $\left[ Wb\right]$'
-                                  ,do_xlabel=(i==len(ds.keys())-1),
-                                legend=(i==0),timedelta=('lineup' in ph))
+            general_plot_settings(rax,
+                                  ylabel=r'Mag Flux $\left[ Wb/s\right]$',
+                                  do_xlabel=(i==len(ds.keys())-1),
+                                legend=(i==2),timedelta=('lineup' in ph))
     #save
     pcf.tight_layout(pad=1)
     figname = path+'/polar_cap_flux'+ph+'.png'
@@ -543,7 +597,7 @@ def stack_volume_fig(ds,ph,path,hatches):
         figname = path+'/contr_volume'+ph+'.png'
         contr.savefig(figname)
         plt.close(contr)
-        print('Created ',figname)
+        print('\033[92m Created\033[00m',figname)
 
 def interf_power_fig(ds,ph,path,hatches):
     """Lineplots for event comparison 1 axis per interface
@@ -792,7 +846,7 @@ def static_motional_fig(ds,ph,path):
     figname = path+'/motional_flux_'+ph+'.png'
     fig1.savefig(figname)
     plt.close(fig1)
-    print('Created ',figname)
+    print('\033[92m Created\033[00m',figname)
 
 def quiet_figures(ds):
     region_interface_averages(ds)
@@ -802,14 +856,14 @@ def main_rec_figures(ds):
     hatches = ['','*','x','o']
     #for ph,path in [('_main',outMN1),('_rec',outRec)]:
     for ph,path in [('_lineup',outLine)]:
-        stack_energy_type_fig(ds,ph,path)
-        stack_energy_region_fig(ds,ph,path,hatches)
-        stack_volume_fig(ds,ph,path,hatches)
-        interf_power_fig(ds,ph,path,hatches)
-        polar_cap_area_fig(ds,ph,path)
+        #stack_energy_type_fig(ds,ph,path)
+        #stack_energy_region_fig(ds,ph,path,hatches)
+        #stack_volume_fig(ds,ph,path,hatches)
+        #interf_power_fig(ds,ph,path,hatches)
+        #polar_cap_area_fig(ds,ph,path)
         polar_cap_flux_fig(ds,ph,path)
-        tail_cap_fig(ds,ph,path)
-        static_motional_fig(ds,ph,path)
+        #tail_cap_fig(ds,ph,path)
+        #static_motional_fig(ds,ph,path)
 
 def interval_figures(ds):
     hatches = ['','*','x','o']
@@ -852,14 +906,14 @@ if __name__ == "__main__":
     #HDF data, will be sorted and cleaned
     ds = {}
     ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
-    #ds['star'] = load_hdf_sort(inPath+'starlink_results.h5')
+    ds['star'] = load_hdf_sort(inPath+'starlink2_results.h5')
     ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
 
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
                                     read_supermag=False, tshift=45)
-    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-    #                                 read_supermag=False)
+    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+                                     read_supermag=False)
     ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
                                     read_supermag=False)
 
@@ -884,6 +938,8 @@ if __name__ == "__main__":
             ds[ev]['inner_mp'+ph], _ = parse_phase(
                                             ds[ev]['inner_mp'],ph)
             ds[ev]['msdict'+ph], _ = parse_phase(ds[ev]['msdict'],ph)
+            if 'termdict' in ds[ev].keys():
+                ds[ev]['termdict'+ph],_=parse_phase(ds[ev]['termdict'],ph)
             for src in obs_srcs:
                 ds[ev]['obs'][src+ph],ds[ev][src+'_otime'+ph]=(
                                parse_phase(ds[ev]['obs'][src],ph))

@@ -26,7 +26,7 @@ def load_hdf_sort(hdf, **kwargs):
     store = pd.HDFStore(hdf)
 
     #keep only GM keys
-    gmdict, iedict, uadict, bsdict, crossdict = {}, {}, {}, {}, {}
+    gmdict, iedict, uadict, bsdict, crossdict,termdict = {},{},{},{},{},{}
     for key in store.keys():
         if ('mp' in key) or ('ms' in key):
             gmdict[key] = store[key].sort_values(by='Time [UTC]')
@@ -43,6 +43,13 @@ def load_hdf_sort(hdf, **kwargs):
             crossdict[key] = store[key].sort_values(by=['Time [UTC]','X'])
             crossdict[key].index=crossdict[key]['Time [UTC]']
             crossdict[key].drop(columns=['Time [UTC]'],inplace=True)
+        if 'terminator' in key or 'sphere2' in key:
+            termdict[key] = store[key].sort_values(by='Time [UTC]')
+            termdict[key].index=termdict[key]['Time [UTC]']
+            termdict[key].drop(columns=['Time [UTC]'],inplace=True)
+            for item in termdict[key].keys():
+                if all(termdict[key][item].isna()):
+                    termdict[key].drop(columns=item,inplace=True)
     #strip times
     gmtimes = gmdict[[k for k in gmdict.keys()][0]].index
     data.update({'times':gmtimes})
@@ -86,6 +93,15 @@ def load_hdf_sort(hdf, **kwargs):
     if crossdict!={}:
         #repackage in dictionary
         data.update({'crossdict': crossdict})
+
+    if termdict!={}:
+        #clean up entry names and interpolate out any timing gaps
+        cleaned_termdict = {}
+        for key in termdict.keys():
+            cleaned = check_timing(termdict[key],gmtimes)
+            cleaned_termdict.update({key.replace('/',''):cleaned})
+        #repackage in dictionary
+        data.update({'termdict': cleaned_termdict})
 
     #define subzones with relevant pieces
     msdict = {}
