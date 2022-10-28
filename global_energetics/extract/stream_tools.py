@@ -1541,6 +1541,13 @@ def equations(**kwargs):
         '{Reynolds_m_cell}':'4*pi*1e-4*'+
                  'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
                                    '{Cell Size [Re]}/({eta [Re/S]}+1e-9)'}
+    #Nodal
+    #{m1} = if({Status}==0,1,0)
+    #{m2} = if({Status}==1,1,0)
+    #{m3} = if({Status}==2,1,0)
+    #{m4} = if({Status}==3,1,0)
+    #Cell centered (interpolate the m conditions
+    #{sep} = if({m1}>0&&{m2}>0&&{m3}>0&&{m4}>0,1,0)
     ######################################################################
     #Tracking IM GM overwrites
     equations['trackIM'] = {
@@ -2028,21 +2035,28 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
         ## Get Y+- limits
         status = sp_zone.values('Status').as_numpy_array()
         y = sp_zone.values('Y *').as_numpy_array()
-        ymin = y[status==stat].min()
-        ymax = y[status==stat].max()
-
-        ## Extract line @ Xd=0, Y+- limits, r=r_sphere
-        npoints = kwargs.get('npoints',300)
-        xx = np.zeros(npoints)
-        yy = np.linspace(ymin,ymax,npoints)
-        if hemi=='north':
-            zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
-            north = tp.data.extract.extract_line(zip(xx,yy,zz))
-            north.name = name+hemi
+        try:
+            ymin = y[status==stat].min()
+            ymax = y[status==stat].max()
+        except ValueError as err:
+            print('\nUnable to create '+name+'!')
+            if kwargs.get('verbose',False):
+                print('\n error: {}'.format(err))
+            north = name+'north'
+            south = name+'south'
         else:
-            zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
-            south = tp.data.extract.extract_line(zip(xx,yy,zz))
-            south.name = name+hemi
+            ## Extract line @ Xd=0, Y+- limits, r=r_sphere
+            npoints = kwargs.get('npoints',300)
+            xx = np.zeros(npoints)
+            yy = np.linspace(ymin,ymax,npoints)
+            if hemi=='north':
+                zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
+                north = tp.data.extract.extract_line(zip(xx,yy,zz))
+                north.name = name+hemi
+            else:
+                zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
+                south = tp.data.extract.extract_line(zip(xx,yy,zz))
+                south.name = name+hemi
     ## Change XYZ back -> XYZ
     plot.axes.x_axis.variable = sp_zone.dataset.variable('X *')
     # No change in Y
