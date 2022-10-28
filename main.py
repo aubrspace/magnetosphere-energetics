@@ -64,6 +64,10 @@ if __name__ == "__main__":
     ccmc4  = (
             'ccmc_2019-05-13/3d__var_1_e20190514-025600-028.plt',
             'ccmc_2019-05-13/3d__var_1_e20190514-025700-023.plt')
+    ccmc5 = ('ccmc_2019-05-13/3d__var_1_e20190513-175100-015.plt',
+             'ccmc_2019-05-13/3d__var_1_e20190515-092200-017.plt',
+             'ccmc_2019-05-13/3d__var_1_e20190515-095200-019.plt',
+             'ccmc_2019-05-13/3d__var_1_e20190515-102200-022.plt')
 
     '''
     #load from file
@@ -71,7 +75,7 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [ccmc4]:
+    for inputs in [ccmc4][0:1]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -86,15 +90,18 @@ if __name__ == "__main__":
         #Perform data extraction
         with tp.session.suspend():
             mesh, data = magnetosphere.get_magnetosphere(field_data,
+                                      write_data=False,
+                                      disp_result=False,
                                       do_cms=False,
                                       analysis_type='mag',
-                                      modes=['sphere','terminator'],
-                                      sp_rmax=2.65,
-                                      do_interfacing=True,
-                                      integrate_line=True,
-                                      integrate_surface=True,
+                                      #modes=['sphere','terminator'],
+                                      modes=['iso_betastar','closed','nlobe','slobe','rc'],
+                                      #sp_rmax=2.65,
+                                      do_interfacing=False,
+                                      integrate_line=False,
+                                      integrate_surface=False,
                                       integrate_volume=False,
-                                      verbose=True,
+                                      verbose=False,
                                       extract_flowline=False,
                                       outputpath='babyrun/')
                                       #customTerms={'test':'TestArea [Re^2]'})

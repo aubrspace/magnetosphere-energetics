@@ -303,9 +303,15 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         outputname = term[1].split(' [')[0]
         units = ' ['+term[1].split('[')[1].split(']')[0]+']'
         new_eq = '{'+name+modname+'} = IF('
-        if ('open' in conditions) or ('closed' in conditions):
-            if ('not open' in conditions) or('closed' in conditions):
+        if (any(['open' in c for c in conditions]) or
+            any(['closed' in c for c in conditions])):
+            if (any(['not open' in c for c in conditions]) or
+                any(['closed' in c for c in conditions])):
                 new_eq+='({Status}==3) &&'#closed
+            elif any(['N' in c for c in conditions]):
+                new_eq+='({Status}==2) &&'#open north
+            elif any(['S' in c for c in conditions]):
+                new_eq+='({Status}==1) &&'#open south
             else:
                 new_eq+='({Status}==2 || {Status}==1) &&'#open
         if any(['tail' in c for c in conditions]):
@@ -387,10 +393,14 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
         #Poles dayside only
         interfaces.update(conditional_mod(zone,integrands,
-                                        ['open','day'],'PolesDay'))
+                                        ['openN','day'],'PolesDayN'))
+        interfaces.update(conditional_mod(zone,integrands,
+                                        ['openS','day'],'PolesDayS'))
         #Poles nightside only
         interfaces.update(conditional_mod(zone,integrands,
-                                    ['open','night'],'PolesNight'))
+                                    ['openN','night'],'PolesNightN'))
+        interfaces.update(conditional_mod(zone,integrands,
+                                    ['openS','night'],'PolesNightS'))
         #MidLatitude
         interfaces.update(conditional_mod(zone,integrands,
                                           ['>L7','closed'],'MidLat',

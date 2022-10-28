@@ -564,41 +564,49 @@ def display_visuals(field,mp,renderView,**kwargs):
     mpDisplay.Opacity = 0.4
 
 
-    ###Slice
-    # create a new 'Slice'
-    slice1 = Slice(registrationName='Slice1', Input=field)
-    slice1.SliceType = 'Plane'
-    slice1.HyperTreeGridSlicer = 'Plane'
-    slice1.SliceOffsetValues = [0.0]
+    if kwargs.get('doSlice',False):
+        ###Slice
+        # create a new 'Slice'
+        slice1 = Slice(registrationName='Slice1', Input=field)
+        if 'Plane' in kwargs.get('slicetype','yPlane'):
+            slice1.SliceType = 'Plane'
+            slice1.HyperTreeGridSlicer = 'Plane'
+            slice1.SliceOffsetValues = [0.0]
 
-    # init the 'Plane' selected for 'SliceType'
-    slice1.SliceType.Origin = [0.0, 0.0, 0.0]
-    slice1.SliceType.Normal = [0.0, 1.0, 0.0]
+            if 'y' in kwargs.get('slicetype','yPlane'):
+                # init the 'Plane' selected for 'SliceType'
+                slice1.SliceType.Origin = [0.0, 0.0, 0.0]
+                slice1.SliceType.Normal = [0.0, 1.0, 0.0]
 
-    # init the 'Plane' selected for 'HyperTreeGridSlicer'
-    slice1.HyperTreeGridSlicer.Origin = [-94.25, 0.0, 0.0]
-    # show data in view
-    slice1Display = Show(slice1, renderView, 'GeometryRepresentation')
-    # Properties modified on slice1Display
-    slice1Display.Opacity = 0.6
-    # set scalar coloring
-    ColorBy(slice1Display, ('POINTS', 'Rho_amu_cm^3'))
-    # get color transfer function/color map for 'Rho_amu_cm3'
-    rho_amu_cm3LUT = GetColorTransferFunction('Rho_amu_cm3')
+                # init the 'Plane' selected for 'HyperTreeGridSlicer'
+                slice1.HyperTreeGridSlicer.Origin = [-94.25, 0.0, 0.0]
+            else:
+                #TODO
+                pass
+        # show data in view
+        slice1Display = Show(slice1, renderView, 'GeometryRepresentation')
+        # Properties modified on slice1Display
+        slice1Display.Opacity = 0.6
+        # set scalar coloring
+        ColorBy(slice1Display, ('POINTS', 'B_z_nT'))
+        # get color transfer function/color map for 'Rho_amu_cm3'
+        bzLUT = GetColorTransferFunction('B_z_nT')
+        bzLUT.RescaleTransferFunction(-5.0, 5.0)
 
-    # get opacity transfer function/opacity map for 'Rho_amu_cm3'
-    rho_amu_cm3PWF = GetOpacityTransferFunction('Rho_amu_cm3')
+        # get opacity transfer function/opacity map for 'Rho_amu_cm3'
+        bzPWF = GetOpacityTransferFunction('B_z_nT')
 
-    # convert to log space
-    rho_amu_cm3LUT.MapControlPointsToLogSpace()
 
-    # Properties modified on rho_amu_cm3LUT
-    rho_amu_cm3LUT.UseLogScale = 1
+        # convert to log space
+        #bzLUT.MapControlPointsToLogSpace()
 
-    # Apply a preset using its name. Note this may not work as expected when presets have duplicate names.
-    rho_amu_cm3LUT.ApplyPreset('Inferno (matplotlib)', True)
-    # show color bar/color legend
-    slice1Display.SetScalarBarVisibility(renderView, True)
+        # Properties modified on rho_amu_cm3LUT
+        #rho_amu_cm3LUT.UseLogScale = 1
+
+        # Apply a preset using its name. Note this may not work as expected when presets have duplicate names.
+        #bzLUT.ApplyPreset('Inferno (matplotlib)', True)
+        # show color bar/color legend
+        slice1Display.SetScalarBarVisibility(renderView, True)
 
     # get layout
     layout1 = GetLayout()
@@ -668,14 +676,15 @@ def setup_pipeline(infile,**kwargs):
 
     return sourcedata, pipelinehead, field, mp
 
-#if __name__ == "__main__":
-if True:
+if __name__ == "__main__":
+#if True:
     start_time = time.time()
     ######################################################################
     # USER INPUTS
     ######################################################################
-    path='/home/aubr/Code/swmf-energetics/localdbug/fte/copy_paraview_plt/'
-    outpath = 'output_fte_pv/'
+    #path='/home/aubr/Code/swmf-energetics/localdbug/fte/15min_medRes/copy_paraview_plt/'
+    path='/home/aubr/Code/swmf-energetics/localdbug/fte/15min_medRes/copy_paraview_plt/'
+    outpath = 'output3_fte_pv/'
     ######################################################################
 
     #Make the paths if they don't already exist
@@ -688,19 +697,18 @@ if True:
         oldsource,pipelinehead,field,mp=setup_pipeline(infile)
         ###Surface flux on magnetopause
         #decide which values to calculate (will need to make cell data)
-        fluxes = [('K_W_Re2','k_flux'),('P0_W_Re2','h_flux'),
-                  ('ExB_W_Re2','p_flux')]
-        mp_cc = point2cell(mp,fluxes)#mp object with cell centered data
+        #fluxes = [('K_W_Re2','k_flux'),('P0_W_Re2','h_flux'),
+        #          ('ExB_W_Re2','p_flux')]
+        #mp_cc = point2cell(mp,fluxes)#mp object with cell centered data
         #mp_K_flux = get_surface_flux(mp, 'K_W_Re2','k_flux')
-        mp_S_flux = get_surface_flux(mp_cc, 'ExB_W_Re2','s_net_flux')
+        #mp_S_flux = get_surface_flux(mp_cc, 'ExB_W_Re2','s_net_flux')
         renderView = GetActiveViewOrCreate('RenderView')
         #TODO find how to limit integration variables and group all together
-        tableLayout, tableView = setup_table()
-        save_table_data(mp_S_flux, tableView, outpath,'s_net_flux')
+        #tableLayout, tableView = setup_table()
+        #save_table_data(mp_S_flux, tableView, outpath,'s_net_flux')
         SetActiveView(renderView)
-        display_visuals(field,mp,renderView)
+        display_visuals(field,mp,renderView,doSlice=True)
 
-    '''
         # Render and save screenshot
         RenderAllViews()
         SaveScreenshot(outpath+
@@ -724,7 +732,6 @@ if True:
 
         # Set the current source to be replaced on next loop
         oldsource = newsource
-    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

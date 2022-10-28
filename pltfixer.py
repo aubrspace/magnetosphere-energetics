@@ -5,10 +5,10 @@ import tecplot as tp
 
 if __name__ == '__main__':
     #header = 'files_for_paraview/'
-    header = 'localdbug/fte/copy_paraview_plt/'
+    header = 'localdbug/fte/15min_medRes/copy_paraview_plt/'
     if '-c' in sys.argv:
         tp.session.connect()
-    for i,infile in enumerate(glob.glob('localdbug/fte/*.plt')):
+    for i,infile in enumerate(glob.glob('localdbug/fte/15min_medRes/*.plt')):
         outfile = 'paraview'.join(infile.split('/')[-1].split('var'))
         print(str(i)+' fixing '+outfile+'....')
         ds = tp.data.load_tecplot(infile)

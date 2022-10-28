@@ -225,7 +225,7 @@ def prep_field_data(field_data, **kwargs):
         aux['imf_mag'] = IMFBmag
         aux['sw_pdyn'] = pdyn
     #Get x_subsolar if not already there
-    if any([key.find('x_subsolar')!=-1 for key in aux.keys()]):
+    if any(['x_subsolar' in k for k in aux.keys()]):
         x_subsolar = float(aux['x_subsolar'])
         x_nexl = float(aux['x_nexl'])
         inner_l = float(aux['inner_l'])
@@ -254,6 +254,12 @@ def prep_field_data(field_data, **kwargs):
                                                 lon_bounds, n_fieldlines,
                                                 rmax, rmin, itr_max, tol,
                                                 global_key='future*')
+        elif (('modes' in kwargs) and
+              ('iso_betastar' not in kwargs.get('modes',[]))):
+            aux['x_subsolar'] = 0
+            aux['x_nexl'] = 0
+            aux['inner_l'] = 0
+            return aux, None, None
         else:
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
             closed_zone = setup_isosurface(1,closed_index,'lcb',
@@ -620,11 +626,17 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if integrate_line:
         for zone in kwargs.get('zonelist1D'):
-            #integrate fluxes across the 1D curve or line
-            print('\nWorking on: '+zone.name+' line')
-            line_results = line_tools.line_analysis(zone,**kwargs)
-            line_results['Time [UTC]'] = eventtime
-            data_to_write.update({zone.name:line_results})
+            if type(zone) is not str:
+                #integrate fluxes across the 1D curve or line
+                print('\nWorking on: '+zone.name+' line')
+                line_results = line_tools.line_analysis(zone,**kwargs)
+                line_results['Time [UTC]'] = eventtime
+                data_to_write.update({zone.name:line_results})
+            else:
+                print('\n'+zone+' line Empty!')
+                line_results = pd.DataFrame()
+                line_results['Time [UTC]'] = eventtime
+                data_to_write.update({zone:line_results})
     ################################################################
     if kwargs.get('extract_flowline',False):
         for crossing in field_data.zones('flow_line*'):
