@@ -329,11 +329,13 @@ def get_vectors(pipeline,**kwargs):
     ###Get Vectors from field variable components
     vector_comps = kwargs.get('vector_comps',{})
     #Dig for the variable names so all variables can be vectorized
-    info = pipeline.GetPointDataInformation()
-    n_arr = info.GetNumberOfArrays()
-    var_names = ['']*n_arr
-    for i in range(0,n_arr):
-        var_names[i] = info.GetArray(i).Name
+    points = pipeline.PointData
+    var_names = points.keys()
+    #info = pipeline.GetPointDataInformation()
+    #n_arr = info.GetNumberOfArrays()
+    #var_names = ['']*n_arr
+    #for i in range(0,n_arr):
+    #    var_names[i] = info.GetArray(i).Name
     deconlist=dict([(v.split('_')[0],'_'+'_'.join(v.split('_')[2::]))
                           for v in var_names if('_x' in v or '_y' in v or
                                                              '_z' in v)])
@@ -374,6 +376,62 @@ def get_pressure_gradient(pipeline,**kwargs):
     output.PointData.append(gradP,"""+str(gradP_name)+""")
     """
     pipeline = gradP
+    return pipeline
+
+def get_ffj_filter1(pipeline,**kwargs):
+    """Function to calculate the 'fourfieldjunction' to indicate a rxn site
+    Inputs
+        pipeline (filter/source)- upstream that calculator will process
+        kwargs:
+            status_opts (list)- default is 0-sw, 1-n, 2-s, 3-closed
+    Returns
+        pipeline (filter)- last filter applied keeping a straight pipeline
+    """
+    #Must have the following conditions met first
+    ffj =ProgrammableFilter(registrationName='ffj',Input=pipeline)
+    ffj.Script = """
+    from paraview.vtk.numpy_interface import dataset_adapter as dsa
+    from paraview.vtk.numpy_interface import algorithms as algs
+    # Get input
+    data = inputs[0]
+    status = data.PointData['Status']
+    m1 = (status==0).astype(int)
+    m2 = (status==1).astype(int)
+    m3 = (status==2).astype(int)
+    m4 = (status==3).astype(int)
+    #Assign to output
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(m1,'m1')
+    output.PointData.append(m2,'m2')
+    output.PointData.append(m3,'m3')
+    output.PointData.append(m4,'m4')
+    """
+    pipeline = ffj
+    return pipeline
+
+def get_ffj_filter2(pipeline,**kwargs):
+    #Must have the following conditions met first
+    ffj =ProgrammableFilter(registrationName='ffj',Input=pipeline)
+    ffj.Script = """
+    from paraview.vtk.numpy_interface import dataset_adapter as dsa
+    from paraview.vtk.numpy_interface import algorithms as algs
+    # Get input
+    data = inputs[0]
+
+    m1cc = data.CellData['m1']
+    m2cc = data.CellData['m2']
+    m3cc = data.CellData['m3']
+    m4cc = data.CellData['m4']
+
+    ffj = ((m1cc>0)&
+           (m2cc>0)&
+           (m3cc>0)&
+           (m4cc>0)).astype(int)
+    #Assign to output
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.CellData.append(ffj,'ffj')
+    """
+    pipeline = ffj
     return pipeline
 
 def get_magnetopause_filter(pipeline,**kwargs):
@@ -445,23 +503,31 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
     Returns
         outputsource (filter)- filter applied so things can easily attach
     """
-    if kwargs.get('trim_regions',True):
-        name2 = name
-        name = name+'_hits'
     # Create iso surface
     iso1 = Contour(registrationName=name, Input=inputsource)
     iso1.ContourBy = ['POINTS', variable]
+    iso1.ComputeNormals = 0#NOTE if comptuted now, seem to cause trouble
     iso1.Isosurfaces = [kwargs.get('iso_value',1)]
     iso1.PointMergeMethod = kwargs.get('mergemethod','Uniform Binning')
+    outputsource = iso1
 
+    #Trim any small floating regions
     if kwargs.get('trim_regions',True):
         assert FindSource('MergeBlocks1')!=None
         # Keep only the largest connected region
-        iso2 = Connectivity(registrationName=name2, Input=iso1)
+        RenameSource(name+'_hits', outputsource)
+        iso2 = Connectivity(registrationName=name, Input=outputsource)
         iso2.ExtractionMode = 'Extract Largest Region'
         outputsource = iso2
-    else:
-        outputsource = iso
+
+    #Generate normals now that the surface is fully constructed
+    if kwargs.get('calc_normals',True):
+        RenameSource(name+'_beforeNormals', outputsource)
+        iso3 = GenerateSurfaceNormals(registrationName=name,
+                                      Input=outputsource)
+        iso3.ComputeCellNormals = 1
+        iso3.NonManifoldTraversal = 0
+        outputsource = iso3
 
     return outputsource
 
@@ -475,13 +541,21 @@ def point2cell(inputsource, fluxes):
     return point2cell
 
 def get_surface_flux(source,variable,name,**kwargs):
+    #First find out if our variable lives on points or cell centers
+    #NOTE if on both lists (bad practice) we'll use the cell centered one
+    cc = variable in source.CellData.keys()
+    if not cc:
+        assert variable in source.PointData.keys(), "Bad variable name!"
+        vartype = 'Point Data'
+    else:
+        vartype = 'Cell Data'
     #Create calculator filter that is flux
     flux = Calculator(registrationName=name,Input=source)
-    flux.AttributeType = 'Cell Data'
+    flux.AttributeType = vartype
     flux.Function = 'dot('+variable+',Normals)'
     flux.ResultArrayName = name
     # create a new 'Integrate Variables'
-    result = IntegrateVariables(registrationName=name, Input=flux)
+    result=IntegrateVariables(registrationName=name+'_integrated',Input=flux)
     return result
 
 def setup_table(**kwargs):
@@ -523,6 +597,37 @@ def save_table_data(source, view, path, table_name):
     # export view
     ExportView(path+table_name+'.csv', view=view)
 
+def export_datacube(pipeline,**kwargs):
+    gradP.Script = """
+    # Get input
+    data = inputs[0]
+    p = data.PointData['P_nPa']
+    bs = data.PointData['beta_star']
+
+    # Get data statistic info
+    extents = data.GetExtent()
+    bounds = data.GetBounds()
+    # format: [nx0,nxlast, ny0, nylast, ...]
+    shape_xyz = [extents[1]+1,
+                 extents[3]+1,
+                 extents[5]+1]
+    # Reshape coordinates based on range/extent
+    X = numpy.linspace(bounds[0],bounds[1],shape_xyz[0])
+    Y = numpy.linspace(bounds[2],bounds[3],shape_xyz[1])
+    Z = numpy.linspace(bounds[4],bounds[5],shape_xyz[2])
+    P = numpy.reshape(p,shape_xyz)
+    BS = numpy.reshape(bs,shape_xyz)
+
+    # Set output file
+    outpath = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
+    outname = 'test_downstream_cube.npz'
+
+    # Save data
+    numpy.savez(outpath+outname,x=X,y=Y,z=Z,
+                                p=P,betastar=BS,
+                                dims=shape_xyz)
+                    """
+
 
 def display_visuals(field,mp,renderView,**kwargs):
     """Function standin for separate file governing visual representations
@@ -532,6 +637,8 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView (View)- where to show things
         kwargs:
             mpContourBy
+            contourMin,contourMax
+            cmap
             doSlice
             sliceContourBy
             sliceContourLog
@@ -544,25 +651,47 @@ def display_visuals(field,mp,renderView,**kwargs):
     # show iso surface
     mpDisplay = Show(mp, renderView, 'GeometryRepresentation')
 
-    '''
-    # get color transfer function/color map for 'Status'
-    statusLUT = GetColorTransferFunction('Status')
-    # Apply a preset using its name. Note this may not work as expected
-    #   when presets have duplicate names.
-    statusLUT.ApplyPreset('Rainbow Uniform', True)
-    # set scalar coloring
-    ColorBy(mpDisplay, ('POINTS', 'Status'))
-    '''
-    # change solid color
-    ColorBy(mpDisplay, None)
-    mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
-    mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
+    if 'mpContourBy' in kwargs:
+        # set scalar coloring
+        ColorBy(mpDisplay, ('POINTS', kwargs.get('mpContourBy')))
+        # get color & opacity transfer functions'
+        mpLUT = GetColorTransferFunction(kwargs.get('mpContourBy'))
+        mpPWF = GetOpacityTransferFunction(kwargs.get('mpContourBy'))
+        # Set limits, default both equal
+        mpLUT.RescaleTransferFunction(kwargs.get('contourMin',-10),
+                                      kwargs.get('contourMax',10))
+        mpPWF.RescaleTransferFunction(kwargs.get('contourMin',-10),
+                                      kwargs.get('contourMax',10))
+        # Apply a preset using its name. Note this may not work as expected
+        #   when presets have duplicate names.
+        mpLUT.ApplyPreset(kwargs.get('cmap','Cool to Warm (Extended)'), True)
+        # Show contour legend
+        mpDisplay.SetScalarBarVisibility(renderView,True)
+
+    else:
+        # change solid color
+        ColorBy(mpDisplay, None)
+        mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
+        mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
 
     # Properties modified on mpDisplay.DataAxesGrid
     mpDisplay.DataAxesGrid.GridAxesVisibility = 1
     # Properties modified on slice1Display
-    mpDisplay.Opacity = 0.4
+    mpDisplay.Opacity = 1
 
+
+    if kwargs.get('doFFJ',True):
+        isoFFJ = Contour(registrationName='FFJ', Input=field)
+        isoFFJ.ContourBy = ['POINTS', variable]
+        #isoFFJ.ContourBy = ['CELLS', 'ffj']
+        isoFFJ.ComputeNormals = 0
+        isoFFJ.Isosurfaces = [1]
+        isoFFJdisplay = Show(isoFFJ, renderView, 'GeometryRepresentation')
+        #ColorBy(isoFFJdisplay, ('CELLS', 'ffj'))
+        ColorBy(isoFFJdisplay, ('POINTS', 'ffj'))
+        #ColorBy(isoFFJdisplay, None)
+        #isoFFJ.AmbientColor = [0.0, 1.0, 1.0]
+        #isoFFJ.DiffuseColor = [0.0, 1.0, 1.0]
 
     if kwargs.get('doSlice',False):
         ###Slice
@@ -591,7 +720,9 @@ def display_visuals(field,mp,renderView,**kwargs):
         ColorBy(slice1Display, ('POINTS', 'B_z_nT'))
         # get color transfer function/color map for 'Rho_amu_cm3'
         bzLUT = GetColorTransferFunction('B_z_nT')
-        bzLUT.RescaleTransferFunction(-5.0, 5.0)
+        bzLUT.RescaleTransferFunction(-10.0, 10.0)
+        bzLUT.ApplyPreset('Gray and Red', True)
+        bzLUT.InvertTransferFunction()
 
         # get opacity transfer function/opacity map for 'Rho_amu_cm3'
         bzPWF = GetOpacityTransferFunction('B_z_nT')
@@ -608,17 +739,25 @@ def display_visuals(field,mp,renderView,**kwargs):
         # show color bar/color legend
         slice1Display.SetScalarBarVisibility(renderView, True)
 
-    # get layout
-    layout1 = GetLayout()
-
-    # layout/tab size in pixels
-    layout1.SetSize(1600, 1600)
-
+    '''
     # camera placement for renderView
     renderView.CameraPosition = [123.8821359932328, 162.9578433260544, 24.207094682916125]
     renderView.CameraFocalPoint = [-56.49901724813269, -32.56582457808803, -12.159020395552512]
     renderView.CameraViewUp = [-0.06681529228180919, -0.12253235709025494, 0.9902128751855344]
     renderView.CameraParallelScale = 218.09415971089186
+    '''
+    # Zoomed dayside +Y side magnetosphere
+    renderView.CameraPosition = [33.10, 56.51, 14.49]
+    renderView.CameraFocalPoint = [-33.19, -15.11, -3.46]
+    renderView.CameraViewUp = [-0.10, -0.15, 0.98]
+    renderView.CameraParallelScale = 66.62
+
+    '''
+    renderView1.CameraPosition = [29.48, 55.98, 10.02]
+    renderView1.CameraFocalPoint = [-54.66, -35.22, -6.93]
+    renderView1.CameraViewUp = [-0.06, -0.12, 0.99]
+    renderView1.CameraParallelScale = 218.09
+    '''
 
 def setup_pipeline(infile,**kwargs):
     """Function takes single data file and builds pipeline to find and
@@ -664,6 +803,15 @@ def setup_pipeline(infile,**kwargs):
     # Pressure gradient, optional variable
     if kwargs.get('doGradP',False):
         pipeline = get_pressure_gradient(pipeline)
+    if kwargs.get('ffj',True):
+        ffj1 = get_ffj_filter1(pipeline)
+        ffj2 = PointDatatoCellData(registrationName='ffj_interp1',
+                                   Input=ffj1)
+        ffj2.ProcessAllArrays = 1
+        ffj3 = get_ffj_filter2(ffj2)
+        ffj4 = CellDatatoPointData(registrationName='ffj_interp2',
+                                   Input=ffj3)
+        pipeline = ffj4
 
     # Magnetopause
     pipeline = get_magnetopause_filter(pipeline)
@@ -682,9 +830,8 @@ if __name__ == "__main__":
     ######################################################################
     # USER INPUTS
     ######################################################################
-    #path='/home/aubr/Code/swmf-energetics/localdbug/fte/15min_medRes/copy_paraview_plt/'
-    path='/home/aubr/Code/swmf-energetics/localdbug/fte/15min_medRes/copy_paraview_plt/'
-    outpath = 'output3_fte_pv/'
+    path='/home/aubr/Code/swmf-energetics/localdbug/fte/30min/'
+    outpath = 'output5_fte_pv/'
     ######################################################################
 
     #Make the paths if they don't already exist
@@ -696,24 +843,43 @@ if __name__ == "__main__":
         print('processing '+infile.split('/')[-1]+'...')
         oldsource,pipelinehead,field,mp=setup_pipeline(infile)
         ###Surface flux on magnetopause
+        get_surface_flux(mp, 'B_nT','Bnormal_net')
+        mp_Bnorm = FindSource('Bnormal_net')
         #decide which values to calculate (will need to make cell data)
         #fluxes = [('K_W_Re2','k_flux'),('P0_W_Re2','h_flux'),
         #          ('ExB_W_Re2','p_flux')]
         #mp_cc = point2cell(mp,fluxes)#mp object with cell centered data
         #mp_K_flux = get_surface_flux(mp, 'K_W_Re2','k_flux')
         #mp_S_flux = get_surface_flux(mp_cc, 'ExB_W_Re2','s_net_flux')
-        renderView = GetActiveViewOrCreate('RenderView')
+        renderView1 = GetActiveViewOrCreate('RenderView')
         #TODO find how to limit integration variables and group all together
         #tableLayout, tableView = setup_table()
         #save_table_data(mp_S_flux, tableView, outpath,'s_net_flux')
-        SetActiveView(renderView)
-        display_visuals(field,mp,renderView,doSlice=True)
+        SetActiveView(renderView1)
+        display_visuals(field,mp,renderView1,doSlice=True,
+                        mpContourBy='B_x_nT',contourMin=-40,contourMax=40)
+
+        # Create a new 'Render View'
+        layout = GetLayout()
+        layout.SplitVertical(0, 0.5)
+        renderView2 = CreateView('RenderView')
+        # assign view to a particular cell in the layout
+        AssignViewToLayout(view=renderView2, layout=layout, hint=2)
+        display_visuals(field,mp_Bnorm,renderView2,doSlice=True,
+                        mpContourBy='Bnormal_net',
+                        contourMin=-20,contourMax=20,
+                        cmap='Cool to Warm')
 
         # Render and save screenshot
         RenderAllViews()
+        # layout/tab size in pixels
+        # get layout
+        layout1 = GetLayout()
+        layout1.SetSize(2162, 1079)
         SaveScreenshot(outpath+
-                       infile.split('/')[-1].split('.plt')[0]+'.png',
-                       renderView)
+                       infile.split('/')[-1].split('.plt')[0]+'.png',layout,
+                       SaveAllViews=1,ImageResolution=[2162,1079])
+    '''
     for infile in filelist[1::]:
         print('processing '+infile.split('/')[-1]+'...')
         #Read in new file unattached to current pipeline
@@ -726,12 +892,17 @@ if __name__ == "__main__":
 
         # Render and save screenshot
         RenderAllViews()
+        # layout/tab size in pixels
+        # get layout
+        layout1 = GetLayout()
+        layout1.SetSize(2162, 1079)
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',
                        renderView)
 
         # Set the current source to be replaced on next loop
         oldsource = newsource
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')
