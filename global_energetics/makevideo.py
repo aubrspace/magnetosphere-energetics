@@ -23,17 +23,21 @@ def get_time(infile,**kwargs):
         if '_t' in infile and '_n' in infile:
             date_string = infile.split('/')[-1].split('_t')[-1].split('_')[0]
             time_dt = dt.datetime.strptime(date_string,'%Y%m%d%H%M%S')
+            time_dt = time_dt.replace(microsecond=0)
         else:
             date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
             time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+            time_dt = time_dt.replace(microsecond=0)
     except ValueError:
         try:#looking for typical IE output
             date_string=infile.split('/')[-1].split('it')[-1].split('.')[0]
             time_dt = dt.datetime.strptime(date_string,'%y%m%d_%H%M%S_%f')
+            time_dt = time_dt.replace(microsecond=0)
         except ValueError:
             try:#looking for typical UA output
                 date_string=infile.split('_t')[-1].split('.')[0]
                 time_dt = dt.datetime.strptime(date_string,'%y%m%d_%H%M%S')
+                time_dt = time_dt.replace(microsecond=0)
             except ValueError:
                 warnings.warn("Tried reading "+infile+
                           " as GM3d or IE output and failed",UserWarning)
@@ -132,8 +136,8 @@ def add_timestamps(infolder,*, tshift=0):
         timestamp = get_time(infile)+dt.timedelta(minutes=tshift)
         if i==0: tstart=timestamp
         simtime = timestamp-tstart
-        stamp1 = str(timestamp)[0:-10]
-        stamp2 = 'tsim: '+str(simtime)[0:-10]
+        stamp1 = str(timestamp)
+        stamp2 = 'tsim: '+str(simtime)
 
         #Setup the image
         image = Image.open(infile)
@@ -141,10 +145,10 @@ def add_timestamps(infolder,*, tshift=0):
         font = ImageFont.truetype('fonts/roboto/Roboto-Black.ttf', 45)
 
         #Attach and save
-        I1.text((28,1236), stamp1, font=font, fill=(34,255,32))#TopLeftLimeGreen
-        I1.text((28,1297), stamp2, font=font, fill=(34,255,32))#TopLeftLimeGreen
-        #I1.text((28,936), stamp1, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
-        #I1.text((28,997), stamp2, font=goodfont, fill=(34,255,32))#TopLeftLimeGreen
+        #I1.text((28,1236), stamp1, font=font, fill=(34,255,32))#TopLeftLimeGreen
+        #I1.text((28,1297), stamp2, font=font, fill=(34,255,32))#TopLeftLimeGreen
+        I1.text((28,936), stamp1, font=font, fill=(34,255,32))#TopLeftLimeGreen
+        I1.text((28,997), stamp2, font=font, fill=(34,255,32))#TopLeftLimeGreen
         #I1.text((828,1236), stamp1, font=goodfont, fill=(124,246,223))#BotRightCyan
         #I1.text((828,1297), stamp2, font=goodfont, fill=(124,246,223))#BotRightCyan
         image.save(os.path.join(copyfolder,infile.split('/')[-1]))
