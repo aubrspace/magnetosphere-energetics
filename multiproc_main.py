@@ -108,19 +108,19 @@ def work(mhddatafile):
         marktime=time.time()
     #Caclulate surfaces
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=False,
+                                    do_cms=True,
                                     analysis_type='energymassmag',
-                                    modes=['sphere','terminator'],
-                                    sp_rmax=2.65,
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe','rc'],
                                     do_interfacing=True,
                                     integrate_surface=True,
-                                    integrate_volume=False,
-                                    integrate_line=True,
+                                    integrate_volume=True,
+                                    integrate_line=False,
                                     outputpath=CONTEXT['OUTPUTPATH'],
                                     customTerms={'test':'TestArea [Re^2]'},
                                     logger=log)
-                                    #modes=['iso_betastar','closed',
-                                    #       'nlobe','slobe','rc'],
+                                    #modes=['sphere','terminator'],
+                                    #sp_rmax=2.65,
                                     #tshift=45,
                                     #lshells=[7,12,17,22,27,32],
                                     #lshell_vars=['uB','uB_dipole',
@@ -176,22 +176,23 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    #RUNDIR = 'ccmc_2019-05-13'
+    RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
-    RUNDIR = 'ccmc_2022-02-02'
+    #RUNDIR = 'ccmc_2022-02-02'
     #RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, '1min_output_may2019')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, '1min_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink2')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_starlink2')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_starlink2')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_feb2014')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_feb2014')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_starlink')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_starlink2')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
@@ -205,7 +206,7 @@ if __name__ == '__main__':
     ########################################
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[0::5]
+                                key=makevideo.time_sort)[0::]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []

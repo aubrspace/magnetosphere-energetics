@@ -7,8 +7,25 @@ import os
 import time
 import glob
 import numpy as np
+import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
+
+def get_time(infile,**kwargs):
+    date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
+    time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+    return time_dt
+
+def time_sort(filename):
+    """Function returns absolute time in seconds for use in sorting
+    Inputs
+        filename
+    Outputs
+        total_seconds
+    """
+    time = get_time(filename)
+    relative_time = time-dt.datetime(1800, 1, 1)
+    return (relative_time.days*86400 + relative_time.seconds)
 
 def equations(**kwargs):
     """Defines equations that will be used for global variables
@@ -388,7 +405,7 @@ def get_ffj_filter1(pipeline,**kwargs):
         pipeline (filter)- last filter applied keeping a straight pipeline
     """
     #Must have the following conditions met first
-    ffj =ProgrammableFilter(registrationName='ffj',Input=pipeline)
+    ffj =ProgrammableFilter(registrationName='ffj1',Input=pipeline)
     ffj.Script = """
     from paraview.vtk.numpy_interface import dataset_adapter as dsa
     from paraview.vtk.numpy_interface import algorithms as algs
@@ -411,7 +428,7 @@ def get_ffj_filter1(pipeline,**kwargs):
 
 def get_ffj_filter2(pipeline,**kwargs):
     #Must have the following conditions met first
-    ffj =ProgrammableFilter(registrationName='ffj',Input=pipeline)
+    ffj =ProgrammableFilter(registrationName='ffj2',Input=pipeline)
     ffj.Script = """
     from paraview.vtk.numpy_interface import dataset_adapter as dsa
     from paraview.vtk.numpy_interface import algorithms as algs
@@ -429,7 +446,7 @@ def get_ffj_filter2(pipeline,**kwargs):
            (m4cc>0)).astype(int)
     #Assign to output
     output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-    output.CellData.append(ffj,'ffj')
+    output.CellData.append(ffj,'ffj_state')
     """
     pipeline = ffj
     return pipeline
@@ -682,16 +699,14 @@ def display_visuals(field,mp,renderView,**kwargs):
 
     if kwargs.get('doFFJ',True):
         isoFFJ = Contour(registrationName='FFJ', Input=field)
-        isoFFJ.ContourBy = ['POINTS', variable]
-        #isoFFJ.ContourBy = ['CELLS', 'ffj']
+        isoFFJ.ContourBy = ['POINTS', 'ffj_state']
         isoFFJ.ComputeNormals = 0
-        isoFFJ.Isosurfaces = [1]
+        isoFFJ.Isosurfaces = [0.1]
+        isoFFJ.PointMergeMethod = 'Uniform Binning'
         isoFFJdisplay = Show(isoFFJ, renderView, 'GeometryRepresentation')
-        #ColorBy(isoFFJdisplay, ('CELLS', 'ffj'))
-        ColorBy(isoFFJdisplay, ('POINTS', 'ffj'))
-        #ColorBy(isoFFJdisplay, None)
-        #isoFFJ.AmbientColor = [0.0, 1.0, 1.0]
-        #isoFFJ.DiffuseColor = [0.0, 1.0, 1.0]
+        ColorBy(isoFFJdisplay, None)
+        isoFFJdisplay.AmbientColor = [0.0, 1.0, 0.0]
+        isoFFJdisplay.DiffuseColor = [0.0, 1.0, 0.0]
 
     if kwargs.get('doSlice',False):
         ###Slice
@@ -809,6 +824,7 @@ def setup_pipeline(infile,**kwargs):
                                    Input=ffj1)
         ffj2.ProcessAllArrays = 1
         ffj3 = get_ffj_filter2(ffj2)
+        #pipeline=ffj3
         ffj4 = CellDatatoPointData(registrationName='ffj_interp2',
                                    Input=ffj3)
         pipeline = ffj4
@@ -824,32 +840,38 @@ def setup_pipeline(infile,**kwargs):
 
     return sourcedata, pipelinehead, field, mp
 
-if __name__ == "__main__":
-#if True:
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
     ######################################################################
     # USER INPUTS
     ######################################################################
-    path='/home/aubr/Code/swmf-energetics/localdbug/fte/30min/'
-    outpath = 'output5_fte_pv/'
+    #path='/home/aubr/Code/swmf-energetics/localdbug/fte/30min/'
+    #path='/nfs/solsticedisk/tuija/amr_fte/firstrun/GM/IO2/'
+    path='/nfs/solsticedisk/tuija/amr_fte/firstrun/GM/IO2/'
+    #outpath = 'output6_fte_pv/'
+    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/fte/'
+    #outpath = '/Users/ngpdl/Code/swmf-energetics/localdbug/fte/output5_fte_pv/'
     ######################################################################
 
     #Make the paths if they don't already exist
     os.makedirs(path, exist_ok=True)
-    os.makedirs(outpath, exist_ok=True)
+    #os.makedirs(outpath, exist_ok=True)
 
-    filelist = glob.glob(path+'*.plt')
-    for infile in filelist[0:1]:
+    #filelist = sorted(glob.glob(path+'*paraview*.plt'),
+    #                  key=time_sort)
+    filelist = ['/home/aubr/Code/swmf-energetics/localdbug/feb2014/3d__paraview_1_e20140219-030000-000.plt']
+    for infile in filelist[-1::]:
         print('processing '+infile.split('/')[-1]+'...')
         oldsource,pipelinehead,field,mp=setup_pipeline(infile)
         ###Surface flux on magnetopause
         get_surface_flux(mp, 'B_nT','Bnormal_net')
         mp_Bnorm = FindSource('Bnormal_net')
         #decide which values to calculate (will need to make cell data)
-        #fluxes = [('K_W_Re2','k_flux'),('P0_W_Re2','h_flux'),
-        #          ('ExB_W_Re2','p_flux')]
-        #mp_cc = point2cell(mp,fluxes)#mp object with cell centered data
-        #mp_K_flux = get_surface_flux(mp, 'K_W_Re2','k_flux')
+        fluxes = [('K_W_Re2','k_flux'),('P0_W_Re2','h_flux'),
+                  ('ExB_W_Re2','p_flux')]
+        mp_cc = point2cell(mp,fluxes)#mp object with cell centered data
+        mp_K_flux = get_surface_flux(mp, 'K_W_Re2','k_flux')
         #mp_S_flux = get_surface_flux(mp_cc, 'ExB_W_Re2','s_net_flux')
         renderView1 = GetActiveViewOrCreate('RenderView')
         #TODO find how to limit integration variables and group all together
@@ -859,6 +881,7 @@ if __name__ == "__main__":
         display_visuals(field,mp,renderView1,doSlice=True,
                         mpContourBy='B_x_nT',contourMin=-40,contourMax=40)
 
+        """
         # Create a new 'Render View'
         layout = GetLayout()
         layout.SplitVertical(0, 0.5)
@@ -873,36 +896,36 @@ if __name__ == "__main__":
         # Render and save screenshot
         RenderAllViews()
         # layout/tab size in pixels
-        # get layout
-        layout1 = GetLayout()
-        layout1.SetSize(2162, 1079)
+        layout.SetSize(2162, 1079)
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[2162,1079])
-    '''
-    for infile in filelist[1::]:
+    for infile in filelist[::]:
         print('processing '+infile.split('/')[-1]+'...')
-        #Read in new file unattached to current pipeline
-        SetActiveSource(None)
-        newsource = read_tecplot(infile)
+        outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
+        if os.path.exists(outfile):
+            print(outfile+' already exists, skipping')
+        else:
+            #Read in new file unattached to current pipeline
+            SetActiveSource(None)
+            newsource = read_tecplot(infile)
 
-        #Attach pipeline to the new source file and delete the old
-        pipelinehead.Input = newsource
-        Delete(oldsource)
+            #Attach pipeline to the new source file and delete the old
+            pipelinehead.Input = newsource
+            Delete(oldsource)
 
-        # Render and save screenshot
-        RenderAllViews()
-        # layout/tab size in pixels
-        # get layout
-        layout1 = GetLayout()
-        layout1.SetSize(2162, 1079)
-        SaveScreenshot(outpath+
-                       infile.split('/')[-1].split('.plt')[0]+'.png',
-                       renderView)
+            # Render and save screenshot
+            RenderAllViews()
+            # layout/tab size in pixels
+            # layout/tab size in pixels
+            layout.SetSize(2162, 1079)
+            SaveScreenshot(outpath+
+                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
+                        SaveAllViews=1,ImageResolution=[2162,1079])
 
-        # Set the current source to be replaced on next loop
-        oldsource = newsource
-    '''
+            # Set the current source to be replaced on next loop
+            oldsource = newsource
+        """
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

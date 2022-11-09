@@ -10,16 +10,22 @@ import numpy as np
 import datetime as dt
 #import spacepy.time as spacetime
 
-def get_time(infile):
+def get_time(infile,**kwargs):
     """Function gets time from file name and returns spacepy Ticktock obj
     Input
         infile
+        kwargs:
+            timesep(str)- default 'e', could be 't' and 'n'
     Output
         time- spacepy Ticktock object
     """
     try:#looking for typically BATSRUS 3D output
-        date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
-        time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+        if '_t' in infile and '_n' in infile:
+            date_string = infile.split('/')[-1].split('_t')[-1].split('_')[0]
+            time_dt = dt.datetime.strptime(date_string,'%Y%m%d%H%M%S')
+        else:
+            date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
+            time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
     except ValueError:
         try:#looking for typical IE output
             date_string=infile.split('/')[-1].split('it')[-1].split('.')[0]
