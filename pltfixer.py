@@ -19,10 +19,10 @@ def standardize_name(filename):
     return '3d__paraview_1_e'+filetime.strftime('%Y%m%d-%H%M%S-000')+'.plt'
 
 if __name__ == '__main__':
-    #header = 'localdbug/fte/15min_medRes/copy_paraview_plt/'
-    #header = '/nfs/solsticedisk/tuija/amr_fte/firstrun/GM/IO2/'
+    header = 'localdbug/fte/'
+    #header = '/nfs/solsticedisk/tuija/amr_fte/secondtry/GM/IO2/'
     #header = '/home/aubr/Code/swmf-energetics/localdbug/fte/pieces/'
-    header = '/home/aubr/Code/swmf-energetics/localdbug/feb2014/'
+    #header = '/home/aubr/Code/swmf-energetics/localdbug/feb2014/'
     if '-c' in sys.argv:
         tp.session.connect()
     for i,infile in enumerate(glob.glob(header+'*_var*.plt')):

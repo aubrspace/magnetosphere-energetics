@@ -49,6 +49,24 @@ def get_fx(zone,integrands,**kwargs):
             y_u = u_in.replace('/Re^2','/sRe')
             ## Net flux
             ynet =  '{'+ybase+'_net '+y_u+'}'
+            eq(ynet+' = abs({'+inpt+'})*{U_txd}/6371',zones=[zone])
+            ydict[base_out+'_net '+u_out] = zone.values(
+                                              ybase+'_net*').as_numpy_array()
+            ## Day->Night
+            yday2night =  '{'+ybase+'_day2night '+y_u+'}'
+            eq(yday2night+' = abs({'+inpt+'})*min({U_txd},0)/6371',zones=[zone])
+            ydict[base_out+'_day2night '+u_out] = zone.values(
+                                             ybase+'_day2*').as_numpy_array()
+            ## Day<-Night
+            ynight2day =  '{'+ybase+'_night2day '+y_u+'}'
+            eq(ynight2day+' = abs({'+inpt+'})*max({U_txd},0)/6371',zones=[zone])
+            ydict[base_out+'_night2day '+u_out] = zone.values(
+                                           ybase+'_night2*').as_numpy_array()
+            '''
+            ybase = base_in+'U_txd'
+            y_u = u_in.replace('/Re^2','/sRe')
+            ## Net flux
+            ynet =  '{'+ybase+'_net '+y_u+'}'
             eq(ynet+' = {'+inpt+'}*{U_txd}/6371',zones=[zone])
             ydict[base_out+'_net '+u_out] = zone.values(
                                               ybase+'_net*').as_numpy_array()
@@ -70,6 +88,7 @@ def get_fx(zone,integrands,**kwargs):
                 eq(ynight2day+'=if('+ynet+'>0,'+ynet+',0)',zones=[zone])
             ydict[base_out+'_night2day '+u_out] = zone.values(
                                            ybase+'_night2*').as_numpy_array()
+            '''
     return ydict
 
 def line_analysis(zone, **kwargs):

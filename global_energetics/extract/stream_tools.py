@@ -1541,13 +1541,12 @@ def equations(**kwargs):
         '{Reynolds_m_cell}':'4*pi*1e-4*'+
                  'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
                                    '{Cell Size [Re]}/({eta [Re/S]}+1e-9)'}
-    #Nodal
-    #{m1} = if({Status}==0,1,0)
-    #{m2} = if({Status}==1,1,0)
-    #{m3} = if({Status}==2,1,0)
-    #{m4} = if({Status}==3,1,0)
-    #Cell centered (interpolate the m conditions
-    #{sep} = if({m1}>0&&{m2}>0&&{m3}>0&&{m4}>0,1,0)
+    equations['ffj_setup'] = {
+        '{m1}':'if({Status}==0,1,0)',
+        '{m2}':'if({Status}==1,1,0)',
+        '{m3}':'if({Status}==2,1,0)',
+        '{m4}':'if({Status}==3,1,0)'}
+    equations['ffj'] = {'{ffj}':'if({m1}>0&&{m2}>0&&{m3}>0&&{m4}>0,1,0)'}
     ######################################################################
     #Tracking IM GM overwrites
     equations['trackIM'] = {
@@ -1653,6 +1652,9 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     #Reconnection variables
     if 'reconnect' in analysis_type:
         eqeval(alleq['reconnect'],value_location=cc)
+    if 'ffj' in analysis_type:
+        eqeval(alleq['ffj_setup'],value_location=cc)
+        eqeval(alleq['ffj'])
     #trackIM
     if'trackIM'in analysis_type:eqeval(alleq['trackIM'],value_location=cc)
     #specific entropy
