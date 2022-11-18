@@ -1546,7 +1546,12 @@ def equations(**kwargs):
         '{m2}':'if({Status}==1,1,0)',
         '{m3}':'if({Status}==2,1,0)',
         '{m4}':'if({Status}==3,1,0)'}
-    equations['ffj'] = {'{ffj}':'if({m1}>0&&{m2}>0&&{m3}>0&&{m4}>0,1,0)'}
+    equations['ffj'] = {
+            '{m1_cc}':'{m1}',
+            '{m2_cc}':'{m2}',
+            '{m3_cc}':'{m3}',
+            '{m4_cc}':'{m4}',
+            '{ffj}':'if({m1_cc}>0&&{m2_cc}>0&&{m3_cc}>0&&{m4_cc}>0,1,0)'}
     ######################################################################
     #Tracking IM GM overwrites
     equations['trackIM'] = {
@@ -1590,7 +1595,8 @@ def eqeval(eqset,**kwargs):
     for lhs,rhs in eqset.items():
         tp.data.operate.execute_equation(lhs+'='+rhs,
                               zones=kwargs.get('zones'),
-                              value_location=kwargs.get('value_location'))
+                              value_location=kwargs.get('value_location'),
+                              ignore_divide_by_zero=True)
 
 def get_global_variables(field_data, analysis_type, **kwargs):
     """Function calculates values for energetics tracing
@@ -1602,6 +1608,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     """
     alleq = equations(aux=kwargs.get('aux'))
     cc = ValueLocation.CellCentered
+    nodal = ValueLocation.Nodal
     #Testing variables
     if kwargs.get('verbose',False)or('test'in
                                      kwargs.get('customTerms',{}).keys()):
@@ -1653,8 +1660,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     if 'reconnect' in analysis_type:
         eqeval(alleq['reconnect'],value_location=cc)
     if 'ffj' in analysis_type:
-        eqeval(alleq['ffj_setup'],value_location=cc)
-        eqeval(alleq['ffj'])
+        eqeval(alleq['ffj_setup'],value_location=nodal)
+        eqeval(alleq['ffj'],value_location=cc)
     #trackIM
     if'trackIM'in analysis_type:eqeval(alleq['trackIM'],value_location=cc)
     #specific entropy
