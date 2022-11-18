@@ -26,7 +26,7 @@ from global_energetics.analysis.proc_hdf import (load_hdf_sort,
 from global_energetics.analysis.analyze_energetics import plot_power
 from global_energetics.analysis.proc_energy_spatial import reformat_lshell
 
-def central_diff(df,dt,**kwargs):
+def centr_diff(df,dt,**kwargs):
     """Takes central difference of the columns of a dataframe
     Inputs
         df (DataFrame)- data
@@ -423,33 +423,22 @@ def polar_cap_area_fig(ds,ph,path):
                         figsize=[14,4*len(ds.keys())])
     #plot
     for i,ev in enumerate(ds.keys()):
-        lobe = ds[ev]['msdict'+ph]['lobes']
-        if not lobe.empty:
-            #Polar cap areas compared with Newell Coupling function
-            ax[i].plot(ds[ev]['time'+ph],lobe.get('TestAreaPolesN [Re^2]',
-                                                   np.zeros(len(lobe))),
-                       label=ev+'N')
-            ax[i].plot(ds[ev]['time'+ph],lobe.get('TestAreaPolesS [Re^2]',
-                                                   np.zeros(len(lobe))),
-                       label=ev+'S',ls='--')
-            rax = ax[i].twinx()
-            rax.plot(ds[ev]['time'+ph],
-                     lobe.get('M_netPolesN [kg/s]',np.zeros(len(lobe)))*-1,
-                     label=ev+'N',c='orange')
-            rax.plot(ds[ev]['time'+ph],
-                     lobe.get('M_netPolesS [kg/s]',np.zeros(len(lobe)))*-1,
-                     label=ev+'S',ls='--',c='orange')
-            rax.set_ylabel(r'Mass Flux $\left[ kg/s\right]$')
-            '''
-            rax.plot(ds[ev]['time'+ph],
-                  lobe.get('Bf_netPolesN [Wb]',np.zeros(len(lobe))),
-                         label=ev+'N',c='blue')
-            rax.plot(ds[ev]['time'+ph],
-                  lobe.get('Bf_netPolesS [Wb]',np.zeros(len(lobe)))*-1,
-                         label=ev+'S',c='blue',ls='--')
-            rax.set_ylabel(r'Mag Flux $\left[ Wb\right]$')
-            '''
-            general_plot_settings(ax[i],ylabel=r'Area $\left[ Re^2\right]$'
+        filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
+        if 'termdict' in ds[ev].keys():
+            #filltime = ds[ev]['time'+ph].astype('float64')
+            lobe = ds[ev]['termdict'+ph]['sphere2.65_surface']
+            nterm = ds[ev]['termdict'+ph]['terminator2.65north']
+            sterm = ds[ev]['termdict'+ph]['terminator2.65south']
+        else:
+            lobe = ds[ev]['msdict'+ph]['lobes']
+        if not lobe.empty and 'Bf_netPolesDayN [Wb]' in lobe.keys():
+            ax[i].fill_between(filltime,abs(lobe['Bf_netPolesDayN [Wb]']),
+                               label=ev+'DayN')
+            base = abs(lobe['Bf_netPolesDayN [Wb]'])
+            ax[i].fill_between(filltime,base,
+                               base+abs(lobe['Bf_netPolesNightN [Wb]']),
+                               label=ev+'NightN')
+            general_plot_settings(ax[i],ylabel=r'$\Phi\left[ Wb\right]$'
                                   ,do_xlabel=(i==len(ds.keys())-1),
                                   timedelta=('lineup' in ph),legend=True)
     #save
@@ -469,96 +458,70 @@ def polar_cap_flux_fig(ds,ph,path):
         None
     """
     #setup figures
-    pcf,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                        figsize=[14,6*len(ds.keys())])
+    pcf1,ax1=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                          figsize=[14,6*len(ds.keys())])
+    pcf2,ax2=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                          figsize=[28,12*len(ds.keys())])
     #plot
     for i,ev in enumerate(ds.keys()):
-        #lobe = ds[ev]['msdict'+ph]['lobes']
+        filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
         if 'termdict' in ds[ev].keys():
             lobe = ds[ev]['termdict'+ph]['sphere2.65_surface']
             nterm = ds[ev]['termdict'+ph]['terminator2.65north']
             sterm = ds[ev]['termdict'+ph]['terminator2.65south']
         else:
             lobe = ds[ev]['msdict'+ph]['lobes']
-        inner = ds[ev]['inner_mp'+ph]
         obs = ds[ev]['obs']['swmf_sw'+ph]
         obstime = ds[ev]['swmf_sw_otime'+ph]
         omni = ds[ev]['obs']['omni'+ph]
         omni_t = ds[ev]['omni_otime'+ph]
-        if 'termdict' in ds[ev].keys():
-            rax = ax[i]
-            rax.plot(ds[ev]['time'+ph],
-                             (nterm['dPhidt_net [Wb/s]']),
-                              c='Black',label='terminator')
-        """
-            ax[2*i].fill_between(lobe.index,
-                                 nterm['dPhidt_day2night [Wb/s]'],
-                                 ec='Blue',fc='Lightblue')
-            ax[2*i+1].fill_between(lobe.index,
-                                   sterm['dPhidt_day2night [Wb/s]'],
-                                   ec='Blue', fc='Lightblue', ls='--')
-            ax[2*i].fill_between(lobe.index,
-                                 nterm['dPhidt_night2day [Wb/s]'],
-                                 ec='Red',fc='Palevioletred')
-            ax[2*i+1].fill_between(lobe.index,
-                                   sterm['dPhidt_night2day [Wb/s]'],
-                                   ec='Red', fc='Palevioletred', ls='--')
-            ax[2*i].fill_between(lobe.index,nterm['dPhidt_net [Wb/s]'],
-                                 ec='Black',fc='Grey')
-            ax[2*i+1].fill_between(lobe.index,sterm['dPhidt_net [Wb/s]'],
-                                   ec='Black', fc='Grey',ls='--')
-            general_plot_settings(ax[2*i+1],
-                            ylabel=r'Mag Flux Trans$\left[ Wb/s\right]$'
-                                  ,do_xlabel=(i==len(ds.keys())-1),
-                                legend=(i==0),timedelta=('lineup' in ph))
-        """
         if not lobe.empty and 'termdict' in ds[ev].keys():
             #Polar cap mag flux compared with Newell coupling function
-            ax[i].fill_between(obstime.values.astype('float64'),
+            ax1[i].fill_between(obstime.values.astype('float64'),
                                obs['Newell'],
                                label=ev+'Newell',
                                fc='grey')
-            ax[i].spines['right'].set_color('grey')
-            ax[i].tick_params(axis='y',colors='grey')
-            ax[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
-            if 'Bf_netPolesDay [Wb]' in lobe.keys():
-                dayN = central_diff(lobe['Bf_netPolesDayN [Wb]'],300)
-                dayS = central_diff(lobe['Bf_netPolesDayS [Wb]'],300)
-                nightN = central_diff(lobe['Bf_netPolesNightN [Wb]'],300)
-                nightS = central_diff(lobe['Bf_netPolesNightS [Wb]'],300)
-                rax.plot(ds[ev]['time'+ph],
-                           dayN-nterm['dPhidt_net [Wb/s]'],
-                           label=ev+'Nday')
-                #ax[i].plot(ds[ev]['time'+ph],
-                #           dayS-sterm['dPhidt_net [Wb/s]'],
-                #           label=ev+'Sday',ls='--')
-                ax[i].plot(ds[ev]['time'+ph],
-                           nightN+nterm['dPhidt_net [Wb/s]'],
-                           label=ev+'Nnight')
-                #ax[i].plot(ds[ev]['time'+ph],
-                #           nightS+sterm['dPhidt_net [Wb/s]'],
-                #           label=ev+'Snight',ls='--')
-                #ax[i].set_ylim([-1e5,1e5])
-            #rax = ax[i].twinx()
-            #rax.plot(omni_t,omni['al'],c='blue',label=ev+'AL')
-            #rax.set_ylim([-1800,1800])
-            #rax.set_ylabel(r'AL $\left[ nT\right]$')
-            #rax.plot(ds[ev]['time'+ph],lobe.get('Bf_netPolesN [Wb]',
-            #                                       np.zeros(len(lobe))),
-            #           label=ev+'N')
-            #rax.plot(ds[ev]['time'+ph],lobe.get('Bf_netPolesS [Wb]',
-            #                                    np.zeros(len(lobe)))*-1,
-            #           label=ev+'S',ls='--')
-            general_plot_settings(rax,
-                                  ylabel=r'Mag Flux $\left[ Wb/s\right]$',
-                                  do_xlabel=(i==len(ds.keys())-1),
-                                legend=(i==2),timedelta=('lineup' in ph))
+            ax1[i].spines['right'].set_color('grey')
+            ax1[i].tick_params(axis='y',colors='grey')
+            ax1[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
+            if 'Bf_netPolesDayN [Wb]' in lobe.keys():
+                dayN = centr_diff(abs(lobe['Bf_netPolesDayN [Wb]']),120)
+                dayS = centr_diff(abs(lobe['Bf_netPolesDayS [Wb]']),120)
+                nightN=centr_diff(abs(lobe['Bf_netPolesNightN [Wb]']),120)
+                nightS=centr_diff(abs(lobe['Bf_netPolesNightS [Wb]']),120)
+                TN = nterm['dPhidt_net [Wb/s]']
+                TS = sterm['dPhidt_net [Wb/s]']
+                DN = dayN-TN
+                DS = dayS-TS
+                NN = nightN+TN
+                NS = nightS+TS
+                ax1[i].plot(ds[ev]['time'+ph], dayN, label=ev+'Nday')
+                ax1[i].plot(ds[ev]['time'+ph], nightN, label=ev+'Nnight')
+                ax2[i].plot(ds[ev]['time'+ph],DN,label=ev+'Nday')
+                ax2[i].plot(ds[ev]['time'+ph],NN,label=ev+'Nnight')
+                ax2[i].fill_between(filltime,DN+NN,
+                                    label=ev+r'$\triangle PC$',
+                                    fc='grey',ec='black')
+        if 'termdict' in ds[ev].keys():
+            ax1[i].plot(ds[ev]['time'+ph],TN,c='Black',label='terminator')
+        general_plot_settings(ax1[i],do_xlabel=(i==len(ds.keys())-1),
+                              ylabel=r'$d\Phi/dt\left[ Wb/s\right]$',
+                              legend=(i==2),timedelta=('lineup' in ph))
+        general_plot_settings(ax2[i],do_xlabel=(i==len(ds.keys())-1),
+                              ylabel=r'$d\Phi/dt\left[ Wb/s\right]$',
+                              ylim=[-2.5e5,2.5e5],
+                              legend=(i==2),timedelta=('lineup' in ph))
     #save
-    pcf.tight_layout(pad=1)
-    figname = path+'/polar_cap_flux'+ph+'.png'
-    pcf.savefig(figname)
-    plt.close(pcf)
-    print('\033[92m Created\033[00m',figname)
+    pcf1.tight_layout(pad=1)
+    pcf2.tight_layout(pad=1)
+    figname1 = path+'/polar_cap_flux'+ph+'.png'
+    figname2 = path+'/polar_cap_flux2'+ph+'.png'
+    pcf1.savefig(figname1)
+    pcf2.savefig(figname2)
+    plt.close(pcf1)
+    plt.close(pcf2)
+    print('\033[92m Created\033[00m',figname1)
+    print('\033[92m Created\033[00m',figname2)
 
 def stack_volume_fig(ds,ph,path,hatches):
     """Stack plot Volume by region
@@ -848,6 +811,52 @@ def static_motional_fig(ds,ph,path):
     plt.close(fig1)
     print('\033[92m Created\033[00m',figname)
 
+def imf_figure(ds,ph,path,hatches):
+    imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                          figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        orange = dt.timedelta(minutes=0)
+        obs = ds[ev]['obs']['swmf_sw'+ph]
+        obstime = ds[ev]['swmf_sw_otime'+ph]
+        ot = [float(n) for n in obstime.to_numpy()]#bad hack
+        ax[i].fill_between(ot,obs['B'], ec='dimgrey',fc='thistle',
+                               hatch=hatches[i], label=r'$|B|$')
+        ax[i].plot(ot,obs['bx'],label=r'$B_x$',c='maroon')
+        ax[i].plot(ot,obs['by'],label=r'$B_y$',c='magenta')
+        ax[i].plot(ot,obs['bz'],label=r'$B_z$',c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'$B\left[nT\right]$'+ev,
+                              do_xlabel=(i==len(ds.keys())-1),
+                              legend=True,timedelta=('lineup' in ph))
+    #save
+    imf.tight_layout(pad=0.8)
+    figname = path+'/imf'+ph+'.png'
+    imf.savefig(figname)
+    plt.close(imf)
+    print('\033[92m Created\033[00m',figname)
+
+def swPlasma_figure(ds,ph,path,hatches):
+    plasma1, ax1 = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
+                                figsize=[14,4*len(ds.keys())])
+    for i,ev in enumerate(ds.keys()):
+        orange = dt.timedelta(minutes=0)
+        obs = ds[ev]['obs']['swmf_sw'+ph]
+        obstime = ds[ev]['swmf_sw_otime'+ph]
+        ot = [float(n) for n in obstime.to_numpy()]#bad hack
+        ax[i].fill_between(ot,obs['B'], ec='dimgrey',fc='thistle',
+                               hatch=hatches[i], label=r'$|B|$')
+        ax[i].plot(ot,obs['bx'],label=r'$B_x$',c='maroon')
+        ax[i].plot(ot,obs['by'],label=r'$B_y$',c='magenta')
+        ax[i].plot(ot,obs['bz'],label=r'$B_z$',c='tab:blue')
+        general_plot_settings(ax[i],ylabel=r'$B\left[nT\right]$'+ev,
+                              do_xlabel=(i==len(ds.keys())-1),
+                              legend=True,timedelta=('lineup' in ph))
+    #save
+    plasma1.tight_layout(pad=0.8)
+    figname = path+'/plasma1'+ph+'.png'
+    plasma1.savefig(figname)
+    plt.close(plasma1)
+    print('\033[92m Created\033[00m',figname)
+
 def quiet_figures(ds):
     region_interface_averages(ds)
 
@@ -860,7 +869,7 @@ def main_rec_figures(ds):
         #stack_energy_region_fig(ds,ph,path,hatches)
         #stack_volume_fig(ds,ph,path,hatches)
         #interf_power_fig(ds,ph,path,hatches)
-        #polar_cap_area_fig(ds,ph,path)
+        polar_cap_area_fig(ds,ph,path)
         polar_cap_flux_fig(ds,ph,path)
         #tail_cap_fig(ds,ph,path)
         #static_motional_fig(ds,ph,path)
@@ -882,7 +891,9 @@ def bonus_figures(ds):
     pass
 
 def solarwind_figures(ds):
-    pass
+    hatches = ['','*','x','o']
+    for ph,path in [('_lineup',outLine)]:
+        imf_figure(ds,ph,path,hatches)
 
 if __name__ == "__main__":
     #Need input path, then create output dir's
@@ -905,15 +916,18 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     ds = {}
-    ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
-    ds['star'] = load_hdf_sort(inPath+'starlink2_results.h5')
+    #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
+    #ds['star'] = load_hdf_sort(inPath+'starlink2_results.h5')
+    #ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
+    #ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
     ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
 
     #Log files and observational indices
-    ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
-                                    read_supermag=False, tshift=45)
-    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-                                     read_supermag=False)
+    #ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
+    #                                read_supermag=False, tshift=45)
+    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                                 end=ds['star']['times'][-1])
     ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
                                     read_supermag=False)
 
@@ -949,7 +963,7 @@ if __name__ == "__main__":
     #quiet_figures(ds)
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(ds)
+    #main_rec_figures(ds)
     ######################################################################
     ##Short zoomed in interval
     #interval_figures(ds)
@@ -1013,31 +1027,6 @@ if __name__ == "__main__":
 
     ######################################################################
     #Series of solar wind observatioins/inputs/indices
-    #IMF
-    imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                                          figsize=[14,4*len(ds.keys())])
-    for i,ev in enumerate(ds.keys()):
-        orange = dt.timedelta(minutes=0)
-        for j,ph in enumerate(['_qt','_main','_rec']):
-            obs = ds[ev]['obs']['swmf_sw'+ph]
-            ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
-            orange += ot[-1]-ot[0]
-            if j==0:
-                h=''
-            else:
-                h='_'
-            ax[i].fill_between(ot,obs['B'], ec='dimgrey',fc='thistle',
-                               hatch=hatches[i], label=h+r'$|B|$')
-            ax[i].plot(ot,obs['bx'],label=h+r'$B_x$',c='maroon')
-            ax[i].plot(ot,obs['by'],label=h+r'$B_y$',c='magenta')
-            ax[i].plot(ot,obs['bz'],label=h+r'$B_z$',c='tab:blue')
-        general_plot_settings(ax[i],ylabel=r'$B\left[nT\right]$'+ev,
-                              legend=(i==0),
-                              do_xlabel=(i==len(ds.keys())-1))
-    #save
-    imf.tight_layout(pad=0.8)
-    imf.savefig(unfiled+'/imf.png')
-    plt.close(imf)
 
     #Pdyn and Vxyz
     pVel, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,

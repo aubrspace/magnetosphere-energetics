@@ -541,6 +541,14 @@ def get_swmf_data(datapath,**kwargs):
     swdata['times'] = swdata.index
     swdata['dens'] = swdata['density']
 
+    #trim according to kwargs passed
+    geoindexdata = geoindexdata.truncate(before=kwargs.get('start'),
+                                         after=kwargs.get('end'))
+    swmflogdata = swmflogdata.truncate(before=kwargs.get('start'),
+                                       after=kwargs.get('end'))
+    swdata = swdata.truncate(before=kwargs.get('start'),
+                             after=kwargs.get('end'))
+
     return geoindexdata, swmflogdata, swdata
 
 def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
@@ -652,7 +660,7 @@ def read_indices(data_path, **kwargs):
         data.update({'swmf_index':swmf_index})
         data.update({'swmf_log':swmf_log})
         data.update({'swmf_sw':swmf_sw})
-        #find new start/end times
+        #find new start/end times, will have been trimmed already if needed
         kwargs.update({'start':swmf_index.index[0]})
         kwargs.update({'end':swmf_index.index[-1]})
     #get supermag and omni

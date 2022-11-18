@@ -27,6 +27,60 @@ def time_sort(filename):
     relative_time = time-dt.datetime(1800, 1, 1)
     return (relative_time.days*86400 + relative_time.seconds)
 
+def read_aux(infile):
+    """Reads in auxillary data file stripped from a .plt tecplot file
+    Inputs
+        infile (str)- full path to file location
+    Returns
+        data (dict)- dictionary of all data contained in the file
+    """
+    data = {}
+    with open(infile,'r') as f:
+        for line in f.readlines():
+            data[line.split(':')[0]]=line.split(':')[-1].replace(
+                                                 ' ','').replace('\n','')
+    return data
+
+def get_dipole_field(auxdata, *, B0=31000):
+    """Function calculates dipole field in given coordinate system based on
+        current time in UTC
+    Inputs
+        auxdata- tecplot object containing key data pairs
+        B0- surface magnetic field strength
+    """
+    #Determine dipole vector in given coord system
+    theta_tilt = float(auxdata['BTHETATILT'])
+    axis = [np.sin(np.deg2rad(theta_tilt)),
+            0,
+            -1*np.cos(np.deg2rad(theta_tilt))]
+    #Create dipole matrix
+    ######################################
+    #   (3x^2-r^2)      3xy         3xz
+    #B =    3yx     (3y^2-r^2)      3yz    * vec{m}
+    #       3zx         3zy     (3z^2-r^2)
+    ######################################
+    M11 = '(3*{X [R]}**2-{r [R]}**2)'
+    M12 = '3*{X [R]}*{Y [R]}'
+    M13 = '3*{X [R]}*{Z [R]}'
+    M21 = M12
+    M22 = '(3*{Y [R]}**2-{r [R]}**2)'
+    M23 = '3*{Y [R]}*{Z [R]}'
+    M31 = M13
+    M32 = M23
+    M33 = '(3*{Z [R]}**2-{r [R]}**2)'
+    #Multiply dipole matrix by dipole vector
+    d_x='{Bdx}='+str(B0)+'/{r [R]}**5*('+(M11+'*'+str(axis[0])+'+'+
+                                            M12+'*'+str(axis[1])+'+'+
+                                            M13+'*'+str(axis[2]))+')'
+    d_y='{Bdy}='+str(B0)+'/{r [R]}**5*('+(M21+'*'+str(axis[0])+'+'+
+                                            M22+'*'+str(axis[1])+'+'+
+                                            M23+'*'+str(axis[2]))+')'
+    d_z='{Bdz}='+str(B0)+'/{r [R]}**5*('+(M31+'*'+str(axis[0])+'+'+
+                                            M32+'*'+str(axis[1])+'+'+
+                                            M33+'*'+str(axis[2]))+')'
+    #Return equation strings to be evaluated
+    return d_x, d_y, d_z
+
 def equations(**kwargs):
     """Defines equations that will be used for global variables
     Inputs- none
@@ -271,8 +325,11 @@ def tec2para(instr):
           '/Re':'_Re', 'amu/cm':'amu_cm','km/s':'km_s','/m':'_m',#specific
                     'm^':'m','e^':'e'}#very specific, for units only
             #'/':'_',
+    coords = {'X_R':'x','Y_R':'y','Z_R':'z'}
     outstr = instr
     for was_,is_ in replacements.items():
+        outstr = is_.join(outstr.split(was_))
+    for was_,is_ in coords.items():
         outstr = is_.join(outstr.split(was_))
         #NOTE this order to find "{var [unit]}" cases (space before [unit])
         #TODO see .replace
@@ -780,6 +837,7 @@ def setup_pipeline(infile,**kwargs):
     Inputs
         infile (str)- full path to tecplot binary (.plt) BATSRUS output
         kwargs:
+            aux (dict)- optional to include dictionary with other data
             get_gradP (bool)- default false, will add additional variable
     Returns
         source (pvpython object)- python object attached to the VTKobject
@@ -807,8 +865,10 @@ def setup_pipeline(infile,**kwargs):
     ###Rename some tricky variables
     pipeline = fix_names(pipeline)
     ###Build functions up to betastar
-    alleq = equations()
+    alleq = equations(**kwargs)
     pipeline = eqeval(alleq['basic_physics'],pipeline)
+    if 'aux' in kwargs:
+        pipeline = eqeval(alleq['dipole_coord'],pipeline)
     ###Energy flux variables
     pipeline = eqeval(alleq['energy_flux'],pipeline)
     ###Get Vectors from field variable components
@@ -846,11 +906,10 @@ if __name__ == "__main__":
     ######################################################################
     # USER INPUTS
     ######################################################################
-    #path='/home/aubr/Code/swmf-energetics/localdbug/fte/30min/'
-    #path='/nfs/solsticedisk/tuija/amr_fte/firstrun/GM/IO2/'
+    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/fte/'
+    #path='/home/aubr/Code/swmf-energetics/localdbug/fte/'
     path='/nfs/solsticedisk/tuija/amr_fte/secondtry/GM/IO2/'
     outpath = 'output7_fte_pv/'
-    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/fte/'
     #outpath = '/Users/ngpdl/Code/swmf-energetics/localdbug/fte/output5_fte_pv/'
     ######################################################################
 
@@ -861,9 +920,11 @@ if __name__ == "__main__":
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=time_sort)
     #filelist = ['/home/aubr/Code/swmf-energetics/localdbug/feb2014/3d__paraview_1_e20140219-030000-000.plt']
+    #filelist = ['/Users/ngpdl/Code/swmf-energetics/localdbug/febstorm/3d__paraview_1_e20140219-024500-000.plt']
     for infile in filelist[-1::]:
         print('processing '+infile.split('/')[-1]+'...')
-        oldsource,pipelinehead,field,mp=setup_pipeline(infile)
+        aux = read_aux(infile.replace('.plt','.aux'))
+        oldsource,pipelinehead,field,mp=setup_pipeline(infile,aux=aux)
         ###Surface flux on magnetopause
         get_surface_flux(mp, 'B_nT','Bnormal_net')
         mp_Bnorm = FindSource('Bnormal_net')
