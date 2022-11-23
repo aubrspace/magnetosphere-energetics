@@ -10,6 +10,7 @@ import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import ticker, colors
@@ -25,6 +26,7 @@ from global_energetics.analysis.proc_hdf import (load_hdf_sort,
                                                  get_subzone_contrib)
 from global_energetics.analysis.analyze_energetics import plot_power
 from global_energetics.analysis.proc_energy_spatial import reformat_lshell
+from global_energetics.analysis.proc_timing import peak2peak
 
 def centr_diff(df,dt,**kwargs):
     """Takes central difference of the columns of a dataframe
@@ -176,7 +178,7 @@ def parse_phase(indata,phasekey,**kwargs):
     #Reload data filtered by the condition
     if (type(indata) == pd.core.series.Series or
         type(indata) == pd.core.frame.DataFrame):
-        if 'lineup' not in phasekey:
+        if 'lineup' not in phasekey and 'interv' not in phasekey:
             rel_time = [dt.datetime(2000,1,1)+r for r in
                         indata[cond].index-indata[cond].index[0]]
         else:
@@ -189,7 +191,7 @@ def parse_phase(indata,phasekey,**kwargs):
         for key in [k for k in indata.keys() if not indata[k].empty]:
             df = indata[key]
             phase.update({key:df[cond]})
-            if 'lineup' not in phasekey:
+            if 'lineup' not in phasekey and 'interv' not in phasekey:
                 rel_time = [dt.datetime(2000,1,1)+r for r in
                             df[cond].index-df[cond].index[0]]
             else:
@@ -312,6 +314,8 @@ def stack_energy_region_fig(ds,ph,path,hatches):
     #setup figure
     contr,ax=plt.subplots(len(ds.keys()),1,sharey=True,
                           sharex=True,figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax = [ax]
     #plot
     for i,ev in enumerate(ds.keys()):
         if not ds[ev]['mp'+ph].empty:
@@ -344,6 +348,8 @@ def stack_energy_type_fig(ds,ph,path):
         #setup figures
         distr, ax = plt.subplots(len(ds.keys()),1,sharey=True,
                                  sharex=True,figsize=[14,4*len(ds.keys())])
+        if len(ds.keys())==1:
+            ax = [ax]
 
         #plot
         for i,ev in enumerate(ds.keys()):
@@ -374,6 +380,8 @@ def tail_cap_fig(ds,ph,path):
     #setup figure
     tail,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                         figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax = [ax]
     #plot
     for i,ev in enumerate(ds.keys()):
         lobe = ds[ev]['msdict'+ph]['lobes']
@@ -421,6 +429,8 @@ def polar_cap_area_fig(ds,ph,path):
     #setup figure
     pca,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                         figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax = [ax]
     #plot
     for i,ev in enumerate(ds.keys()):
         filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
@@ -462,6 +472,9 @@ def polar_cap_flux_fig(ds,ph,path):
                           figsize=[14,6*len(ds.keys())])
     pcf2,ax2=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                           figsize=[28,12*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax1 = [ax1]
+        ax2 = [ax2]
     #plot
     for i,ev in enumerate(ds.keys()):
         filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
@@ -491,10 +504,24 @@ def polar_cap_flux_fig(ds,ph,path):
                 nightS=centr_diff(abs(lobe['Bf_netPolesNightS [Wb]']),120)
                 TN = nterm['dPhidt_net [Wb/s]']
                 TS = sterm['dPhidt_net [Wb/s]']
+                '''
                 DN = dayN-TN
                 DS = dayS-TS
                 NN = nightN+TN
                 NS = nightS+TS
+                '''
+                """
+                DN = (dayN-TN).rolling(5).mean()
+                DS = (dayS-TS).rolling(5).mean()
+                NN = (nightN+TN).rolling(5).mean()
+                NS = (nightS+TS).rolling(5).mean()
+                """
+                from scipy.ndimage import gaussian_filter1d as gf1d
+                DN = gf1d(dayN-TN,1)
+                DS = gf1d(dayS-TS,1)
+                NN = gf1d(nightN+TN,1)
+                NS = gf1d(nightS+TS,1)
+                #peak2peak(DN,NN,ds[ev]['time'+ph])
                 ax1[i].plot(ds[ev]['time'+ph], dayN, label=ev+'Nday')
                 ax1[i].plot(ds[ev]['time'+ph], nightN, label=ev+'Nnight')
                 ax2[i].plot(ds[ev]['time'+ph],DN,label=ev+'Nday')
@@ -504,13 +531,16 @@ def polar_cap_flux_fig(ds,ph,path):
                                     fc='grey',ec='black')
         if 'termdict' in ds[ev].keys():
             ax1[i].plot(ds[ev]['time'+ph],TN,c='Black',label='terminator')
+        if 'lineup' in ph or 'interv' in ph:
+            dotimedelta=True
+        else: dotimedelta=False
         general_plot_settings(ax1[i],do_xlabel=(i==len(ds.keys())-1),
                               ylabel=r'$d\Phi/dt\left[ Wb/s\right]$',
-                              legend=(i==2),timedelta=('lineup' in ph))
+                              legend=(i==2),timedelta=dotimedelta)
         general_plot_settings(ax2[i],do_xlabel=(i==len(ds.keys())-1),
                               ylabel=r'$d\Phi/dt\left[ Wb/s\right]$',
                               ylim=[-2.5e5,2.5e5],
-                              legend=(i==2),timedelta=('lineup' in ph))
+                              legend=(i==2),timedelta=dotimedelta)
     #save
     pcf1.tight_layout(pad=1)
     pcf2.tight_layout(pad=1)
@@ -536,6 +566,8 @@ def stack_volume_fig(ds,ph,path,hatches):
     #setup figure
     contr,ax=plt.subplots(len(ds.keys()),1,sharey=True,
                           sharex=True,figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax = [ax]
     #plot
     for i,ev in enumerate(ds.keys()):
         if not ds[ev]['mp'+ph].empty:
@@ -585,6 +617,8 @@ def interf_power_fig(ds,ph,path,hatches):
                                       sharex=True,
                          figsize=[9,3*len(interface_list)*len(ds.keys())])
                             #gridspec_kw={'height_ratios':h_ratios})
+    if len(ds.keys())==1 and len(interface_list)==1:
+        ax = [ax]
     for i,ev in enumerate(ds.keys()):
         dic = ds[ev]['msdict'+ph]
         for j,interf in enumerate(interface_list):
@@ -717,6 +751,8 @@ def lshell_contour_figure(ds):
                 #setup figure
                 lshell,ax=plt.subplots(len(ds.keys()),1,sharey=False,
                                  sharex=True,figsize=[14,4*len(ds.keys())])
+                if len(ds.keys())==1:
+                    ax = [ax]
                 for i,ev in enumerate(ds.keys()):
                     closed = ds[ev]['msdict'+ph]['closed']
                     if 'X_subsolar [Re]' in ds[ev]['mp'+ph]:
@@ -792,6 +828,8 @@ def static_motional_fig(ds,ph,path):
     #setup figure
     fig1,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                         figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax = [ax]
     #plot
     for i,ev in enumerate(ds.keys()):
         times = ds[ev]['time'+ph]
@@ -814,6 +852,8 @@ def static_motional_fig(ds,ph,path):
 def imf_figure(ds,ph,path,hatches):
     imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                                           figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax = [ax]
     for i,ev in enumerate(ds.keys()):
         orange = dt.timedelta(minutes=0)
         obs = ds[ev]['obs']['swmf_sw'+ph]
@@ -837,17 +877,19 @@ def imf_figure(ds,ph,path,hatches):
 def swPlasma_figure(ds,ph,path,hatches):
     plasma1, ax1 = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
                                 figsize=[14,4*len(ds.keys())])
+    if len(ds.keys())==1:
+        ax1 = [ax1]
     for i,ev in enumerate(ds.keys()):
         orange = dt.timedelta(minutes=0)
         obs = ds[ev]['obs']['swmf_sw'+ph]
         obstime = ds[ev]['swmf_sw_otime'+ph]
         ot = [float(n) for n in obstime.to_numpy()]#bad hack
-        ax[i].fill_between(ot,obs['B'], ec='dimgrey',fc='thistle',
+        ax1[i].fill_between(ot,obs['B'], ec='dimgrey',fc='thistle',
                                hatch=hatches[i], label=r'$|B|$')
-        ax[i].plot(ot,obs['bx'],label=r'$B_x$',c='maroon')
-        ax[i].plot(ot,obs['by'],label=r'$B_y$',c='magenta')
-        ax[i].plot(ot,obs['bz'],label=r'$B_z$',c='tab:blue')
-        general_plot_settings(ax[i],ylabel=r'$B\left[nT\right]$'+ev,
+        ax1[i].plot(ot,obs['bx'],label=r'$B_x$',c='maroon')
+        ax1[i].plot(ot,obs['by'],label=r'$B_y$',c='magenta')
+        ax1[i].plot(ot,obs['bz'],label=r'$B_z$',c='tab:blue')
+        general_plot_settings(ax1[i],ylabel=r'$B\left[nT\right]$'+ev,
                               do_xlabel=(i==len(ds.keys())-1),
                               legend=True,timedelta=('lineup' in ph))
     #save
@@ -877,11 +919,11 @@ def main_rec_figures(ds):
 def interval_figures(ds):
     hatches = ['','*','x','o']
     for ph,path in [('_interv',outInterv)]:
-        stack_energy_type_fig(ds,ph,path)
-        stack_energy_region_fig(ds,ph,path,hatches)
-        stack_volume_fig(ds,ph,path,hatches)
-        interf_power_fig(ds,ph,path,hatches)
-        polar_cap_area_fig(ds,ph,path)
+        #stack_energy_type_fig(ds,ph,path)
+        #stack_energy_region_fig(ds,ph,path,hatches)
+        #stack_volume_fig(ds,ph,path,hatches)
+        #interf_power_fig(ds,ph,path,hatches)
+        #polar_cap_area_fig(ds,ph,path)
         polar_cap_flux_fig(ds,ph,path)
 
 def lshell_figures(ds):
@@ -918,16 +960,16 @@ if __name__ == "__main__":
     ds = {}
     #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     #ds['star'] = load_hdf_sort(inPath+'starlink2_results.h5')
-    #ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
-    #ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
+    ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
+    ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
     ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
 
     #Log files and observational indices
-    #ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
-    #                                read_supermag=False, tshift=45)
-    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                                 end=ds['star']['times'][-1])
+    ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
+                                    read_supermag=False, tshift=45)
+    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+                                     read_supermag=False,
+                                     end=ds['star']['times'][-1])
     ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
                                     read_supermag=False)
 
@@ -939,7 +981,8 @@ if __name__ == "__main__":
 
     ##Construct "grouped" set of subzones, then get %contrib for each
     for event in ds.keys():
-        ds[event]['msdict'] = {
+        if 'msdict' in ds[event].keys():
+            ds[event]['msdict'] = {
                 'rc':ds[event]['msdict'].get('rc',pd.DataFrame()),
                 'closed':ds[event]['msdict'].get('closed',pd.DataFrame()),
                 'lobes':ds[event]['msdict'].get('lobes',pd.DataFrame())}
@@ -947,13 +990,18 @@ if __name__ == "__main__":
     for ev in ds.keys():
         obs_srcs = list(ds[ev]['obs'].keys())
         for ph in ['_qt','_main','_rec','_interv','_lineup']:
-            ds[ev]['mp'+ph], ds[ev]['time'+ph] = parse_phase(
-                                            ds[ev]['mpdict']['ms_full'],ph)
-            ds[ev]['inner_mp'+ph], _ = parse_phase(
+            if 'mpdict' in ds[ev].keys():
+                ds[ev]['mp'+ph], ds[ev]['time'+ph] = parse_phase(
+                                           ds[ev]['mpdict']['ms_full'],ph)
+            if 'inner_mp' in ds[ev].keys():
+                ds[ev]['inner_mp'+ph], ds[ev]['time'+ph] = parse_phase(
                                             ds[ev]['inner_mp'],ph)
-            ds[ev]['msdict'+ph], _ = parse_phase(ds[ev]['msdict'],ph)
+            if 'msdict' in ds[ev].keys():
+                ds[ev]['msdict'+ph], ds[ev]['time'+ph] = parse_phase(
+                                                      ds[ev]['msdict'],ph)
             if 'termdict' in ds[ev].keys():
-                ds[ev]['termdict'+ph],_=parse_phase(ds[ev]['termdict'],ph)
+                ds[ev]['termdict'+ph],ds[ev]['time'+ph]=parse_phase(
+                                                    ds[ev]['termdict'],ph)
             for src in obs_srcs:
                 ds[ev]['obs'][src+ph],ds[ev][src+'_otime'+ph]=(
                                parse_phase(ds[ev]['obs'][src],ph))
@@ -966,7 +1014,7 @@ if __name__ == "__main__":
     #main_rec_figures(ds)
     ######################################################################
     ##Short zoomed in interval
-    #interval_figures(ds)
+    interval_figures(ds)
     ######################################################################
     ##Lshell plots
     #lshell_figures(ds)

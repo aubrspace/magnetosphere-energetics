@@ -51,8 +51,13 @@ def load_hdf_sort(hdf, **kwargs):
                 if all(termdict[key][item].isna()):
                     termdict[key].drop(columns=item,inplace=True)
     #strip times
-    gmtimes = gmdict[[k for k in gmdict.keys()][0]].index
-    data.update({'times':gmtimes})
+    for leaddict in [gmdict, iedict, uadict, bsdict, crossdict,termdict]:
+        try:
+            times = leaddict[[k for k in leaddict.keys()][0]].index
+            data.update({'times':times})
+            break
+        except IndexError:
+            print('Dict empty, looking at next to find time!')
     store.close()
 
     if gmdict!={}:
@@ -60,7 +65,7 @@ def load_hdf_sort(hdf, **kwargs):
         if '/mp_iso_betastar_volume' in gmdict.keys():
             mp = gather_magnetopause(gmdict['/mp_iso_betastar_surface'],
                                      gmdict['/mp_iso_betastar_volume'],
-                                     gmtimes)
+                                     times)
         elif '/mp_iso_betastar_surface' in gmdict.keys():
             mp = gmdict['/mp_iso_betastar_surface']
         else:
@@ -98,7 +103,7 @@ def load_hdf_sort(hdf, **kwargs):
         #clean up entry names and interpolate out any timing gaps
         cleaned_termdict = {}
         for key in termdict.keys():
-            cleaned = check_timing(termdict[key],gmtimes)
+            cleaned = check_timing(termdict[key],times)
             cleaned_termdict.update({key.replace('/',''):cleaned})
         #repackage in dictionary
         data.update({'termdict': cleaned_termdict})
@@ -109,16 +114,16 @@ def load_hdf_sort(hdf, **kwargs):
     surfs = [k for k in gmdict.keys() if 'ms' in k and 'surface' in k]
     for i in range(0,max(len(vols),len(surfs))):
         if vols!=[]:
-            cleaned_vol = check_timing(gmdict[vols[i]],gmtimes)
+            cleaned_vol = check_timing(gmdict[vols[i]],times)
             cleaned_vol = check_units(cleaned_vol)
             key = vols[i].split('_volume')[0]
             #print(vols[i])
         if surfs!=[]:
-            cleaned_surf = check_timing(gmdict[surfs[i]],gmtimes)
+            cleaned_surf = check_timing(gmdict[surfs[i]],times)
             key = surfs[i].split('_surface')[0]
             #print(surfs[i])
         if vols!=[] and surfs!=[]:
-            cleaned_df=gather_magnetopause(cleaned_surf,cleaned_vol,gmtimes)
+            cleaned_df=gather_magnetopause(cleaned_surf,cleaned_vol,times)
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df})
         elif surfs==[]:
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_vol})
