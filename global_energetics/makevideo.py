@@ -81,18 +81,11 @@ def set_frames(folder):
     #create sorted list of image files
     framelist = sorted(glob.glob(folder+'/*.png'), key=time_sort)
     os.makedirs(folder+'/frames/', exist_ok=True)
-    n=0.01
-    for image in framelist:
-        if n<0.099:
-            filename = 'img-00{:.0f}.png'.format(100*n)
-        elif n<0.999:
-            filename = 'img-0{:.0f}.png'.format(100*n)
-        else:
-            filename = 'img-{:.0f}.png'.format(100*n)
+    for n, image in enumerate(framelist):
+        filename = 'img-{:04d}'.format(n)+'.png'
         cp_cmd = 'cp '+image+' '+folder+'/frames/'+filename
-        os.system(cp_cmd)
-        print('n: {:.2f}, filename: {:s}'.format(n,filename))
-        n = n+0.01
+        os.popen(cp_cmd)
+        print('n: {:d}, filename: {:s}'.format(n,filename))
     return folder+'/frames'
 
 
@@ -110,13 +103,22 @@ def vid_compile(infolder, outfolder, framerate, title):
     #########################################################
     if glob.glob(outfolder+'/'+title+'.mp4') != []:
         os.remove(outfolder+'/'+title+'.mp4')
-    print(glob.glob(infolder+'/img-???.png'))
-    if glob.glob(infolder+'/img-???.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%03d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
-    elif glob.glob(folder+'/img-??.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%02d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
-    elif glob.glob(folder+'/img-?.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/img-%01d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+    framelist = glob.glob(infolder+'/*img-????.png')
+    print(framelist)
+    if framelist!=[]:
+        fname=framelist[0].split('/')[-1].split('img-')[0]
+        make_vid_cmd =(
+        'ffmpeg -r '+str(framerate)+' -i '+infolder+'/'+fname+'img-%04d.png '+
+        '-vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '
+        +outfolder+'/'+title+'.mp4')
+    """
+    if glob.glob(infolder+'/*img-???.png') != []:
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/*img-%03d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+    elif glob.glob(infolder+'/*img-??.png') != []:
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/*img-%02d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+    elif glob.glob(infolder+'/*img-?.png') != []:
+        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/*img-%01d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
+    """
     os.system(make_vid_cmd)
 
 def add_timestamps(infolder,*, tshift=0):
@@ -160,7 +162,7 @@ if __name__ == '__main__':
     #Video settings
     RES = 400
     FRAMERATE = 9
-    FOLDER = sys.argv[1]
+    FOLDER = sys.argv[-1]
     if '-stamp' in sys.argv:
         if '-tshift' in sys.argv:
             FOLDER = add_timestamps(FOLDER, tshift=45)

@@ -92,9 +92,9 @@ def equations(**kwargs):
     equations['interface_testing'] = {'{test}':'1'}
     #Useful spatial variables
     equations['basic3d'] = {
-                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
-                       '{Cell Size [Re]}':'{Cell Volume}**(1/3)',
-                       '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
+                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)'}
+                       #'{Cell Size [Re]}':'{Cell Volume}**(1/3)',
+                       #'{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
     #2D versions of spatial variables
     equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
     equations['basic2d_XZ'] = {'{r [R]}':'sqrt({X [R]}**2 + {Z [R]}**2)'}
@@ -109,9 +109,7 @@ def equations(**kwargs):
          '{mZhat_y}':'0',
          '{mZhat_z}':'-1*cos('+aux['BTHETATILT']+'*pi/180)',
          '{lambda}':'asin('+
-                        '(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})-'+
-                   'trunc(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})'+
-                        ')',
+                  'floor(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]}))',
          '{Lshell}':'{r [R]}/cos({lambda})**2',
          '{theta [deg]}':'-180/pi*{lambda}'}
     ######################################################################
@@ -414,6 +412,7 @@ def get_vectors(pipeline,**kwargs):
                           for v in var_names if('_x' in v or '_y' in v or
                                                              '_z' in v)])
     for (base,tail) in deconlist.items():
+        if tail=='_': tail=''
         vector = Calculator(registrationName=base,Input=pipeline)
         vector.Function = [base+'_x'+tail+'*iHat+'+
                            base+'_y'+tail+'*jHat+'+
@@ -764,6 +763,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         ColorBy(isoFFJdisplay, None)
         isoFFJdisplay.AmbientColor = [0.0, 1.0, 0.0]
         isoFFJdisplay.DiffuseColor = [0.0, 1.0, 0.0]
+        isoFFJdisplay.Opacity = 0.4
 
     if kwargs.get('doSlice',False):
         ###Slice
@@ -866,11 +866,13 @@ def setup_pipeline(infile,**kwargs):
     pipeline = fix_names(pipeline)
     ###Build functions up to betastar
     alleq = equations(**kwargs)
+    pipeline = eqeval(alleq['basic3d'],pipeline)
     pipeline = eqeval(alleq['basic_physics'],pipeline)
     if 'aux' in kwargs:
         pipeline = eqeval(alleq['dipole_coord'],pipeline)
     ###Energy flux variables
-    pipeline = eqeval(alleq['energy_flux'],pipeline)
+    if kwargs.get('doEnergy',True):
+        pipeline = eqeval(alleq['energy_flux'],pipeline)
     ###Get Vectors from field variable components
     pipeline = get_vectors(pipeline)
 
@@ -919,12 +921,13 @@ if __name__ == "__main__":
 
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=time_sort)
-    #filelist = ['/home/aubr/Code/swmf-energetics/localdbug/feb2014/3d__paraview_1_e20140219-030000-000.plt']
+    #filelist = ['/home/aubr/Code/swmf-energetics/localdbug/fte/3d__paraview_1_e20140610-010000-000.plt']
     #filelist = ['/Users/ngpdl/Code/swmf-energetics/localdbug/febstorm/3d__paraview_1_e20140219-024500-000.plt']
     for infile in filelist[-1::]:
         print('processing '+infile.split('/')[-1]+'...')
         aux = read_aux(infile.replace('.plt','.aux'))
-        oldsource,pipelinehead,field,mp=setup_pipeline(infile,aux=aux)
+        oldsource,pipelinehead,field,mp=setup_pipeline(infile,aux=aux,
+                                                       doEnergy=False)
         ###Surface flux on magnetopause
         get_surface_flux(mp, 'B_nT','Bnormal_net')
         mp_Bnorm = FindSource('Bnormal_net')
@@ -950,7 +953,7 @@ if __name__ == "__main__":
         AssignViewToLayout(view=renderView2, layout=layout, hint=2)
         display_visuals(field,mp_Bnorm,renderView2,doSlice=True,
                         mpContourBy='Bnormal_net',
-                        contourMin=-20,contourMax=20,
+                        contourMin=-10,contourMax=10,
                         cmap='Cool to Warm')
 
         # Render and save screenshot
@@ -960,7 +963,7 @@ if __name__ == "__main__":
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[2162,1079])
-    for infile in filelist[::]:
+    for infile in filelist[0:-1]:
         print('processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
         if os.path.exists(outfile):
