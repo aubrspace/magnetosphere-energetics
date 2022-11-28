@@ -1,7 +1,6 @@
-# trace generated using paraview version 5.10.1
-#import paraview
-#paraview.compatibility.major = 5
-#paraview.compatibility.minor = 10
+import paraview
+paraview.compatibility.major = 5
+paraview.compatibility.minor = 10
 
 import os
 import time
@@ -373,7 +372,7 @@ def fix_names(pipeline,**kwargs):
         #Get upstream data
         data = inputs[0]
         #These are the variables names that cause issues
-        rho = data.PointData["Rho_amu_cm^3"]
+        rho = data.PointData["""+kwargs.get('rho','Rho_amu_cm^3')+"""]
         jx = data.PointData["J_x_`mA_m^2"]
         jy = data.PointData["J_y_`mA_m^2"]
         jz = data.PointData["J_z_`mA_m^2"]
@@ -830,6 +829,90 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView1.CameraViewUp = [-0.06, -0.12, 0.99]
     renderView1.CameraParallelScale = 218.09
     '''
+def todimensional(pipeline, **kwargs):
+    """Function modifies dimensionless variables -> dimensional variables
+    Inputs
+        dataset (frame.dataset)- tecplot dataset object
+        kwargs:
+    """
+    proton_mass = 1.6605e-27
+    cMu = np.pi*4e-7
+    #SWMF sets up two conversions to go between
+    # No (nondimensional) Si (SI) and Io (input output),
+    # what we want is No2Io = No2Si_V / Io2Si_V
+    #Found these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
+    No2Si = {'X':6371*1e3,                             #planet radius
+             'Y':6371*1e3,
+             'Z':6371*1e3,
+             'Rho':1e6*proton_mass,                    #proton mass
+             'U_x':6371*1e3,                           #planet radius
+             'U_y':6371*1e3,
+             'U_z':6371*1e3,
+             'P':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
+             'B_x':6371*1e3*np.sqrt(cMu*1e6*proton_mass), #U * sqrt(M*rho)
+             'B_y':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
+             'B_z':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
+             'J_x':(np.sqrt(cMu*1e6*proton_mass)/cMu),    #B/(X*cMu)
+             'J_y':(np.sqrt(cMu*1e6*proton_mass)/cMu),
+             'J_z':(np.sqrt(cMu*1e6*proton_mass)/cMu)
+            }
+    #Found these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
+    Io2Si = {'X':6371*1e3,                  #planet radius
+             'Y':6371*1e3,                  #planet radius
+             'Z':6371*1e3,                  #planet radius
+             'Rho':1e6*proton_mass,         #Mp/cm^3
+             'U_x':1e3,                     #km/s
+             'U_y':1e3,                     #km/s
+             'U_z':1e3,                     #km/s
+             'P':1e-9,                      #nPa
+             'B_x':1e-9,                    #nT
+             'B_y':1e-9,                    #nT
+             'B_z':1e-9,                    #nT
+             'J_x':1e-6,                    #microA/m^2
+             'J_y':1e-6,                    #microA/m^2
+             'J_z':1e-6,                    #microA/m^2
+             }#'theta_1':pi/180,              #degrees
+             #'theta_2':pi/180,              #degrees
+             #'phi_1':pi/180,                #degrees
+             #'phi_2':pi/180                 #degrees
+            #}
+    units = {'X':'R','Y':'R','Z':'R',
+             'Rho':'amu_cm3',
+             'U_x':'km_s','U_y':'km_s','U_z':'km_s',
+             'P':'nPa',
+             'B_x':'nT','B_y':'nT','B_z':'nT',
+             'J_x':'uA_m2','J_y':'uA_m2','J_z':'uA_m2',
+             'theta_1':'deg',
+             'theta_2':'deg',
+             'phi_1':'deg',
+             'phi_2':'deg'
+            }
+    points = pipeline.PointData
+    var_names = points.keys()
+    for var in var_names:
+        if 'status' not in var.lower() and '[' not in var:
+            if var in units.keys():
+                unit = units[var]
+                #NOTE default is no modification
+                conversion = No2Si.get(var,1)/Io2Si.get(var,1)
+                print('Changing '+var+' by multiplying by '+str(conversion))
+                #eq('{'+var+' '+unit+'} = {'+var+'}*'+str(conversion))
+                eq = Calculator(registrationName=var+'_'+unit,
+                                Input=pipeline)
+                eq.Function = var+'*'+str(conversion)
+                eq.ResultArrayName = var+'_'+unit
+                pipeline=eq
+                #print('Removing '+var)
+                #dataset.delete_variables([dataset.variable(var).index])
+            else:
+                print('unable to convert '+var+' not in dictionary!')
+        elif 'status' in var.lower():
+            pass
+    #Reset XYZ variables so 3D plotting makes sense
+    #dataset.frame.plot().axes.x_axis.variable = dataset.variable('X *')
+    #dataset.frame.plot().axes.y_axis.variable = dataset.variable('Y *')
+    #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
+    return pipeline
 
 def setup_pipeline(infile,**kwargs):
     """Function takes single data file and builds pipeline to find and
@@ -861,9 +944,13 @@ def setup_pipeline(infile,**kwargs):
     pipelinehead = mergeBlocks1
     pipeline = mergeBlocks1
 
+    ###Check if unitless variables are present
+    if 'dimensionless' in kwargs:
+        pipeline = todimensional(pipeline,**kwargs)
 
-    ###Rename some tricky variables
-    pipeline = fix_names(pipeline)
+    else:
+        ###Rename some tricky variables
+        pipeline = fix_names(pipeline,**kwargs)
     ###Build functions up to betastar
     alleq = equations(**kwargs)
     pipeline = eqeval(alleq['basic3d'],pipeline)

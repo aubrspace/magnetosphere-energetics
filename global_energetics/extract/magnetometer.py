@@ -8,8 +8,18 @@ import pandas as pd
 #import spacepy
 #from spacepy import coordinates as coord
 #from spacepy import time as spt
-from global_energetics.extract.stream_tools import(mag2gsm,mag2cart)
-from global_energetics.makevideo import(get_time)
+#from global_energetics.extract.stream_tools import(mag2gsm,mag2cart)
+#from global_energetics.makevideo import(get_time)
+
+def mag2cart(lat,lon,btheta,*,r=1):
+    """
+    """
+    #find xyz_mag
+    x_mag, y_mag, z_mag = sph_to_cart(r,lat,lon)
+    #get rotation matrix
+    rot = rotation(-btheta*pi/180,axis='y')
+    #find new points by rotation
+    return np.matmul(rot,[x_mag,y_mag,z_mag])
 
 def datetimeparser(datetimestring):
     #NOTE copy!! should consolidate this
