@@ -9,6 +9,8 @@ import numpy as np
 import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
+import magnetometer
+from magnetometer import(get_stations_now, read_station_paraview)
 
 def get_time(infile,**kwargs):
     date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
@@ -420,6 +422,111 @@ def get_vectors(pipeline,**kwargs):
         pipeline=vector
     return pipeline
 
+def mltset(pipeline,nowtime,**kwargs):
+    """Simple filter to get MAG LON given a time
+    """
+    ###Might not always use the same nomenclature for column headers
+    maglon = kwargs.get('maglon','MAGLON')
+    ###'MLT' shift based on MAG longitude
+    mltshift = 'MAGLON*12/180 '
+    #TODO Check this!
+    ###'MLT' shift based on local time
+    strtime = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
+    func = 'mod('+mltshift+strtime+' ,24)*180/12'
+    lonNow = Calculator(registrationName='LONnow',Input=pipeline)
+    lonNow.Function = func
+    lonNow.AttributeType = 'Point Data'
+    lonNow.ResultArrayName = 'LONnow'
+    return lonNow
+
+def rMag(pipeline,**kwargs):
+    """Simple filter to set xyz points from table of LON/LAT
+    """
+    ###Might not always use the same nomenclature for column headers
+    lon = kwargs.get('lon','LONnow')#accounts for local time shift
+    lat = kwargs.get('maglat','MAGLAT')
+    radius = kwargs.get('r',1)
+    d2r = str(np.pi/180)+'*'
+    x_func = str(radius)+'* cos('+d2r+lat+') * cos('+d2r+lon+')'
+    y_func = str(radius)+'* cos('+d2r+lat+') * sin('+d2r+lon+')'
+    z_func = str(radius)+'* sin('+d2r+lat+')'
+    ###X
+    x = Calculator(registrationName='xMag',Input=pipeline)
+    x.Function = x_func
+    #x.AttributeType = 'Point Data'
+    x.ResultArrayName = 'xMag'
+    ###Y
+    y = Calculator(registrationName='yMag',Input=x)
+    y.Function = y_func
+    #y.AttributeType = 'Point Data'
+    y.ResultArrayName = 'yMag'
+    ###Z
+    z = Calculator(registrationName='zMag',Input=y)
+    z.Function = z_func
+    #z.AttributeType = 'Point Data'
+    z.ResultArrayName = 'zMag'
+    ###Table2Points filter because I don't know how to access 'Table' values
+    #   directly w/ the programmable filters
+    points = TableToPoints(registrationName='TableToPoints', Input=z)
+    points.XColumn = 'xMag'
+    points.YColumn = 'yMag'
+    points.ZColumn = 'zMag'
+    return points
+
+def rotate2GSM(pipeline,tilt,**kwargs):
+    """Function rotates MAG points to GSM points based on the time
+    Inputs
+        pipeline
+        tilt
+        kwargs:
+    Return
+        pipeline
+    """
+    rotationFilter = ProgrammableFilter(registrationName='rotate2GSM',
+                                       Input=pipeline)
+    rotationFilter.Script = """
+    data = inputs[0]
+    angle = """+str(tilt)+"""
+    x_mag = data['xMag']
+    y_mag = data['yMag']
+    z_mag = data['zMag']
+
+    rot = [[ np.cos(angle), 0, np.sin(angle)],
+           [0,              1,             0],
+           [-np.sin(angle), 0, np.cos(angle)]]
+
+    x,y,z = np.matmul(rot,[x_mag,y_mag,z_mag])
+    output.PointData.append(x,'x')
+    output.PointData.append(y,'y')
+    output.PointData.append(z,'z')"""
+    ###Probably extraenous calculator to export the xyz to the actual
+    #   coordinate values bc I don't know how to do that in the progfilt
+    rGSM = Calculator(registrationName='stations',Input=rotationFilter)
+    rGSM.Function = 'x*iHat+y*jHat+z*kHat'
+    rGSM.AttributeType = 'Point Data'
+    rGSM.ResultArrayName = 'rGSM'
+    return rGSM
+
+def magPoints2Gsm(pipeline,localtime,tilt,**kwargs):
+    """Function creates a run of filters to convert a table of MAG coord vals
+    into 3D points in GSM space
+    Inputs
+        pipeline
+        kwargs:
+            maglon
+            maglat
+    Returns
+        pipeline
+        time_hooks
+    """
+    ###Set the Longitude in MAG coordinates based on the time
+    mltMag = mltset(pipeline, localtime, **kwargs)
+    ###Create x,y,z values based on R=1Re w/ these mag values
+    magPoints = rMag(mltMag, **kwargs)
+    ###Rotation about the dipole axis generating new xyz values
+    gsmPoints = rotate2GSM(magPoints, tilt, **kwargs)
+    return gsmPoints
+
 def get_pressure_gradient(pipeline,**kwargs):
     """Function calculates a pressure gradient variable
     Inputs
@@ -817,6 +924,10 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView.CameraViewUp = [-0.06681529228180919, -0.12253235709025494, 0.9902128751855344]
     renderView.CameraParallelScale = 218.09415971089186
     '''
+    # Edit background properties
+    renderView.UseColorPaletteForBackground = 0
+    renderView.Background = [0.0, 0.0, 0.0]
+
     # Zoomed dayside +Y side magnetosphere
     renderView.CameraPosition = [33.10, 56.51, 14.49]
     renderView.CameraFocalPoint = [-33.19, -15.11, -3.46]
@@ -914,6 +1025,47 @@ def todimensional(pipeline, **kwargs):
     #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
     return pipeline
 
+def add_fieldlines(head,**kwargs):
+    """Function adds field lines to current view
+    Inputs
+        head- source to generatet the streamlines
+        kwargs:
+            station_file
+            localtime
+            tilt
+    Returns
+        None
+    """
+    view = GetActiveViewOrCreate('RenderView')
+    stations = FindSource('stations')
+    '''
+    if 'station_file' in kwargs:
+        stations,station_df = get_stations_now(kwargs.get('station_file',''),
+                                   kwargs.get('localtime',dt.datetime.now()),
+                                               tilt=kwargs.get('tilt',0))
+        for sID in stations:
+            x,y,z = station_df[station_df['station']==sID][
+                                                    ['X','Y','Z']].values[0]
+            # create a new 'Stream Tracer'
+            trace = StreamTracer(registrationName=sID,Input=head,
+                                 SeedType='Line')
+            trace.Vectors = ['POINTS', 'B_nT']
+            trace.MaximumStreamlineLength = 252.0
+
+            # init the 'Line' selected for 'SeedType'
+            trace.SeedType.Point1 = [x,y,z]
+            trace.SeedType.Point2 = [x,y,z]
+
+            # show data in view
+            traceDisplay = Show(trace, view, 'GeometryRepresentation')
+
+            # change solid color
+            traceDisplay.AmbientColor = [0.0, 0.66, 1.0]
+            traceDisplay.DiffuseColor = [0.0, 0.66, 1.0]
+    else:
+        pass
+    '''
+
 def setup_pipeline(infile,**kwargs):
     """Function takes single data file and builds pipeline to find and
         visualize magnetopause
@@ -933,6 +1085,7 @@ def setup_pipeline(infile,**kwargs):
     """
     #### disable automatic camera reset on 'Show'
     paraview.simple._DisableFirstRenderCameraReset()
+    '''
     # Read input file
     sourcedata = read_tecplot(infile)
 
@@ -967,7 +1120,7 @@ def setup_pipeline(infile,**kwargs):
     # Pressure gradient, optional variable
     if kwargs.get('doGradP',False):
         pipeline = get_pressure_gradient(pipeline)
-    if kwargs.get('ffj',True):
+    if kwargs.get('ffj',False):
         ffj1 = get_ffj_filter1(pipeline)
         ffj2 = PointDatatoCellData(registrationName='ffj_interp1',
                                    Input=ffj1)
@@ -978,6 +1131,16 @@ def setup_pipeline(infile,**kwargs):
                                    Input=ffj3)
         pipeline = ffj4
 
+    '''
+    ###Field line seeding
+    if kwargs.get('doFieldlines',False):
+        station_table, success = read_station_paraview()
+        if success and 'localtime' in kwargs and 'tilt' in kwargs:
+            stations = magPoints2Gsm(station_table,kwargs.get('localtime'),
+                                     kwargs.get('tilt'))
+            #add_fieldlines(head,**kwargs)
+
+    '''
     # Magnetopause
     pipeline = get_magnetopause_filter(pipeline)
 
@@ -988,6 +1151,7 @@ def setup_pipeline(infile,**kwargs):
     mp = create_iso_surface(pipeline, 'mp_state', 'mp')
 
     return sourcedata, pipelinehead, field, mp
+    '''
 
 if __name__ == "__main__":
 #if True:

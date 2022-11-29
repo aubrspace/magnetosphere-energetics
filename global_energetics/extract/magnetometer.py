@@ -2,7 +2,9 @@
 """Extracting data related to ground based magnetometers (obs and virtual)
 """
 import glob
+import os
 import numpy as np
+from numpy import (sin,cos,deg2rad,pi)
 import datetime as dt
 import pandas as pd
 #import spacepy
@@ -10,6 +12,42 @@ import pandas as pd
 #from spacepy import time as spt
 #from global_energetics.extract.stream_tools import(mag2gsm,mag2cart)
 #from global_energetics.makevideo import(get_time)
+
+def sph_to_cart(radius, lat, lon):
+    """Function converts spherical coordinates to cartesian coordinates
+    Inputs
+        radius- radial position
+        lat- latitude [deg]
+        lon- longitude [deg]
+    Outputs
+        [x_pos, y_pos, z_pos]- list of x y z_pos coordinates
+    """
+    x_pos = (radius * cos(deg2rad(lat)) * cos(deg2rad(lon)))
+    y_pos = (radius * cos(deg2rad(lat)) * sin(deg2rad(lon)))
+    z_pos = (radius * sin(deg2rad(lat)))
+    return [x_pos, y_pos, z_pos]
+
+def rotation(angle, axis):
+    """Function returns rotation matrix given axis and angle
+    Inputs
+        angle
+        axis
+    Outputs
+        matrix
+    """
+    if axis == 'x' or axis == 'X':
+        matrix = [[1,           0,          0],
+                  [0,  cos(angle), sin(angle)],
+                  [0, -sin(angle), cos(angle)]]
+    elif axis == 'y' or axis == 'Y':
+        matrix = [[ cos(angle), 0, sin(angle)],
+                  [0,           1,          0],
+                  [-sin(angle), 0, cos(angle)]]
+    elif axis == 'z' or axis == 'Z':
+        matrix = [[ cos(angle), sin(angle), 0],
+                  [-sin(angle), cos(angle), 0],
+                  [0,           0,          1]]
+    return matrix
 
 def mag2cart(lat,lon,btheta,*,r=1):
     """
@@ -30,6 +68,34 @@ def datetimeparser(datetimestring):
 
 def datetimeparser2(instring):
     return dt.datetime.strptime(instring,'%Y-%m-%dT%H:%M:%S')
+
+def read_station_paraview(*,file_in='stations_pv.loc'):
+    """Function reads in station locations (magLat/Lon), file should be
+        included with swmf-energetics dist
+    Inputs
+        file_in (str)- file path
+    Returns
+        success
+        pipeline
+    """
+    success = False
+    #full_infile = os.path.join(os.path.abspath(os.path.curdir),file_in)
+    full_infile = '/home/aubr/Code/swmf-energetics/'+file_in
+    print('Reading: ',full_infile)
+    if os.path.exists(full_infile):
+        #full_infile = os.path.abspath(os.path.curdir)+file_in
+        from paraview.simple import CSVReader
+        # create a new 'CSV Reader'
+        stations_pvloc = CSVReader(registrationName='stations_pv.loc',
+                                   FileName=[full_infile])
+        # Properties modified on stations_pvloc
+        stations_pvloc.FieldDelimiterCharacters = ' '
+        stations_pvloc.AddTabFieldDelimiter = 1
+        pipeline = stations_pvloc
+        success = True
+    else:
+        print('no station file to read!')
+    return None, success
 
 def read_station_locations(*,file_in='stations.loc'):
     """Function reads in station locations (magLat/Lon), file should be
@@ -92,7 +158,7 @@ def read_simstations(file_in,*,cordsys='GSM'):
     with open(file_in,'r')as f:
         stations = f.readline()
     #Parse string into a list with just the 3letter tags
-    stations = stations.split(' ')[4::]
+    stations = stations.split(' ')[::]
     stations[-1] = stations[-1].split('\n')[0]
     #Read the rest of the data into DataFrame with date parsing
     station_df = pd.read_csv(file_in,sep='\s+',skiprows=1,
@@ -130,6 +196,7 @@ def get_stations_now(file_in,nowtime,**kwargs):
     station_xyz = where_stations_now(nowtime,**kwargs)
     #Update XYZ columns
     station_df[['X','Y','Z']] = station_xyz.loc[:,['X','Y','Z']]
+    station_df['station'] = station_df.index
     #Read in extra data
     aux_data_path = kwargs.get('aux_path',
                       '/'.join(file_in.split('/')[0:-1])+'/station_data/')
@@ -159,6 +226,7 @@ def read_station_values(data_path,station_df,now):
     return station_df
 #Function that calculates RSD index
 #Function that projects value from XYZ_gsm into domain
+
 
 if __name__ == "__main__":
     #Read the first station location

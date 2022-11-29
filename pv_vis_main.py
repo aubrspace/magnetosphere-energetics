@@ -11,29 +11,40 @@ import datetime as dt
 from paraview.simple import *
 #import global_energetics.extract.pv_magnetopause
 import pv_magnetopause
-from pv_magnetopause import (time_sort, read_aux, setup_pipeline,
+from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
                              display_visuals)
 import magnetometer
+from magnetometer import(get_stations_now)
 
-if __name__ == "__main__":
-#if True:
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
-    path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
+    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
+    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
     outpath = 'vis_com_pv/'
     #from IPython import embed; embed()
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
-    print(np.pi)
+    #magfile = path+'../magnetometers_e20220202-050000.mag'
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
-        oldsource,pipelinehead,field,mp=setup_pipeline(infile,aux=aux,
+        localtime = get_time(infile)
+        #oldsource,pipelinehead,field,mp=setup_pipeline(infile,aux=aux,
+        setup_pipeline(infile,aux=aux,
                                                        doEnergy=False,
-                                                       dimensionless=True)
+                                                       dimensionless=True,
+                                                       doFieldlines=True,
+                                                       ffj=False,
+                                                       localtime=localtime,
+                                             tilt=float(aux['BTHETATILT']))
+        #add_fieldlines(field, station_file=magfile,localtime=localtime,
+        #               tilt=float(aux['BTHETATILT']))
+        #IDs, station_df = magnetometer.get_stations_now(magfile,localtime,
+        #                                   tilt=float(aux['BTHETATILT']))
         '''
         renderView1 = GetActiveViewOrCreate('RenderView')
         SetActiveView(renderView1)
-        display_visuals(field,mp,renderView1,doSlice=True,
-                        mpContourBy='B_x_nT',contourMin=-10,contourMax=10)
+        display_visuals(field,mp,renderView1,doSlice=False)
         layout = GetLayout()
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
