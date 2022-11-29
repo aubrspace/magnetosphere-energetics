@@ -21,9 +21,10 @@ from magnetometer import(get_stations_now,update_stationHead)
 if __name__ == "__main__":
 #if True:
     start_time = time.time()
-    path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
-    #path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
+    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
+    #outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
+    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
+    outpath='/home/aubr/Code/swmf-energetics/output_vis9/'
     #from IPython import embed; embed()
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
-    for i,infile in enumerate(filelist[1::]):
+    for i,infile in enumerate(filelist[1:5]):
         nstation = np.minimum(nstation+i,379)
         print('processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
