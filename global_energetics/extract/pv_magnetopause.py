@@ -428,14 +428,12 @@ def mltset(pipeline,nowtime,**kwargs):
     ###Might not always use the same nomenclature for column headers
     maglon = kwargs.get('maglon','MAGLON')
     ###'MLT' shift based on MAG longitude
-    mltshift = 'MAGLON*12/180 '
-    #TODO Check this!
+    mltshift = 'MAGLON*12/180'
     ###'MLT' shift based on local time
     strtime = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
-    func = 'mod('+mltshift+strtime+' ,24)*180/12'
+    func = 'mod('+mltshift+'+'+strtime+',24)*180/12'
     lonNow = Calculator(registrationName='LONnow',Input=pipeline)
     lonNow.Function = func
-    lonNow.AttributeType = 'Point Data'
     lonNow.ResultArrayName = 'LONnow'
     return lonNow
 
@@ -468,6 +466,7 @@ def rMag(pipeline,**kwargs):
     ###Table2Points filter because I don't know how to access 'Table' values
     #   directly w/ the programmable filters
     points = TableToPoints(registrationName='TableToPoints', Input=z)
+    points.KeepAllDataArrays = 1
     points.XColumn = 'xMag'
     points.YColumn = 'yMag'
     points.ZColumn = 'zMag'
@@ -484,12 +483,25 @@ def rotate2GSM(pipeline,tilt,**kwargs):
     """
     rotationFilter = ProgrammableFilter(registrationName='rotate2GSM',
                                        Input=pipeline)
-    rotationFilter.Script = """
+    rotationFilter.Script = update_rotation(tilt)
+    ###Probably extraenous calculator to export the xyz to the actual
+    #   coordinate values bc I don't know how to do that in the progfilt
+    rGSM = Calculator(registrationName='stations',Input=rotationFilter)
+    rGSM.Function = 'x*iHat+y*jHat+z*kHat'
+    rGSM.AttributeType = 'Point Data'
+    rGSM.ResultArrayName = 'rGSM'
+    rGSM.CoordinateResults = 1
+    return rGSM
+
+def update_rotation(tilt):
+    print(str(-tilt*np.pi/180))
+    return"""
+    import numpy as np
     data = inputs[0]
-    angle = """+str(tilt)+"""
-    x_mag = data['xMag']
-    y_mag = data['yMag']
-    z_mag = data['zMag']
+    angle = """+str(-tilt*np.pi/180)+"""
+    x_mag = data.PointData['xMag']
+    y_mag = data.PointData['yMag']
+    z_mag = data.PointData['zMag']
 
     rot = [[ np.cos(angle), 0, np.sin(angle)],
            [0,              1,             0],
@@ -499,13 +511,6 @@ def rotate2GSM(pipeline,tilt,**kwargs):
     output.PointData.append(x,'x')
     output.PointData.append(y,'y')
     output.PointData.append(z,'z')"""
-    ###Probably extraenous calculator to export the xyz to the actual
-    #   coordinate values bc I don't know how to do that in the progfilt
-    rGSM = Calculator(registrationName='stations',Input=rotationFilter)
-    rGSM.Function = 'x*iHat+y*jHat+z*kHat'
-    rGSM.AttributeType = 'Point Data'
-    rGSM.ResultArrayName = 'rGSM'
-    return rGSM
 
 def magPoints2Gsm(pipeline,localtime,tilt,**kwargs):
     """Function creates a run of filters to convert a table of MAG coord vals
@@ -520,11 +525,11 @@ def magPoints2Gsm(pipeline,localtime,tilt,**kwargs):
         time_hooks
     """
     ###Set the Longitude in MAG coordinates based on the time
-    mltMag = mltset(pipeline, localtime, **kwargs)
+    #mltMag = mltset(pipeline, localtime, **kwargs)
     ###Create x,y,z values based on R=1Re w/ these mag values
-    magPoints = rMag(mltMag, **kwargs)
+    #magPoints = rMag(mltMag, **kwargs)
     ###Rotation about the dipole axis generating new xyz values
-    gsmPoints = rotate2GSM(magPoints, tilt, **kwargs)
+    gsmPoints = rotate2GSM(pipeline, tilt, **kwargs)
     return gsmPoints
 
 def get_pressure_gradient(pipeline,**kwargs):
@@ -850,16 +855,18 @@ def display_visuals(field,mp,renderView,**kwargs):
     else:
         # change solid color
         ColorBy(mpDisplay, None)
-        mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
-        mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
+        #mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
+        #mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
+        mpDisplay.AmbientColor = [0.5764705882352941, 0.5764705882352941, 0.5764705882352941]
+        mpDisplay.DiffuseColor = [0.5764705882352941, 0.5764705882352941, 0.5764705882352941]
 
     # Properties modified on mpDisplay.DataAxesGrid
     mpDisplay.DataAxesGrid.GridAxesVisibility = 1
     # Properties modified on slice1Display
-    mpDisplay.Opacity = 1
+    mpDisplay.Opacity = 0.2
 
 
-    if kwargs.get('doFFJ',True):
+    if kwargs.get('doFFJ',False):
         isoFFJ = Contour(registrationName='FFJ', Input=field)
         isoFFJ.ContourBy = ['POINTS', 'ffj_state']
         isoFFJ.ComputeNormals = 0
@@ -929,9 +936,15 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView.Background = [0.0, 0.0, 0.0]
 
     # Zoomed dayside +Y side magnetosphere
+    '''
     renderView.CameraPosition = [33.10, 56.51, 14.49]
     renderView.CameraFocalPoint = [-33.19, -15.11, -3.46]
     renderView.CameraViewUp = [-0.10, -0.15, 0.98]
+    renderView.CameraParallelScale = 66.62
+    '''
+    renderView.CameraPosition = [29.32815055455574, 37.86621330279131, 7.609529115358075]
+    renderView.CameraFocalPoint = [-25.456973412386397, -21.323869341836772, -7.225181628443577]
+    renderView.CameraViewUp = [-0.10035690162965076, -0.15053535244447613, 0.9834976359705773]
     renderView.CameraParallelScale = 66.62
 
     '''
@@ -1036,35 +1049,29 @@ def add_fieldlines(head,**kwargs):
     Returns
         None
     """
+    #Blank inside the earth
+    clip1 = Clip(registrationName='Clip1', Input=head)
+    clip1.ClipType = 'Sphere'
+    clip1.Invert = 0
+    clip1.ClipType.Center = [0.0, 0.0, 0.0]
+    clip1.ClipType.Radius = 0.99
+    #Blank outside the magnetosphere (as in 0.7 beta*)
+    clip2 = Clip(registrationName='Clip2', Input=clip1)
+    clip2.ClipType = 'Scalar'
+    clip2.Scalars = ['POINTS', 'beta_star']
+    clip2.Value = 0.7
+    #Set a view
     view = GetActiveViewOrCreate('RenderView')
     stations = FindSource('stations')
-    '''
-    if 'station_file' in kwargs:
-        stations,station_df = get_stations_now(kwargs.get('station_file',''),
-                                   kwargs.get('localtime',dt.datetime.now()),
-                                               tilt=kwargs.get('tilt',0))
-        for sID in stations:
-            x,y,z = station_df[station_df['station']==sID][
-                                                    ['X','Y','Z']].values[0]
-            # create a new 'Stream Tracer'
-            trace = StreamTracer(registrationName=sID,Input=head,
-                                 SeedType='Line')
-            trace.Vectors = ['POINTS', 'B_nT']
-            trace.MaximumStreamlineLength = 252.0
-
-            # init the 'Line' selected for 'SeedType'
-            trace.SeedType.Point1 = [x,y,z]
-            trace.SeedType.Point2 = [x,y,z]
-
-            # show data in view
-            traceDisplay = Show(trace, view, 'GeometryRepresentation')
-
-            # change solid color
-            traceDisplay.AmbientColor = [0.0, 0.66, 1.0]
-            traceDisplay.DiffuseColor = [0.0, 0.66, 1.0]
-    else:
-        pass
-    '''
+    # create a new 'Stream Tracer With Custom Source'
+    trace = StreamTracerWithCustomSource(registrationName='station_field',
+                                         Input=clip2, SeedSource=stations)
+    trace.Vectors = ['POINTS', 'B_nT']
+    trace.MaximumStreamlineLength = 252.0
+    traceDisplay = Show(trace, view, 'GeometryRepresentation')
+    traceDisplay.AmbientColor = [0.0, 0.66, 1.0]
+    traceDisplay.DiffuseColor = [0.0, 0.66, 1.0]
+    ColorBy(traceDisplay, None)
 
 def setup_pipeline(infile,**kwargs):
     """Function takes single data file and builds pipeline to find and
@@ -1085,7 +1092,6 @@ def setup_pipeline(infile,**kwargs):
     """
     #### disable automatic camera reset on 'Show'
     paraview.simple._DisableFirstRenderCameraReset()
-    '''
     # Read input file
     sourcedata = read_tecplot(infile)
 
@@ -1131,16 +1137,26 @@ def setup_pipeline(infile,**kwargs):
                                    Input=ffj3)
         pipeline = ffj4
 
-    '''
     ###Field line seeding
     if kwargs.get('doFieldlines',False):
-        station_table, success = read_station_paraview()
+        station_MAG, success = read_station_paraview(
+                                    kwargs.get('localtime'),
+                                    n=kwargs.get('n',379))
+        #renderView = GetActiveViewOrCreate('RenderView')
+        #stationDisp = Show(station_table, renderView)
         if success and 'localtime' in kwargs and 'tilt' in kwargs:
-            stations = magPoints2Gsm(station_table,kwargs.get('localtime'),
+            stations = magPoints2Gsm(station_MAG,kwargs.get('localtime'),
                                      kwargs.get('tilt'))
-            #add_fieldlines(head,**kwargs)
+            renderView = GetActiveViewOrCreate('RenderView')
+            stationsDisplay = Show(stations, renderView,
+                                   'GeometryRepresentation')
+            #stationsDisplay.SetRepresentationType('Point Gaussian')
+            #stationsDisplay.GaussianRadius = 0.02
+            stationsDisplay.AmbientColor = [1.0, 1.0, 0.0]
+            stationsDisplay.DiffuseColor = [1.0, 1.0, 0.0]
+            #stationsDisplay.ShaderPreset = 'Black-edged circle'
+            add_fieldlines(pipeline)
 
-    '''
     # Magnetopause
     pipeline = get_magnetopause_filter(pipeline)
 
@@ -1151,7 +1167,6 @@ def setup_pipeline(infile,**kwargs):
     mp = create_iso_surface(pipeline, 'mp_state', 'mp')
 
     return sourcedata, pipelinehead, field, mp
-    '''
 
 if __name__ == "__main__":
 #if True:

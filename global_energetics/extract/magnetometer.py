@@ -69,7 +69,8 @@ def datetimeparser(datetimestring):
 def datetimeparser2(instring):
     return dt.datetime.strptime(instring,'%Y-%m-%dT%H:%M:%S')
 
-def read_station_paraview(*,file_in='stations_pv.loc'):
+def read_station_paraview(nowtime,*,n=50,file_in='stations_pv.loc',
+                          **kwargs):
     """Function reads in station locations (magLat/Lon), file should be
         included with swmf-energetics dist
     Inputs
@@ -81,21 +82,85 @@ def read_station_paraview(*,file_in='stations_pv.loc'):
     success = False
     #full_infile = os.path.join(os.path.abspath(os.path.curdir),file_in)
     full_infile = '/home/aubr/Code/swmf-energetics/'+file_in
+    if not os.path.exists(full_infile):
+        full_infile = '/Users/ngpdl/Code/swmf-energetics/'+file_in
     print('Reading: ',full_infile)
     if os.path.exists(full_infile):
-        #full_infile = os.path.abspath(os.path.curdir)+file_in
-        from paraview.simple import CSVReader
-        # create a new 'CSV Reader'
-        stations_pvloc = CSVReader(registrationName='stations_pv.loc',
-                                   FileName=[full_infile])
-        # Properties modified on stations_pvloc
-        stations_pvloc.FieldDelimiterCharacters = ' '
-        stations_pvloc.AddTabFieldDelimiter = 1
-        pipeline = stations_pvloc
+        from paraview.simple import ProgrammableFilter as ProgFilt
+        partial_read = ProgFilt(registrationName='stations_pv.loc',
+                                Input=None)
+        partial_read.OutputDataSetType = 'vtkPolyData'
+        partial_read.Script = update_stationHead(nowtime,n=n)
+        pipeline = partial_read
         success = True
     else:
         print('no station file to read!')
-    return None, success
+        pipeline = None
+    return pipeline, success
+
+def update_stationHead(nowtime,*,n=50,file_in='stations_pv.loc',**kwargs):
+    station_range = '[0:'+str(n)+']'
+    tshift = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
+    return """
+        # Code for 'Script'
+
+from vtk.numpy_interface import algorithms as algs
+from vtk.numpy_interface import dataset_adapter as dsa
+import numpy as np
+
+# assuming data.csv is a CSV file with the 1st row being the names names for
+# the columns
+data = np.genfromtxt("/Users/ngpdl/Code/swmf-energetics/stations.csv", dtype=None, names=True, delimiter=',',
+                     autostrip=True)
+###'MLT' shift based on MAG longitude
+mltshift = data["MAGLON"]*12/180
+###'MLT' shift based on local time
+#strtime = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
+tshift = """+tshift+"""
+LONnow = (mltshift+tshift)%24*180/12
+
+radius = 1
+d2r = np.pi/180
+x = radius * cos(d2r*data["MAGLAT"]) * cos(d2r*LONnow)
+y = radius * cos(d2r*data["MAGLAT"]) * sin(d2r*LONnow)
+z = radius * sin(d2r*data["MAGLAT"])
+
+# convert the 3 arrays into a single 3 component array for
+# use as the coordinates for the points.
+coordinates = algs.make_vector(x"""+station_range+""",
+                               y"""+station_range+""",
+                               z"""+station_range+""")
+
+# create a vtkPoints container to store all the
+# point coordinates.
+pts = vtk.vtkPoints()
+
+# numpyTovtkDataArray is needed to called directly to convert the NumPy
+# to a vtkDataArray which vtkPoints::SetData() expects.
+pts.SetData(dsa.numpyTovtkDataArray(coordinates, "Points"))
+
+# set the pts on the output.
+output.SetPoints(pts)
+
+# next, we define the cells i.e. the connectivity for this mesh.
+# here, we are creating merely a point could, so we'll add
+# that as a single poly vextex cell.
+numPts = pts.GetNumberOfPoints()
+# ptIds is the list of point ids in this cell
+# (which is all the points)
+ptIds = vtk.vtkIdList()
+ptIds.SetNumberOfIds(numPts)
+for a in range(numPts):
+    ptIds.SetId(a, a)
+
+# Allocate space for 1 cell.
+output.Allocate(1)
+output.InsertNextCell(vtk.VTK_POLY_VERTEX, ptIds)
+
+output.PointData.append(x,'xMag')
+output.PointData.append(y,'yMag')
+output.PointData.append(z,'zMag')
+        """
 
 def read_station_locations(*,file_in='stations.loc'):
     """Function reads in station locations (magLat/Lon), file should be
