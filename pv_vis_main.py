@@ -33,6 +33,7 @@ if __name__ == "__main__":
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
+        tstart = localtime
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,aux=aux,
                                                        doEnergyFlux=False,
@@ -50,7 +51,8 @@ if __name__ == "__main__":
         renderView1 = GetActiveViewOrCreate('RenderView')
         SetActiveView(renderView1)
         display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
-                        n=nstation,fluxResults=fluxResults,fontsize=60)
+                        n=nstation,fluxResults=fluxResults,fontsize=60,
+                        localtime=localtime,tstart=tstart)
         layout = GetLayout()
         layout.SetSize(3840, 2160)# 4k :-)
         SaveScreenshot(outpath+
@@ -106,6 +108,10 @@ if __name__ == "__main__":
             dbflux_num = FindSource('dbflux_num')
             dbflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Udb']/
                                             fluxResults['total_Udb']*100)
+            stamp1 = FindSource('tstamp')
+            stamp1.Text = str(localtime)
+            stamp2 = FindSource('tsim')
+            stamp2.Text = 'tsim: '+str(localtime-tstart)
             #Reload the view with all the updates
             renderView1.Update()
 

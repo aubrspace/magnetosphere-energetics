@@ -897,6 +897,27 @@ def display_visuals(field,mp,renderView,**kwargs):
         isoFFJdisplay.DiffuseColor = [0.0, 1.0, 0.0]
         isoFFJdisplay.Opacity = 0.4
 
+    if kwargs.get('timestamp',True):
+        simtime = kwargs.get('localtime')-kwargs.get('tstart')
+        #timestamp
+        stamp1 = Text(registrationName='tstamp')
+        stamp1.Text = str(kwargs.get('localtime'))
+        stamp1Display = Show(stamp1,renderView,
+                                  'TextSourceRepresentation')
+        stamp1Display.FontSize = kwargs.get('fontsize')
+        stamp1Display.WindowLocation = 'Any Location'
+        stamp1Display.Position = [0.845, 0.20]
+        stamp1Display.Color = [0.652, 0.652, 0.652]
+        #simulation runtime
+        stamp2 = Text(registrationName='tsim')
+        stamp2.Text = 'tsim: '+str(simtime)
+        stamp2Display = Show(stamp2,renderView,
+                                  'TextSourceRepresentation')
+        stamp2Display.FontSize = kwargs.get('fontsize')
+        stamp2Display.WindowLocation = 'Any Location'
+        stamp2Display.Position = [0.90, 0.17]
+        stamp2Display.Color = [0.652, 0.652, 0.652]
+
     if kwargs.get('doFluxVol',True):
         results = kwargs.get('fluxResults')
         #Tag station results to the page
