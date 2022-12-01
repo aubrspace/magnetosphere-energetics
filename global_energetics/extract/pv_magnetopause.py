@@ -494,14 +494,13 @@ def rotate2GSM(pipeline,tilt,**kwargs):
     return rGSM
 
 def update_rotation(tilt):
-    print(str(-tilt*np.pi/180))
     return"""
     import numpy as np
     data = inputs[0]
     angle = """+str(-tilt*np.pi/180)+"""
-    x_mag = data.PointData['xMag']
-    y_mag = data.PointData['yMag']
-    z_mag = data.PointData['zMag']
+    x_mag = data.Points[:,0]
+    y_mag = data.Points[:,1]
+    z_mag = data.Points[:,2]
 
     rot = [[ np.cos(angle), 0, np.sin(angle)],
            [0,              1,             0],
@@ -831,7 +830,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         TBD
     """
     # show outline of field
-    setup_outline(field)
+    #setup_outline(field)
     # show iso surface
     mpDisplay = Show(mp, renderView, 'GeometryRepresentation')
 
@@ -862,6 +861,26 @@ def display_visuals(field,mp,renderView,**kwargs):
 
     # Properties modified on mpDisplay.DataAxesGrid
     mpDisplay.DataAxesGrid.GridAxesVisibility = 1
+    mpDisplay.DataAxesGrid.XTitleFontSize = 45
+    mpDisplay.DataAxesGrid.YTitleFontSize = 45
+    mpDisplay.DataAxesGrid.ZTitleFontSize = 45
+    mpDisplay.DataAxesGrid.XTitle = '      X Axis'
+    mpDisplay.DataAxesGrid.ZTitle = '  Z Axis'
+
+    # Properties modified on mpDisplay.DataAxesGrid
+    mpDisplay.DataAxesGrid.XLabelFontSize = 35
+    mpDisplay.DataAxesGrid.YLabelFontSize = 35
+    mpDisplay.DataAxesGrid.ZLabelFontSize = 35
+    mpDisplay.DataAxesGrid.ShowGrid = 0
+    '''
+    mpDisplay.DataAxesGrid.XAxisUseCustomLabels = 1
+    mpDisplay.DataAxesGrid.YAxisUseCustomLabels = 1
+    mpDisplay.DataAxesGrid.ZAxisUseCustomLabels = 1
+    mpDisplay.DataAxesGrid.XAxisLabels = np.linspace(10,-30,9)
+    mpDisplay.DataAxesGrid.YAxisLabels = np.linspace(20,-20,9)
+    mpDisplay.DataAxesGrid.ZAxisLabels = np.linspace(20,-20,9)
+    '''
+
     # Properties modified on slice1Display
     mpDisplay.Opacity = 0.2
 
@@ -877,6 +896,92 @@ def display_visuals(field,mp,renderView,**kwargs):
         isoFFJdisplay.AmbientColor = [0.0, 1.0, 0.0]
         isoFFJdisplay.DiffuseColor = [0.0, 1.0, 0.0]
         isoFFJdisplay.Opacity = 0.4
+
+    if kwargs.get('doFluxVol',True):
+        results = kwargs.get('fluxResults')
+        #Tag station results to the page
+        station_tag = Text(registrationName='station_tag')
+        station_tag.Text = '# of Stations: '
+        station_tagDisplay = Show(station_tag,renderView,
+                                  'TextSourceRepresentation')
+        station_tagDisplay.FontSize = kwargs.get('fontsize')
+        station_tagDisplay.WindowLocation = 'Any Location'
+        station_tagDisplay.Position = [0.01, 0.95555553]
+
+        #Tag station results to the page
+        """
+        # create a new 'Python Annotation'
+pythonAnnotation2 = PythonAnnotation(registrationName='PythonAnnotation2', Input=totalInt)
+pythonAnnotation2.ArrayAssociation = 'Point Data'
+pythonAnnotation2.Expression = ''
+pythonAnnotation2.Expression = "'%.2e' % (u_db_J_Re3)"
+        """
+        #TODO Python annotations for everything, then run update test
+        station_num = Text(registrationName='station_num')
+        station_num.Text = str(kwargs.get('n',379))
+        station_numDisplay = Show(station_num,renderView,
+                                  'TextSourceRepresentation')
+        station_numDisplay.FontSize = kwargs.get('fontsize')
+        station_numDisplay.WindowLocation = 'Any Location'
+        station_numDisplay.Position = [0.11, 0.95555553]
+        station_numDisplay.Color = [0.0383, 1.0, 0.0279]
+
+        ####Tag volume header to the page
+        vol_tag = Text(registrationName='volume_tag')
+        vol_tag.Text = 'Volume :'
+        vol_tagDisplay = Show(vol_tag,renderView,
+                                  'TextSourceRepresentation')
+        vol_tagDisplay.FontSize = kwargs.get('fontsize')
+        vol_tagDisplay.WindowLocation = 'Any Location'
+        vol_tagDisplay.Position = [0.85, 0.95555553]
+        #Tag volume results to the page
+        vol_num = Text(registrationName='volume_num')
+        vol_num.Text = '{:.2f}%'.format(results['flux_volume']/
+                                        results['total_volume']*100)
+        vol_numDisplay = Show(vol_num,renderView,
+                              'TextSourceRepresentation')
+        vol_numDisplay.WindowLocation = 'Any Location'
+        vol_numDisplay.Position = [0.92, 0.95555553]
+        vol_numDisplay.FontSize = kwargs.get('fontsize')
+        vol_numDisplay.Color = [0.0383, 1.0, 0.0279]
+
+        #####Tag Bflux header to the page
+        bflux_tag = Text(registrationName='bflux_tag')
+        bflux_tag.Text = 'MagEnergy :'
+        bflux_tagDisplay = Show(bflux_tag,renderView,
+                                  'TextSourceRepresentation')
+        bflux_tagDisplay.FontSize = kwargs.get('fontsize')
+        bflux_tagDisplay.WindowLocation = 'Any Location'
+        bflux_tagDisplay.Position = [0.82, 0.90]
+        #Tag Bflux results to the page
+        bflux_num = Text(registrationName='bflux_num')
+        bflux_num.Text = '{:.2f}%'.format(results['flux_Umag']/
+                                        results['total_Umag']*100)
+        bflux_numDisplay = Show(bflux_num,renderView,
+                              'TextSourceRepresentation')
+        bflux_numDisplay.WindowLocation = 'Any Location'
+        bflux_numDisplay.Position = [0.92, 0.90]
+        bflux_numDisplay.FontSize = kwargs.get('fontsize')
+        bflux_numDisplay.Color = [0.0383, 1.0, 0.0279]
+
+        #####Tag diff Bflux header to the page
+        dbflux_tag = Text(registrationName='dbflux_tag')
+        dbflux_tag.Text = 'Disturbance MagEnergy :'
+        dbflux_tagDisplay = Show(dbflux_tag,renderView,
+                                  'TextSourceRepresentation')
+        dbflux_tagDisplay.FontSize = kwargs.get('fontsize')
+        dbflux_tagDisplay.WindowLocation = 'Any Location'
+        dbflux_tagDisplay.Position = [0.725, 0.85555553]
+        #Tag diff Bflux results to the page
+        dbflux_num = Text(registrationName='dbflux_num')
+        dbflux_num.Text = '{:.2f}%'.format(results['flux_Udb']/
+                                        results['total_Udb']*100)
+        dbflux_numDisplay = Show(dbflux_num,renderView,
+                              'TextSourceRepresentation')
+        dbflux_numDisplay.WindowLocation = 'Any Location'
+        dbflux_numDisplay.Position = [0.92, 0.85555553]
+        dbflux_numDisplay.FontSize = kwargs.get('fontsize')
+        dbflux_numDisplay.Color = [0.0383, 1.0, 0.0279]
 
     if kwargs.get('doSlice',False):
         ###Slice
@@ -942,16 +1047,25 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView.CameraViewUp = [-0.10, -0.15, 0.98]
     renderView.CameraParallelScale = 66.62
     '''
+    # Rotating earth sciVis panel 1
+    '''
     renderView.CameraPosition = [29.32815055455574, 37.86621330279131, 7.609529115358075]
     renderView.CameraFocalPoint = [-25.456973412386397, -21.323869341836772, -7.225181628443577]
     renderView.CameraViewUp = [-0.10035690162965076, -0.15053535244447613, 0.9834976359705773]
     renderView.CameraParallelScale = 66.62
+    '''
+
+    # Flux increasing sciVis panel 3
+    renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
+    renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
+    renderView.CameraViewUp = [0.5899444617072703, 0.25266438976703015, 0.7668938898208627]
+    renderView.CameraParallelScale = 66.62
 
     '''
-    renderView1.CameraPosition = [29.48, 55.98, 10.02]
-    renderView1.CameraFocalPoint = [-54.66, -35.22, -6.93]
-    renderView1.CameraViewUp = [-0.06, -0.12, 0.99]
-    renderView1.CameraParallelScale = 218.09
+    renderView.CameraPosition = [29.48, 55.98, 10.02]
+    renderView.CameraFocalPoint = [-54.66, -35.22, -6.93]
+    renderView.CameraViewUp = [-0.06, -0.12, 0.99]
+    renderView.CameraParallelScale = 218.09
     '''
 def todimensional(pipeline, **kwargs):
     """Function modifies dimensionless variables -> dimensional variables
@@ -1038,6 +1152,102 @@ def todimensional(pipeline, **kwargs):
     #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
     return pipeline
 
+def add_fluxVolume(field,**kwargs):
+    """Function adds field lines to current view
+    Inputs
+        field- source to find the flux volumes
+        kwargs:
+            station_file
+            localtime
+            tilt
+    Returns
+        None
+    """
+    #Integrate total
+    total_int=IntegrateVariables(registrationName='totalInt',Input=field)
+
+    fluxVolume_hits=ProgrammableFilter(registrationName='fluxVolume_hits',
+                                       Input=field)
+    fluxVolume_hits.Script=update_fluxVolume(**kwargs)
+    # create a new 'Threshold'
+    fluxVolume = Threshold(registrationName='fluxVolume',
+                           Input=fluxVolume_hits)
+    fluxVolume.Scalars = ['POINTS', 'projectedVol']
+    fluxVolume.UpperThreshold = 0.95
+    fluxVolume.ThresholdMethod = 'Above Upper Threshold'
+    #Set a view
+    view = GetActiveViewOrCreate('RenderView')
+    #Adjust view settings
+    volumeDisplay = Show(fluxVolume, view, 'GeometryRepresentation')
+    volumeDisplay.AmbientColor = [0.33, 1.0, 0.0]
+    volumeDisplay.DiffuseColor = [0.33, 1.0, 0.0]
+    volumeDisplay.Opacity = 0.20
+    ColorBy(volumeDisplay, None)
+    #Integrate projected flux
+    flux_int=IntegrateVariables(registrationName='fluxInt',
+                                Input=fluxVolume)
+    #Grab what you like
+    vals = update_fluxResults(flux_int,total_int)
+    return fluxVolume, vals
+
+def update_fluxResults(flux_int,total_int):
+    #Grab what you like
+    vals = {}
+    vals['flux_volume'] = flux_int.CellData['Volume'].GetRange()[0]
+    vals['flux_Umag'] = flux_int.PointData['uB_J_Re3'].GetRange()[0]
+    vals['flux_Udb'] = flux_int.PointData['u_db_J_Re3'].GetRange()[0]
+    vals['total_volume'] = total_int.CellData['Volume'].GetRange()[0]
+    vals['total_Umag'] = total_int.PointData['uB_J_Re3'].GetRange()[0]
+    vals['total_Udb'] = total_int.PointData['u_db_J_Re3'].GetRange()[0]
+    return vals
+
+def update_fluxVolume(**kwargs):
+    nowtime = kwargs.get('localtime')
+    tshift = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
+    return """
+    from vtk.numpy_interface import algorithms as algs
+    from vtk.numpy_interface import dataset_adapter as dsa
+    import numpy as np
+
+    n = """+str(kwargs.get('n',379))+"""
+    data = inputs[0]
+    beta_star = data.PointData['beta_star']
+    status = data.PointData['Status']
+    th1 = data.PointData['theta_1']
+    th2 = data.PointData['theta_2']
+    ph1 = data.PointData['phi_1']
+    ph2 = data.PointData['phi_2']
+
+    # assuming stations.csv is a CSV file with the 1st row being
+    # the names names for the columns
+    stations = np.genfromtxt('"""+(kwargs.get('path','')+
+                            kwargs.get('file_in','stations.csv'))+"""',
+                             dtype=None, names=True,
+                             delimiter=',', autostrip=True)
+    tshift = """+tshift+"""
+    hits = th1*0
+    #for ID,_,__,lat,lon in [stations[12],stations[145]]:
+    for ID,_,__,lat,lon in stations[0:n]:
+        lon = ((lon*12/180)+tshift)%24*180/12
+        th_tol = """+str(kwargs.get('th_tol',2))+"""
+        phi_tol = """+str(kwargs.get('phi_tol',4))+"""
+        if lat>0:
+            theta = th1
+            phi = ph1
+        else:
+            theta = th2
+            phi = ph2
+        footcond1=((theta<(lat+th_tol))&(theta>(lat-th_tol))).astype(int)
+        footcond2 = ((phi>(lon-phi_tol))&(phi<(lon+phi_tol))).astype(int)
+        mp_state = ((beta_star<0.7)|
+                    (status==3)).astype(int)
+        hits = np.maximum.reduce([hits, footcond1*footcond2*mp_state])
+
+    #Assign to output
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(hits,'projectedVol')
+    """
+
 def add_fieldlines(head,**kwargs):
     """Function adds field lines to current view
     Inputs
@@ -1049,6 +1259,7 @@ def add_fieldlines(head,**kwargs):
     Returns
         None
     """
+    '''
     #Blank inside the earth
     clip1 = Clip(registrationName='Clip1', Input=head)
     clip1.ClipType = 'Sphere'
@@ -1060,12 +1271,13 @@ def add_fieldlines(head,**kwargs):
     clip2.ClipType = 'Scalar'
     clip2.Scalars = ['POINTS', 'beta_star']
     clip2.Value = 0.7
+    '''
     #Set a view
     view = GetActiveViewOrCreate('RenderView')
     stations = FindSource('stations')
     # create a new 'Stream Tracer With Custom Source'
     trace = StreamTracerWithCustomSource(registrationName='station_field',
-                                         Input=clip2, SeedSource=stations)
+                                         Input=head, SeedSource=stations)
     trace.Vectors = ['POINTS', 'B_nT']
     trace.MaximumStreamlineLength = 252.0
     traceDisplay = Show(trace, view, 'GeometryRepresentation')
@@ -1117,8 +1329,11 @@ def setup_pipeline(infile,**kwargs):
     if 'aux' in kwargs:
         pipeline = eqeval(alleq['dipole_coord'],pipeline)
     ###Energy flux variables
-    if kwargs.get('doEnergy',True):
+    if kwargs.get('doEnergyFlux',True):
         pipeline = eqeval(alleq['energy_flux'],pipeline)
+    if kwargs.get('doVolumeEnergy',True):
+        pipeline = eqeval(alleq['dipole'],pipeline)
+        pipeline = eqeval(alleq['volume_energy'],pipeline)
     ###Get Vectors from field variable components
     pipeline = get_vectors(pipeline)
 
@@ -1137,25 +1352,45 @@ def setup_pipeline(infile,**kwargs):
                                    Input=ffj3)
         pipeline = ffj4
 
-    ###Field line seeding
-    if kwargs.get('doFieldlines',False):
+    if kwargs.get('blanktail',False):
+        ###Blank downtail
+        pipeline = Clip(registrationName='Clip3', Input=pipeline)
+        pipeline.ClipType = 'Plane'
+        pipeline.HyperTreeGridClipper = 'Plane'
+        pipeline.Invert = 0
+        pipeline.ClipType.Origin = [-30.0, 0.0, 0.0]
+        #pipeline.Scalars = ['POINTS', 'beta_star']
+        #pipeline.Value = 0.35000000323389224
+
+    ###Field line seeding or Field line projected flux volumes
+    fluxResults = None
+    if(kwargs.get('doFieldlines',False)or kwargs.get('doFluxVol',False)):
         station_MAG, success = read_station_paraview(
                                     kwargs.get('localtime'),
                                     n=kwargs.get('n',379))
-        #renderView = GetActiveViewOrCreate('RenderView')
-        #stationDisp = Show(station_table, renderView)
         if success and 'localtime' in kwargs and 'tilt' in kwargs:
             stations = magPoints2Gsm(station_MAG,kwargs.get('localtime'),
                                      kwargs.get('tilt'))
             renderView = GetActiveViewOrCreate('RenderView')
             stationsDisplay = Show(stations, renderView,
                                    'GeometryRepresentation')
-            #stationsDisplay.SetRepresentationType('Point Gaussian')
-            #stationsDisplay.GaussianRadius = 0.02
             stationsDisplay.AmbientColor = [1.0, 1.0, 0.0]
             stationsDisplay.DiffuseColor = [1.0, 1.0, 0.0]
-            #stationsDisplay.ShaderPreset = 'Black-edged circle'
-            add_fieldlines(pipeline)
+            #Blank inside the earth
+            clip1 = Clip(registrationName='Clip1', Input=pipeline)
+            clip1.ClipType = 'Sphere'
+            clip1.Invert = 0
+            clip1.ClipType.Center = [0.0, 0.0, 0.0]
+            clip1.ClipType.Radius = 0.99
+            #Blank outside the magnetosphere (as in 0.7 beta*)
+            clip2 = Clip(registrationName='Clip2', Input=clip1)
+            clip2.ClipType = 'Scalar'
+            clip2.Scalars = ['POINTS', 'beta_star']
+            clip2.Value = 0.7
+            if kwargs.get('doFieldlines',False):
+                add_fieldlines(clip2)
+            if kwargs.get('doFluxVol',False):
+                obj, fluxResults = add_fluxVolume(clip2,**kwargs)
 
     # Magnetopause
     pipeline = get_magnetopause_filter(pipeline)
@@ -1166,7 +1401,7 @@ def setup_pipeline(infile,**kwargs):
     ###Contour (iso-surface) of the magnetopause
     mp = create_iso_surface(pipeline, 'mp_state', 'mp')
 
-    return sourcedata, pipelinehead, field, mp
+    return sourcedata, pipelinehead, field, mp, fluxResults
 
 if __name__ == "__main__":
 #if True:

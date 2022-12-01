@@ -606,6 +606,7 @@ def interf_power_fig(ds,ph,path,hatches):
     #Decide on ylimits for interfaces
     #interface_list = ['Dayside_reg','Tail_close','L7','PSB','MidLat',
     #                  'Flank','Tail_lobe','Poles','LowLat']
+    '''
     interface_list = ['Dayside_reg','Flank','PSB']
     ylims = [[-8,8],[-5,5],[-10,10]]
     closed = ['Dayside_reg','Tail_close','L7','PSB','MidLat']
@@ -613,9 +614,18 @@ def interf_power_fig(ds,ph,path,hatches):
     ring_c = ['LowLat']
     incr = 7.5
     h_ratios=[3,3,1,1,1,1,4,4,1,1,3,3,1,1,1,1,1,1]
+                         figsize=[9,2*len(interface_list)*len(ds.keys())])
+    '''
+    interface_list = ['Dayside_reg','Flank']
+    ylims = [[-10,10],[-10,10]]
+    closed = ['Dayside_reg','Tail_close','L7','PSB','MidLat']
+    lobes = ['Flank','Tail_lobe','Poles']
+    ring_c = ['LowLat']
+    incr = 7.5
+    h_ratios=[3,3,1,1,1,1,4,4,1,1,3,3,1,1,1,1,1,1]
     interf_fig, ax = plt.subplots(len(ds.keys())*len(interface_list),
                                       sharex=True,
-                         figsize=[9,3*len(interface_list)*len(ds.keys())])
+                         figsize=[9,4*len(interface_list)*len(ds.keys())])
                             #gridspec_kw={'height_ratios':h_ratios})
     if len(ds.keys())==1 and len(interface_list)==1:
         ax = [ax]
@@ -910,9 +920,9 @@ def main_rec_figures(ds):
         #stack_energy_type_fig(ds,ph,path)
         #stack_energy_region_fig(ds,ph,path,hatches)
         #stack_volume_fig(ds,ph,path,hatches)
-        #interf_power_fig(ds,ph,path,hatches)
-        polar_cap_area_fig(ds,ph,path)
-        polar_cap_flux_fig(ds,ph,path)
+        interf_power_fig(ds,ph,path,hatches)
+        #polar_cap_area_fig(ds,ph,path)
+        #polar_cap_flux_fig(ds,ph,path)
         #tail_cap_fig(ds,ph,path)
         #static_motional_fig(ds,ph,path)
 
@@ -958,20 +968,20 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     ds = {}
-    #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
+    ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
     #ds['star'] = load_hdf_sort(inPath+'starlink2_results.h5')
-    ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
-    ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
-    ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
+    #ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
+    #ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
+    #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
 
     #Log files and observational indices
     ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
                                     read_supermag=False, tshift=45)
-    ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-                                     read_supermag=False,
-                                     end=ds['star']['times'][-1])
-    ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
-                                    read_supermag=False)
+    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                                 end=ds['star']['times'][-1])
+    #ds['may']['obs'] = read_indices(inPath, prefix='may2019_',
+    #                                read_supermag=False)
 
     #NOTE hotfix for closed region tail_closed
     #for ev in ds.keys():
@@ -1011,10 +1021,10 @@ if __name__ == "__main__":
     #quiet_figures(ds)
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(ds)
+    main_rec_figures(ds)
     ######################################################################
     ##Short zoomed in interval
-    interval_figures(ds)
+    #interval_figures(ds)
     ######################################################################
     ##Lshell plots
     #lshell_figures(ds)

@@ -161,7 +161,7 @@ def add_timestamps(infolder,*, tshift=0):
 if __name__ == '__main__':
     #Video settings
     RES = 400
-    FRAMERATE = 9
+    FRAMERATE = 8
     FOLDER = sys.argv[-1]
     if '-stamp' in sys.argv:
         if '-tshift' in sys.argv:

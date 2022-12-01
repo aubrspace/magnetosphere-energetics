@@ -69,7 +69,7 @@ def datetimeparser(datetimestring):
 def datetimeparser2(instring):
     return dt.datetime.strptime(instring,'%Y-%m-%dT%H:%M:%S')
 
-def read_station_paraview(nowtime,*,n=50,file_in='stations_pv.loc',
+def read_station_paraview(nowtime,*,n=379,file_in='stations.csv',
                           **kwargs):
     """Function reads in station locations (magLat/Lon), file should be
         included with swmf-energetics dist
@@ -87,7 +87,7 @@ def read_station_paraview(nowtime,*,n=50,file_in='stations_pv.loc',
     print('Reading: ',full_infile)
     if os.path.exists(full_infile):
         from paraview.simple import ProgrammableFilter as ProgFilt
-        partial_read = ProgFilt(registrationName='stations_pv.loc',
+        partial_read = ProgFilt(registrationName='stations_input',
                                 Input=None)
         partial_read.OutputDataSetType = 'vtkPolyData'
         partial_read.Script = update_stationHead(nowtime,n=n)
@@ -98,69 +98,64 @@ def read_station_paraview(nowtime,*,n=50,file_in='stations_pv.loc',
         pipeline = None
     return pipeline, success
 
-def update_stationHead(nowtime,*,n=50,file_in='stations_pv.loc',**kwargs):
+def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
     station_range = '[0:'+str(n)+']'
     tshift = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
     return """
-        # Code for 'Script'
+    from vtk.numpy_interface import algorithms as algs
+    from vtk.numpy_interface import dataset_adapter as dsa
+    import numpy as np
 
-from vtk.numpy_interface import algorithms as algs
-from vtk.numpy_interface import dataset_adapter as dsa
-import numpy as np
+    # assuming data is CSV file with 1st row being the names names for
+    # the columns
+    data = np.genfromtxt("/Users/ngpdl/Code/swmf-energetics/stations.csv",
+                         dtype=None, names=True, delimiter=',',
+                         autostrip=True)
+    ###'MLT' shift based on MAG longitude
+    mltshift = data["MAGLON"]*12/180
+    ###'MLT' shift based on local time
+    #strtime = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
+    tshift = """+tshift+"""
+    LONnow = (mltshift+tshift)%24*180/12
 
-# assuming data.csv is a CSV file with the 1st row being the names names for
-# the columns
-data = np.genfromtxt("/Users/ngpdl/Code/swmf-energetics/stations.csv", dtype=None, names=True, delimiter=',',
-                     autostrip=True)
-###'MLT' shift based on MAG longitude
-mltshift = data["MAGLON"]*12/180
-###'MLT' shift based on local time
-#strtime = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
-tshift = """+tshift+"""
-LONnow = (mltshift+tshift)%24*180/12
+    radius = 1
+    d2r = np.pi/180
+    x = radius * cos(d2r*data["MAGLAT"]) * cos(d2r*LONnow)
+    y = radius * cos(d2r*data["MAGLAT"]) * sin(d2r*LONnow)
+    z = radius * sin(d2r*data["MAGLAT"])
 
-radius = 1
-d2r = np.pi/180
-x = radius * cos(d2r*data["MAGLAT"]) * cos(d2r*LONnow)
-y = radius * cos(d2r*data["MAGLAT"]) * sin(d2r*LONnow)
-z = radius * sin(d2r*data["MAGLAT"])
+    # convert the 3 arrays into a single 3 component array for
+    # use as the coordinates for the points.
+    coordinates = algs.make_vector(x"""+station_range+""",
+                                   y"""+station_range+""",
+                                   z"""+station_range+""")
 
-# convert the 3 arrays into a single 3 component array for
-# use as the coordinates for the points.
-coordinates = algs.make_vector(x"""+station_range+""",
-                               y"""+station_range+""",
-                               z"""+station_range+""")
+    # create a vtkPoints container to store all the
+    # point coordinates.
+    pts = vtk.vtkPoints()
 
-# create a vtkPoints container to store all the
-# point coordinates.
-pts = vtk.vtkPoints()
+    # numpyTovtkDataArray is needed to called directly to convert the NumPy
+    # to a vtkDataArray which vtkPoints::SetData() expects.
+    pts.SetData(dsa.numpyTovtkDataArray(coordinates, "Points"))
 
-# numpyTovtkDataArray is needed to called directly to convert the NumPy
-# to a vtkDataArray which vtkPoints::SetData() expects.
-pts.SetData(dsa.numpyTovtkDataArray(coordinates, "Points"))
+    # set the pts on the output.
+    output.SetPoints(pts)
 
-# set the pts on the output.
-output.SetPoints(pts)
+    # next, we define the cells i.e. the connectivity for this mesh.
+    # here, we are creating merely a point could, so we'll add
+    # that as a single poly vextex cell.
+    numPts = pts.GetNumberOfPoints()
+    # ptIds is the list of point ids in this cell
+    # (which is all the points)
+    ptIds = vtk.vtkIdList()
+    ptIds.SetNumberOfIds(numPts)
+    for a in range(numPts):
+        ptIds.SetId(a, a)
 
-# next, we define the cells i.e. the connectivity for this mesh.
-# here, we are creating merely a point could, so we'll add
-# that as a single poly vextex cell.
-numPts = pts.GetNumberOfPoints()
-# ptIds is the list of point ids in this cell
-# (which is all the points)
-ptIds = vtk.vtkIdList()
-ptIds.SetNumberOfIds(numPts)
-for a in range(numPts):
-    ptIds.SetId(a, a)
-
-# Allocate space for 1 cell.
-output.Allocate(1)
-output.InsertNextCell(vtk.VTK_POLY_VERTEX, ptIds)
-
-output.PointData.append(x,'xMag')
-output.PointData.append(y,'yMag')
-output.PointData.append(z,'zMag')
-        """
+    # Allocate space for 1 cell.
+    output.Allocate(1)
+    output.InsertNextCell(vtk.VTK_POLY_VERTEX, ptIds)
+    """
 
 def read_station_locations(*,file_in='stations.loc'):
     """Function reads in station locations (magLat/Lon), file should be

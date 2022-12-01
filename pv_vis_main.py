@@ -12,7 +12,9 @@ from paraview.simple import *
 #import global_energetics.extract.pv_magnetopause
 import pv_magnetopause
 from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
-                             display_visuals,update_rotation,read_tecplot)
+                             display_visuals,update_rotation,read_tecplot,
+                             get_dipole_field,tec2para,update_fluxVolume,
+                             update_fluxResults)
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
@@ -26,24 +28,34 @@ if __name__ == "__main__":
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
     #magfile = path+'../magnetometers_e20220202-050000.mag'
+    nstation = 379
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
-        oldsource,pipelinehead,field,mp=setup_pipeline(infile,aux=aux,
-                                                       doEnergy=False,
+        oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
+                                                       infile,aux=aux,
+                                                       doEnergyFlux=False,
+                                                       doVolumeEnergy=True,
                                                        dimensionless=True,
-                                                       doFieldlines=True,
+                                                       doFieldlines=False,
+                                                       doFluxVol=True,
+                                                       blanktail=True,
+                                path='/Users/ngpdl/Code/swmf-energetics/',
                                                        ffj=False,
+                                                       n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))
         renderView1 = GetActiveViewOrCreate('RenderView')
         SetActiveView(renderView1)
-        display_visuals(field,mp,renderView1,doSlice=False)
+        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
+                        n=nstation,fluxResults=fluxResults,fontsize=60)
         layout = GetLayout()
+        layout.SetSize(3840, 2160)# 4k :-)
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
-                       SaveAllViews=1,ImageResolution=[2162,1079])
+                       SaveAllViews=1,ImageResolution=[3840,2160])
     for i,infile in enumerate(filelist[1::]):
+        nstation = np.minimum(nstation+i,379)
         print('processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
         if os.path.exists(outfile):
@@ -56,20 +68,52 @@ if __name__ == "__main__":
             #Attach pipeline to the new source file and delete the old
             pipelinehead.Input = newsource
             Delete(oldsource)
-            #Update time varying filters
+
+            ###Update time varying filters
+            #auxillary data + time
             aux = read_aux(infile.replace('.plt','.aux'))
             localtime = get_time(infile)
-            stations_head = FindSource('stations_pv.loc')
-            stations_head.Script = update_stationHead(localtime,n=i+20)
+            ##dipole field values
+            #Get a new dipole field equation
+            Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)#just new strings
+            for comp,eq in [('Bdx',Bdx_eq),('Bdy',Bdy_eq),('Bdz',Bdz_eq)]:
+                source = FindSource(comp)
+                source.Function = tec2para(eq.split('=')[-1])
+            #magnetometer stations
+            station_head = FindSource('stations_input')
+            station_head.Script = update_stationHead(localtime,n=nstation)
+            #Rotation matrix from MAG->GSM
             rotation = FindSource('rotate2GSM')
             rotation.Script = update_rotation(float(aux['BTHETATILT']))
-            renderView.Update()
+            #FluxVolume
+            fluxVolume = FindSource('fluxVolume_hits')
+            fluxVolume.Script = update_fluxVolume(localtime=localtime,
+                                                 n=nstation)
+            flux_int = FindSource('fluxInt')
+            total_int = FindSource('totalInt')
+            fluxResults = update_fluxResults(flux_int,total_int)
+            #Annotations
+            station_num = FindSource('station_num')
+            station_num.Text = str(nstation)
+            vol_num = FindSource('volume_num')
+            vol_num.Text = '{:.2f}%'.format(fluxResults['flux_volume']/
+                                          fluxResults['total_volume']*100)
+            bflux_num = FindSource('bflux_num')
+            bflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Umag']/
+                                            fluxResults['total_Umag']*100)
+            dbflux_num = FindSource('dbflux_num')
+            dbflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Udb']/
+                                            fluxResults['total_Udb']*100)
+            #Reload the view with all the updates
+            renderView1.Update()
+
             # Render and save screenshot
             RenderAllViews()
+
             # layout/tab size in pixels
-            layout.SetSize(2162, 1079)
+            layout.SetSize(3840, 2160)
             SaveScreenshot(outfile,layout,
-                       SaveAllViews=1,ImageResolution=[2162,1079])
+                       SaveAllViews=1,ImageResolution=[3840,2160])
             # Set the current source to be replaced on next loop
             oldsource = newsource
     #timestamp
