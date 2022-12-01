@@ -24,7 +24,7 @@ if __name__ == "__main__":
     #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
     #outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
     path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_vis9/'
+    outpath='/home/aubr/Code/swmf-energetics/output_hyperwall_scene3/'
     #from IPython import embed; embed()
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
@@ -41,11 +41,12 @@ if __name__ == "__main__":
                                                        doFieldlines=False,
                                                        doFluxVol=True,
                                                        blanktail=True,
-                                path='/Users/ngpdl/Code/swmf-energetics/',
+                                path='/home/aubr/Code/swmf-energetics/',
                                                        ffj=False,
                                                        n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))
+        #path='/Users/ngpdl/Code/swmf-energetics/',
         renderView1 = GetActiveViewOrCreate('RenderView')
         SetActiveView(renderView1)
         display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
@@ -55,7 +56,7 @@ if __name__ == "__main__":
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
-    for i,infile in enumerate(filelist[1:5]):
+    for i,infile in enumerate(filelist[1:7]):
         nstation = np.minimum(nstation+i,379)
         print('processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
