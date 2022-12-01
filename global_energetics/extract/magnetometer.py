@@ -108,7 +108,8 @@ def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
 
     # assuming data is CSV file with 1st row being the names names for
     # the columns
-    data = np.genfromtxt("/Users/ngpdl/Code/swmf-energetics/stations.csv",
+    #data = np.genfromtxt("/Users/ngpdl/Code/swmf-energetics/stations.csv",
+    data = np.genfromtxt("/home/aubr/Code/swmf-energetics/stations.csv",
                          dtype=None, names=True, delimiter=',',
                          autostrip=True)
     ###'MLT' shift based on MAG longitude
