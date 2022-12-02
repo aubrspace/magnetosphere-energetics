@@ -29,11 +29,12 @@ if __name__ == "__main__":
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
     #magfile = path+'../magnetometers_e20220202-050000.mag'
-    nstation = 379
-    for infile in filelist[0:1]:
+    nstation = 5
+    for infile in filelist[1850:1851]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
-        tstart = localtime
+        #tstart = localtime
+        tstart = dt.datetime(2022,2,2,5,1,0)
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,aux=aux,
                                                        doEnergyFlux=False,
@@ -58,7 +59,7 @@ if __name__ == "__main__":
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
-    for i,infile in enumerate(filelist[1:7]):
+    for i,infile in enumerate(filelist[1851:2450]):
         nstation = np.minimum(nstation+i,379)
         print('processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'

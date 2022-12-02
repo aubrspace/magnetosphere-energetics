@@ -1336,6 +1336,16 @@ def setup_pipeline(infile,**kwargs):
     pipelinehead = mergeBlocks1
     pipeline = mergeBlocks1
 
+    if kwargs.get('blanktail',False):
+        ###Blank downtail
+        pipeline = Clip(registrationName='Clip3', Input=pipeline)
+        pipeline.ClipType = 'Plane'
+        pipeline.HyperTreeGridClipper = 'Plane'
+        pipeline.Invert = 0
+        pipeline.ClipType.Origin = [-30.0, 0.0, 0.0]
+        #pipeline.Scalars = ['POINTS', 'beta_star']
+        #pipeline.Value = 0.35000000323389224
+
     ###Check if unitless variables are present
     if 'dimensionless' in kwargs:
         pipeline = todimensional(pipeline,**kwargs)
@@ -1373,15 +1383,6 @@ def setup_pipeline(infile,**kwargs):
                                    Input=ffj3)
         pipeline = ffj4
 
-    if kwargs.get('blanktail',False):
-        ###Blank downtail
-        pipeline = Clip(registrationName='Clip3', Input=pipeline)
-        pipeline.ClipType = 'Plane'
-        pipeline.HyperTreeGridClipper = 'Plane'
-        pipeline.Invert = 0
-        pipeline.ClipType.Origin = [-30.0, 0.0, 0.0]
-        #pipeline.Scalars = ['POINTS', 'beta_star']
-        #pipeline.Value = 0.35000000323389224
 
     ###Field line seeding or Field line projected flux volumes
     fluxResults = None
