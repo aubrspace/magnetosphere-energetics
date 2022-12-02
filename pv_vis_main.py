@@ -40,8 +40,8 @@ if __name__ == "__main__":
                                                        doEnergyFlux=False,
                                                        doVolumeEnergy=True,
                                                        dimensionless=True,
-                                                       doFieldlines=False,
-                                                       doFluxVol=True,
+                                                       doFieldlines=True,
+                                                       doFluxVol=False,
                                                        blanktail=True,
                                 path='/home/aubr/Code/swmf-energetics/',
                                                        ffj=False,
@@ -51,16 +51,17 @@ if __name__ == "__main__":
         #path='/Users/ngpdl/Code/swmf-energetics/',
         renderView1 = GetActiveViewOrCreate('RenderView')
         SetActiveView(renderView1)
-        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
-                        n=nstation,fluxResults=fluxResults,fontsize=60,
-                        localtime=localtime,tstart=tstart)
+        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=False,
+                        n=nstation,fontsize=60,localtime=localtime,
+                        tstart=tstart)
+        #fluxResults=fluxResults)
         layout = GetLayout()
         layout.SetSize(3840, 2160)# 4k :-)
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
     for i,infile in enumerate(filelist[1851:2450]):
-        nstation = np.minimum(nstation+i,379)
+        nstation = np.minimum(nstation+i+1,379)
         print('processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
         if os.path.exists(outfile):
@@ -90,24 +91,27 @@ if __name__ == "__main__":
             #Rotation matrix from MAG->GSM
             rotation = FindSource('rotate2GSM')
             rotation.Script = update_rotation(float(aux['BTHETATILT']))
-            #FluxVolume
-            fluxVolume = FindSource('fluxVolume_hits')
-            fluxVolume.Script = update_fluxVolume(localtime=localtime,
-                                                 n=nstation)
-            flux_int = FindSource('fluxInt')
-            total_int = FindSource('totalInt')
-            fluxResults = update_fluxResults(flux_int,total_int)
+            if False:
+                #FluxVolume
+                fluxVolume = FindSource('fluxVolume_hits')
+                fluxVolume.Script = update_fluxVolume(localtime=localtime,
+                                                      n=nstation)
+                flux_int = FindSource('fluxInt')
+                total_int = FindSource('totalInt')
+                fluxResults = update_fluxResults(flux_int,total_int)
             #Annotations
             station_num = FindSource('station_num')
             station_num.Text = str(nstation)
-            vol_num = FindSource('volume_num')
-            vol_num.Text = '{:.2f}%'.format(fluxResults['flux_volume']/
+
+            if False:
+                vol_num = FindSource('volume_num')
+                vol_num.Text = '{:.2f}%'.format(fluxResults['flux_volume']/
                                           fluxResults['total_volume']*100)
-            bflux_num = FindSource('bflux_num')
-            bflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Umag']/
+                bflux_num = FindSource('bflux_num')
+                bflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Umag']/
                                             fluxResults['total_Umag']*100)
-            dbflux_num = FindSource('dbflux_num')
-            dbflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Udb']/
+                dbflux_num = FindSource('dbflux_num')
+                dbflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Udb']/
                                             fluxResults['total_Udb']*100)
             stamp1 = FindSource('tstamp')
             stamp1.Text = str(localtime)

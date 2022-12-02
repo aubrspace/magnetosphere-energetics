@@ -847,7 +847,8 @@ def display_visuals(field,mp,renderView,**kwargs):
                                       kwargs.get('contourMax',10))
         # Apply a preset using its name. Note this may not work as expected
         #   when presets have duplicate names.
-        mpLUT.ApplyPreset(kwargs.get('cmap','Cool to Warm (Extended)'), True)
+        mpLUT.ApplyPreset(kwargs.get('cmap','Cool to Warm (Extended)'),
+                          True)
         # Show contour legend
         mpDisplay.SetScalarBarVisibility(renderView,True)
 
@@ -915,11 +916,10 @@ def display_visuals(field,mp,renderView,**kwargs):
                                   'TextSourceRepresentation')
         stamp2Display.FontSize = kwargs.get('fontsize')
         stamp2Display.WindowLocation = 'Any Location'
-        stamp2Display.Position = [0.90, 0.17]
+        stamp2Display.Position = [0.845, 0.17]
         stamp2Display.Color = [0.652, 0.652, 0.652]
 
-    if kwargs.get('doFluxVol',True):
-        results = kwargs.get('fluxResults')
+    if 'n' in kwargs:
         #Tag station results to the page
         station_tag = Text(registrationName='station_tag')
         station_tag.Text = '# of Stations: '
@@ -927,26 +927,27 @@ def display_visuals(field,mp,renderView,**kwargs):
                                   'TextSourceRepresentation')
         station_tagDisplay.FontSize = kwargs.get('fontsize')
         station_tagDisplay.WindowLocation = 'Any Location'
-        station_tagDisplay.Position = [0.01, 0.95555553]
+        if kwargs.get('doFluxVol',True):
+            station_tagDisplay.Position = [0.06, 0.95555553]
+        else:
+            station_tagDisplay.Position = [0.86, 0.95555553]
 
         #Tag station results to the page
-        """
-        # create a new 'Python Annotation'
-pythonAnnotation2 = PythonAnnotation(registrationName='PythonAnnotation2', Input=totalInt)
-pythonAnnotation2.ArrayAssociation = 'Point Data'
-pythonAnnotation2.Expression = ''
-pythonAnnotation2.Expression = "'%.2e' % (u_db_J_Re3)"
-        """
-        #TODO Python annotations for everything, then run update test
         station_num = Text(registrationName='station_num')
         station_num.Text = str(kwargs.get('n',379))
         station_numDisplay = Show(station_num,renderView,
                                   'TextSourceRepresentation')
         station_numDisplay.FontSize = kwargs.get('fontsize')
         station_numDisplay.WindowLocation = 'Any Location'
-        station_numDisplay.Position = [0.11, 0.95555553]
-        station_numDisplay.Color = [0.0383, 1.0, 0.0279]
+        station_numDisplay.Color = [0.096, 0.903, 0.977]
+        if kwargs.get('doFluxVol',True):
+            station_numDisplay.Position = [0.16, 0.95555553]
+        else:
+            station_numDisplay.Position = [0.963, 0.95555553]
 
+
+    if kwargs.get('doFluxVol',True):
+        results = kwargs.get('fluxResults')
         ####Tag volume header to the page
         vol_tag = Text(registrationName='volume_tag')
         vol_tag.Text = 'Volume :'
@@ -1068,26 +1069,26 @@ pythonAnnotation2.Expression = "'%.2e' % (u_db_J_Re3)"
     renderView.CameraViewUp = [-0.10, -0.15, 0.98]
     renderView.CameraParallelScale = 66.62
     '''
-    # Rotating earth sciVis panel 1
-    '''
-    renderView.CameraPosition = [29.32815055455574, 37.86621330279131, 7.609529115358075]
-    renderView.CameraFocalPoint = [-25.456973412386397, -21.323869341836772, -7.225181628443577]
-    renderView.CameraViewUp = [-0.10035690162965076, -0.15053535244447613, 0.9834976359705773]
-    renderView.CameraParallelScale = 66.62
-    '''
+    if True:
+        # Rotating earth sciVis panel 1
+        '''
+        renderView.CameraPosition = [29.32, 37.86, 7.61]
+        renderView.CameraFocalPoint = [-25.45, -21.32, -7.22]
+        renderView.CameraViewUp = [-0.100, -0.150, 0.983]
+        renderView.CameraParallelScale = 66.62
+        '''
+        renderView.CameraPosition = [32.565256893942504, 33.961411032755066, 11.182203304141801]
+        renderView.CameraFocalPoint = [-22.2047431060575, -25.218588967244937, -3.6477966958581973]
+        renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
+        renderView.CameraParallelScale = 66.62
 
-    # Flux increasing sciVis panel 3
-    renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
-    renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
-    renderView.CameraViewUp = [0.5899444617072703, 0.25266438976703015, 0.7668938898208627]
-    renderView.CameraParallelScale = 66.62
+    elif False:
+        # Flux increasing sciVis panel 3
+        renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
+        renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
+        renderView.CameraViewUp = [0.5899444617072703, 0.25266438976703015, 0.7668938898208627]
+        renderView.CameraParallelScale = 66.62
 
-    '''
-    renderView.CameraPosition = [29.48, 55.98, 10.02]
-    renderView.CameraFocalPoint = [-54.66, -35.22, -6.93]
-    renderView.CameraViewUp = [-0.06, -0.12, 0.99]
-    renderView.CameraParallelScale = 218.09
-    '''
 def todimensional(pipeline, **kwargs):
     """Function modifies dimensionless variables -> dimensional variables
     Inputs
@@ -1465,8 +1466,9 @@ if __name__ == "__main__":
         #tableLayout, tableView = setup_table()
         #save_table_data(mp_S_flux, tableView, outpath,'s_net_flux')
         SetActiveView(renderView1)
-        display_visuals(field,mp,renderView1,doSlice=True,
-                        mpContourBy='B_x_nT',contourMin=-10,contourMax=10)
+        display_visuals(field,mp,renderView1,
+                        mpContourBy='B_x_nT',contourMin=-10,contourMax=10,
+                        **kwargs)
 
         # Create a new 'Render View'
         layout = GetLayout()
