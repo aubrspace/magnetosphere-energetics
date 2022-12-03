@@ -24,7 +24,7 @@ if __name__ == "__main__":
     #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
     #outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
     path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_hyperwall1_redo/'
+    outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
     #from IPython import embed; embed()
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
@@ -44,8 +44,8 @@ if __name__ == "__main__":
         ###
 
     nstation = 379
-    #for infile in filelist[1:2]:
-    for infile in filelist[1835:1836]:
+    #for infile in filelist[480:481]:
+    for infile in filelist[1140:1141]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -105,15 +105,13 @@ if __name__ == "__main__":
             rightLineDisplay=Show(rightLine,renderView1,'GeometryRepresentation')
             rightLineDisplay.SetRepresentationType('Point Gaussian')
             ###
-    '''
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
         #SaveAllViews=1,ImageResolution=[1280,720])
     nstation_start = nstation
-    for i,infile in enumerate(filelist[481:1081]):
-        #for i,infile in enumerate(filelist[481:483]):
-        #for i,infile in enumerate(filelist[1836:1866]):
+    #for i,infile in enumerate(filelist[481:1081]):
+    for i,infile in enumerate(filelist[1141:1740:30]):
         nstation = np.minimum(nstation_start+i+1,379)
         print('n= ',nstation,'processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
@@ -144,7 +142,7 @@ if __name__ == "__main__":
             #Rotation matrix from MAG->GSM
             rotation = FindSource('rotate2GSM')
             rotation.Script = update_rotation(float(aux['BTHETATILT']))
-            if False:
+            if True:
                 #FluxVolume
                 fluxVolume = FindSource('fluxVolume_hits')
                 fluxVolume.Script = update_fluxVolume(localtime=localtime,
@@ -161,7 +159,7 @@ if __name__ == "__main__":
                 stamp2 = FindSource('tsim')
                 stamp2.Text = 'tsim: '+str(localtime-tstart)
 
-            if False:
+            if True:
                 vol_num = FindSource('volume_num')
                 vol_num.Text = '{:.2f}%'.format(fluxResults['flux_volume']/
                                           fluxResults['total_volume']*100)
@@ -185,7 +183,6 @@ if __name__ == "__main__":
             #SaveAllViews=1,ImageResolution=[1280,720])
             # Set the current source to be replaced on next loop
             oldsource = newsource
-    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

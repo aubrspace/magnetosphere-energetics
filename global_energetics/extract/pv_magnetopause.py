@@ -1079,7 +1079,7 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView.CameraViewUp = [-0.10, -0.15, 0.98]
     renderView.CameraParallelScale = 66.62
     '''
-    if False:
+    if True:
         # Rotating earth sciVis panel 1
         '''
         renderView.CameraPosition = [29.32, 37.86, 7.61]
@@ -1104,7 +1104,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
         renderView.CameraParallelScale = 66.62
 
-    elif True:
+    elif False:
         # Flux increasing sciVis panel 3
         renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
         renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
@@ -1257,6 +1257,7 @@ def update_fluxVolume(**kwargs):
     data = inputs[0]
     beta_star = data.PointData['beta_star']
     status = data.PointData['Status']
+    x = data.PointData['x']
     th1 = data.PointData['theta_1']
     th2 = data.PointData['theta_2']
     ph1 = data.PointData['phi_1']
@@ -1291,8 +1292,11 @@ def update_fluxVolume(**kwargs):
             phi_tol = """+str(kwargs.get('phi_tol',4))+"""/lat_adjust
             footcond1=((theta<(lat+th_tol))&(theta>(lat-th_tol))).astype(int)
             footcond2 = ((phi>(lon-phi_tol))&(phi<(lon+phi_tol))).astype(int)
-            mp_state = ((beta_star<0.7)|
-                    (status==3)).astype(int)
+            #mp_state = ((beta_star<0.7)|
+            #        (status==3)).astype(int)
+            mp_state = ((status!=0)&(beta_star<1)&(x>-30)
+                        |
+                        (status==3)).astype(int)
             hits = np.maximum.reduce([hits, footcond1*footcond2*mp_state])
 
     #Assign to output
@@ -1437,13 +1441,15 @@ def setup_pipeline(infile,**kwargs):
             clip1.Invert = 0
             clip1.ClipType.Center = [0.0, 0.0, 0.0]
             clip1.ClipType.Radius = 0.99
+            '''
             #Blank outside the magnetosphere (as in 0.7 beta*)
             clip2 = Clip(registrationName='Clip2', Input=clip1)
             clip2.ClipType = 'Scalar'
             clip2.Scalars = ['POINTS', 'mp_state']
             clip2.Value = 1
             clip2.Invert = 0
-            #clip2=clip1
+            '''
+            clip2=clip1
             if kwargs.get('doFieldlines',False):
                 add_fieldlines(clip2)
             if kwargs.get('doFluxVol',False):
