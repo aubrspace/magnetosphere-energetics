@@ -1287,14 +1287,14 @@ def update_fluxVolume(**kwargs):
             lat_adjust = 1
             print(ID)
         else:
-            lat_adjust = np.sin(theta/180*np.pi)
-            th_tol = """+str(kwargs.get('th_tol',2))+"""/lat_adjust
-            phi_tol = """+str(kwargs.get('phi_tol',4))+"""/lat_adjust
+            lat_adjust = abs(np.cos(theta/180*np.pi))
+            th_tol ="""+str(kwargs.get('th_tol',2.537897))+"""/lat_adjust
+            phi_tol="""+str(kwargs.get('phi_tol',2.537897))+"""/lat_adjust
             footcond1=((theta<(lat+th_tol))&(theta>(lat-th_tol))).astype(int)
             footcond2 = ((phi>(lon-phi_tol))&(phi<(lon+phi_tol))).astype(int)
             #mp_state = ((beta_star<0.7)|
             #        (status==3)).astype(int)
-            mp_state = ((status!=0)&(beta_star<1)&(x>-30)
+            mp_state = ((status!=0)&(beta_star<0.7)&(x>-30)
                         |
                         (status==3)).astype(int)
             hits = np.maximum.reduce([hits, footcond1*footcond2*mp_state])

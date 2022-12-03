@@ -19,13 +19,12 @@ import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
 if __name__ == "__main__":
-#if True:
+    #if True:
     start_time = time.time()
     #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
     #outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
     path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
     outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
-    #from IPython import embed; embed()
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
     #magfile = path+'../magnetometers_e20220202-050000.mag'
@@ -58,7 +57,7 @@ if __name__ == "__main__":
                                                        doFieldlines=True,
                                                        doFluxVol=True,
                                                        blanktail=False,
-                               path='/home/aubr/Code/swmf-energetics/',
+                              path='/home/aubr/Code/swmf-energetics/',
                                                        ffj=False,
                                                        n=nstation,
                                                        localtime=localtime,
@@ -105,6 +104,7 @@ if __name__ == "__main__":
             rightLineDisplay=Show(rightLine,renderView1,'GeometryRepresentation')
             rightLineDisplay.SetRepresentationType('Point Gaussian')
             ###
+            '''
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
@@ -183,6 +183,7 @@ if __name__ == "__main__":
             #SaveAllViews=1,ImageResolution=[1280,720])
             # Set the current source to be replaced on next loop
             oldsource = newsource
+            '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')
