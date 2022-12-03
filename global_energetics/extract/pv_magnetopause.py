@@ -1079,7 +1079,7 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView.CameraViewUp = [-0.10, -0.15, 0.98]
     renderView.CameraParallelScale = 66.62
     '''
-    if True:
+    if False:
         # Rotating earth sciVis panel 1
         '''
         renderView.CameraPosition = [29.32, 37.86, 7.61]
@@ -1104,7 +1104,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
         renderView.CameraParallelScale = 66.62
 
-    elif False:
+    elif True:
         # Flux increasing sciVis panel 3
         renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
         renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
