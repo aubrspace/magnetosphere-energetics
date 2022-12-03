@@ -80,17 +80,14 @@ def read_station_paraview(nowtime,*,n=379,file_in='stations.csv',
         pipeline
     """
     success = False
-    #full_infile = os.path.join(os.path.abspath(os.path.curdir),file_in)
-    full_infile = '/home/aubr/Code/swmf-energetics/'+file_in
-    if not os.path.exists(full_infile):
-        full_infile = '/Users/ngpdl/Code/swmf-energetics/'+file_in
+    full_infile = os.path.join(kwargs.get('path'),file_in)
     print('Reading: ',full_infile)
     if os.path.exists(full_infile):
         from paraview.simple import ProgrammableFilter as ProgFilt
         partial_read = ProgFilt(registrationName='stations_input',
                                 Input=None)
         partial_read.OutputDataSetType = 'vtkPolyData'
-        partial_read.Script = update_stationHead(nowtime,n=n)
+        partial_read.Script = update_stationHead(nowtime,n=n,**kwargs)
         pipeline = partial_read
         success = True
     else:
@@ -111,7 +108,7 @@ def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
     # assuming data is CSV file with 1st row being the names names for
     # the columns
     #data = np.genfromtxt("/Users/ngpdl/Code/swmf-energetics/stations.csv",
-    data = np.genfromtxt("/home/aubr/Code/swmf-energetics/stations.csv",
+    data=np.genfromtxt('"""+os.path.join(kwargs.get('path'),file_in)+"""',
                          dtype=None, names=True, delimiter=',',
                          autostrip=True)
     ###'MLT' shift based on MAG longitude

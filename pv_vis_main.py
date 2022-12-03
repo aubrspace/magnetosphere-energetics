@@ -18,16 +18,28 @@ from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
-if __name__ == "__main__":
-    #if True:
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
-    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
-    #outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
-    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
+    if 'Users' in os.getcwd():
+        path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
+        outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
+        herepath=os.getcwd()
+    elif 'aubr' in os.getcwd():
+        path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
+        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
+        herepath=os.getcwd()
+    elif os.path.exists('/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'):
+        path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
+        outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
+        herepath='/Users/ngpdl/Code/swmf-energetics/'
+    elif os.path.exists('/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'):
+        path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
+        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
+        herepath='/home/aubr/Code/swmf-energetics/'
+    print(path,'\n',herepath)
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
-    #magfile = path+'../magnetometers_e20220202-050000.mag'
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     if False:
@@ -44,7 +56,8 @@ if __name__ == "__main__":
 
     nstation = 379
     #for infile in filelist[480:481]:
-    for infile in filelist[1140:1141]:
+    #for infile in filelist[1140:1141]:
+    for infile in filelist[-1::]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -57,12 +70,11 @@ if __name__ == "__main__":
                                                        doFieldlines=True,
                                                        doFluxVol=True,
                                                        blanktail=False,
-                              path='/home/aubr/Code/swmf-energetics/',
+                                                       path=herepath,
                                                        ffj=False,
                                                        n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))
-        #path='/Users/ngpdl/Code/swmf-energetics/',
         SetActiveView(renderView1)
         display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
                         n=nstation,fontsize=60,localtime=localtime,
@@ -138,7 +150,8 @@ if __name__ == "__main__":
                 source.Function = tec2para(eq.split('=')[-1])
             #magnetometer stations
             station_head = FindSource('stations_input')
-            station_head.Script = update_stationHead(localtime,n=nstation)
+            station_head.Script = update_stationHead(localtime,n=nstation,
+                                                     path=herepath)
             #Rotation matrix from MAG->GSM
             rotation = FindSource('rotate2GSM')
             rotation.Script = update_rotation(float(aux['BTHETATILT']))

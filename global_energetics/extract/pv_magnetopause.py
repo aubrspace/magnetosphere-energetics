@@ -1287,9 +1287,9 @@ def update_fluxVolume(**kwargs):
             lat_adjust = 1
             print(ID)
         else:
-            lat_adjust = abs(np.cos(theta/180*np.pi))
-            th_tol ="""+str(kwargs.get('th_tol',2.537897))+"""/lat_adjust
-            phi_tol="""+str(kwargs.get('phi_tol',2.537897))+"""/lat_adjust
+            lat_adjust = np.sqrt(abs(np.cos(theta/180*np.pi)))
+            th_tol = 150 * (180/np.pi/6371) / lat_adjust
+            phi_tol = 150 * (180/np.pi/6371) / lat_adjust
             footcond1=((theta<(lat+th_tol))&(theta>(lat-th_tol))).astype(int)
             footcond2 = ((phi>(lon-phi_tol))&(phi<(lon+phi_tol))).astype(int)
             #mp_state = ((beta_star<0.7)|
@@ -1426,7 +1426,8 @@ def setup_pipeline(infile,**kwargs):
     if(kwargs.get('doFieldlines',False)or kwargs.get('doFluxVol',False)):
         station_MAG, success = read_station_paraview(
                                     kwargs.get('localtime'),
-                                    n=kwargs.get('n',379))
+                                    n=kwargs.get('n',379),
+                                    path=kwargs.get('path'))
         if success and 'localtime' in kwargs and 'tilt' in kwargs:
             stations = magPoints2Gsm(station_MAG,kwargs.get('localtime'),
                                      kwargs.get('tilt'))
@@ -1441,15 +1442,13 @@ def setup_pipeline(infile,**kwargs):
             clip1.Invert = 0
             clip1.ClipType.Center = [0.0, 0.0, 0.0]
             clip1.ClipType.Radius = 0.99
-            '''
             #Blank outside the magnetosphere (as in 0.7 beta*)
             clip2 = Clip(registrationName='Clip2', Input=clip1)
             clip2.ClipType = 'Scalar'
             clip2.Scalars = ['POINTS', 'mp_state']
             clip2.Value = 1
             clip2.Invert = 0
-            '''
-            clip2=clip1
+            #clip2=clip1
             if kwargs.get('doFieldlines',False):
                 add_fieldlines(clip2)
             if kwargs.get('doFluxVol',False):
