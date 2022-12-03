@@ -931,7 +931,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         station_tagDisplay.FontSize = kwargs.get('fontsize')
         station_tagDisplay.WindowLocation = 'Any Location'
         if kwargs.get('doFluxVol',True):
-            station_tagDisplay.Position = [0.06, 0.95555553]
+            station_tagDisplay.Position = [0.01, 0.95555553]
         else:
             station_tagDisplay.Position = [0.86, 0.95555553]
 
@@ -942,11 +942,12 @@ def display_visuals(field,mp,renderView,**kwargs):
                                   'TextSourceRepresentation')
         station_numDisplay.FontSize = kwargs.get('fontsize')
         station_numDisplay.WindowLocation = 'Any Location'
-        station_numDisplay.Color = [0.096, 0.903, 0.977]
         if kwargs.get('doFluxVol',True):
-            station_numDisplay.Position = [0.16, 0.95555553]
+            station_numDisplay.Position = [0.11, 0.95555553]
+            station_numDisplay.Color = [0.0925, 1.0, 0.0112]
         else:
             station_numDisplay.Position = [0.963, 0.95555553]
+            station_numDisplay.Color = [0.096, 0.903, 0.977]
 
 
     if kwargs.get('doFluxVol',True):
@@ -1024,23 +1025,29 @@ def display_visuals(field,mp,renderView,**kwargs):
 
                 # init the 'Plane' selected for 'HyperTreeGridSlicer'
                 slice1.HyperTreeGridSlicer.Origin = [-94.25, 0.0, 0.0]
-            else:
+            elif 'z' in kwargs.get('slicetype','yPlane'):
+                # init the 'Plane' selected for 'SliceType'
+                slice1.SliceType.Origin = [0.0, 0.0, 0.0]
+                slice1.SliceType.Normal = [0.0, 0.0, 1.0]
+
+                # init the 'Plane' selected for 'HyperTreeGridSlicer'
+                slice1.HyperTreeGridSlicer.Origin = [-94.25, 0.0, 0.0]
                 #TODO
                 pass
         # show data in view
         slice1Display = Show(slice1, renderView, 'GeometryRepresentation')
         # Properties modified on slice1Display
-        slice1Display.Opacity = 0.6
+        slice1Display.Opacity = 1
         # set scalar coloring
-        ColorBy(slice1Display, ('POINTS', 'B_z_nT'))
+        ColorBy(slice1Display, ('POINTS', 'u_db_J_Re3'))
         # get color transfer function/color map for 'Rho_amu_cm3'
-        bzLUT = GetColorTransferFunction('B_z_nT')
-        bzLUT.RescaleTransferFunction(-10.0, 10.0)
-        bzLUT.ApplyPreset('Gray and Red', True)
-        bzLUT.InvertTransferFunction()
+        bzLUT = GetColorTransferFunction('u_db_J_Re3')
+        #bzLUT.RescaleTransferFunction(-10.0, 10.0)
+        #bzLUT.ApplyPreset('Gray and Red', True)
+        #bzLUT.InvertTransferFunction()
 
         # get opacity transfer function/opacity map for 'Rho_amu_cm3'
-        bzPWF = GetOpacityTransferFunction('B_z_nT')
+        #bzPWF = GetOpacityTransferFunction('B_z_nT')
 
 
         # convert to log space
@@ -1072,7 +1079,7 @@ def display_visuals(field,mp,renderView,**kwargs):
     renderView.CameraViewUp = [-0.10, -0.15, 0.98]
     renderView.CameraParallelScale = 66.62
     '''
-    if True:
+    if False:
         # Rotating earth sciVis panel 1
         '''
         renderView.CameraPosition = [29.32, 37.86, 7.61]
@@ -1097,7 +1104,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
         renderView.CameraParallelScale = 66.62
 
-    elif False:
+    elif True:
         # Flux increasing sciVis panel 3
         renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
         renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
@@ -1263,23 +1270,30 @@ def update_fluxVolume(**kwargs):
                              delimiter=',', autostrip=True)
     tshift = """+tshift+"""
     hits = th1*0
+    #for ID,_,__,lat,lon in [stations[282]]:
+    #for ID,_,__,lat,lon in [stations[39]]:
     #for ID,_,__,lat,lon in [stations[26],stations[27]]:
     for ID,_,__,lat,lon in stations[0:n]:
-        print(ID)
+        #print(ID)
         lon = ((lon*12/180)+tshift)%24*180/12
-        th_tol = """+str(kwargs.get('th_tol',2))+"""
-        phi_tol = """+str(kwargs.get('phi_tol',4))+"""
         if lat>0:
             theta = th1
             phi = ph1
         else:
             theta = th2
             phi = ph2
-        footcond1=((theta<(lat+th_tol))&(theta>(lat-th_tol))).astype(int)
-        footcond2 = ((phi>(lon-phi_tol))&(phi<(lon+phi_tol))).astype(int)
-        mp_state = ((beta_star<0.7)|
+        if isinstance(theta, vtk.numpy_interface.dataset_adapter.VTKNoneArray):
+            lat_adjust = 1
+            print(ID)
+        else:
+            lat_adjust = np.sin(theta/180*np.pi)
+            th_tol = """+str(kwargs.get('th_tol',2))+"""/lat_adjust
+            phi_tol = """+str(kwargs.get('phi_tol',4))+"""/lat_adjust
+            footcond1=((theta<(lat+th_tol))&(theta>(lat-th_tol))).astype(int)
+            footcond2 = ((phi>(lon-phi_tol))&(phi<(lon+phi_tol))).astype(int)
+            mp_state = ((beta_star<0.7)|
                     (status==3)).astype(int)
-        hits = np.maximum.reduce([hits, footcond1*footcond2*mp_state])
+            hits = np.maximum.reduce([hits, footcond1*footcond2*mp_state])
 
     #Assign to output
     output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow

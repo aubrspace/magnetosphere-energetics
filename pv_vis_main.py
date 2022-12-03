@@ -43,9 +43,9 @@ if __name__ == "__main__":
         earthDisplay.DiffuseColor = [0.266, 0.266, 0.266]
         ###
 
-    nstation = 5
-    for infile in filelist[480:481]:
-    #for infile in filelist[1835:1836]:
+    nstation = 379
+    #for infile in filelist[1:2]:
+    for infile in filelist[1835:1836]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -56,20 +56,20 @@ if __name__ == "__main__":
                                                        doVolumeEnergy=True,
                                                        dimensionless=True,
                                                        doFieldlines=True,
-                                                       doFluxVol=False,
+                                                       doFluxVol=True,
                                                        blanktail=False,
-                                path='/home/aubr/Code/swmf-energetics/',
+                               path='/home/aubr/Code/swmf-energetics/',
                                                        ffj=False,
                                                        n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))
         #path='/Users/ngpdl/Code/swmf-energetics/',
         SetActiveView(renderView1)
-        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=False,
+        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
                         n=nstation,fontsize=60,localtime=localtime,
                         tstart=tstart,
-                        station_tag=True,show_mp=True,timestamp=True)
-        #fluxResults=fluxResults)
+                        station_tag=True,show_mp=True,timestamp=True,
+                        fluxResults=fluxResults)
         layout = GetLayout()
         layout.SetSize(3840, 2160)# 4k :-)
         #layout.SetSize(1280, 720)# Single hyperwall screen
@@ -105,6 +105,7 @@ if __name__ == "__main__":
             rightLineDisplay=Show(rightLine,renderView1,'GeometryRepresentation')
             rightLineDisplay.SetRepresentationType('Point Gaussian')
             ###
+    '''
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
@@ -184,6 +185,7 @@ if __name__ == "__main__":
             #SaveAllViews=1,ImageResolution=[1280,720])
             # Set the current source to be replaced on next loop
             oldsource = newsource
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')
