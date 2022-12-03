@@ -24,13 +24,28 @@ if __name__ == "__main__":
     #path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
     #outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
     path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_hyperwall_scene3/'
+    outpath='/home/aubr/Code/swmf-energetics/output_hyperwall1_redo/'
     #from IPython import embed; embed()
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
     #magfile = path+'../magnetometers_e20220202-050000.mag'
+    renderView1 = GetActiveViewOrCreate('RenderView')
+
+    if False:
+        ###ADD a sphere at 0.99 Re
+        earth = Sphere(registrationName='earth')
+        earth.Radius = 0.99
+        earth.ThetaResolution = 64
+        earth.PhiResolution = 64
+        earthDisplay = Show(earth, renderView1, 'GeometryRepresentation')
+        # change solid color
+        earthDisplay.AmbientColor = [0.266, 0.266, 0.266]
+        earthDisplay.DiffuseColor = [0.266, 0.266, 0.266]
+        ###
+
     nstation = 5
-    for infile in filelist[1850:1851]:
+    for infile in filelist[480:481]:
+    #for infile in filelist[1835:1836]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -42,27 +57,64 @@ if __name__ == "__main__":
                                                        dimensionless=True,
                                                        doFieldlines=True,
                                                        doFluxVol=False,
-                                                       blanktail=True,
+                                                       blanktail=False,
                                 path='/home/aubr/Code/swmf-energetics/',
                                                        ffj=False,
                                                        n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))
         #path='/Users/ngpdl/Code/swmf-energetics/',
-        renderView1 = GetActiveViewOrCreate('RenderView')
         SetActiveView(renderView1)
         display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=False,
                         n=nstation,fontsize=60,localtime=localtime,
-                        tstart=tstart)
+                        tstart=tstart,
+                        station_tag=True,show_mp=True,timestamp=True)
         #fluxResults=fluxResults)
         layout = GetLayout()
         layout.SetSize(3840, 2160)# 4k :-)
+        #layout.SetSize(1280, 720)# Single hyperwall screen
+
+        if False:
+            ###ADD Boarder around viewing area
+            #top
+            topLine = Line(registrationName='topboarder')
+            topLine.Point1 = [1.6683606866950118, -0.5274813310723943, 1.0005165752517748]
+            topLine.Point2 = [-0.7685966178322872, 1.7414831498223506, 1.0912349526270746]
+            topLine.Resolution = 124
+            topLineDisplay=Show(topLine,renderView1,'GeometryRepresentation')
+            topLineDisplay.SetRepresentationType('Point Gaussian')
+            #bot
+            botLine = Line(registrationName='botboarder')
+            botLine.Point1 = [1.855088901264601, -0.23956512402252628, -0.8380529085398969]
+            botLine.Point2 = [-0.5803520914464642, 2.0226136883153067, -0.7258559430376827]
+            botLine.Resolution = 124
+            botLineDisplay=Show(botLine,renderView1,'GeometryRepresentation')
+            botLineDisplay.SetRepresentationType('Point Gaussian')
+            #left
+            leftLine = Line(registrationName='leftboarder')
+            leftLine.Point1 = [1.8567580235664725, -0.24175455023961234, -0.835480258237455]
+            leftLine.Point2 = [1.6776231014853114, -0.49949578020298446, 0.9996421812086711]
+            leftLine.Resolution = 72
+            leftLineDisplay=Show(leftLine,renderView1,'GeometryRepresentation')
+            leftLineDisplay.SetRepresentationType('Point Gaussian')
+            #right
+            rightLine = Line(registrationName='rightboarder')
+            rightLine.Point1 = [-0.793705544431262, 1.7271580274801437, 1.0961207825756434]
+            rightLine.Point2 = [-0.580981501635307, 2.0213264921316583, -0.7183947482197919]
+            rightLine.Resolution = 72
+            rightLineDisplay=Show(rightLine,renderView1,'GeometryRepresentation')
+            rightLineDisplay.SetRepresentationType('Point Gaussian')
+            ###
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
-    for i,infile in enumerate(filelist[1851:2450]):
-        nstation = np.minimum(nstation+i+1,379)
-        print('processing '+infile.split('/')[-1]+'...')
+        #SaveAllViews=1,ImageResolution=[1280,720])
+    nstation_start = nstation
+    for i,infile in enumerate(filelist[481:1081]):
+        #for i,infile in enumerate(filelist[481:483]):
+        #for i,infile in enumerate(filelist[1836:1866]):
+        nstation = np.minimum(nstation_start+i+1,379)
+        print('n= ',nstation,'processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
         if os.path.exists(outfile):
             print(outfile+' already exists, skipping')
@@ -99,9 +151,14 @@ if __name__ == "__main__":
                 flux_int = FindSource('fluxInt')
                 total_int = FindSource('totalInt')
                 fluxResults = update_fluxResults(flux_int,total_int)
-            #Annotations
-            station_num = FindSource('station_num')
-            station_num.Text = str(nstation)
+            if True:
+                #Annotations
+                station_num = FindSource('station_num')
+                station_num.Text = str(nstation)
+                stamp1 = FindSource('tstamp')
+                stamp1.Text = str(localtime)
+                stamp2 = FindSource('tsim')
+                stamp2.Text = 'tsim: '+str(localtime-tstart)
 
             if False:
                 vol_num = FindSource('volume_num')
@@ -113,10 +170,6 @@ if __name__ == "__main__":
                 dbflux_num = FindSource('dbflux_num')
                 dbflux_num.Text = '{:.2f}%'.format(fluxResults['flux_Udb']/
                                             fluxResults['total_Udb']*100)
-            stamp1 = FindSource('tstamp')
-            stamp1.Text = str(localtime)
-            stamp2 = FindSource('tsim')
-            stamp2.Text = 'tsim: '+str(localtime-tstart)
             #Reload the view with all the updates
             renderView1.Update()
 
@@ -125,8 +178,10 @@ if __name__ == "__main__":
 
             # layout/tab size in pixels
             layout.SetSize(3840, 2160)
+            #layout.SetSize(1280, 720)# Single hyperwall screen
             SaveScreenshot(outfile,layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
+            #SaveAllViews=1,ImageResolution=[1280,720])
             # Set the current source to be replaced on next loop
             oldsource = newsource
     #timestamp

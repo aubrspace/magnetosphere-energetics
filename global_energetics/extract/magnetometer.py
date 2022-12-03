@@ -100,6 +100,7 @@ def read_station_paraview(nowtime,*,n=379,file_in='stations.csv',
 
 def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
     station_range = '[0:'+str(n)+']'
+    #station_range = '[26:27]'
     tshift = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
     return """
     from vtk.numpy_interface import algorithms as algs
@@ -113,6 +114,7 @@ def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
                          dtype=None, names=True, delimiter=',',
                          autostrip=True)
     ###'MLT' shift based on MAG longitude
+    #print(data["IAGA"]"""+station_range+""")
     mltshift = data["MAGLON"]*12/180
     ###'MLT' shift based on local time
     #strtime = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)

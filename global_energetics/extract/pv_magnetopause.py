@@ -640,9 +640,11 @@ def get_magnetopause_filter(pipeline,**kwargs):
     data = inputs[0]
     beta_star = data.PointData['beta_star']
     status = data.PointData['Status']
+    x = data.PointData['x']
 
     #Compute magnetopause as logical combination
-    mp_state = ((beta_star<"""+str(betastar_max)+""")|
+    mp_state = ((status!=0)&(beta_star<"""+str(betastar_max)+""")&(x>-30)
+                |
                 (status=="""+str(closed_value)+""")).astype(int)
 
     #Assign to output
@@ -696,7 +698,7 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
 
     #Trim any small floating regions
     if kwargs.get('trim_regions',True):
-        assert FindSource('MergeBlocks1')!=None
+        #assert FindSource('MergeBlocks1')!=None
         # Keep only the largest connected region
         RenameSource(name+'_hits', outputsource)
         iso2 = Connectivity(registrationName=name, Input=outputsource)
@@ -832,58 +834,59 @@ def display_visuals(field,mp,renderView,**kwargs):
     # show outline of field
     #setup_outline(field)
     # show iso surface
-    mpDisplay = Show(mp, renderView, 'GeometryRepresentation')
+    if kwargs.get('show_mp', True):
+        mpDisplay = Show(mp, renderView, 'GeometryRepresentation')
 
-    if 'mpContourBy' in kwargs:
-        # set scalar coloring
-        ColorBy(mpDisplay, ('POINTS', kwargs.get('mpContourBy')))
-        # get color & opacity transfer functions'
-        mpLUT = GetColorTransferFunction(kwargs.get('mpContourBy'))
-        mpPWF = GetOpacityTransferFunction(kwargs.get('mpContourBy'))
-        # Set limits, default both equal
-        mpLUT.RescaleTransferFunction(kwargs.get('contourMin',-10),
-                                      kwargs.get('contourMax',10))
-        mpPWF.RescaleTransferFunction(kwargs.get('contourMin',-10),
-                                      kwargs.get('contourMax',10))
-        # Apply a preset using its name. Note this may not work as expected
-        #   when presets have duplicate names.
-        mpLUT.ApplyPreset(kwargs.get('cmap','Cool to Warm (Extended)'),
-                          True)
-        # Show contour legend
-        mpDisplay.SetScalarBarVisibility(renderView,True)
+        if 'mpContourBy' in kwargs:
+            # set scalar coloring
+            ColorBy(mpDisplay, ('POINTS', kwargs.get('mpContourBy')))
+            # get color & opacity transfer functions'
+            mpLUT = GetColorTransferFunction(kwargs.get('mpContourBy'))
+            mpPWF = GetOpacityTransferFunction(kwargs.get('mpContourBy'))
+            # Set limits, default both equal
+            mpLUT.RescaleTransferFunction(kwargs.get('contourMin',-10),
+                                        kwargs.get('contourMax',10))
+            mpPWF.RescaleTransferFunction(kwargs.get('contourMin',-10),
+                                        kwargs.get('contourMax',10))
+            # Apply a preset using its name. Note this may not work as expected
+            #   when presets have duplicate names.
+            mpLUT.ApplyPreset(kwargs.get('cmap','Cool to Warm (Extended)'),
+                            True)
+            # Show contour legend
+            mpDisplay.SetScalarBarVisibility(renderView,True)
 
-    else:
-        # change solid color
-        ColorBy(mpDisplay, None)
-        #mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
-        #mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
-        mpDisplay.AmbientColor = [0.5764705882352941, 0.5764705882352941, 0.5764705882352941]
-        mpDisplay.DiffuseColor = [0.5764705882352941, 0.5764705882352941, 0.5764705882352941]
+        else:
+            # change solid color
+            ColorBy(mpDisplay, None)
+            #mpDisplay.AmbientColor = [0.0, 1.0, 1.0]
+            #mpDisplay.DiffuseColor = [0.0, 1.0, 1.0]
+            mpDisplay.AmbientColor = [0.5764705882352941, 0.5764705882352941, 0.5764705882352941]
+            mpDisplay.DiffuseColor = [0.5764705882352941, 0.5764705882352941, 0.5764705882352941]
 
-    # Properties modified on mpDisplay.DataAxesGrid
-    mpDisplay.DataAxesGrid.GridAxesVisibility = 1
-    mpDisplay.DataAxesGrid.XTitleFontSize = 45
-    mpDisplay.DataAxesGrid.YTitleFontSize = 45
-    mpDisplay.DataAxesGrid.ZTitleFontSize = 45
-    mpDisplay.DataAxesGrid.XTitle = '      X Axis'
-    mpDisplay.DataAxesGrid.ZTitle = '  Z Axis'
+        # Properties modified on mpDisplay.DataAxesGrid
+        mpDisplay.DataAxesGrid.GridAxesVisibility = 1
+        mpDisplay.DataAxesGrid.XTitleFontSize = 45
+        mpDisplay.DataAxesGrid.YTitleFontSize = 45
+        mpDisplay.DataAxesGrid.ZTitleFontSize = 45
+        mpDisplay.DataAxesGrid.XTitle = '      X Axis'
+        mpDisplay.DataAxesGrid.ZTitle = '  Z Axis'
 
-    # Properties modified on mpDisplay.DataAxesGrid
-    mpDisplay.DataAxesGrid.XLabelFontSize = 35
-    mpDisplay.DataAxesGrid.YLabelFontSize = 35
-    mpDisplay.DataAxesGrid.ZLabelFontSize = 35
-    mpDisplay.DataAxesGrid.ShowGrid = 0
-    '''
-    mpDisplay.DataAxesGrid.XAxisUseCustomLabels = 1
-    mpDisplay.DataAxesGrid.YAxisUseCustomLabels = 1
-    mpDisplay.DataAxesGrid.ZAxisUseCustomLabels = 1
-    mpDisplay.DataAxesGrid.XAxisLabels = np.linspace(10,-30,9)
-    mpDisplay.DataAxesGrid.YAxisLabels = np.linspace(20,-20,9)
-    mpDisplay.DataAxesGrid.ZAxisLabels = np.linspace(20,-20,9)
-    '''
+        # Properties modified on mpDisplay.DataAxesGrid
+        mpDisplay.DataAxesGrid.XLabelFontSize = 35
+        mpDisplay.DataAxesGrid.YLabelFontSize = 35
+        mpDisplay.DataAxesGrid.ZLabelFontSize = 35
+        mpDisplay.DataAxesGrid.ShowGrid = 0
+        '''
+        mpDisplay.DataAxesGrid.XAxisUseCustomLabels = 1
+        mpDisplay.DataAxesGrid.YAxisUseCustomLabels = 1
+        mpDisplay.DataAxesGrid.ZAxisUseCustomLabels = 1
+        mpDisplay.DataAxesGrid.XAxisLabels = np.linspace(10,-30,9)
+        mpDisplay.DataAxesGrid.YAxisLabels = np.linspace(20,-20,9)
+        mpDisplay.DataAxesGrid.ZAxisLabels = np.linspace(20,-20,9)
+        '''
 
-    # Properties modified on slice1Display
-    mpDisplay.Opacity = 0.2
+        # Properties modified on slice1Display
+        mpDisplay.Opacity = 0.2
 
 
     if kwargs.get('doFFJ',False):
@@ -919,7 +922,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         stamp2Display.Position = [0.845, 0.17]
         stamp2Display.Color = [0.652, 0.652, 0.652]
 
-    if 'n' in kwargs:
+    if 'n' in kwargs and kwargs.get('station_tag',True):
         #Tag station results to the page
         station_tag = Text(registrationName='station_tag')
         station_tag.Text = '# of Stations: '
@@ -1079,6 +1082,18 @@ def display_visuals(field,mp,renderView,**kwargs):
         '''
         renderView.CameraPosition = [32.565256893942504, 33.961411032755066, 11.182203304141801]
         renderView.CameraFocalPoint = [-22.2047431060575, -25.218588967244937, -3.6477966958581973]
+        renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
+        renderView.CameraParallelScale = 66.62
+        '''
+        renderView.CameraPosition = [57.984013893942524, 61.426849032755115, 18.064806304141808]
+        renderView.CameraFocalPoint = [-22.2047431060575, -25.218588967244937, -3.6477966958581973]
+        renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
+        renderView.CameraParallelScale = 66.62
+        '''
+    elif False:
+        # Rotating earth sciVis panel 1 ZOOMED for topleft screen
+        renderView.CameraPosition = [2.9511799712866575, 3.374731655415902, 0.7958056194894831]
+        renderView.CameraFocalPoint = [-22.599429242800465, -24.2331751053961, -6.122498829020866]
         renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
         renderView.CameraParallelScale = 66.62
 
@@ -1248,8 +1263,9 @@ def update_fluxVolume(**kwargs):
                              delimiter=',', autostrip=True)
     tshift = """+tshift+"""
     hits = th1*0
-    #for ID,_,__,lat,lon in [stations[12],stations[145]]:
+    #for ID,_,__,lat,lon in [stations[26],stations[27]]:
     for ID,_,__,lat,lon in stations[0:n]:
+        print(ID)
         lon = ((lon*12/180)+tshift)%24*180/12
         th_tol = """+str(kwargs.get('th_tol',2))+"""
         phi_tol = """+str(kwargs.get('phi_tol',4))+"""
@@ -1336,16 +1352,8 @@ def setup_pipeline(infile,**kwargs):
     ##Set the head of the pipeline, we will want to return this!
     pipelinehead = mergeBlocks1
     pipeline = mergeBlocks1
-
-    if kwargs.get('blanktail',False):
-        ###Blank downtail
-        pipeline = Clip(registrationName='Clip3', Input=pipeline)
-        pipeline.ClipType = 'Plane'
-        pipeline.HyperTreeGridClipper = 'Plane'
-        pipeline.Invert = 0
-        pipeline.ClipType.Origin = [-30.0, 0.0, 0.0]
-        #pipeline.Scalars = ['POINTS', 'beta_star']
-        #pipeline.Value = 0.35000000323389224
+    #pipelinehead = sourcedata
+    #pipeline = sourcedata
 
     ###Check if unitless variables are present
     if 'dimensionless' in kwargs:
@@ -1385,6 +1393,16 @@ def setup_pipeline(infile,**kwargs):
         pipeline = ffj4
 
 
+
+    # Magnetopause
+    pipeline = get_magnetopause_filter(pipeline)
+
+    ###Now that last variable is done set 'field' for visualizer and a View
+    field = pipeline
+
+    ###Contour (iso-surface) of the magnetopause
+    mp = create_iso_surface(pipeline, 'mp_state', 'mp')
+
     ###Field line seeding or Field line projected flux volumes
     fluxResults = None
     if(kwargs.get('doFieldlines',False)or kwargs.get('doFluxVol',False)):
@@ -1408,21 +1426,14 @@ def setup_pipeline(infile,**kwargs):
             #Blank outside the magnetosphere (as in 0.7 beta*)
             clip2 = Clip(registrationName='Clip2', Input=clip1)
             clip2.ClipType = 'Scalar'
-            clip2.Scalars = ['POINTS', 'beta_star']
-            clip2.Value = 0.7
+            clip2.Scalars = ['POINTS', 'mp_state']
+            clip2.Value = 1
+            clip2.Invert = 0
+            #clip2=clip1
             if kwargs.get('doFieldlines',False):
                 add_fieldlines(clip2)
             if kwargs.get('doFluxVol',False):
                 obj, fluxResults = add_fluxVolume(clip2,**kwargs)
-
-    # Magnetopause
-    pipeline = get_magnetopause_filter(pipeline)
-
-    ###Now that last variable is done set 'field' for visualizer and a View
-    field = pipeline
-
-    ###Contour (iso-surface) of the magnetopause
-    mp = create_iso_surface(pipeline, 'mp_state', 'mp')
 
     return sourcedata, pipelinehead, field, mp, fluxResults
 
