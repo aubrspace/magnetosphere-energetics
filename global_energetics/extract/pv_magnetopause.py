@@ -1265,7 +1265,7 @@ def update_fluxVolume(**kwargs):
 
     # assuming stations.csv is a CSV file with the 1st row being
     # the names names for the columns
-    stations = np.genfromtxt('"""+(kwargs.get('path','')+
+    stations = np.genfromtxt('"""+os.path.join(kwargs.get('path',''),
                             kwargs.get('file_in','stations.csv'))+"""',
                              dtype=None, names=True,
                              delimiter=',', autostrip=True)
@@ -1452,6 +1452,7 @@ def setup_pipeline(infile,**kwargs):
             if kwargs.get('doFieldlines',False):
                 add_fieldlines(clip2)
             if kwargs.get('doFluxVol',False):
+                clip1.ClipType.Radius = 2.5
                 obj, fluxResults = add_fluxVolume(clip2,**kwargs)
 
     return sourcedata, pipelinehead, field, mp, fluxResults

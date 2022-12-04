@@ -18,8 +18,8 @@ from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
-#if __name__ == "__main__":
-if True:
+if __name__ == "__main__":
+#if True:
     start_time = time.time()
     if 'Users' in os.getcwd():
         path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
@@ -27,7 +27,7 @@ if True:
         herepath=os.getcwd()
     elif 'aubr' in os.getcwd():
         path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
+        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
         herepath=os.getcwd()
     elif os.path.exists('/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'):
         path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
@@ -35,9 +35,8 @@ if True:
         herepath='/Users/ngpdl/Code/swmf-energetics/'
     elif os.path.exists('/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'):
         path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_test/'
+        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
         herepath='/home/aubr/Code/swmf-energetics/'
-    print(path,'\n',herepath)
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
@@ -54,10 +53,9 @@ if True:
         earthDisplay.DiffuseColor = [0.266, 0.266, 0.266]
         ###
 
-    nstation = 379
+    nstation = 5
     #for infile in filelist[480:481]:
-    #for infile in filelist[1140:1141]:
-    for infile in filelist[-1::]:
+    for infile in filelist[1140:1141]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -67,7 +65,7 @@ if True:
                                                        doEnergyFlux=False,
                                                        doVolumeEnergy=True,
                                                        dimensionless=True,
-                                                       doFieldlines=True,
+                                                       doFieldlines=False,
                                                        doFluxVol=True,
                                                        blanktail=False,
                                                        path=herepath,
@@ -116,14 +114,14 @@ if True:
             rightLineDisplay=Show(rightLine,renderView1,'GeometryRepresentation')
             rightLineDisplay.SetRepresentationType('Point Gaussian')
             ###
-            '''
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
                        SaveAllViews=1,ImageResolution=[3840,2160])
         #SaveAllViews=1,ImageResolution=[1280,720])
     nstation_start = nstation
     #for i,infile in enumerate(filelist[481:1081]):
-    for i,infile in enumerate(filelist[1141:1740:30]):
+    for i,infile in enumerate(filelist[1141:1740]):
+    #for i,infile in enumerate(filelist[1515:1740:30]):
         nstation = np.minimum(nstation_start+i+1,379)
         print('n= ',nstation,'processing '+infile.split('/')[-1]+'...')
         outfile=outpath+infile.split('/')[-1].split('.plt')[0]+'.png'
@@ -196,7 +194,6 @@ if True:
             #SaveAllViews=1,ImageResolution=[1280,720])
             # Set the current source to be replaced on next loop
             oldsource = newsource
-            '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')
