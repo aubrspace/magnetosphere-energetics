@@ -94,6 +94,7 @@ if __name__ == "__main__":
 
         #Perform data extraction
         with tp.session.suspend():
+            '''
             #Caclulate surfaces
             magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
@@ -112,11 +113,11 @@ if __name__ == "__main__":
                                       disp_result=False,
                                       do_cms=False,
                                       analysis_type='mag',
-                                      #modes=['sphere','terminator'],
-                                      modes=['iso_betastar','closed','nlobe','slobe','rc'],
-                                      #sp_rmax=2.65,
+                                      modes=['sphere','terminator'],
+                                      #modes=['iso_betastar','closed','nlobe','slobe','rc'],
+                                      sp_rmax=2.65,
                                       do_interfacing=False,
-                                      integrate_line=False,
+                                      integrate_line=True,
                                       integrate_surface=False,
                                       integrate_volume=False,
                                       verbose=False,
@@ -124,7 +125,6 @@ if __name__ == "__main__":
                                       outputpath='babyrun/')
                                       #customTerms={'test':'TestArea [Re^2]'})
                                       #analysis_type='energymassmag',
-            '''
     #with tp.session.suspend():
     if False:#manually switch on or off
         #adjust view settings

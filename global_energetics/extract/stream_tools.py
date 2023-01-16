@@ -2020,6 +2020,52 @@ def foot_dist(foot,target,tol):
     """
     return np.sqrt((foot[0]-target[0])**2+(foot[1]-target[1])**2)<tol
 
+def open_contour(sphere_zone, terminator_zone,*,
+                 x='Xd *',y='Y *',z='rSigned*',status_key=2):
+    """Function modifies the given zone to follow the open flux contour
+    Inputs
+        terminator_zone (Zone)- 1D tecplot Zone object
+    Returns
+        None (modifies given Zone object)
+    """
+    #Isolate values from the spherical zone and the 1D terminator curve
+    terminator_x = terminator_zone.values(x).as_numpy_array()
+    terminator_y = terminator_zone.values(y).as_numpy_array()
+    terminator_z = terminator_zone.values(z).as_numpy_array()
+    terminator_Status = terminator_zone.values('Status').as_numpy_array()
+
+    sphere_x = sphere_zone.values(x).as_numpy_array()
+    sphere_y = sphere_zone.values(y).as_numpy_array()
+    sphere_z = sphere_zone.values(z).as_numpy_array()
+    sphere_Status = sphere_zone.values('Status').as_numpy_array()
+    #Get the points that have too hight of status (indicating closed flux)
+    #x_bad_points = terminator_x[terminator_Status>status_limit]
+    #y_bad_points = terminator_y[terminator_Status>status_limit]
+    #z_bad_points = terminator_z[terminator_Status>status_limit]
+    bad_points = terminator_Status>status_key
+    for i, (xtest,ytest,ztest) in enumerate(zip(terminator_x,
+                                                terminator_y,
+                                                terminator_z)):
+        #Adjust each of these points' x value to be the closest abs
+        if bad_points[i]:
+            xx = np.linspace(-1,1,300)
+            yy = np.ones(300)*ytest
+            zz = np.ones(300)*ztest
+            temp_zone = tp.data.extract.extract_line(zip(xx,yy,zz))
+            x_results = temp_zone.values('Xd*').as_numpy_array()[
+                    temp_zone.values('Status').as_numpy_array()==status_key]
+            if len(x_results)==0:
+                if i!=0:
+                    terminator_zone.values('Xd*')[i]=terminator_zone.values(
+                                                                  'Xd*')[i-1]
+            else:
+                terminator_zone.values('Xd*')[i]=x_results[abs(x_results)==
+                                                       abs(x_results).min()]
+            sphere_zone.dataset.delete_zones(temp_zone)
+    #Re-interpolate the 1D zones values from the global zone
+    tp.data.operate.interpolate_linear(terminator_zone,source_zones=[0])
+
+
 def calc_terminator_zone(name, sp_zone, **kwargs):
     """ Function takes spherical zone and creates zones for the north and
         south 'terminators' (actually using forward/beind dipole)
@@ -2062,10 +2108,12 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
                 zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
                 north = tp.data.extract.extract_line(zip(xx,yy,zz))
                 north.name = name+hemi
+                open_contour(sp_zone,north,status_key=stat)
             else:
                 zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
                 south = tp.data.extract.extract_line(zip(xx,yy,zz))
                 south.name = name+hemi
+                open_contour(sp_zone,south,status_key=stat)
     ## Change XYZ back -> XYZ
     plot.axes.x_axis.variable = sp_zone.dataset.variable('X *')
     # No change in Y
