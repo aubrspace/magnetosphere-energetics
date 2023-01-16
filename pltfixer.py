@@ -19,9 +19,9 @@ def standardize_name(filename):
     return '3d__paraview_1_e'+filetime.strftime('%Y%m%d-%H%M%S-000')+'.plt'
 
 if __name__ == '__main__':
-    #header = 'localdbug/fte/'
+    header = 'localdbug/fte/test/'
     #header = '/nfs/solsticedisk/tuija/amr_fte/secondtry/GM/IO2/'
-    header = '/nfs/solsticedisk/tuija/ccmc/2022-02-02/2022-02-02/run/GM/IO2/copy_paraview/'
+    #header = '/nfs/solsticedisk/tuija/ccmc/2022-02-02/2022-02-02/run/GM/IO2/copy_paraview/'
     #header = '/home/aubr/Code/swmf-energetics/localdbug/fte/pieces/'
     #header = '/home/aubr/Code/swmf-energetics/localdbug/feb2014/'
     if '-c' in sys.argv:

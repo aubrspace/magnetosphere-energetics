@@ -44,8 +44,8 @@ if __name__ == "__main__":
     #starlink = ('starlink/3d__var_1_e20220202-050200-000.plt',
     #            'starlink/3d__var_1_e20220202-050300-000.plt')
     #Some other fail
-    #starlink = ('starlink/3d__var_1_e20220202-061500-000.plt',
-    #            'starlink/3d__var_1_e20220202-063000-000.plt')
+    starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-061500-011.plt',
+                'ccmc_2022-02-02/3d__var_1_e20220202-061600-036.plt')
     febstorm = ('localdbug/feb2014/3d__var_1_e20140218-060300-037.plt',
                 'localdbug/feb2014/3d__var_1_e20140218-060400-033.plt')
     feb_asym = ('febstorm/3d__var_1_e20140219-130000-000.plt',
@@ -68,6 +68,9 @@ if __name__ == "__main__":
              'ccmc_2019-05-13/3d__var_1_e20190515-092200-017.plt',
              'ccmc_2019-05-13/3d__var_1_e20190515-095200-019.plt',
              'ccmc_2019-05-13/3d__var_1_e20190515-102200-022.plt')
+    ccmc6  = (
+            'ccmc_2019-05-13/3d__var_1_e20190514-071500-000.plt',
+            'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt')
 
     '''
     #load from file
@@ -75,7 +78,9 @@ if __name__ == "__main__":
     field_data = tp.active_frame().dataset
     '''
 
-    for inputs in [ccmc4][0:1]:
+    #for inputs in starlink:
+    inputs = ccmc6
+    if True:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -89,6 +94,19 @@ if __name__ == "__main__":
 
         #Perform data extraction
         with tp.session.suspend():
+            #Caclulate surfaces
+            magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+                                    do_cms=True,
+                                    analysis_type='energymassmag',
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe','rc'],
+                                    do_interfacing=True,
+                                    integrate_surface=True,
+                                    integrate_volume=True,
+                                    integrate_line=False,
+                                    outputpath='babyrun/',
+                                    customTerms={'test':'TestArea [Re^2]'})
+            '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=False,
                                       disp_result=False,
@@ -106,6 +124,7 @@ if __name__ == "__main__":
                                       outputpath='babyrun/')
                                       #customTerms={'test':'TestArea [Re^2]'})
                                       #analysis_type='energymassmag',
+            '''
     #with tp.session.suspend():
     if False:#manually switch on or off
         #adjust view settings
