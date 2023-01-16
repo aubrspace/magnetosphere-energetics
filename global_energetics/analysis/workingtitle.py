@@ -1274,7 +1274,7 @@ def lobe_balance_fig(dataset,phase,path):
     #setup figure
     total_balance_figure,axis = plt.subplots(len(dataset.keys()),1,
                                              sharey=True, sharex=True,
-                                     figsize=[28,16*len(dataset.keys())])
+                                     figsize=[14,8*len(dataset.keys())])
     if len(dataset.keys())==1:
         axis = [axis]
     #plot
@@ -1800,10 +1800,10 @@ if __name__ == "__main__":
     #quiet_figures(dataset)
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(dataset)
+    #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    #interval_figures(dataset)
+    interval_figures(dataset)
     ######################################################################
     ##Lshell plots
     #lshell_figures(dataset)
