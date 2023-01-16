@@ -665,8 +665,10 @@ def read_indices(data_path, **kwargs):
         kwargs.update({'end':swmf_index.index[-1]})
     #get supermag and omni
     if kwargs.get('read_supermag',True):
-        supermag = get_supermag_data(start, end, data_path)
+        supermag =get_supermag_data(kwargs.get('start'),kwargs.get('end'),
+                                    data_path)
         supermag['Time [UTC]'] = supermag['times']
+        supermag.index = supermag['times']
         data.update({'supermag':supermag})
     if kwargs.get('read_omni',True):
         print(kwargs.get('start'),kwargs.get('end'))

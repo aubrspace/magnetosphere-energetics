@@ -3,11 +3,12 @@
 """
 import numpy as np
 import datetime as dt
+import scipy
 from scipy import signal
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator,
-                               FuncFormatter)
+                               AutoLocator, FuncFormatter)
 
 def pyplotsetup(*,mode='presentation',**kwargs):
     """Creates dictionary to send to rcParams for pyplot defaults
@@ -96,8 +97,22 @@ def general_plot_settings(ax, **kwargs):
             hours = int(hrs)
             minutes = (int(abs(hrs*60)%60))
             return "{:d}:{:02d}".format(hours,minutes)
+        #Get original limits
+        xlims = ax.get_xlim()
+        if (xlims[1]-xlims[0])*1e-9/3600 > 4.5:
+            #Manually adjust the xticks
+            n = 3600*4.5/1e-9
+            locs = [-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
+        else:
+            n = 3600*0.5/1e-9
+            locs = [-8*n,-7*n,-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n]
+        locs = [np.round(l/1e10)*1e10 for l in locs]
+        ax.xaxis.set_ticks(locs)
         formatter = FuncFormatter(timedelta_ticks)
         ax.xaxis.set_major_formatter(formatter)
+        ax.xaxis.set_minor_locator(AutoMinorLocator(3))
+        #Get original limits
+        ax.set_xlim(xlims)
     else:
         #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         tmin,tmax = ax.get_xlim()
@@ -284,7 +299,8 @@ def plot_stack_distr(ax, times, mp, msdict, **kwargs):
     values = {'Virial':['Virial 2x Uk [nT]', 'Virial Ub [nT]','Um [nT]',
                         'Virial Surface Total [nT]'],
               'Energy':['Virial Ub [J]', 'KE [J]', 'Eth [J]'],
-              'Energy2':['u_db [J]', 'uHydro [J]'],
+              #'Energy2':['u_db [J]', 'uHydro [J]'],
+              'Energy2':['uB [J]', 'uHydro [J]'],
               'Report':['Utot2 [J]', 'Utot [J]','uB [J]','uB_dipole [J]',
                         'u_db [J]', 'uHydro [J]'],
               'Virial%':['Virial 2x Uk [%]', 'Virial Ub [%]',
@@ -365,15 +381,24 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
                     color='#05BC54',linewidth=4,
                     label='External+Internal')#light green color
     #Plot stacks
-    for szlabel,sz in msdict.items():
+    for i,(szlabel,sz) in enumerate([(l,z) for l,z in msdict.items()
+                                     if 'closed_rc' not in l]):
         szval = sz[value_key]
+        #NOTE changed just for this work
+        colorwheel = ['magenta', 'magenta', 'tab:blue']
+        labelwheel = ['ClosedInner', 'Closed', 'Lobes']
+        if szlabel=='rc':
+            kwargs['hatch'] ='x'
+        else:
+            kwargs['hatch'] =''
         #times, d = times[~d.isna()], d[~d.isna()]
         if kwargs.get('dolog',False):
             ax.semilogy(times,szval,label=szlabel)
         else:
             ax.fill_between(times,starting_value/kwargs.get('factor',1),
                               (starting_value+szval)/kwargs.get('factor',1),
-                        label=szlabel,hatch=kwargs.get('hatch'))
+                        label=labelwheel[i],hatch=kwargs.get('hatch'),
+                            fc=colorwheel[i])
             starting_value = starting_value+szval
     ax.set_xlim([times[0],times[-1]])
     #Optional plot settings
@@ -414,19 +439,23 @@ def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
         kwargs:
             label-
             ylim,xlabel,ylabel
+            skipplot- (True)
     Returns
-        None
+        correlation value
     """
     #Pearson R Correlation
     xdata = np.interp(ty, tx, xseries)
-    ydata = yseries
-    cov = np.cov(np.stack((xdata,ydata)))[0][1]
-    r = cov/(xdata.std()*ydata.std())
-    #Plot with SW on X and Virial on Y
-    ax.scatter(xdata,ydata,label='r = {:.2f}'.format(r))
-    ax.legend()
-    ax.set_xlabel(kwargs.get('xlabel'))
-    ax.set_ylabel(kwargs.get('ylabel'))
+    ydata = yseries.copy(deep=True).fillna(method='bfill')
+    r = np.corrcoef(xdata,ydata)[0][1]
+    s = scipy.stats.spearmanr(xdata,ydata).correlation
+    #from IPython import embed; embed()
+    if not kwargs.get('skipplot',False):
+        #Plot with SW on X and Virial on Y
+        ax.scatter(xdata,ydata,label='r = {:.2f}'.format(r))
+        ax.legend()
+        ax.set_xlabel(kwargs.get('xlabel'))
+        ax.set_ylabel(kwargs.get('ylabel'))
+    return s
 
 
 if __name__ == "__main__":

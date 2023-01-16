@@ -18,8 +18,8 @@ from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
-if __name__ == "__main__":
-#if True:
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
     if 'Users' in os.getcwd():
         path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
@@ -53,9 +53,10 @@ if __name__ == "__main__":
         earthDisplay.DiffuseColor = [0.266, 0.266, 0.266]
         ###
 
-    nstation = 5
+    nstation = 379
     #for infile in filelist[480:481]:
-    for infile in filelist[1140:1141]:
+    #for infile in filelist[1140:1141]:
+    for infile in filelist[-1::]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -65,11 +66,20 @@ if __name__ == "__main__":
                                                        doEnergyFlux=False,
                                                        doVolumeEnergy=True,
                                                        dimensionless=True,
-                                                       doFieldlines=False,
+                                                       doFieldlines=True,
                                                        doFluxVol=True,
                                                        blanktail=False,
                                                        path=herepath,
                                                        ffj=False,
+                                                       doSat=True,
+                                        satfiles=[
+                                            'cl.csv',
+                                            'thA.csv',
+                                            'thB.csv',
+                                            'thC.csv',
+                                            'thD.csv',
+                                            'thE.csv',
+                                            'geo.csv'],
                                                        n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))

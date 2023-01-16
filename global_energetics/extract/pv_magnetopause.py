@@ -1410,7 +1410,36 @@ def setup_pipeline(infile,**kwargs):
                                    Input=ffj3)
         pipeline = ffj4
 
-
+    ###Read satellite trajectories
+    if kwargs.get('doSat',False):
+        satfiles = kwargs.get('satfiles')
+        for satin in satfiles:
+            name = satin.split('.csv')[0]
+            csv = CSVReader(registrationName=name+'_in',
+                  FileName=os.path.join(kwargs.get('path'),satin))
+            points = TableToPoints(registrationName=name,
+                                   Input=csv)
+            points.XColumn = 'x'
+            points.YColumn = 'y'
+            points.ZColumn = 'z'
+            renderView = GetActiveViewOrCreate('RenderView')
+            pointsDisplay=Show(points,renderView,'GeometryRepresentation')
+            colors = {
+                    'cl1':[0.9,0.9,0.9],
+                    'cl2':[0.9,0.9,0.9],
+                    'cl3':[0.9,0.9,0.9],
+                    'cl4':[0.9,0.9,0.9],
+                    'thA':[0.9,0.9,0.9],
+                    'thB':[0.9,0.9,0.9],
+                    'thC':[0.9,0.9,0.9],
+                    'thD':[0.9,0.9,0.9],
+                    'thE':[0.9,0.9,0.9],
+                    'geo':[0.9,0.9,0.9],
+                    'mms1':[0.9,0.9,0.9],
+                    'mms2':[0.9,0.9,0.9],
+                    'mms3':[0.9,0.9,0.9],
+                    'mms4':[0.9,0.9,0.9]
+                    }
 
     # Magnetopause
     pipeline = get_magnetopause_filter(pipeline)
