@@ -374,7 +374,7 @@ def fix_names(pipeline,**kwargs):
         #Get upstream data
         data = inputs[0]
         #These are the variables names that cause issues
-        rho = data.PointData["""+kwargs.get('rho','Rho_amu_cm^3')+"""]
+        rho = data.PointData["Rho_amu_cm^3"]
         jx = data.PointData["J_x_`mA_m^2"]
         jy = data.PointData["J_y_`mA_m^2"]
         jz = data.PointData["J_z_`mA_m^2"]
@@ -783,11 +783,30 @@ def save_table_data(source, view, path, table_name):
     ExportView(path+table_name+'.csv', view=view)
 
 def export_datacube(pipeline,**kwargs):
-    gradP.Script = """
+    if 'path' not in kwargs:
+        kwargs['path'] = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
+    datacubeFilter = ProgrammableFilter(registrationName='datacube',
+                                        Input=pipeline)
+    datacubeFilter.Script = update_datacube(**kwargs)
+    return datacubeFilter
+
+def update_datacube(**kwargs):
+    return """
     # Get input
     data = inputs[0]
     p = data.PointData['P_nPa']
-    bs = data.PointData['beta_star']
+    rho = data.PointData['Rho_amu_cm3']
+    bx = data.PointData['B_x_nT']
+    by = data.PointData['B_y_nT']
+    bz = data.PointData['B_z_nT']
+    ux = data.PointData['U_x_km_s']
+    uy = data.PointData['U_y_km_s']
+    uz = data.PointData['U_z_km_s']
+    status = data.PointData['Status']
+    #pdyn = data.PointData['Dp_nPa']
+    #bs = data.PointData['beta_star']
+    #mp = data.PointData['mp_state']
+    #ffj = data.PointData['ffj_state']
 
     # Get data statistic info
     extents = data.GetExtent()
@@ -801,15 +820,30 @@ def export_datacube(pipeline,**kwargs):
     Y = numpy.linspace(bounds[2],bounds[3],shape_xyz[1])
     Z = numpy.linspace(bounds[4],bounds[5],shape_xyz[2])
     P = numpy.reshape(p,shape_xyz)
-    BS = numpy.reshape(bs,shape_xyz)
+    RHO = numpy.reshape(rho,shape_xyz)
+    BX = numpy.reshape(bx,shape_xyz)
+    BY = numpy.reshape(by,shape_xyz)
+    BZ = numpy.reshape(bz,shape_xyz)
+    UX = numpy.reshape(ux,shape_xyz)
+    UY = numpy.reshape(uy,shape_xyz)
+    UZ = numpy.reshape(uz,shape_xyz)
+    STATUS = numpy.reshape(status,shape_xyz)
+    #PDYN = numpy.reshape(pdyn,shape_xyz)
+    #BS = numpy.reshape(bs,shape_xyz)
+    #MP = numpy.reshape(mp,shape_xyz)
+    #FFJ = numpy.reshape(ffj,shape_xyz)
 
     # Set output file
-    outpath = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
-    outname = 'test_downstream_cube.npz'
+    outpath = '"""+kwargs.get('path','')+"""'
+    outname = '"""+kwargs.get('filename','test_cube.npz')+"""'
 
     # Save data
     numpy.savez(outpath+outname,x=X,y=Y,z=Z,
-                                p=P,betastar=BS,
+                                p=P,rho=rho,
+                                bx=bx,by=by,bz=bz,
+                                ux=ux,uy=uy,uz=uz,
+                                status=status,
+                                #pdyn=pdyn,betastar=BS,mp=MP,ffj=FFJ,
                                 dims=shape_xyz)
                     """
 
@@ -922,7 +956,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         stamp2Display.Position = [0.845, 0.17]
         stamp2Display.Color = [0.652, 0.652, 0.652]
 
-    if 'n' in kwargs and kwargs.get('station_tag',True):
+    if 'n' in kwargs and kwargs.get('station_tag',False):
         #Tag station results to the page
         station_tag = Text(registrationName='station_tag')
         station_tag.Text = '# of Stations: '
@@ -930,7 +964,7 @@ def display_visuals(field,mp,renderView,**kwargs):
                                   'TextSourceRepresentation')
         station_tagDisplay.FontSize = kwargs.get('fontsize')
         station_tagDisplay.WindowLocation = 'Any Location'
-        if kwargs.get('doFluxVol',True):
+        if kwargs.get('doFluxVol',False):
             station_tagDisplay.Position = [0.01, 0.95555553]
         else:
             station_tagDisplay.Position = [0.86, 0.95555553]
@@ -942,7 +976,7 @@ def display_visuals(field,mp,renderView,**kwargs):
                                   'TextSourceRepresentation')
         station_numDisplay.FontSize = kwargs.get('fontsize')
         station_numDisplay.WindowLocation = 'Any Location'
-        if kwargs.get('doFluxVol',True):
+        if kwargs.get('doFluxVol',False):
             station_numDisplay.Position = [0.11, 0.95555553]
             station_numDisplay.Color = [0.0925, 1.0, 0.0112]
         else:
@@ -950,7 +984,7 @@ def display_visuals(field,mp,renderView,**kwargs):
             station_numDisplay.Color = [0.096, 0.903, 0.977]
 
 
-    if kwargs.get('doFluxVol',True):
+    if kwargs.get('doFluxVol',False):
         results = kwargs.get('fluxResults')
         ####Tag volume header to the page
         vol_tag = Text(registrationName='volume_tag')
@@ -1387,9 +1421,9 @@ def setup_pipeline(infile,**kwargs):
     if 'aux' in kwargs:
         pipeline = eqeval(alleq['dipole_coord'],pipeline)
     ###Energy flux variables
-    if kwargs.get('doEnergyFlux',True):
+    if kwargs.get('doEnergyFlux',False):
         pipeline = eqeval(alleq['energy_flux'],pipeline)
-    if kwargs.get('doVolumeEnergy',True):
+    if kwargs.get('doVolumeEnergy',False):
         pipeline = eqeval(alleq['dipole'],pipeline)
         pipeline = eqeval(alleq['volume_energy'],pipeline)
     ###Get Vectors from field variable components

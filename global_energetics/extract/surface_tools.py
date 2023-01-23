@@ -388,7 +388,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
                               ['closed','not tail','<L7'],'Dayside_inner',
                                           L=kwargs.get('lshelllim',7)))
     ##InnerBoundary
-    if ('inner' in zone.name) or ('sphere' in zone.name):
+    if ('inner' in zone.name):
         #Poles
         #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
         #Poles dayside only
@@ -408,6 +408,20 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #LowLatitude
         interfaces.update(conditional_mod(zone,integrands,['<L7'],'LowLat',
                                           L=kwargs.get('lshelllim',7)))
+    ##ReducedInnerBoundary for just polar cap
+    if ('sphere' in zone.name):
+        #Poles
+        #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
+        #Poles dayside only
+        interfaces.update(conditional_mod(zone,integrands,
+                                        ['openN','day'],'PolesDayN'))
+        interfaces.update(conditional_mod(zone,integrands,
+                                        ['openS','day'],'PolesDayS'))
+        #Poles nightside only
+        interfaces.update(conditional_mod(zone,integrands,
+                                    ['openN','night'],'PolesNightN'))
+        interfaces.update(conditional_mod(zone,integrands,
+                                    ['openS','night'],'PolesNightS'))
     ##Lobes
     if 'lobe' in zone.name:
         #Flank- but not really bc it's hard to infer

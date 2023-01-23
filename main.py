@@ -70,7 +70,9 @@ if __name__ == "__main__":
              'ccmc_2019-05-13/3d__var_1_e20190515-102200-022.plt')
     ccmc6  = (
             'ccmc_2019-05-13/3d__var_1_e20190514-071500-000.plt',
-            'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt')
+            'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt',
+            'ccmc_2019-05-13/3d__var_1_e20190515-004700-018.plt')
+
 
     '''
     #load from file
@@ -79,7 +81,7 @@ if __name__ == "__main__":
     '''
 
     #for inputs in starlink:
-    inputs = ccmc6
+    inputs = ccmc6[-1::]
     if True:
         tp.new_layout()
         mhddatafile = inputs[0]
@@ -109,16 +111,16 @@ if __name__ == "__main__":
                                     customTerms={'test':'TestArea [Re^2]'})
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
-                                      write_data=False,
+                                      write_data=True,
                                       disp_result=False,
                                       do_cms=False,
                                       analysis_type='mag',
                                       modes=['sphere','terminator'],
                                       #modes=['iso_betastar','closed','nlobe','slobe','rc'],
                                       sp_rmax=2.65,
-                                      do_interfacing=False,
+                                      do_interfacing=True,
                                       integrate_line=True,
-                                      integrate_surface=False,
+                                      integrate_surface=True,
                                       integrate_volume=False,
                                       verbose=False,
                                       extract_flowline=False,

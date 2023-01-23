@@ -113,7 +113,7 @@ def work(mhddatafile):
                                     modes=['sphere','terminator'],
                                     sp_rmax=2.65,
                                     do_interfacing=True,
-                                    integrate_surface=False,
+                                    integrate_surface=True,
                                     integrate_volume=False,
                                     integrate_line=True,
                                     outputpath=CONTEXT['OUTPUTPATH'],
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, '1mintermredo_output_may2019')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, '1mintermredo3_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_may2019')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
     #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink2')
