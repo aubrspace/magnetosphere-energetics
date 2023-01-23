@@ -27,7 +27,8 @@ from global_energetics.analysis.proc_hdf import (load_hdf_sort,
                                                  get_subzone_contrib)
 from global_energetics.analysis.analyze_energetics import plot_power
 from global_energetics.analysis.proc_energy_spatial import reformat_lshell
-from global_energetics.analysis.proc_timing import peak2peak
+from global_energetics.analysis.proc_timing import (peak2peak,
+                                                    pearson_r_shifts)
 import seaborn as sns
 
 def combine_closed_rc(data_dict):
@@ -69,6 +70,49 @@ def combine_closed_rc(data_dict):
     closed_new['Volume [Re^3]'] = (closed_new['Volume [Re^3]']+
                                    rc_old['Volume [Re^3]'])
     return closed_new
+
+def compile_polar_cap(sphere_input,terminator_input_n,terminator_input_s):
+    """Function calculates dayside and nightside rxn rates from components
+    Inputs
+        sphere_input (pandas DataFrame)
+        terminator_input_n (pandas DataFrame)
+        terminator_input_s (pandas DataFrame)
+    Returns
+        polar_caps (pandas DataFrame)
+    """
+    #make a copy
+    polar_caps = sphere_input.copy(deep=True)
+    #Calculate new terms
+    day_dphidt_N=central_diff(abs(polar_caps['Bf_netPolesDayN [Wb]']),120)
+    day_dphidt_S=central_diff(abs(polar_caps['Bf_netPolesDayS [Wb]']),120)
+    night_dphidt_N=central_diff(abs(polar_caps['Bf_netPolesNightN [Wb]']),120)
+    night_dphidt_S=central_diff(abs(polar_caps['Bf_netPolesNightS [Wb]']),120)
+    Terminator_N = terminator_input_n['dPhidt_net [Wb/s]']
+    Terminator_S = terminator_input_s['dPhidt_net [Wb/s]']
+    DayRxn_N = -day_dphidt_N + Terminator_N
+    DayRxn_S = -day_dphidt_S + Terminator_S
+    NightRxn_N = -night_dphidt_N - Terminator_N
+    NightRxn_S = -night_dphidt_S - Terminator_S
+    #load terms into copy
+    polar_caps['day_dphidt_N'] = day_dphidt_N
+    polar_caps['day_dphidt_S'] = day_dphidt_S
+    polar_caps['night_dphidt_N'] = night_dphidt_N
+    polar_caps['night_dphidt_S'] = night_dphidt_S
+    polar_caps['terminator_N'] = Terminator_N
+    polar_caps['terminator_S'] = Terminator_S
+    polar_caps['DayRxn_N'] = DayRxn_N
+    polar_caps['DayRxn_S'] = DayRxn_S
+    polar_caps['NightRxn_N'] = NightRxn_N
+    polar_caps['NightRxn_S'] = NightRxn_S
+    for term in ['day_dphidt','night_dphidt','terminator',
+                 'DayRxn','NightRxn']:
+        polar_caps[term] = polar_caps[term+'_N']+polar_caps[term+'_S']
+    polar_caps['minusdphidt'] = (polar_caps['DayRxn']+
+                                 polar_caps['NightRxn'])
+    #ExpandingContractingPolarCap ECPC
+    polar_caps['ECPC']=['expanding']*len(polar_caps['DayRxn'])
+    polar_caps['ECPC'][polar_caps['minusdphidt']>0]='contracting'
+    return polar_caps
 
 def prep_for_correlations(data_input, solarwind_input,**kwargs):
     """Function constructs some useful new columns and flags for representation in joint distribution plots and correlation comparisons
@@ -500,7 +544,7 @@ def stack_energy_region_fig(ds,ph,path,hatches):
                                do_xlabel=(i==len(ds.keys())-1),
                                timedelta=dotimedelta)
         rax.plot(times,ds[ev]['msdict'+ph]['lobes']['Utot [J]']/1e15,
-                   color='cyan',linestyle='--')
+                   color='Navy',linestyle=None)
         rax.set_ylim([0,50])
         #NOTE mark impact w vertical line here
         dtime_impact = (dt.datetime(2019,5,14,4,0)-
@@ -510,7 +554,7 @@ def stack_energy_region_fig(ds,ph,path,hatches):
         general_plot_settings(rax,
                               do_xlabel=False, legend=False,
                               timedelta=dotimedelta)
-        ax[i].set_xlabel(r'Time $\left[Hr:min\right]$')
+        ax[i].set_xlabel(r'Time $\left[hr:min\right]$')
     #save
     contr.tight_layout(pad=0.8)
     figname = path+'/contr_energy'+ph+'.png'
@@ -656,114 +700,57 @@ def polar_cap_area_fig(ds,ph,path):
     plt.close(pca)
     print('\033[92m Created\033[00m',figname)
 
-def polar_cap_flux_fig(ds,ph,path):
+def polar_cap_flux_fig(dataset,phase,path):
     """Line plot of the polar cap areas (projected to inner boundary)
     Inputs
-        ds (DataFrame)- Main data object which contains data
-        ph (str)- phase ('main','rec', etc)
+        dataset (DataFrame)- Main data object which contains data
+        phase (str)- phase ('main','rec', etc)
         path (str)- where to save figure
     Returns
         None
     """
-    #setup figures
-    pcf1,ax1=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                          figsize=[14,6*len(ds.keys())])
-    pcf2,ax2=plt.subplots(2,1,sharey=False,sharex=True,
-                          gridspec_kw={'height_ratios':[1,2]},
-                          figsize=[21,15])
-    if len(ds.keys())==1:
-        ax1 = [ax1]
-        #ax2 = [ax2]
     #plot
-    for i,ev in enumerate(ds.keys()):
-        filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
-        if 'termdict' in ds[ev].keys():
-            lobe = ds[ev]['termdict'+ph]['sphere2.65_surface']
-            nterm = ds[ev]['termdict'+ph]['terminator2.65north']
-            sterm = ds[ev]['termdict'+ph]['terminator2.65south']
-        else:
-            lobe = ds[ev]['msdict'+ph]['lobes']
-        obs = ds[ev]['obs']['swmf_sw'+ph]
-        obstime = ds[ev]['swmf_sw_otime'+ph]
-        omni = ds[ev]['obs']['omni'+ph]
-        omni_t = ds[ev]['omni_otime'+ph]
-        if not lobe.empty and 'termdict' in ds[ev].keys():
-            #Polar cap mag flux compared with Newell coupling function
-            ax1[i].fill_between(obstime.values.astype('float64'),
-                               obs['Newell'],
-                               label=ev+'Newell',
-                               fc='grey')
-            ax1[i].spines['right'].set_color('grey')
-            ax1[i].tick_params(axis='y',colors='grey')
-            ax1[i].set_ylabel(r'Newell $\left[ Wb/s\right]$')
-            if 'Bf_netPolesDayN [Wb]' in lobe.keys():
-                dayN=central_diff(abs(lobe['Bf_netPolesDayN [Wb]']),120)
-                dayS=central_diff(abs(lobe['Bf_netPolesDayS [Wb]']),120)
-                nightN=central_diff(abs(lobe['Bf_netPolesNightN [Wb]']),120)
-                nightS=central_diff(abs(lobe['Bf_netPolesNightS [Wb]']),120)
-                TN = nterm['dPhidt_net [Wb/s]']
-                TS = sterm['dPhidt_net [Wb/s]']
-                '''
-                DN = dayN-TN
-                DS = dayS-TS
-                NN = nightN+TN
-                NS = nightS+TS
-                '''
-                """
-                DN = (dayN-TN).rolling(5).mean()
-                DS = (dayS-TS).rolling(5).mean()
-                NN = (nightN+TN).rolling(5).mean()
-                NS = (nightS+TS).rolling(5).mean()
-                """
-                if 'lineup' in ph:
-                    from scipy.ndimage import gaussian_filter1d as gf1d
-                    DN = gf1d(dayN-TN,1)
-                    DS = gf1d(dayS-TS,1)
-                    NN = gf1d(nightN+TN,1)
-                    NS = gf1d(nightS+TS,1)
-                elif 'interv' in ph:
-                    DN = dayN-TN
-                    DS = dayS-TS
-                    NN = nightN+TN
-                    NS = nightS+TS
-                #peak2peak(DN,NN,ds[ev]['time'+ph])
-                ax1[i].plot(ds[ev]['time'+ph], dayN, label=ev+'Nday')
-                ax1[i].plot(ds[ev]['time'+ph], nightN, label=ev+'Nnight')
-                ax2[1].plot(ds[ev]['time'+ph],DN/1000,label='Day')
-                ax2[1].plot(ds[ev]['time'+ph],NN/1000,label='Night')
-                ax2[1].fill_between(filltime,(DN+NN)/1000,
-                                    label=r'$\triangle PC$',
-                                    fc='grey',ec='black')
-                ax2[0].fill_between(filltime,
-                               ds[ev]['msdict'+ph]['lobes']['Utot [J]'],
-                                   color='tab:blue')
-                general_plot_settings(ax2[0],
-                                ylabel=r'Lobe Energy $\left[ J\right]$',
-                                  do_xlabel=True,
-                                  legend=False,timedelta=True)
-        if 'termdict' in ds[ev].keys():
-            ax1[i].plot(ds[ev]['time'+ph],TN,c='Black',label='terminator')
-        if 'lineup' in ph or 'interv' in ph:
+    for i,event in enumerate(dataset.keys()):
+        if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
         else: dotimedelta=False
-        general_plot_settings(ax1[i],do_xlabel=(i==len(ds.keys())-1),
-                              ylabel=r'$d\Phi/dt\left[ Wb/s\right]$',
-                              legend=(i==2),timedelta=dotimedelta)
-        general_plot_settings(ax2[1],do_xlabel=True, ylim=[-2.5e2,2.5e2],
+        #setup figures
+        polar_cap_figure1,axis=plt.subplots(1,1,figsize=[16,8])
+        #Gather data
+        working_polar_cap = compile_polar_cap(
+                 dataset[event]['termdict'+phase]['sphere2.65_surface'],
+                 dataset[event]['termdict'+phase]['terminator2.65north'],
+                 dataset[event]['termdict'+phase]['terminator2.65south'])
+        times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+
+        axis.plot(times,working_polar_cap['DayRxn']/1000,label='Day')
+        axis.plot(times,working_polar_cap['NightRxn']/1000,label='Night')
+        axis.fill_between(times,(working_polar_cap['DayRxn']+
+                                 working_polar_cap['NightRxn'])/1000,
+                          label=r'$\triangle PC$',
+                          fc='grey',ec='black')
+        right_axis = axis.twinx()
+        right_axis.plot(times,
+                       (abs(working_polar_cap['Bf_netPolesDayN [Wb]'])+
+                        abs(working_polar_cap['Bf_netPolesDayS [Wb]'])+
+                        abs(working_polar_cap['Bf_netPolesNightN [Wb]'])+
+                        abs(working_polar_cap['Bf_netPolesNightS [Wb]']))
+                        /1e9,
+                              color='tab:blue',ls='--')
+        right_axis.spines['right'].set_color('tab:blue')
+        right_axis.tick_params(axis='y',colors='tab:blue')
+        right_axis.set_ylabel(r'Magnetic Flux $\left[ GWb \right]$',
+                              color='tab:blue')
+        right_axis.set_ylim(0,2)
+        general_plot_settings(axis,do_xlabel=True,
                               ylabel=r'$d\Phi/dt\left[ kWb/s\right]$',
                               legend=True,timedelta=dotimedelta)
-        ax2[1].set_xlabel(r'Time $\left[Hr:min\right]$')
-    #save
-    pcf1.tight_layout(pad=1)
-    pcf2.tight_layout(pad=1)
-    figname1 = path+'/polar_cap_flux'+ph+'.png'
-    figname2 = path+'/polar_cap_flux2'+ph+'.png'
-    pcf1.savefig(figname1)
-    pcf2.savefig(figname2)
-    plt.close(pcf1)
-    plt.close(pcf2)
-    print('\033[92m Created\033[00m',figname1)
-    print('\033[92m Created\033[00m',figname2)
+        #save
+        polar_cap_figure1.tight_layout(pad=1)
+        figname = path+'/polar_cap_flux1'+phase+'.png'
+        polar_cap_figure1.savefig(figname)
+        plt.close(polar_cap_figure1)
+        print('\033[92m Created\033[00m',figname)
 
 def stack_volume_fig(ds,ph,path,hatches):
     """Stack plot Volume by region
@@ -892,7 +879,7 @@ def interf_power_fig(ds,ph,path,hatches):
                         ax[len(ds.keys())*j+i].yaxis.tick_right()
                         ax[len(ds.keys())*j+i].yaxis.set_label_position(
                                                                   'right')
-            ax[2].set_xlabel(r'Time $\left[Hr:min\right]$')
+            ax[2].set_xlabel(r'Time $\left[hr:min\right]$')
     #save
     interf_fig.tight_layout(pad=1.2)
     figname = path+'/interf'+ph+'.png'
@@ -1075,9 +1062,7 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
     """
     for i,event in enumerate(dataset.keys()):
         #setup figure
-        power_correlations_figure,axis = plt.subplots(3,1,
-                                             sharey=True, sharex=False,
-                                     figsize=[8,24*len(dataset.keys())])
+        correlation_figure1,axis = plt.subplots(1,1,figsize=[12,12])
         #Prepare data
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed_rc']
@@ -1085,18 +1070,36 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
         working_lobes = prep_for_correlations(lobes,solarwind)
         working_closed = prep_for_correlations(closed,solarwind,
                                                keyset='closed_rc')
-        ##Lobes sheath vs plasmasheet boundary
-        seaborn_figure1 = sns.jointplot(data=working_lobes,
-                                        x='static', y='motion',
-                                        hue='gatherRelease',
-                                        #col='phase',
-                                        #xlim=[-10e12,4e12],
-                                        #ylim=[-7e12,7e12],
+        working_polar_cap = compile_polar_cap(
+                 dataset[event]['termdict'+phase]['sphere2.65_surface'],
+                 dataset[event]['termdict'+phase]['terminator2.65north'],
+                 dataset[event]['termdict'+phase]['terminator2.65south'])
+        for term in ['day_dphidt','night_dphidt','terminator',
+                     'DayRxn','NightRxn','minusdphidt','ECPC']:
+            working_lobes[term] = working_polar_cap[term]
+
+        working_lobes['reversedDay'] = -1*working_lobes['DayRxn']
+        ##Seaborn figures
+        line = sns.lineplot(data=working_lobes,x='DayRxn',y='reversedDay',
+                            ax=axis,color='black')
+        kde = sns.scatterplot(data=working_lobes,x='DayRxn',y='NightRxn',
+                                        #fill=True,
+                                        hue='phase',ax=axis,
+                                        alpha=0.7)
+        #save
+        figurename = (path+'/polar_cap_correlation'+phase+'.png')
+        correlation_figure1.savefig(figurename)
+        print('\033[92m Created\033[00m',figurename)
+
+        seaborn_figure1 = sns.lmplot(data=working_lobes,
+                                        x='DayRxn', y='NightRxn',
+                                        hue='phase',
+                                        #kind='kde',
+                                        col='ECPC',
+                                        #xlim=[-200000,400000],
+                                        #ylim=[-400000,200000],
                                         height=12)
         seaborn_figure1.refline(x=0,y=0)
-        #seaborn_figure1.plot_marginals(sns.histplot)
-        #seaborn_figure1.set(xlim=(-10e12,4e12))
-        #seaborn_figure1.set(ylim=(-7e12,7e12))
         #save
         figurename = (path+'/lobe_power_correlation'+phase+'_'+
                       'passthrough'+'.png')
@@ -1109,7 +1112,6 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
                                      hue='gatherRelease',
                                      col='phase', height=16)
         seaborn_figure2.refline(x=0,y=0)
-        #seaborn_figure2.set(xlim=(-3e12,7e12))
         #save
         figurename = (path+'/closed_power_correlation'+phase+'_'+
                       'passthrough'+'.png')
@@ -1125,6 +1127,107 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
             #Wrap this all into a function
         '''
 
+
+def quantity_timings(dataset, phase, path):
+    """Function plots timing measurements between two quantities
+    Inputs
+    Returns
+        None
+    """
+    for i,event in enumerate(dataset.keys()):
+        ##Gather data
+        #   motion, static, sheath,lobe/closed,minusdEdt, passed,
+        #   volume, energy, +tags
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        closed = dataset[event]['msdict'+phase]['closed_rc']
+        solarwind = dataset[event]['obs']['swmf_sw'+phase]
+        working_lobes = prep_for_correlations(lobes,solarwind)
+        working_closed = prep_for_correlations(closed,solarwind,
+                                               keyset='closed_rc')
+        working_polar_cap = compile_polar_cap(
+                 dataset[event]['termdict'+phase]['sphere2.65_surface'],
+                 dataset[event]['termdict'+phase]['terminator2.65north'],
+                 dataset[event]['termdict'+phase]['terminator2.65south'])
+        r_values = pd.DataFrame()
+
+        #Lobes-Sheath -> Lobes-Closed
+        sheath2closed_figure,axis = plt.subplots(1,1,figsize=[16,8])
+        time_shifts, r_values['sheath_closed']=pearson_r_shifts(
+                                                  working_lobes['sheath'],
+                                               -1*working_lobes['closed'])
+        time_shifts, r_values['lobes_sheath']=pearson_r_shifts(
+                                                 working_closed['lobes'],
+                                              -1*working_closed['sheath'])
+        time_shifts, r_values['day_night']=pearson_r_shifts(
+                                             working_polar_cap['DayRxn'],
+                                        -1*working_polar_cap['NightRxn'])
+        time_shifts, r_values['sheath_day']=pearson_r_shifts(
+                                                  working_lobes['sheath'],
+                                           -1*working_polar_cap['DayRxn'])
+        time_shifts, r_values['closed_night']=pearson_r_shifts(
+                                                  working_lobes['closed'],
+                                         -1*working_polar_cap['NightRxn'])
+        time_shifts, r_values['day_motion']=pearson_r_shifts(
+                                           -1*working_polar_cap['DayRxn'],
+                                                  working_lobes['motion'])
+        time_shifts, r_values['night_motion']=pearson_r_shifts(
+                                         -1*working_polar_cap['NightRxn'],
+                                                  working_lobes['motion'])
+        axis.plot(time_shifts/60,r_values['sheath_closed'],
+                  label='sheath2closed')
+        axis.plot(time_shifts/60,r_values['lobes_sheath'],
+                  label='lobes2sheath')
+        axis.plot(time_shifts/60,r_values['day_night'],
+                  label='Day2NightRxn')
+
+        #axis.plot(time_shifts/60,r_values['sheath_day'],
+        #          label='sheath2day')
+        #axis.plot(time_shifts/60,r_values['closed_night'],
+        #          label='closed2night')
+        #axis.plot(time_shifts/60,r_values['day_motion'],
+        #          label='Day2motion')
+        #axis.plot(time_shifts/60,r_values['night_motion'],
+        #          label='Night2motion')
+        axis.legend()
+        axis.set_xlabel(r'Timeshift $\left[min\right]$')
+        axis.xaxis.set_minor_locator(AutoMinorLocator(5))
+        axis.set_ylabel(r'Pearson R')
+        axis.grid()
+        #save
+        sheath2closed_figure.tight_layout(pad=1)
+        figurename = path+'/lobe_sheath2closed_rcor'+phase+'.png'
+        sheath2closed_figure.savefig(figurename)
+        plt.close(sheath2closed_figure)
+        print('\033[92m Created\033[00m',figurename)
+
+        #External timings
+        solarwind2system_figure,axis = plt.subplots(1,1,figsize=[16,8])
+        time_shifts, r_values['bz_sheath']=pearson_r_shifts(
+                                                  -1*solarwind['bz'],
+                                               -1*working_lobes['sheath'])
+        time_shifts, r_values['newell_sheath']=pearson_r_shifts(
+                                                 solarwind['Newell'],
+                                               -1*working_lobes['sheath'])
+        time_shifts, r_values['epsilon_sheath']=pearson_r_shifts(
+                                                 solarwind['eps'],
+                                               -1*working_lobes['sheath'])
+        axis.plot(time_shifts/60,r_values['bz_sheath'],
+                  label='bz2sheath')
+        axis.plot(time_shifts/60,r_values['newell_sheath'],
+                  label='newell2sheath')
+        axis.plot(time_shifts/60,r_values['epsilon_sheath'],
+                  label='epsilon2sheath')
+        axis.legend()
+        axis.set_xlabel(r'Timeshift $\left[min\right]$')
+        axis.xaxis.set_minor_locator(AutoMinorLocator(5))
+        axis.set_ylabel(r'Pearson R')
+        axis.grid()
+        #save
+        solarwind2system_figure.tight_layout(pad=1)
+        figurename = path+'/solarwind2lobe_rcor'+phase+'.png'
+        solarwind2system_figure.savefig(figurename)
+        plt.close(solarwind2system_figure)
+        print('\033[92m Created\033[00m',figurename)
 
 def power_correlations(dataset, phase, path,optimize_tshift=False):
     """Plots scatter and pearson r comparisons of power terms vs other
@@ -1274,7 +1377,7 @@ def lobe_balance_fig(dataset,phase,path):
     #setup figure
     total_balance_figure,axis = plt.subplots(len(dataset.keys()),1,
                                              sharey=True, sharex=True,
-                                     figsize=[14,8*len(dataset.keys())])
+                                     figsize=[16,8*len(dataset.keys())])
     if len(dataset.keys())==1:
         axis = [axis]
     #plot
@@ -1292,7 +1395,7 @@ def lobe_balance_fig(dataset,phase,path):
         axis[i].plot(times,(-1*dEdt-lobes['K_net [W]'])/1e12,
                      label='motion',color='magenta')
         #axis[i].plot(times,-1*dEdt, label='-dEdt')
-        axis[i].fill_between(times,-1*dEdt/1e12,fc='lightgrey',
+        axis[i].fill_between(times,-1*dEdt/1e12,fc='grey',
                              label=r'$-\frac{dE}{dt}$')
         #NOTE mark impact w vertical line here
         #dtime_impact = (dt.datetime(2019,5,14,4,0)-
@@ -1350,42 +1453,6 @@ def lobe_balance_fig(dataset,phase,path):
     detailed_balance_figure.savefig(figurename)
     plt.close(detailed_balance_figure)
     print('\033[92m Created\033[00m',figurename)
-
-def static_motional_fig(ds,ph,path):
-    """Line plots of the static vs motional flux
-    Inputs
-        ds (DataFrame)- Main data object which contains data
-        ph (str)- phase ('main','rec', etc)
-        path (str)- where to save figure
-    Returns
-        None
-    """
-    #setup figure
-    fig1,ax=plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                        figsize=[14,4*len(ds.keys())])
-    if len(ds.keys())==1:
-        ax = [ax]
-    #plot
-    for i,ev in enumerate(ds.keys()):
-        if 'lineup' in ph or 'interv' in ph:
-            dotimedelta=True
-        else: dotimedelta=False
-        times = ds[ev]['time'+ph]
-        lobe = ds[ev]['msdict'+ph]['lobes']
-        closed = ds[ev]['msdict'+ph]['closed']
-        rc = ds[ev]['msdict'+ph]['rc']
-        ax[i].plot(times,lobe['Utot2_acqu [W]'],label='lobeacqu')
-        #ax[i].plot(times,closed['Utot2_acqu [W]'],label='closed_acqu')
-        ax[i].plot(times,rc['Utot2_acqu [W]'],label='rcacqu')
-        general_plot_settings(ax[i],ylabel=r'Energy Flux $\left[ W\right]$',
-                              do_xlabel=(i==len(ds.keys())-1),legend=True,
-                                 timedelta=dotimedelta)
-    #save
-    fig1.tight_layout(pad=1)
-    figname = path+'/motional_flux_'+ph+'.png'
-    fig1.savefig(figname)
-    plt.close(fig1)
-    print('\033[92m Created\033[00m',figname)
 
 def imf_figure(ds,ph,path,hatches):
     imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
@@ -1549,7 +1616,7 @@ def solarwind_figure(ds,ph,path,hatches):
         general_plot_settings(rax,ylabel=r'AL$\left[nT\right]$',
                               do_xlabel=True, legend=True,
                               timedelta=dotimedelta)
-        ax[2].set_xlabel(r'Time $\left[Hr:min\right]$')
+        ax[2].set_xlabel(r'Time $\left[hr:min\right]$')
         #save
         dst.tight_layout(pad=0.8)
         figname = path+'/dst_'+ev+'.png'
@@ -1681,9 +1748,10 @@ def main_rec_figures(dataset):
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
+        quantity_timings(dataset, phase, path)
         pass
-    #power_correlations(dataset,'',path, optimize_tshift=True)#Whole event
-    power_correlations2(dataset,'_main',outMN1, optimize_tshift=True)#Whole event
+    #quantity_timings(dataset, '', unfiled)
+    power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
 
 def interval_figures(dataset):
     hatches = ['','*','x','o']
@@ -1693,9 +1761,10 @@ def interval_figures(dataset):
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
-        #polar_cap_flux_fig(dataset,phase,path)
+        polar_cap_flux_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #imf_figure(dataset,phase,path,hatches)
+        #quantity_timings(dataset, phase, path)
         lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path)
 
@@ -1738,7 +1807,7 @@ if __name__ == "__main__":
     #ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
     #ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
     #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
-    dataset['may'] = load_hdf_sort(inAnalysis+'may2019_redo.h5')
+    dataset['may'] = load_hdf_sort(inAnalysis+'may2019_results.h5')
 
     #Log files and observational indices
     #ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
@@ -1794,16 +1863,15 @@ if __name__ == "__main__":
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
                                 parse_phase(event['obs'][src],phase))
 
-    #from IPython import embed; embed()
     ######################################################################
     ##Quiet time
     #quiet_figures(dataset)
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(dataset)
+    main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    interval_figures(dataset)
+    #interval_figures(dataset)
     ######################################################################
     ##Lshell plots
     #lshell_figures(dataset)
@@ -1814,53 +1882,3 @@ if __name__ == "__main__":
     #Series of solar wind observatioins/inputs/indices
     #solarwind_figures(dataset)
     ######################################################################
-    """
-    ######################################################################
-    ##Bonus plot
-    #setup figure
-    bonus, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                                          figsize=[14,4*len(ds.keys())])
-    #plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
-    for i,ev in enumerate([k for k in ds.keys()
-                           if not (ds[k]['msdict']['lobes'].empty)]):
-        if i==1:ylabel=''
-        else:ylabel=r'Lobe Power/Energy'
-        for j,ph in enumerate(['_main','_rec']):
-            dic = ds[ev]['msdict'+ph]['lobes']
-            obs = ds[ev]['obs']['swmf_sw'+ph]
-            if j>0:
-                times = [t+(times[-1]-times[0]) for t in ds[ev]['time'+ph]]
-                ot = [t+(ot[-1]-ot[0]) for t in ds[ev]['swmf_sw_otime'+ph]]
-                h='_'
-            else:
-                times = ds[ev]['time'+ph]
-                ot    = ds[ev]['swmf_sw_otime'+ph]
-                h=''
-            #twin axis with fill (grey) of Energy in lobes
-            ax[i].fill_between(times,dic['Utot2 [J]']/1e15,fc='thistle',
-                               hatch=hatches[i],ec='dimgrey',lw=0.0,
-                               label=h+r'Energy $\left[PJ\right]$')
-            #Net Flank and PSB on regular axis
-            ax[i].plot(times, -1*dic['K_netFlank [W]']/1e12,
-                       color='darkgreen',
-                       label=h+r'-1*Flank $\left[TW\right]$', lw=2)
-            ax[i].plot(times, dic['K_netPSB [W]']/1e12,
-                       color='darkgoldenrod',
-                       label=h+r'PBS $\left[TW\right]$',lw=2)
-            #3rd axis with Bz, highlighed by sign???
-            ax2 = ax[i].twinx()
-            ax2.spines['right'].set_color('tab:blue')
-            ax2.plot(ot,obs['bz'],lw=2,
-                 color='tab:blue',label=h+r'$B_z$')
-            ax2.set_ylabel(r'IMF $\left[B_z\right]$')
-            ax2.set_ylim([-20,20])
-            general_plot_settings(ax[i],ylabel=ylabel,
-                    do_xlabel=(i==len(ds.keys())-1),
-                    legend=(i==0),ylim=[-6,6])
-    #save
-    bonus.tight_layout(pad=1)
-    bonus.savefig(outRec+'/bonus.png')
-    plt.close(bonus)
-
-    ######################################################################
-    """

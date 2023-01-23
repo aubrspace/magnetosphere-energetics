@@ -113,6 +113,8 @@ def general_plot_settings(ax, **kwargs):
         ax.xaxis.set_minor_locator(AutoMinorLocator(3))
         #Get original limits
         ax.set_xlim(xlims)
+        ax.set_xlabel(
+                 kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))
     else:
         #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         tmin,tmax = ax.get_xlim()
@@ -120,11 +122,11 @@ def general_plot_settings(ax, **kwargs):
         if time_range>dt.timedelta(hours=6):
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
         if kwargs.get('do_xlabel',False):
-            ax.set_xlabel(kwargs.get('xlabel',r'Time $\left[ Hr\right]$'))
+            ax.set_xlabel(kwargs.get('xlabel',r'Time $\left[ hr\right]$'))
         else:
             #ax.xaxis.set_major_formatter(mdates.DateFormatter('%-H:%M'))
             #ax.set_xlabel(
-            #         kwargs.get('xlabel',r'Time $\left[ Hr:Mn\right]$'))
+            #         kwargs.get('xlabel',r'Time $\left[ hr:Mn\right]$'))
             pass
         ax.xaxis.set_minor_locator(AutoMinorLocator(6))
     #Ylabel
@@ -389,8 +391,10 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
         labelwheel = ['ClosedInner', 'Closed', 'Lobes']
         if szlabel=='rc':
             kwargs['hatch'] ='x'
+            kwargs['edgecolor'] ='grey'
         else:
             kwargs['hatch'] =''
+            kwargs['edgecolor'] =None
         #times, d = times[~d.isna()], d[~d.isna()]
         if kwargs.get('dolog',False):
             ax.semilogy(times,szval,label=szlabel)
@@ -398,7 +402,8 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
             ax.fill_between(times,starting_value/kwargs.get('factor',1),
                               (starting_value+szval)/kwargs.get('factor',1),
                         label=labelwheel[i],hatch=kwargs.get('hatch'),
-                            fc=colorwheel[i])
+                            fc=colorwheel[i],
+                            edgecolor=kwargs.get('edgecolor',None))
             starting_value = starting_value+szval
     ax.set_xlim([times[0],times[-1]])
     #Optional plot settings
@@ -447,15 +452,14 @@ def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
     xdata = np.interp(ty, tx, xseries)
     ydata = yseries.copy(deep=True).fillna(method='bfill')
     r = np.corrcoef(xdata,ydata)[0][1]
-    s = scipy.stats.spearmanr(xdata,ydata).correlation
-    #from IPython import embed; embed()
-    if not kwargs.get('skipplot',False):
+    #s = scipy.stats.spearmanr(xdata,ydata).correlation
+    if (not kwargs.get('skipplot',False)) and ax!=None:
         #Plot with SW on X and Virial on Y
         ax.scatter(xdata,ydata,label='r = {:.2f}'.format(r))
         ax.legend()
         ax.set_xlabel(kwargs.get('xlabel'))
         ax.set_ylabel(kwargs.get('ylabel'))
-    return s
+    return r
 
 
 if __name__ == "__main__":
