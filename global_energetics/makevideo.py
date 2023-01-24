@@ -1,14 +1,11 @@
 #/usr/bin/env python
-"""Converts img-00.pdf files to img-00.png and then makes a video
+"""Parses swmf output filenames and creates videos out of images
 """
-
 import glob
 import os, warnings
 import sys
-import time as sleeptime
 import numpy as np
 import datetime as dt
-#import spacepy.time as spacetime
 
 def get_time(infile,**kwargs):
     """Function gets time from file name and returns spacepy Ticktock obj
@@ -21,7 +18,7 @@ def get_time(infile,**kwargs):
     """
     try:#looking for typically BATSRUS 3D output
         if '_t' in infile and '_n' in infile:
-            date_string = infile.split('/')[-1].split('_t')[-1].split('_')[0]
+            date_string=infile.split('/')[-1].split('_t')[-1].split('_')[0]
             time_dt = dt.datetime.strptime(date_string,'%Y%m%d%H%M%S')
             time_dt = time_dt.replace(microsecond=0)
         else:
@@ -56,21 +53,6 @@ def time_sort(filename):
     relative_time = time-dt.datetime(1800, 1, 1)
     return (relative_time.days*86400 + relative_time.seconds)
 
-def convert_pdf(folder, res):
-    """Function converts .pdf files to .png files for compiling into video.
-       IMPORTANT- have .pdf files in a XXX-AB.pdf format where AB
-       starts at 00 and denotes the order of the videos
-    Inputs
-        folder
-        res- horizontal resolution for .png file
-    """
-    for image in glob.glob(folder+'/*.pdf'):
-        frame = image.split('-')[1].split('d')[0]
-        filename = './img-'+frame+'.png'
-        convert_cmd = 'convert -density '+str(res)+' '+ image +' '+ filename
-        os.system(convert_cmd)
-        print(filename, 'has been converted')
-
 def set_frames(folder):
     """function preps files with date time format see get_time
     Input
@@ -89,12 +71,12 @@ def set_frames(folder):
     return folder+'/frames'
 
 
-def vid_compile(infolder, outfolder, framerate, title):
+def compile_video(infolder, outfolder, framerate, title):
     """function that compiles video from sequence of .png files
     Inputs:
-        folder
-        framerate
-        title
+        infolder, outfolder (str)- path to input/output
+        framerate (int)- how many frames per second
+        title (str)- name of output video
     """
     #########################################################
     #Notes on ffmpeg command:
@@ -111,22 +93,14 @@ def vid_compile(infolder, outfolder, framerate, title):
         'ffmpeg -r '+str(framerate)+' -i '+infolder+'/'+fname+'img-%04d.png '+
         '-vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '
         +outfolder+'/'+title+'.mp4')
-    """
-    if glob.glob(infolder+'/*img-???.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/*img-%03d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
-    elif glob.glob(infolder+'/*img-??.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/*img-%02d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
-    elif glob.glob(infolder+'/*img-?.png') != []:
-        make_vid_cmd = 'ffmpeg -r '+str(framerate)+' -i '+infolder+'/*img-%01d.png -vcodec libx264 -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" -pix_fmt yuv420p '+outfolder+'/'+title+'.mp4'
-    """
     os.system(make_vid_cmd)
 
 def add_timestamps(infolder,*, tshift=0):
     """function adds timestamp labels in post in case you forgot (:
     Inputs
-        infolder
+        infolder (str)- path to images
     Returns
-        copyfolder
+        copyfolder (str)- path to directory with now stamped images
     """
     from PIL import Image, ImageDraw, ImageFont
     copyfolder = os.path.join(infolder,'copy_wstamps')
@@ -147,34 +121,75 @@ def add_timestamps(infolder,*, tshift=0):
         font = ImageFont.truetype('fonts/roboto/Roboto-Black.ttf', 45)
 
         #Attach and save
-        #I1.text((28,1236), stamp1, font=font, fill=(34,255,32))#TopLeftLimeGreen
-        #I1.text((28,1297), stamp2, font=font, fill=(34,255,32))#TopLeftLimeGreen
-        I1.text((28,936), stamp1, font=font, fill=(34,255,32))#TopLeftLimeGreen
-        I1.text((28,997), stamp2, font=font, fill=(34,255,32))#TopLeftLimeGreen
-        #I1.text((828,1236), stamp1, font=goodfont, fill=(124,246,223))#BotRightCyan
-        #I1.text((828,1297), stamp2, font=goodfont, fill=(124,246,223))#BotRightCyan
+        location1 = (28,936) # image size depenent
+        location2 = (location1[0],location1[1]+50)
+        color = (34,255,32) # RGB
+        I1.text(location1, stamp1, font=font, fill=color)
+        I1.text(location2, stamp2, font=font, fill=color)
         image.save(os.path.join(copyfolder,infile.split('/')[-1]))
     return copyfolder
 
 
 #Main program
 if __name__ == '__main__':
-    #Video settings
-    RES = 400
-    FRAMERATE = 8
-    FOLDER = sys.argv[-1]
-    if '-stamp' in sys.argv:
-        if '-tshift' in sys.argv:
-            FOLDER = add_timestamps(FOLDER, tshift=45)
-        else:
-            FOLDER = add_timestamps(FOLDER)
+    if '-h' in sys.argv or '--help' in sys.argv:
+        print("""
+    Parses swmf output filenames and creates videos out of images
+    Usage: python [pathtoscript]/makevideo.py [-flags] PATHTOFILES
 
-    #determine if already in img-??.png form
-    if '-q' in sys.argv:
-        FRAME_LOC = FOLDER
+    Options:
+        -h  --help      prints this message then exit
+        -f  --framerate sets the framerate of the compiled video
+        -s  --stamp     adds timestamp to all frames
+        -t  --tshift    adds a timeshift by a number of minutes
+                        NOTE: only shifts forward in time and only
+                               relevent if --stamp flag also given
+        -q  --quick     assumes files are already ordered by frame number
+                        and skips the sorting process
+
+
+    Example:
+        python global_energetics/makevideo.py output/png/
+            this will create a video of all .png files found at ouput/png/
+
+        python global_energetics/makevideo.py -s -t 45 output/png/
+            this will create a video of all .png files found at ouput/png/
+              and stamp each frame with the time determined by the filename
+              +45minutes
+
+        """)
+        exit()
+    ###########################################################
+    # Read in arguments and flags
+    PATHTOIMAGES = sys.argv[-1]
+    if not os.path.exists(PATHTOIMAGES):
+        print('Path not found please try again')
+        exit()
+    if 'makevideo.py'in PATHTOIMAGES or len(sys.argv)==1:
+        print('No path to images given!! use -h or --help for more info')
+        exit()
+    # Video settings
+    if '-f' in sys.argv or '--framerate' in sys.argv:
+        try:
+            FRAMERATE = sys.argv[sys.argv.index('-f')+1]
+        except ValueError:
+            FRAMERATE = sys.argv[sys.argv.index('--framerate')+1]
     else:
-        FRAME_LOC = set_frames(FOLDER)
-    #convert_pdf(FOLDER, RES)
+        FRAMERATE = 8
+    if '-s' in sys.argv or '--stamp' in sys.argv:
+        if '-t' in sys.argv or '--tshift' in sys.argv:
+            try:
+                timeshift = sys.argv[sys.argv.index('-t')+1]
+            except ValueError:
+                timeshift = sys.argv[sys.argv.index('--tshift')+1]
+            PATHTOIMAGES = add_timestamps(PATHTOIMAGES, tshift=timeshift)
+        else:
+            PATHTOIMAGES = add_timestamps(PATHTOIMAGES)
+    # Determine if already in img-??.png form
+    if '-q' in sys.argv or '--quick':
+        FRAME_LOC = PATHTOIMAGES
+    else:
+        FRAME_LOC = set_frames(PATHTOIMAGES)
 
     #Create video from .png
-    vid_compile(FRAME_LOC, FRAME_LOC, FRAMERATE, 'video')
+    compile_video(FRAME_LOC, FRAME_LOC, FRAMERATE, 'video')
