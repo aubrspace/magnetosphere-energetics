@@ -44,7 +44,7 @@ def fix_plt_files(pathtofiles,**kwargs):
             outfile_name = outfile
         if os.path.exists(pathtofiles+outfile_name):
             print(str(i)+' already found '+outfile+'....')
-            if not keep:
+            if not kwargs.get('keep',False):
                 os.remove(infile)
         else:
             try:
@@ -77,7 +77,7 @@ if __name__ == '__main__':
 
     Requirements:
         python packages: sys,os,glob,datetime
-                          optional- global_energetics.makevideo
+                          optional- global_energetics.makevideo and depends
                                     (for time sorting function)
 
     Usage: python pltfixer.py [-flags] PATHTOFILES
@@ -120,6 +120,8 @@ if __name__ == '__main__':
         tp.session.connect()
     if '-k' in sys.argv or '--keep' in sys.argv:
         keepboth = True
+    else:
+        keepboth = False
 
     # Modify files
     fix_plt_files(pathtofiles,verbose=doVerbose,
