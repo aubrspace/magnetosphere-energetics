@@ -19,8 +19,8 @@ from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
-if __name__ == "__main__":
-    #if True:
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
     if 'Users' in os.getcwd():
         path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
@@ -46,16 +46,18 @@ if __name__ == "__main__":
                       key=pv_magnetopause.time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    for infile in filelist[-7:-6]:
+    for infile in filelist[0:1]:
         outfile = 'datacube'+infile.split('1118-')[-1].split('-')[0]+'.npz'
-        #oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
-        #                                               infile,
-        #                                               path=herepath,
-        #                                               ffj=True)
+        oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
+                                                       infile,
+                                                       path=herepath,
+                                                       ffj=True)
+        '''
         oldsource = read_tecplot(infile)
         pipelinehead = MergeBlocks(registrationName='MergeBlocks1',
                                    Input=oldsource)
         field = fix_names(pipelinehead)
+        '''
         clip = PointVolumeInterpolator(registrationName='datacubesource',
                                        Input=field, Source='Bounded Volume')
         clip.Kernel = 'VoronoiKernel'
@@ -64,10 +66,12 @@ if __name__ == "__main__":
         clip.Source.Scale = [20,20,20]
         clip.Source.RefinementMode = 'Use cell-size'
         clip.Source.CellSize = 0.0625
-        datacube = export_datacube(clip,path=outpath,filename=outfile)
+        datacube = export_datacube(clip,path=outpath,filename=
+             'extra_variables'+infile.split('1118-')[-1].split('-')[0]+'.npz')
         datacubeDisplay = Show(datacube, renderView1,
                                'UniformGridRepresentation')
 
+    '''
     for i,infile in enumerate(filelist):
         print(str(i)+'/'+str(len(filelist))+
               ' processing '+infile.split('/')[-1]+'...')
@@ -93,6 +97,7 @@ if __name__ == "__main__":
 
             # Set the current source to be replaced on next loop
             oldsource = newsource
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

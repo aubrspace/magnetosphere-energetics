@@ -794,19 +794,19 @@ def update_datacube(**kwargs):
     return """
     # Get input
     data = inputs[0]
-    p = data.PointData['P_nPa']
-    rho = data.PointData['Rho_amu_cm3']
-    bx = data.PointData['B_x_nT']
-    by = data.PointData['B_y_nT']
-    bz = data.PointData['B_z_nT']
-    ux = data.PointData['U_x_km_s']
-    uy = data.PointData['U_y_km_s']
-    uz = data.PointData['U_z_km_s']
+    #p = data.PointData['P_nPa']
+    #rho = data.PointData['Rho_amu_cm3']
+    #bx = data.PointData['B_x_nT']
+    #by = data.PointData['B_y_nT']
+    #bz = data.PointData['B_z_nT']
+    #ux = data.PointData['U_x_km_s']
+    #uy = data.PointData['U_y_km_s']
+    #uz = data.PointData['U_z_km_s']
     status = data.PointData['Status']
     #pdyn = data.PointData['Dp_nPa']
-    #bs = data.PointData['beta_star']
-    #mp = data.PointData['mp_state']
-    #ffj = data.PointData['ffj_state']
+    bs = data.PointData['beta_star']
+    mp = data.PointData['mp_state']
+    ffj = data.PointData['ffj_state']
 
     # Get data statistic info
     extents = data.GetExtent()
@@ -819,19 +819,19 @@ def update_datacube(**kwargs):
     X = numpy.linspace(bounds[0],bounds[1],shape_xyz[0])
     Y = numpy.linspace(bounds[2],bounds[3],shape_xyz[1])
     Z = numpy.linspace(bounds[4],bounds[5],shape_xyz[2])
-    P = numpy.reshape(p,shape_xyz)
-    RHO = numpy.reshape(rho,shape_xyz)
-    BX = numpy.reshape(bx,shape_xyz)
-    BY = numpy.reshape(by,shape_xyz)
-    BZ = numpy.reshape(bz,shape_xyz)
-    UX = numpy.reshape(ux,shape_xyz)
-    UY = numpy.reshape(uy,shape_xyz)
-    UZ = numpy.reshape(uz,shape_xyz)
+    #P = numpy.reshape(p,shape_xyz)
+    #RHO = numpy.reshape(rho,shape_xyz)
+    #BX = numpy.reshape(bx,shape_xyz)
+    #BY = numpy.reshape(by,shape_xyz)
+    #BZ = numpy.reshape(bz,shape_xyz)
+    #UX = numpy.reshape(ux,shape_xyz)
+    #UY = numpy.reshape(uy,shape_xyz)
+    #UZ = numpy.reshape(uz,shape_xyz)
     STATUS = numpy.reshape(status,shape_xyz)
     #PDYN = numpy.reshape(pdyn,shape_xyz)
-    #BS = numpy.reshape(bs,shape_xyz)
-    #MP = numpy.reshape(mp,shape_xyz)
-    #FFJ = numpy.reshape(ffj,shape_xyz)
+    BS = numpy.reshape(bs,shape_xyz)
+    MP = numpy.reshape(mp,shape_xyz)
+    FFJ = numpy.reshape(ffj,shape_xyz)
 
     # Set output file
     outpath = '"""+kwargs.get('path','')+"""'
@@ -839,11 +839,12 @@ def update_datacube(**kwargs):
 
     # Save data
     numpy.savez(outpath+outname,x=X,y=Y,z=Z,
-                                p=P,rho=rho,
-                                bx=bx,by=by,bz=bz,
-                                ux=ux,uy=uy,uz=uz,
+                                #p=P,rho=rho,
+                                #bx=bx,by=by,bz=bz,
+                                #ux=ux,uy=uy,uz=uz,
                                 status=status,
-                                #pdyn=pdyn,betastar=BS,mp=MP,ffj=FFJ,
+                                #pdyn=pdyn,
+                                betastar=BS,mp=MP,ffj=FFJ,
                                 dims=shape_xyz)
                     """
 
@@ -888,6 +889,8 @@ def display_visuals(field,mp,renderView,**kwargs):
                             True)
             # Show contour legend
             mpDisplay.SetScalarBarVisibility(renderView,True)
+            mpLUTColorBar = GetScalarBar(mpLUT, renderView)
+            mpLUTColorBar.WindowLocation = 'Upper Right Corner'
 
         else:
             # change solid color
@@ -899,16 +902,16 @@ def display_visuals(field,mp,renderView,**kwargs):
 
         # Properties modified on mpDisplay.DataAxesGrid
         mpDisplay.DataAxesGrid.GridAxesVisibility = 1
-        mpDisplay.DataAxesGrid.XTitleFontSize = 45
-        mpDisplay.DataAxesGrid.YTitleFontSize = 45
-        mpDisplay.DataAxesGrid.ZTitleFontSize = 45
+        mpDisplay.DataAxesGrid.XTitleFontSize = 20
+        mpDisplay.DataAxesGrid.YTitleFontSize = 20
+        mpDisplay.DataAxesGrid.ZTitleFontSize = 20
         mpDisplay.DataAxesGrid.XTitle = '      X Axis'
         mpDisplay.DataAxesGrid.ZTitle = '  Z Axis'
 
         # Properties modified on mpDisplay.DataAxesGrid
-        mpDisplay.DataAxesGrid.XLabelFontSize = 35
-        mpDisplay.DataAxesGrid.YLabelFontSize = 35
-        mpDisplay.DataAxesGrid.ZLabelFontSize = 35
+        mpDisplay.DataAxesGrid.XLabelFontSize = 15
+        mpDisplay.DataAxesGrid.YLabelFontSize = 15
+        mpDisplay.DataAxesGrid.ZLabelFontSize = 15
         mpDisplay.DataAxesGrid.ShowGrid = 0
         '''
         mpDisplay.DataAxesGrid.XAxisUseCustomLabels = 1
@@ -920,7 +923,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         '''
 
         # Properties modified on slice1Display
-        mpDisplay.Opacity = 0.2
+        mpDisplay.Opacity = 1
 
 
     if kwargs.get('doFFJ',False):
@@ -1138,12 +1141,18 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView.CameraViewUp = [-0.10006060505009504, -0.15009090757514254, 0.9835957476424342]
         renderView.CameraParallelScale = 66.62
 
-    elif True:
+    elif False:
         # Flux increasing sciVis panel 3
         renderView.CameraPosition = [-70.58912364537356, -15.750308500254196, 48.517414160762996]
         renderView.CameraFocalPoint = [17.05613736727104, 12.94876210057961, -28.3603263872939]
         renderView.CameraViewUp = [0.5899444617072703, 0.25266438976703015, 0.7668938898208627]
         renderView.CameraParallelScale = 66.62
+
+    elif True:
+        # Head on looking for evidence of FTE's and the FFJ pattern
+        renderView.CameraPosition = [54.575688611894364, -0.03966433288374481, 3.952625747389735]
+        renderView.CameraFocalPoint = [47.90558157105895, 0.33132763449067765, 3.5946634254149736]
+        renderView.CameraViewUp = [-0.05356990972544573, 0.0003538349672490677, 0.9985640387941195]
 
 def todimensional(pipeline, **kwargs):
     """Function modifies dimensionless variables -> dimensional variables
