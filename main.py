@@ -35,8 +35,10 @@ if __name__ == "__main__":
     #Nice condition
     #starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
     #            'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
-    starlink = ('starlink/3d__var_1_e20220204-223000-000.plt',
-                'starlink/3d__var_1_e20220204-224000-000.plt')
+    #starlink = ('starlink/3d__var_1_e20220204-223000-000.plt',
+    #            'starlink/3d__var_1_e20220204-224000-000.plt')
+    starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-223000-000.plt',
+                'ccmc_2022-02-02/3d__var_1_e20220202-224000-000.plt')
     #Current fails
     #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
     #            'starlink/3d__var_1_e20220202-050400-000.plt')
@@ -44,8 +46,8 @@ if __name__ == "__main__":
     #starlink = ('starlink/3d__var_1_e20220202-050200-000.plt',
     #            'starlink/3d__var_1_e20220202-050300-000.plt')
     #Some other fail
-    starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-061500-011.plt',
-                'ccmc_2022-02-02/3d__var_1_e20220202-061600-036.plt')
+    #starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-061500-011.plt',
+    #            'ccmc_2022-02-02/3d__var_1_e20220202-061600-036.plt')
     febstorm = ('febstorm/3d__var_1_e20140218-060300-037.plt',
                 'febstorm/3d__var_1_e20140218-060400-033.plt')
     feb_asym = ('febstorm/3d__var_1_e20140219-130000-000.plt',
@@ -83,7 +85,7 @@ if __name__ == "__main__":
     #for inputs in starlink:
     #inputs = starlink
     #if True:
-    for inputs in [febstorm]:
+    for inputs in [starlink]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]

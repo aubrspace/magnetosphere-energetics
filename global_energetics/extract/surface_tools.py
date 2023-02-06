@@ -303,6 +303,7 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         outputname = term[1].split(' [')[0]
         units = ' ['+term[1].split('[')[1].split(']')[0]+']'
         new_eq = '{'+name+modname+'} = IF('
+        #OPEN CLOSED
         if (any(['open' in c for c in conditions]) or
             any(['closed' in c for c in conditions])):
             if (any(['not open' in c for c in conditions]) or
@@ -314,11 +315,21 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                 new_eq+='({Status}==1) &&'#open south
             else:
                 new_eq+='({Status}==2 || {Status}==1) &&'#open
+        #DAY/NIGHT CONNECTIVITY(mapped onto inner boundary)
+        #TODO:
+        #   figure out what the theta/phi values need to be
+        #       N: 90<phi<270, D:270<phi<360 || 0<phi<90
+        #       Use Open- phi corresponding (North or South)
+        #           Closed- D:(Day_N || Day_S)
+        #                   N:~!(Day_N || Day_S)
+        #        This way will not double count any points do to foot asym
+        #TAIL
         if any(['tail' in c for c in conditions]):
             if 'not tail' in conditions:
                 new_eq+='({Tail}==0) &&'
             else:
                 new_eq+='({Tail}==1) &&'
+        #INNER BOUNDARY
         if any(['on_innerbound' in c for c in conditions]):
             if 'not on_innerbound' in conditions:
                 new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
@@ -326,6 +337,7 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
             else:
                 new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
                                           ')<{Cell Size [Re]}*0.75) &&'][0]
+        #L7
         if any(['L7' in c for c in conditions]):
             if '<L7' in conditions:
                 new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
@@ -336,11 +348,14 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                                               '{Cell Size [Re]}*1)&&'][0]
                 #NOTE 0.75*cell size worked for everyone but L7,
                 #       which was optimized at 1*cell size
+        #DAY/NIGHT (of dipole axis)
         if ('day' in conditions) or ('night' in conditions):
             if 'day' in conditions:
                 new_eq+='({Xd [R]}>0) &&'#Dayside
             elif 'night' in conditions:
                 new_eq+='({Xd [R]}<0) &&'#Nightside
+
+        #Write out the equation modifications
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7']]):
             #chop hanging && and close up condition
@@ -368,6 +383,29 @@ def get_interface_integrands(zone,integrands,**kwargs):
     interfaces, test_i = {}, [i.split(' ')[0] for i in integrands][0]
     variables = zone.dataset.variable_names
     #Depending on the zone we'll have different interfaces
+    #TODO: implement the ~15 new combinations with the extention
+    #       -code it up
+    #       -run just test area result
+    #       -check add up areas
+    #       -check visually
+    #       -run for several conditions to verify it works
+    #   Downshift number of integrals as much as possible
+    #       - no RC zone
+    #       - combine 'dayside_reg' and 'dayside_inner'
+    #       - only the variables absolutely necessary
+    #           x Knet
+    #           x TestArea
+    #           x Utot
+    #       - No duplicates (from the old or the new extensions
+    #       - K2a/b, M2b maybe keep based on above
+    #       - dont need 'psb', 'tail_closed', 'tail_lobes', 'inner'
+    #   Verify the 'light' extension works in multiproc mode
+    #       - run a subset
+    #       - look at the results that we plan to actually use
+    #       - double check the 'error' TestArea calculations
+    #   Move results to GL, and run on existing dataset
+    #       - run a subset
+    #       - look at the results that we plan to actually use
     ##Magnetopause
     if ('mp' in zone.name) and ('inner' not in zone.name):
         #Flank
