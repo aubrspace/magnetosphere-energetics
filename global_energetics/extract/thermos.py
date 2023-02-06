@@ -79,7 +79,7 @@ def save_tofile(infile,timestamp,filetype='hdf',outputdir='localdbug/ua',
 #   "Scripting" -> "PyTecplot Connections..." -> "Accept connections"
 
 if __name__ == "__main__":
-    from spacepy.pybats import gitm
+    #from spacepy.pybats import gitm
     start_time = time.time()
     if '-c' in sys.argv:
         tp.session.connect()

@@ -8,6 +8,8 @@ import glob
 import time
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
+from scipy.stats import linregress
+from scipy import integrate
 import datetime as dt
 import pandas as pd
 import matplotlib as mpl
@@ -16,6 +18,7 @@ import matplotlib.dates as mdates
 from matplotlib import ticker, colors
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
+from global_energetics.analysis import analyze_bow_shock
 from global_energetics.analysis.plot_tools import (pyplotsetup,safelabel,
                                                    general_plot_settings,
                                                    plot_stack_distr,
@@ -71,12 +74,15 @@ def combine_closed_rc(data_dict):
                                    rc_old['Volume [Re^3]'])
     return closed_new
 
-def compile_polar_cap(sphere_input,terminator_input_n,terminator_input_s):
+def compile_polar_cap(sphere_input,terminator_input_n,
+                      terminator_input_s,**kwargs):
     """Function calculates dayside and nightside rxn rates from components
     Inputs
         sphere_input (pandas DataFrame)
         terminator_input_n (pandas DataFrame)
         terminator_input_s (pandas DataFrame)
+        kwargs:
+            dotshift (bool)- default False
     Returns
         polar_caps (pandas DataFrame)
     """
@@ -111,7 +117,17 @@ def compile_polar_cap(sphere_input,terminator_input_n,terminator_input_s):
                                  polar_caps['NightRxn'])
     #ExpandingContractingPolarCap ECPC
     polar_caps['ECPC']=['expanding']*len(polar_caps['DayRxn'])
-    polar_caps['ECPC'][polar_caps['minusdphidt']>0]='contracting'
+    polar_caps.loc[polar_caps['minusdphidt']>0,'ECPC']='contracting'
+    if kwargs.get('dotshift',False):
+        #Timshift the dayside values backwards so it maximizes corr
+        #   between day and night
+        tshift = kwargs.get('tshift',dt.timedelta(minutes=-16))
+        for qty in ['DayRxn','ECPC']:
+            copy = polar_caps[qty].copy(deep=True)
+            copy.index +=tshift
+            tstart = polar_caps.index[0]
+            polar_caps[qty] = copy.loc[copy.index>=tstart]
+            polar_caps[qty].fillna(method='ffill',inplace=True)
     return polar_caps
 
 def prep_for_correlations(data_input, solarwind_input,**kwargs):
@@ -125,6 +141,7 @@ def prep_for_correlations(data_input, solarwind_input,**kwargs):
         data_output (DataFrame)
     """
     ##Gather data
+    moments = locate_phase(data_input.index)
     #Analysis
     #Make a deepcopy of dataframe
     data_output = data_input.copy(deep=True)
@@ -157,36 +174,50 @@ def prep_for_correlations(data_input, solarwind_input,**kwargs):
     #Add conditional variables to use as hue ID's
     #phase
     data_output['phase'] = ['pre']*len(data_output['static'])
-    data_output['phase'][
-            data_output.index>dt.datetime(2019,5,14,4,0)] = 'main'
-    data_output['phase'][
-            data_output.index>dt.datetime(2019,5,14,7,45)] = 'rec'
+    data_output.loc[(data_output.index>moments['impact']) &
+                    (data_output.index<moments['peak2']),'phase'] = 'main'
+    data_output.loc[data_output.index>moments['peak2'],'phase'] = 'rec'
     #North/south
     data_output['signBz']=['northIMF']*len(data_output['static'])
-    data_output['signBz'][data_output['bz']<0] = 'southIMF'
+    data_output.loc[data_output['bz']<0,'signBz'] = 'southIMF'
     #Expand/contract (motional)
     data_output['expandContract'] = ['expanding']*len(
                                                 data_output['static'])
-    data_output['expandContract'][data_output['motion']>0]='contracting'
+    data_output.loc[data_output['motion']>0,'expandContract']='contracting'
     #inflow/outflow (static)
-    data_output['inoutflow']=['inflow']*len(data_output['static'])
-    data_output['inoutflow'][data_output['static']>0]='outflow'
+    data_output['inoutflow']=['inflow']*len(data_output['sheath'])
+    data_output.loc[data_output['sheath']>0,'inoutflow']='outflow'
     #Gathering/releasing (-dEdt)
     data_output['gatherRelease']=['gathering']*len(data_output['static'])
-    data_output['gatherRelease'][data_output['minusdEdt']>0]='releasing'
+    data_output.loc[data_output['minusdEdt']>0,'gatherRelease']='releasing'
     return data_output
 
-def hotfix_interfSharing(mp,msdict):
+def hotfix_interfSharing(mpdict,msdict,inner):
     """
     """
-    lobes = msdict['lobes']
-    closed = msdict['closed']
-    rc = msdict['rc']
-    day = mp[[k for k in mp.keys() if'Dayside_reg'in k]].copy()
+    # If poles section is missing from the lobes
+    if all(msdict['lobes']['K_netPoles [W]'].dropna()==0):
+        inner_copy = inner.copy(deep=True)
+        lobes_copy = msdict['lobes'].copy(deep=True)
+        targets=[inner_copy[k] for k in inner_copy.keys() if 'Poles'in k]
+        for target in targets:
+            lobes_copy[target.name] = target.values
+        #Reassemble polar values, calculated as: (Dnor/Dsou/Nnor/Nsou)
+        for whole_piece in [k for k in lobes_copy.keys() if 'Poles 'in k]:
+            lobes_copy[whole_piece] = (
+                          lobes_copy[whole_piece.replace(' ','DayN ')]+
+                          lobes_copy[whole_piece.replace(' ','DayS ')]+
+                          lobes_copy[whole_piece.replace(' ','NightN ')]+
+                          lobes_copy[whole_piece.replace(' ','NightS ')])
+        msdict['lobes'] = lobes_copy
+    # If Dayside flux is missing from the closed field
+    mp_copy = mpdict['ms_full'].copy(deep=True)
+    closed_copy = msdict['closed'].copy(deep=True)
+    day = mp_copy[[k for k in mp_copy.keys() if'Dayside_reg'in k]]
     #Fix closed dayside
-    if closed[[k for k in closed.keys() if 'Dayside_reg' in k]].empty:
-        for k in day.keys(): closed[k]=day[k]
-    msdict['closed'] = closed
+    if closed_copy[[k for k in closed_copy.keys() if 'Dayside_reg' in k]].empty:
+        for k in day.keys(): closed_copy[k]=day_copy[k]
+    msdict['closed'] = closed_copy
     return msdict
 
 def hotfix_psb(msdict):
@@ -275,28 +306,42 @@ def locate_phase(times,**kwargs):
     """
     #Hand picked times
     start = dt.timedelta(minutes=kwargs.get('startshift',60))
+    #August2018
+    aug2018_impact = dt.datetime(2018,8,25,17,30)
+    aug2018_endMain1 = dt.datetime(2018,8,26,5,37)
+    aug2018_endMain2 = dt.datetime(2018,8,26,5,37)
+    aug2018_inter_start = aug2018_impact
+    aug2018_inter_end = aug2018_endMain1
+    #August2018
+    jun2015_impact = dt.datetime(2015,6,22,19,0)
+    jun2015_endMain1 = dt.datetime(2015,6,23,4,30)
+    jun2015_endMain2 = dt.datetime(2015,6,23,4,30)
+    jun2015_inter_start = jun2015_impact
+    jun2015_inter_end = jun2015_endMain1
     #Feb
-    feb2014_impact = dt.datetime(2014,2,18,16,15)
+    #feb2014_impact = dt.datetime(2014,2,18,16,15)
+    feb2014_impact = dt.datetime(2014,2,18,17,57)
     #feb2014_endMain1 = dt.datetime(2014,2,19,4,0)
     #feb2014_endMain2 = dt.datetime(2014,2,19,9,45)
-    feb2014_endMain1 = dt.datetime(2014,2,19,9,45)
-    feb2014_endMain2 = dt.datetime(2014,2,19,9,45)
+    feb2014_endMain1 = dt.datetime(2014,2,19,6,45)
+    feb2014_endMain2 = dt.datetime(2014,2,19,6,45)
     feb2014_inter_start = dt.datetime(2014,2,18,15,0)
     feb2014_inter_end = dt.datetime(2014,2,18,17,30)
     #Starlink
-    starlink_impact = dt.datetime(2022,2,3,0,0)
-    starlink_endMain1 = dt.datetime(2022,2,3,11,15)
+    #TODO
+    starlink_impact = dt.datetime(2022,2,2,23,58)
+    starlink_endMain1 = dt.datetime(2022,2,3,11,54)
     #starlink_endMain1 = dt.datetime(2022,2,4,13,10)
-    starlink_endMain2 = dt.datetime(2022,2,4,22,0)
+    starlink_endMain2 = dt.datetime(2022,2,3,11,54)
     starlink_inter_start = (starlink_endMain1+
                             dt.timedelta(hours=-1,minutes=-30))
     starlink_inter_end = (starlink_endMain1+
                             dt.timedelta(hours=1,minutes=30))
     #May2019
-    may2019_impact = dt.datetime(2019,5,14,4,0)
+    may2019_impact = dt.datetime(2019,5,14,4,11)
     #may2019_impact = dt.datetime(2019,5,13,19,35)
-    may2019_endMain1 = dt.datetime(2019,5,14,7,45)
-    may2019_endMain2 = dt.datetime(2019,5,14,7,45)
+    may2019_endMain1 = dt.datetime(2019,5,14,7,24)
+    may2019_endMain2 = dt.datetime(2019,5,14,7,24)
     #may2019_inter_start = (may2019_endMain1+
     #                       dt.timedelta(hours=-1,minutes=-30))
     #may2019_inter_end = (may2019_endMain1+
@@ -311,25 +356,43 @@ def locate_phase(times,**kwargs):
     aug2019_inter_end = dt.datetime(2019,8,30,22,11)
 
     #Determine where dividers are based on specific event
-    if abs(times-feb2014_impact).min() < dt.timedelta(minutes=15):
+    #if abs(times-feb2014_impact).min() < dt.timedelta(minutes=15):
+    if any([abs(t-feb2014_impact)<dt.timedelta(days=1) for t in times]):
         impact = feb2014_impact
         peak1 = feb2014_endMain1
         peak2 = feb2014_endMain2
         inter_start = feb2014_inter_start
         inter_end = feb2014_inter_end
-    elif abs(times-starlink_impact).min() < dt.timedelta(minutes=15):
+    elif any([abs(t-starlink_impact)<dt.timedelta(days=1) for t in times]):
+    #elif abs(times-starlink_impact).min() < dt.timedelta(minutes=15):
         impact = starlink_impact
         peak1 = starlink_endMain1
         peak2 = starlink_endMain2
         inter_start = starlink_inter_start
         inter_end = starlink_inter_end
-    elif abs(times-may2019_impact).min() < dt.timedelta(minutes=15):
+    elif any([abs(t-may2019_impact)<dt.timedelta(days=1) for t in times]):
+    #elif abs(times-may2019_impact).min() < dt.timedelta(minutes=15):
         impact = may2019_impact
         peak1 = may2019_endMain1
         peak2 = may2019_endMain2
         inter_start = may2019_inter_start
         inter_end = may2019_inter_end
-    elif abs(times-aug2019_impact).min() < dt.timedelta(minutes=15):
+    elif any([abs(t-aug2018_impact)<dt.timedelta(days=1) for t in times]):
+    #elif abs(times-aug2019_impact).min() < dt.timedelta(minutes=15):
+        impact = aug2018_impact
+        peak1 = aug2018_endMain1
+        peak2 = aug2018_endMain2
+        inter_start = aug2018_inter_start
+        inter_end = aug2018_inter_end
+    elif any([abs(t-jun2015_impact)<dt.timedelta(days=1) for t in times]):
+    #elif abs(times-aug2019_impact).min() < dt.timedelta(minutes=15):
+        impact = jun2015_impact
+        peak1 = jun2015_endMain1
+        peak2 = jun2015_endMain2
+        inter_start = jun2015_inter_start
+        inter_end = jun2015_inter_end
+    elif any([abs(t-aug2019_impact)<dt.timedelta(days=1) for t in times]):
+    #elif abs(times-aug2019_impact).min() < dt.timedelta(minutes=15):
         impact = aug2019_impact
         peak1 = aug2019_endMain1
         peak2 = aug2019_endMain2
@@ -340,9 +403,16 @@ def locate_phase(times,**kwargs):
         peak1 = times[round(len(times)/2)]
         peak2 = times[round(len(times)/2)]
         #peak2 = times[-1]
-        inter_start = peak1-dt.timedelta(minute=75)
-        inter_end = peak1+dt.timedelta(minute=75)
-    return start, impact, peak1, peak2, inter_start, inter_end
+        inter_start = peak1-dt.timedelta(minutes=75)
+        inter_end = peak1+dt.timedelta(minutes=75)
+    #return start, impact, peak1, peak2, inter_start, inter_end
+    moments={'start':start,
+             'impact':impact,
+             'peak1':peak1,
+             'peak2':peak2,
+             'inter_start':inter_start,
+             'inter_end':inter_end}
+    return moments
 
 def parse_phase(indata,phasekey,**kwargs):
     """Function returns subset of given data based on a phasekey
@@ -353,9 +423,9 @@ def parse_phase(indata,phasekey,**kwargs):
         phase (same datatype given)
         rel_time (series object of times starting from 0)
     """
-    assert (type(indata)==dict or type(indata)==pd.core.frame.DataFrame or
-            type(indata)==pd.core.series.Series,
-            'Data type only excepts dict, DataFrame, or Series')
+    #assert ((type(indata)==dict or type(indata)==pd.core.frame.DataFrame or
+    #         type(indata)==pd.core.series.Series),
+    #        'Data type only excepts dict, DataFrame, or Series')
 
     #Get time information based on given data type
     if (type(indata) == pd.core.series.Series or
@@ -368,23 +438,23 @@ def parse_phase(indata,phasekey,**kwargs):
         times = [df for df in indata.values() if not df.empty][0].index
 
     #Find the phase marks based on the event itself
-    [start,impact,peak1,peak2,inter_start,inter_end]=locate_phase(times,
-                                                                 **kwargs)
+    moments = locate_phase(times, **kwargs)
 
     #Set condition based on dividers and phase requested
     if 'qt' in phasekey:
-        cond = (times>times[0]+start) & (times<impact)
+        cond=(times>times[0]+moments['start']) & (times<moments['impact'])
     elif 'main' in phasekey:
         if '2' in phasekey:
-            cond = (times>peak1) & (times<peak2)
+            cond = (times>moments['peak1']) & (times<moments['peak2'])
         else:
-            cond = (times>impact) & (times<peak1)
+            cond = (times>moments['impact']) & (times<moments['peak1'])
     elif 'rec' in phasekey:
-        cond = times>peak1#NOTE
+        cond = times>moments['peak1']#NOTE
     elif 'interv' in phasekey:
-        cond = (times>inter_start) & (times<inter_end)
+        #cond=(times>moments['inter_start']) & (times<moments['inter_end'])
+        cond = (times>moments['impact']) & (times<moments['peak1'])
     elif 'lineup' in phasekey:
-        cond = times>impact
+        cond = times>times[0]+moments['start']
 
     #Reload data filtered by the condition
     if (type(indata) == pd.core.series.Series or
@@ -395,7 +465,7 @@ def parse_phase(indata,phasekey,**kwargs):
         else:
             #rel_time = [dt.datetime(2000,1,1)+r for r in
             #            indata[cond].index-peak1]
-            rel_time = indata[cond].index-peak1
+            rel_time = indata[cond].index-moments['peak1']
         return indata[cond], rel_time
     elif type(indata) == dict:
         phase = indata.copy()
@@ -408,7 +478,7 @@ def parse_phase(indata,phasekey,**kwargs):
             else:
                 #rel_time = [dt.datetime(2000,1,1)+r for r in
                 #            df[cond].index-peak1]
-                rel_time = df[cond].index-peak1
+                rel_time = df[cond].index-moments['peak1']
         return phase, rel_time
 
 def plot_contour(fig,ax,df,lower,upper,xkey,ykey,zkey,**kwargs):
@@ -512,7 +582,7 @@ def plot_quiver(ax,df,lower,upper,xkey,ykey,ukey,vkey,**kwargs):
     general_plot_settings(ax, **kwargs)
     #ax.grid()
 
-def stack_energy_region_fig(ds,ph,path,hatches):
+def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
     """Stack plot Energy by region
     Inputs
         ds (DataFrame)- Main data object which contains data
@@ -522,20 +592,58 @@ def stack_energy_region_fig(ds,ph,path,hatches):
     Returns
         None
     """
-    #setup figure
-    contr,ax=plt.subplots(len(ds.keys()),1,sharey=True,
-                          sharex=True,figsize=[18,8])
-    if len(ds.keys())==1:
-        ax = [ax]
     #plot
     for i,ev in enumerate(ds.keys()):
+        moments = locate_phase(ds[ev]['time'])
+        if kwargs.get('tabulate',False):
+            Elobes = ds[ev]['msdict'+ph]['lobes']['Utot [J]']
+            Eclosed = ds[ev]['msdict'+ph]['closed']['Utot [J]']
+            Erc = ds[ev]['msdict'+ph]['rc']['Utot [J]']
+            Etotal = Elobes+Eclosed+Erc
+            ElobesPercent = (Elobes/Etotal)*100
+            lobes = ds[ev]['msdict'+ph]['lobes']
+            #Tabulate
+            print('\nPhase: '+ph+'\nEvent: '+ev+'\n')
+            print('{:<25}{:<20}'.format('****','****'))
+            print('{:<25}{:<.3}({:<.3})'.format('Emax_lobes',
+                                                Elobes.max()/1e15,
+                                                ElobesPercent.max()))
+            print('{:<25}{:<.3}({:<.3})'.format('Emin_lobes',
+                                                Elobes.min()/1e15,
+                                                ElobesPercent.min()))
+            print('{:<25}{:<20}'.format('****','****'))
+            dEdt = central_diff(lobes['Utot [J]'],60)/1e12
+            K1 = lobes['K_netFlank [W]']/1e12
+            K2 = lobes['K_netPSB [W]']/1e12
+            motion = -dEdt - lobes['K_net [W]']/1e12
+            inner = lobes['K_netPoles [W]']/1e12
+            tail = lobes['K_netTail_lobe [W]']/1e12
+            for flux,label in [(dEdt,'dEdt'),(K1,'K1'),(K2,'K2'),
+                               (motion,'motion'),(inner,'inner'),
+                               (tail,'tail')]:
+                fluxMain = flux[(lobes.index>moments['impact'])&
+                                (lobes.index<moments['peak2'])]
+                fluxRec = flux[(lobes.index>moments['peak2'])]
+                print('{:<15}{:<15}{:<20}'.format('****','****','****'))
+                print('{:<15}{:<15}{:<.3}/{:<.3}/{:<.3}'.format(label,
+                                                                'main',
+                                                        fluxMain.min(),
+                                                        fluxMain.max(),
+                                                      fluxMain.mean()))
+                print('{:<15}{:<15}{:<.3}/{:<.3}/{:<.3}'.format(label,
+                                                                'rec',
+                                                        fluxRec.min(),
+                                                        fluxRec.max(),
+                                                      fluxRec.mean()))
+        #setup figure
+        contr,ax=plt.subplots(1,1,figsize=[18,8])
         if 'lineup' in ph or 'interv' in ph:
             dotimedelta=True
         else: dotimedelta=False
         if not ds[ev]['mp'+ph].empty:
             times=[float(n) for n in ds[ev]['time'+ph].to_numpy()]#bad hack
-            rax = ax[i].twinx()
-            plot_stack_contrib(ax[i],times,ds[ev]['mp'+ph],
+            rax = ax.twinx()
+            plot_stack_contrib(ax,times,ds[ev]['mp'+ph],
                                ds[ev]['msdict'+ph], legend=(i==0),
                                value_key='Utot [J]',label=ev,ylim=[0,50],
                                factor=1e15,
@@ -547,20 +655,21 @@ def stack_energy_region_fig(ds,ph,path,hatches):
                    color='Navy',linestyle=None)
         rax.set_ylim([0,50])
         #NOTE mark impact w vertical line here
-        dtime_impact = (dt.datetime(2019,5,14,4,0)-
-                        dt.datetime(2019,5,14,7,45)).total_seconds()*1e9
-        ax[i].axvline(dtime_impact,color='black',ls='--')
-        ax[i].axvline(0,color='black',ls='--')
+        dtime_impact = (moments['impact']-
+                        moments['peak2']).total_seconds()*1e9
+        ax.axvline(dtime_impact,color='black',ls='--')
+        ax.axvline(0,color='black',ls='--')
         general_plot_settings(rax,
                               do_xlabel=False, legend=False,
                               timedelta=dotimedelta)
-        ax[i].set_xlabel(r'Time $\left[hr:min\right]$')
-    #save
-    contr.tight_layout(pad=0.8)
-    figname = path+'/contr_energy'+ph+'.png'
-    contr.savefig(figname)
-    plt.close(contr)
-    print('\033[92m Created\033[00m',figname)
+        ax.set_xlabel(r'Time $\left[hr:min\right]$')
+        #save
+        contr.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
+        contr.tight_layout(pad=0.8)
+        figname = path+'/contr_energy'+ph+'_'+ev+'.png'
+        contr.savefig(figname)
+        plt.close(contr)
+        print('\033[92m Created\033[00m',figname)
 
 def stack_energy_type_fig(ds,ph,path):
     """Stack plot Energy by type (hydro,magnetic) for each region
@@ -585,6 +694,7 @@ def stack_energy_type_fig(ds,ph,path):
             else: dotimedelta=False
             if not ds[ev]['mp'+ph].empty:
                 times=[float(n) for n in ds[ev]['time'+ph].to_numpy()]#bad hack
+                moments = locate_phase(times)
                 ax[i].fill_between(times,
                                ds[ev]['msdict'+ph]['lobes']['Utot [J]'],
                                    color='tab:blue')
@@ -601,6 +711,7 @@ def stack_energy_type_fig(ds,ph,path):
                                  timedelta=dotimedelta)
                 '''
         #save
+        distr.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
         distr.tight_layout(pad=1)
         figname = path+'/distr_energy'+ph+sz+'.png'
         distr.savefig(figname)
@@ -627,6 +738,7 @@ def tail_cap_fig(ds,ph,path):
         inner = ds[ev]['inner_mp'+ph]
         obs = ds[ev]['obs']['swmf_sw'+ph]
         obstime = ds[ev]['swmf_sw_otime'+ph]
+        moments = locate_phase(obstime)
         if not lobe.empty:
             #Polar cap areas compared with Newell Coupling function
             fobstime = [float(n) for n in obstime.to_numpy()]#bad hack
@@ -650,6 +762,7 @@ def tail_cap_fig(ds,ph,path):
                                   ,do_xlabel=(i==len(ds.keys())-1),
                                   legend=True,timedelta=('lineup' in ph))
     #save
+    tail.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
     tail.tight_layout(pad=1)
     figname = path+'/tail_cap_lobe'+ph+'.png'
     tail.savefig(figname)
@@ -673,6 +786,7 @@ def polar_cap_area_fig(ds,ph,path):
     #plot
     for i,ev in enumerate(ds.keys()):
         filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
+        moments = locate_phase(filltime)
         if 'termdict' in ds[ev].keys():
             #filltime = ds[ev]['time'+ph].astype('float64')
             lobe = ds[ev]['termdict'+ph]['sphere2.65_surface']
@@ -694,12 +808,143 @@ def polar_cap_area_fig(ds,ph,path):
                                   ,do_xlabel=(i==len(ds.keys())-1),
                                   timedelta=('lineup' in ph),legend=True)
     #save
+    pca.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
     pca.tight_layout(pad=1)
     figname = path+'/polar_cap_area'+ph+'.png'
     pca.savefig(figname)
     plt.close(pca)
     print('\033[92m Created\033[00m',figname)
 
+def polar_cap_flux_stats(dataset,path,**kwargs):
+    for i,event in enumerate(dataset.keys()):
+        #Gather data
+        lobes = dataset[event]['msdict']['lobes']
+        solarwind = dataset[event]['obs']['swmf_sw']
+        working_lobes = prep_for_correlations(lobes,solarwind)
+        working_polar_cap = compile_polar_cap(
+                 dataset[event]['termdict']['sphere2.65_surface'],
+                 dataset[event]['termdict']['terminator2.65north'],
+                 dataset[event]['termdict']['terminator2.65south'])
+        for term in ['day_dphidt','night_dphidt','terminator',
+                     'DayRxn','NightRxn','minusdphidt','ECPC']:
+            working_lobes[term] = working_polar_cap[term]
+        #Intervals
+        main = working_lobes['phase'] =='main'
+        recovery = working_lobes['phase'] =='rec'
+        expanding = working_lobes['ECPC']=='expanding'
+        contracting = working_lobes['ECPC']=='contracting'
+        #Dayside Max[kV]
+        dayside_max_main = working_lobes['DayRxn'][main].min()
+        dayside_max_rec = working_lobes['DayRxn'][recovery].min()
+        #Nightside Max[kV]
+        nightside_max_main = working_lobes['NightRxn'][main].max()
+        nightside_max_rec = working_lobes['NightRxn'][recovery].max()
+        #Dayside Mean [kV]
+        dayside_mean_main_exp = working_lobes['DayRxn'][
+                                                   main][expanding].mean()
+        dayside_mean_rec_exp = working_lobes['DayRxn'][
+                                               recovery][expanding].mean()
+        dayside_mean_main_con = working_lobes['DayRxn'][
+                                                 main][contracting].mean()
+        dayside_mean_rec_con = working_lobes['DayRxn'][
+                                             recovery][contracting].mean()
+        #Nightside Mean [kV]
+        nightside_mean_main_exp = working_lobes['NightRxn'][
+                                                   main][expanding].mean()
+        nightside_mean_rec_exp = working_lobes['NightRxn'][
+                                               recovery][expanding].mean()
+        nightside_mean_main_con = working_lobes['NightRxn'][
+                                                 main][contracting].mean()
+        nightside_mean_rec_con = working_lobes['NightRxn'][
+                                             recovery][contracting].mean()
+        #Net Min [kV]
+        net_min_main_exp = working_lobes['minusdphidt'][
+                                                    main][expanding].min()
+        net_min_rec_exp = working_lobes['minusdphidt'][
+                                                recovery][expanding].min()
+        net_min_main_con = working_lobes['minusdphidt'][
+                                                  main][contracting].min()
+        net_min_rec_con = working_lobes['minusdphidt'][
+                                              recovery][contracting].min()
+        #Net Max [kV]
+        net_max_main_exp = working_lobes['minusdphidt'][
+                                                    main][expanding].max()
+        net_max_rec_exp = working_lobes['minusdphidt'][
+                                                recovery][expanding].max()
+        net_max_main_con = working_lobes['minusdphidt'][
+                                                  main][contracting].max()
+        net_max_rec_con = working_lobes['minusdphidt'][
+                                              recovery][contracting].max()
+        #Net Mean [kV]
+        net_mean_main_exp = working_lobes['minusdphidt'][
+                                                   main][expanding].mean()
+        net_mean_rec_exp = working_lobes['minusdphidt'][
+                                               recovery][expanding].mean()
+        net_mean_main_con = working_lobes['minusdphidt'][
+                                                 main][contracting].mean()
+        net_mean_rec_con = working_lobes['minusdphidt'][
+                                             recovery][contracting].mean()
+
+        #Tabulate
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Dayside Max','Main','Both',dayside_max_main/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Both',dayside_max_rec/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Nightside Max','Main','Both',nightside_max_main/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Both',nightside_max_rec/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Main','Exp',dayside_mean_main_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Dayside Mean','','Con',dayside_mean_main_con/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Exp',dayside_mean_rec_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'','Con',dayside_mean_rec_con/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Main','Exp',nightside_mean_main_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Nightside Mean','','Con',nightside_mean_main_con/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Exp',nightside_mean_rec_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'','Con',nightside_mean_rec_con/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Main','Exp',net_max_main_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Net Max','','Con',net_max_main_con/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Exp',net_max_rec_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'','Con',net_max_rec_con/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Main','Exp',net_min_main_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Net Min','','Con',net_min_main_con/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Exp',net_min_rec_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'','Con',net_min_rec_con/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Main','Exp',net_mean_main_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              'Net Mean','','Con',net_mean_main_con/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'Rec','Exp',net_mean_rec_exp/1000))
+        print('{:<14}{:<5}{:<5}{:<.3}'.format(
+              ''           ,'','Con',net_mean_rec_con/1000))
+        print('{:<14}{:<5}{:<5}{:<20}'.format('****','****','****','****'))
+        #Net Mean [kV]
+        if kwargs.get('save',False):
+            pass
 def polar_cap_flux_fig(dataset,phase,path):
     """Line plot of the polar cap areas (projected to inner boundary)
     Inputs
@@ -711,9 +956,12 @@ def polar_cap_flux_fig(dataset,phase,path):
     """
     #plot
     for i,event in enumerate(dataset.keys()):
+        '''
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
         else: dotimedelta=False
+        '''
+        dotimedelta = True
         #setup figures
         polar_cap_figure1,axis=plt.subplots(1,1,figsize=[16,8])
         #Gather data
@@ -722,6 +970,7 @@ def polar_cap_flux_fig(dataset,phase,path):
                  dataset[event]['termdict'+phase]['terminator2.65north'],
                  dataset[event]['termdict'+phase]['terminator2.65south'])
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        moments = locate_phase(dataset[event]['time'])
 
         axis.plot(times,working_polar_cap['DayRxn']/1000,label='Day')
         axis.plot(times,working_polar_cap['NightRxn']/1000,label='Night')
@@ -746,8 +995,10 @@ def polar_cap_flux_fig(dataset,phase,path):
                               ylabel=r'$d\Phi/dt\left[ kWb/s\right]$',
                               legend=True,timedelta=dotimedelta)
         #save
+        polar_cap_figure1.suptitle('t0='+str(moments['peak1']),
+                                   ha='left',x=0.01,y=0.99)
         polar_cap_figure1.tight_layout(pad=1)
-        figname = path+'/polar_cap_flux1'+phase+'.png'
+        figname = path+'/polar_cap_flux1'+phase+'_'+event+'.png'
         polar_cap_figure1.savefig(figname)
         plt.close(polar_cap_figure1)
         print('\033[92m Created\033[00m',figname)
@@ -776,6 +1027,7 @@ def stack_volume_fig(ds,ph,path,hatches):
             #NOTE get lobe only 
             lobes = ds[ev]['msdict'+ph]['lobes']
             times=[float(n) for n in ds[ev]['time'+ph].to_numpy()]#bad hack
+            moments = locate_phase(times)
             plot_stack_contrib(ax[i],times,ds[ev]['mp'+ph],
                                {'lobes':lobes},
                                #ds[ev]['msdict'+ph],
@@ -793,6 +1045,7 @@ def stack_volume_fig(ds,ph,path,hatches):
             ax[i].axhline(rc+close,color='grey')
             ax[i].axhline(rc+close+lobe,color='grey')
         #save
+        contr.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
         contr.tight_layout(pad=1)
         figname = path+'/contr_volume'+ph+'.png'
         contr.savefig(figname)
@@ -861,6 +1114,7 @@ def interf_power_fig(ds,ph,path,hatches):
                     else: dotimedelta=False
                     #plot
                     times=[float(n) for n in ds[ev]['time'+ph].to_numpy()]#bad hack
+                    moments = locate_phase(times)
                     labels = [r'Closed - Sheath',
                               r'Lobes - Sheath',
                               r'Lobes - Closed']
@@ -881,6 +1135,7 @@ def interf_power_fig(ds,ph,path,hatches):
                                                                   'right')
             ax[2].set_xlabel(r'Time $\left[hr:min\right]$')
     #save
+    interf_fig.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
     interf_fig.tight_layout(pad=1.2)
     figname = path+'/interf'+ph+'.png'
     interf_fig.savefig(figname)
@@ -1046,6 +1301,7 @@ def lshell_contour_figure(ds):
                                     'X_subsolar [Re]'in ds[ev]['mp'+ph]):
                                 ax[i+j].plot(mptimes,x_sub,color='white')
                 #save
+                lshell.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
                 lshell.tight_layout(pad=0.2)
                 figname = path+'/'+z.split(' ')[0]+'_lshell'+ph+'.png'
                 lshell.savefig(figname)
@@ -1062,14 +1318,21 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
     """
     for i,event in enumerate(dataset.keys()):
         #setup figure
-        correlation_figure1,axis = plt.subplots(1,1,figsize=[12,12])
+        #correlation_figure1,axis = plt.subplots(1,1,figsize=[16,16])
+        correlation_figure1 = plt.figure(figsize=(16,16),
+                                         layout="constrained")
+        spec = correlation_figure1.add_gridspec(4,4)
+        xaxis = correlation_figure1.add_subplot(spec[0,0:3])
+        xaxis.xaxis.tick_top()
+        yaxis = correlation_figure1.add_subplot(spec[1:4,3])
+        yaxis.yaxis.tick_right()
+        axis = correlation_figure1.add_subplot(spec[1:4,0:3])
+        #tempfig,(xaxis,yaxis) = plt.subplots(2,1,figsize=[16,4])
         #Prepare data
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed_rc']
         solarwind = dataset[event]['obs']['swmf_sw'+phase]
         working_lobes = prep_for_correlations(lobes,solarwind)
-        working_closed = prep_for_correlations(closed,solarwind,
-                                               keyset='closed_rc')
         working_polar_cap = compile_polar_cap(
                  dataset[event]['termdict'+phase]['sphere2.65_surface'],
                  dataset[event]['termdict'+phase]['terminator2.65north'],
@@ -1079,56 +1342,89 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
             working_lobes[term] = working_polar_cap[term]
 
         working_lobes['reversedDay'] = -1*working_lobes['DayRxn']
-        ##Seaborn figures
-        line = sns.lineplot(data=working_lobes,x='DayRxn',y='reversedDay',
-                            ax=axis,color='black')
-        kde = sns.scatterplot(data=working_lobes,x='DayRxn',y='NightRxn',
-                                        #fill=True,
-                                        hue='phase',ax=axis,
-                                        alpha=0.7)
+
+        ## Correlation plot
+        # histogram of each sub subset
+        number_bins = 50
+        for setname,subset,color in[
+                   ('main',working_lobes['phase']=='main','magenta'),
+                   ('recovery',working_lobes['phase']=='rec','tab:blue')]:
+            day1 = working_lobes['DayRxn'][subset][
+                                 working_lobes['ECPC']=='expanding']/1000
+            day2 = working_lobes['DayRxn'][subset][
+                                working_lobes['ECPC']=='contracting']/1000
+            night1 = working_lobes['NightRxn'][subset][
+                                 working_lobes['ECPC']=='expanding']/1000
+            night2 = working_lobes['NightRxn'][subset][
+                                 working_lobes['ECPC']=='contracting']/1000
+            counts1,bins1 = np.histogram(day1, bins=number_bins,
+                                         range=(-400,300),density=True)
+            counts2,bins2 = np.histogram(day2, bins=number_bins,
+                                         range=(-400,300),density=True)
+            xaxis.stairs(counts1+counts2,bins2,fill=False,
+                         edgecolor=color)
+            xaxis.stairs(counts1,bins1,fill=True,facecolor=color,
+                         alpha=0.6)
+
+            counts1,bins1 = np.histogram(night1, bins=number_bins,
+                                         range=(-250,450),density=True)
+            counts2,bins2 = np.histogram(night2, bins=number_bins,
+                                         range=(-250,450),density=True)
+            yaxis.stairs(counts1+counts2,bins2,fill=False,
+                         edgecolor=color, orientation='horizontal')
+            yaxis.stairs(counts1,bins1,fill=True,facecolor=color,
+                         orientation='horizontal',alpha=0.6)
+        xaxis.set_ylabel('Prob. Density')
+        xaxis.grid()
+        yaxis.set_xlabel('Prob. Density')
+        yaxis.grid()
+        for setname,subset,color in[
+                   ('main',working_lobes['phase']=='main','magenta'),
+                   ('recovery',working_lobes['phase']=='rec','tab:blue')]:
+            x1 = working_lobes['DayRxn'][subset][
+                                 working_lobes['ECPC']=='expanding']/1000
+            y1 = working_lobes['NightRxn'][subset][
+                                 working_lobes['ECPC']=='expanding']/1000
+            x2 = working_lobes['DayRxn'][subset][
+                               working_lobes['ECPC']=='contracting']/1000
+            y2 = working_lobes['NightRxn'][subset][
+                               working_lobes['ECPC']=='contracting']/1000
+            slope1,intercept1,r1,p1,stderr1 = linregress(x1,y1)
+            slope2,intercept2,r2,p2,stderr2 = linregress(x2,y2)
+            linelabel1=(f'slope:{slope1:.2f}x, r={r1:.2f}')
+            linelabel2=(f'slope:{slope2:.2f}x, r={r2:.2f}')
+            axis.scatter(x1,y1,label=setname+' Expanding',alpha=0.7,
+                         color=color,marker='s')
+            axis.scatter(x2,y2,label=setname+' Contracting',alpha=0.7,
+                         color=color,
+                   marker=mpl.markers.MarkerStyle('s',fillstyle='none'))
+            axis.plot(x1[::5],(intercept1+x1*slope1)[::5],
+                      label=linelabel1,color=color)
+            axis.plot(x2[::5],(intercept2+x2*slope2)[::5],
+                      label=linelabel2,color=color,
+                      linestyle=':')
+        axis.plot(working_lobes['DayRxn']/1000,
+                  -working_lobes['DayRxn']/1000,
+                  color='black')
+        xaxis.set_xlim(-400,300)
+        axis.set_xlim(-400,300)
+        yaxis.set_ylim(-250,450)
+        axis.set_ylim(-250,450)
+        axis.legend(loc='upper right',bbox_to_anchor=(1.52,1.53),
+                    framealpha=1)
+        axis.grid()
+        axis.set_xlabel(r'DayRxn $\left[ kV\right]$')
+        axis.set_ylabel(r'NightRxn $\left[ kV\right]$')
+        correlation_figure1.tight_layout()
+        #TODO: plot regression line using r correlation
         #save
-        figurename = (path+'/polar_cap_correlation'+phase+'.png')
+        correlation_figure1.suptitle('Event: '+event,ha='left',x=0.01,y=0.99)
+        figurename = (path+'/polar_cap_correlation'+phase+'_'+event+'.png')
         correlation_figure1.savefig(figurename)
         print('\033[92m Created\033[00m',figurename)
 
-        seaborn_figure1 = sns.lmplot(data=working_lobes,
-                                        x='DayRxn', y='NightRxn',
-                                        hue='phase',
-                                        #kind='kde',
-                                        col='ECPC',
-                                        #xlim=[-200000,400000],
-                                        #ylim=[-400000,200000],
-                                        height=12)
-        seaborn_figure1.refline(x=0,y=0)
-        #save
-        figurename = (path+'/lobe_power_correlation'+phase+'_'+
-                      'passthrough'+'.png')
-        seaborn_figure1.savefig(figurename)
-        print('\033[92m Created\033[00m',figurename)
 
-        ##Closed sheath vs plasmasheet boundary
-        seaborn_figure2 = sns.lmplot(data=working_closed,
-                                     x='passed',y='minusdEdt',
-                                     hue='gatherRelease',
-                                     col='phase', height=16)
-        seaborn_figure2.refline(x=0,y=0)
-        #save
-        figurename = (path+'/closed_power_correlation'+phase+'_'+
-                      'passthrough'+'.png')
-        seaborn_figure2.savefig(figurename)
-        print('\033[92m Created\033[00m',figurename)
-        '''
-            #TODO: try out the remaining combinations using this method of visualization
-            #   Then install statsmodels to reproduce the regression curves
-            #       Figure out which technique is used
-            #           Does this technique make sense?
-            #           Change to a different method if needed
-            #   Then add the actual numbers to the plots
-            #Wrap this all into a function
-        '''
-
-
-def quantity_timings(dataset, phase, path):
+def quantify_timings(dataset, phase, path,**kwargs):
     """Function plots timing measurements between two quantities
     Inputs
     Returns
@@ -1148,85 +1444,123 @@ def quantity_timings(dataset, phase, path):
                  dataset[event]['termdict'+phase]['sphere2.65_surface'],
                  dataset[event]['termdict'+phase]['terminator2.65north'],
                  dataset[event]['termdict'+phase]['terminator2.65south'])
+        '''
+        #NOTE Main phase has a bit of a non-normal dist so let's look at
+        #       just expansion times when the distribution is best behaved
+        cond = working_lobes['inoutflow']=='inflow'
+        working_lobes = working_lobes[cond]
+        working_polar_cap = working_polar_cap[cond]
+        '''
         r_values = pd.DataFrame()
 
         #Lobes-Sheath -> Lobes-Closed
         sheath2closed_figure,axis = plt.subplots(1,1,figsize=[16,8])
-        time_shifts, r_values['sheath_closed']=pearson_r_shifts(
+        time_shifts, r_values['K1-K2']=pearson_r_shifts(
                                                   working_lobes['sheath'],
                                                -1*working_lobes['closed'])
-        time_shifts, r_values['lobes_sheath']=pearson_r_shifts(
+        time_shifts, r_values['K2-K3']=pearson_r_shifts(
                                                  working_closed['lobes'],
                                               -1*working_closed['sheath'])
-        time_shifts, r_values['day_night']=pearson_r_shifts(
+        time_shifts, r_values['P1-P2']=pearson_r_shifts(
                                              working_polar_cap['DayRxn'],
                                         -1*working_polar_cap['NightRxn'])
-        time_shifts, r_values['sheath_day']=pearson_r_shifts(
+        time_shifts, r_values['K1-P1']=pearson_r_shifts(
                                                   working_lobes['sheath'],
                                            -1*working_polar_cap['DayRxn'])
-        time_shifts, r_values['closed_night']=pearson_r_shifts(
+        time_shifts, r_values['K2-P2']=pearson_r_shifts(
                                                   working_lobes['closed'],
                                          -1*working_polar_cap['NightRxn'])
-        time_shifts, r_values['day_motion']=pearson_r_shifts(
+        time_shifts, r_values['P1_motion']=pearson_r_shifts(
                                            -1*working_polar_cap['DayRxn'],
                                                   working_lobes['motion'])
-        time_shifts, r_values['night_motion']=pearson_r_shifts(
+        time_shifts, r_values['P2_motion']=pearson_r_shifts(
                                          -1*working_polar_cap['NightRxn'],
                                                   working_lobes['motion'])
-        axis.plot(time_shifts/60,r_values['sheath_closed'],
-                  label='sheath2closed')
-        axis.plot(time_shifts/60,r_values['lobes_sheath'],
-                  label='lobes2sheath')
-        axis.plot(time_shifts/60,r_values['day_night'],
-                  label='Day2NightRxn')
+        axis.plot(time_shifts/60,r_values['K1-K2'],
+                  label='K1-K2')
+        axis.plot(time_shifts/60,r_values['K2-K3'],
+                  label='K2-K3')
+        axis.plot(time_shifts/60,r_values['P1-P2'],
+                  label='P1-P2')
 
-        #axis.plot(time_shifts/60,r_values['sheath_day'],
-        #          label='sheath2day')
-        #axis.plot(time_shifts/60,r_values['closed_night'],
-        #          label='closed2night')
-        #axis.plot(time_shifts/60,r_values['day_motion'],
-        #          label='Day2motion')
-        #axis.plot(time_shifts/60,r_values['night_motion'],
-        #          label='Night2motion')
         axis.legend()
         axis.set_xlabel(r'Timeshift $\left[min\right]$')
         axis.xaxis.set_minor_locator(AutoMinorLocator(5))
         axis.set_ylabel(r'Pearson R')
         axis.grid()
         #save
+        sheath2closed_figure.suptitle('Event: '+event,ha='left',x=0.01,y=0.99)
         sheath2closed_figure.tight_layout(pad=1)
-        figurename = path+'/lobe_sheath2closed_rcor'+phase+'.png'
+        figurename = path+'/internal_timing_rcor'+phase+'_'+event+'.png'
         sheath2closed_figure.savefig(figurename)
         plt.close(sheath2closed_figure)
         print('\033[92m Created\033[00m',figurename)
 
         #External timings
-        solarwind2system_figure,axis = plt.subplots(1,1,figsize=[16,8])
-        time_shifts, r_values['bz_sheath']=pearson_r_shifts(
+        solarwind2system_figure1,axis1 = plt.subplots(1,1,figsize=[16,8])
+        solarwind2system_figure2,axis2 = plt.subplots(1,1,figsize=[16,8])
+        time_shifts, r_values['bz-K1']=pearson_r_shifts(
                                                   -1*solarwind['bz'],
                                                -1*working_lobes['sheath'])
-        time_shifts, r_values['newell_sheath']=pearson_r_shifts(
+        time_shifts, r_values['newell-K1']=pearson_r_shifts(
                                                  solarwind['Newell'],
                                                -1*working_lobes['sheath'])
-        time_shifts, r_values['epsilon_sheath']=pearson_r_shifts(
+        time_shifts, r_values['epsilon-K1']=pearson_r_shifts(
                                                  solarwind['eps'],
                                                -1*working_lobes['sheath'])
-        axis.plot(time_shifts/60,r_values['bz_sheath'],
-                  label='bz2sheath')
-        axis.plot(time_shifts/60,r_values['newell_sheath'],
-                  label='newell2sheath')
-        axis.plot(time_shifts/60,r_values['epsilon_sheath'],
-                  label='epsilon2sheath')
-        axis.legend()
-        axis.set_xlabel(r'Timeshift $\left[min\right]$')
-        axis.xaxis.set_minor_locator(AutoMinorLocator(5))
-        axis.set_ylabel(r'Pearson R')
-        axis.grid()
+        time_shifts, r_values['bz-P1']=pearson_r_shifts(
+                                                  -1*solarwind['bz'],
+                                           -1*working_polar_cap['DayRxn'])
+        time_shifts, r_values['newell-P1']=pearson_r_shifts(
+                                                 solarwind['Newell'],
+                                           -1*working_polar_cap['DayRxn'])
+        time_shifts, r_values['epsilon-P1']=pearson_r_shifts(
+                                                 solarwind['eps'],
+                                           -1*working_polar_cap['DayRxn'])
+        if kwargs.get('tabulate',True):
+            r_values.index = time_shifts
+            print('\nPhase: '+phase+'\nEvent: '+event+'\n')
+            print('{:<14}{:<20}{:<20}'.format('****','****','****'))
+            for label, rcurve in r_values.items():
+                tshift =rcurve[abs(rcurve)==
+                               abs(rcurve).max()].index.values[0]
+                extrema = rcurve.loc[tshift]
+                print('{:<14}{:<.2}({:<.2})'.format(label,tshift/60,
+                                                    extrema))
+            print('{:<14}{:<20}{:<20}'.format('****','****','****'))
+        axis1.plot(time_shifts/60,r_values['bz-K1'],
+                  label='bz-K1')
+        axis1.plot(time_shifts/60,r_values['newell-K1'],
+                  label='newell-K1')
+        axis1.plot(time_shifts/60,r_values['epsilon-K1'],
+                  label='epsilon-K1')
+        axis2.plot(time_shifts/60,r_values['bz-P1'],
+                  label='bz-P1')
+        axis2.plot(time_shifts/60,r_values['newell-P1'],
+                  label='newell-P1')
+        axis2.plot(time_shifts/60,r_values['epsilon-P1'],
+                  label='epsilon-P1')
+        for axis in [axis1,axis2]:
+            axis.legend()
+            axis.set_xlabel(r'Timeshift $\left[min\right]$')
+            axis.xaxis.set_minor_locator(AutoMinorLocator(5))
+            axis.set_ylabel(r'Pearson R')
+            axis.grid()
         #save
-        solarwind2system_figure.tight_layout(pad=1)
-        figurename = path+'/solarwind2lobe_rcor'+phase+'.png'
-        solarwind2system_figure.savefig(figurename)
-        plt.close(solarwind2system_figure)
+        solarwind2system_figure1.suptitle('Event: '+event,
+                                          ha='left',x=0.01,y=0.99)
+        solarwind2system_figure1.tight_layout(pad=1)
+        figurename = path+'/solarwind_timing_rcor'+phase+'_'+event+'1.png'
+        solarwind2system_figure1.savefig(figurename)
+        plt.close(solarwind2system_figure1)
+        print('\033[92m Created\033[00m',figurename)
+        #save
+        solarwind2system_figure1.suptitle('Event: '+event,
+                                          ha='left',x=0.01,y=0.99)
+        solarwind2system_figure2.tight_layout(pad=1)
+        figurename = path+'/solarwind_timing_rcor'+phase+'_'+event+'2.png'
+        solarwind2system_figure2.savefig(figurename)
+        plt.close(solarwind2system_figure2)
         print('\033[92m Created\033[00m',figurename)
 
 def power_correlations(dataset, phase, path,optimize_tshift=False):
@@ -1289,8 +1623,9 @@ def power_correlations(dataset, phase, path,optimize_tshift=False):
                                       xlabel=xvariable,
                                       ylabel='Power [TW]')
         #save
+        power_correlations_figure.suptitle('Event: '+event,ha='left',x=0.01,y=0.99)
         power_correlations_figure.tight_layout(pad=1)
-        figurename = path+'/lobe_power_correlation'+phase+'.png'
+        figurename = path+'/lobe_power_correlation'+phase+'_'+event+'.png'
         power_correlations_figure.savefig(figurename)
         plt.close(power_correlations_figure)
         print('\033[92m Created\033[00m',figurename)
@@ -1374,36 +1709,33 @@ def lobe_balance_fig(dataset,phase,path):
 #       to maximize the energy transfer to the closed region so:
 #           We should see the peak energy flux into the closed region
 #           during these times
-    #setup figure
-    total_balance_figure,axis = plt.subplots(len(dataset.keys()),1,
-                                             sharey=True, sharex=True,
-                                     figsize=[16,8*len(dataset.keys())])
-    if len(dataset.keys())==1:
-        axis = [axis]
     #plot
     for i,event in enumerate(dataset.keys()):
+        #setup figure
+        total_balance_figure,axis = plt.subplots(1,1,figsize=[16,8])
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
         else: dotimedelta=False
         #NOTE get lobe only 
         lobes = dataset[event]['msdict'+phase]['lobes']
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        moments = locate_phase(dataset[event]['time'])
         dEdt = central_diff(lobes['Utot [J]'],60)
-        axis[i].plot(times,lobes['K_net [W]']/1e12, label='static',
+        axis.plot(times,lobes['K_net [W]']/1e12, label='static',
                      color='maroon')
-        #axis[i].plot(times,lobes['Utot_net [W]'], label='motion')
-        axis[i].plot(times,(-1*dEdt-lobes['K_net [W]'])/1e12,
+        #axis.plot(times,lobes['Utot_net [W]'], label='motion')
+        axis.plot(times,(-1*dEdt-lobes['K_net [W]'])/1e12,
                      label='motion',color='magenta')
-        #axis[i].plot(times,-1*dEdt, label='-dEdt')
-        axis[i].fill_between(times,-1*dEdt/1e12,fc='grey',
+        #axis.plot(times,-1*dEdt, label='-dEdt')
+        axis.fill_between(times,-1*dEdt/1e12,fc='grey',
                              label=r'$-\frac{dE}{dt}$')
         #NOTE mark impact w vertical line here
         #dtime_impact = (dt.datetime(2019,5,14,4,0)-
         #                dt.datetime(2019,5,14,7,45)).total_seconds()*1e9
-        #axis[i].axvline(dtime_impact,color='black',ls='--')
-        #axis[i].axvline(0,color='black',ls='--')
-        #axis[i].axhline(0,color='black')
-        rax = axis[i].twinx()
+        #axis.axvline(dtime_impact,color='black',ls='--')
+        #axis.axvline(0,color='black',ls='--')
+        #axis.axhline(0,color='black')
+        rax = axis.twinx()
         rax.plot(times,
                  dataset[event]['msdict'+phase]['lobes']['Utot [J]']/1e15,
                   color='tab:blue',linestyle='--')
@@ -1411,48 +1743,110 @@ def lobe_balance_fig(dataset,phase,path):
         rax.set_ylabel(r'Energy $\left[ PJ \right]$',color='tab:blue')
         rax.spines['right'].set_color('tab:blue')
         rax.tick_params(axis='y',colors='tab:blue')
-        general_plot_settings(axis[i],do_xlabel=True,legend=True,
+        general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta,
                               #ylim=[-10,10]
                               )
-    #save
-    total_balance_figure.tight_layout(pad=1)
-    figurename = path+'/lobe_balance_total'+phase+'.png'
-    total_balance_figure.savefig(figurename)
-    plt.close(total_balance_figure)
-    print('\033[92m Created\033[00m',figurename)
+        #save
+        total_balance_figure.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_balance_figure.tight_layout(pad=1)
+        figurename = path+'/lobe_balance_total'+phase+'_'+event+'.png'
+        total_balance_figure.savefig(figurename)
+        plt.close(total_balance_figure)
+        print('\033[92m Created\033[00m',figurename)
 
-    #setup figure
-    detailed_balance_figure,axis = plt.subplots(len(dataset.keys()),1,
-                                             sharey=True, sharex=True,
-                                      figsize=[28,16*len(dataset.keys())])
-    if len(dataset.keys())==1:
-        axis = [axis]
     #plot
     for i,event in enumerate(dataset.keys()):
+        #setup figure
+        total_acc_figure,axis = plt.subplots(1,1,figsize=[16,8])
+        dotimedelta=True
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        dEdt = central_diff(lobes['Utot [J]'],60)
+        axis.fill_between(times,(-1*dEdt).cumsum()*60,
+                          label='-dEdt', fc='grey')
+        axis.plot(times,(lobes['K_net [W]']).cumsum()*60,
+                  label='Static')
+        axis.plot(times,(-1*dEdt-lobes['K_net [W]']).cumsum()*60,
+                  label='motion')
+        axis.plot(times,-1*(lobes['Utot [J]']-lobes['Utot [J]'][0]),
+                  color='tab:blue',linestyle='--')
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                           ylabel=r'Accumulated Energy $\left[ J\right]$',
+                              timedelta=dotimedelta)
+        #save
+        total_acc_figure.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_acc_figure.tight_layout(pad=1)
+        figurename = path+'/lobe_acc_total'+phase+'_'+event+'.png'
+        total_acc_figure.savefig(figurename)
+        plt.close(total_acc_figure)
+        print('\033[92m Created\033[00m',figurename)
+
+    #plot
+    for i,event in enumerate(dataset.keys()):
+        #setup figure
+        detailed_balance_figure,axis = plt.subplots(1,1,figsize=[28,16])
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
         else: dotimedelta=False
         #NOTE get lobe only 
-        #lobes = dataset[event]['msdict'+phase]['lobes']
+        lobes = dataset[event]['msdict'+phase]['lobes']
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
-        #dEdt = central_diff(lobes['Utot [J]'],60)
-        axis[i].fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
-        axis[i].plot(times,lobes['K_netFlank [W]'], label='Sheath')
-        axis[i].plot(times,lobes['K_netPSB [W]'], label='Closed')
-        axis[i].plot(times,lobes['K_netPoles [W]'], label='Poles')
-        axis[i].plot(times,lobes['K_netTail_lobe [W]'], label='Tail')
-        axis[i].plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
-        general_plot_settings(axis[i],do_xlabel=True,legend=True,
+        dEdt = central_diff(lobes['Utot [J]'],60)
+        axis.fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
+        axis.plot(times,lobes['K_netFlank [W]'], label='Sheath')
+        axis.plot(times,lobes['K_netPSB [W]'], label='Closed')
+        axis.plot(times,lobes['K_netPoles [W]'], label='Poles')
+        axis.plot(times,lobes['K_netTail_lobe [W]'], label='Tail')
+        axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
+        general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ W\right]$',
                               timedelta=dotimedelta)
-    #save
-    detailed_balance_figure.tight_layout(pad=1)
-    figurename = path+'/lobe_balance_detail'+phase+'.png'
-    detailed_balance_figure.savefig(figurename)
-    plt.close(detailed_balance_figure)
-    print('\033[92m Created\033[00m',figurename)
+        #save
+        detailed_balance_figure.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        detailed_balance_figure.tight_layout(pad=1)
+        figurename = path+'/lobe_balance_detail'+phase+'_'+event+'.png'
+        detailed_balance_figure.savefig(figurename)
+        plt.close(detailed_balance_figure)
+        print('\033[92m Created\033[00m',figurename)
+
+    #plot
+    for i,event in enumerate(dataset.keys()):
+        #setup figure
+        detailed_acc_figure,axis = plt.subplots(1,1,figsize=[16,8])
+        dotimedelta=True
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        dEdt = central_diff(lobes['Utot [J]'],60)
+        axis.fill_between(times,(-1*dEdt).cumsum()*60,
+                          label='-dEdt', fc='grey')
+        axis.plot(times,(lobes['K_netFlank [W]']).cumsum()*60,
+                  label='Sheath')
+        axis.plot(times,(lobes['K_netPSB [W]']).cumsum()*60,
+                  label='Closed')
+        axis.plot(times,(lobes['K_netPoles [W]']).cumsum()*60,
+                  label='Poles')
+        axis.plot(times,(lobes['K_netTail_lobe [W]']).cumsum()*60,
+                  label='Tail')
+        axis.plot(times,(-1*dEdt-lobes['K_net [W]']).cumsum()*60,
+                  label='motion')
+        axis.plot(times,-1*(lobes['Utot [J]']-lobes['Utot [J]'][0]),
+                  color='tab:blue',linestyle='--')
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                           ylabel=r'Accumulated Energy $\left[ J\right]$',
+                              timedelta=dotimedelta)
+        #save
+        detailed_acc_figure.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        detailed_acc_figure.tight_layout(pad=1)
+        figurename = path+'/lobe_acc_detail'+phase+'_'+event+'.png'
+        detailed_acc_figure.savefig(figurename)
+        plt.close(detailed_acc_figure)
+        print('\033[92m Created\033[00m',figurename)
 
 def imf_figure(ds,ph,path,hatches):
     imf, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
@@ -1508,85 +1902,93 @@ def swPlasma_figure(ds,ph,path,hatches):
     plt.close(plasma1)
     print('\033[92m Created\033[00m',figname)
 
-def solarwind_figure(ds,ph,path,hatches):
+def solarwind_figure(ds,ph,path,hatches,**kwargs):
     """Series of solar wind observatioins/inputs/indices
     """
     if 'lineup' in ph or 'interv' in ph:
         dotimedelta=True
     else: dotimedelta=False
-    '''
-    #Pdyn and Vxyz
-    pVel, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                                          figsize=[14,4*len(ds.keys())])
-    for i,ev in enumerate(ds.keys()):
-        orange = dt.timedelta(minutes=0)
-        for j,ph in enumerate(['_qt','_main','_rec']):
-            obs = ds[ev]['obs']['swmf_sw'+ph]
-            ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
-            orange += ot[-1]-ot[0]
-            if j==0:
-                h=''
-            else:
-                h='_'
-            ax[i].fill_between(ot,obs['pdyn']*10,ec='dimgrey',fc='thistle',
-                               hatch=hatches[i],label=h+r'10x$P_{dyn}$')
-            ax2 = ax[i].twinx()
-            ax2.plot(ot,-1*obs['vx'],label=h+r'$V_x$',c='maroon')
-            ax2.set_ylim([0,800])
-            ax[i].plot(ot,obs['vy'],label=h+r'$V_y$',c='magenta')
-            ax[i].plot(ot,obs['vz'],label=h+r'$V_z$',c='tab:blue')
-        general_plot_settings(ax[i],ylabel=r'$V,P\left[km,nPa\right]$'+ev,
-                              legend=(i==0),
-                              do_xlabel=(i==len(ds.keys())-1))
-    #save
-    pVel.tight_layout(pad=0.8)
-    pVel.savefig(unfiled+'/pVel.png')
-    plt.close(pVel)
-    '''
-
-    '''
-    #Alfven Mach number and plasma beta
-    betaMa, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                                          figsize=[14,4*len(ds.keys())])
-    for i,ev in enulobe_balances()):
-        orange = dt.timedelta(minutes=0)
-        for j,ph in enumerate(['_qt','_main','_rec']):
-            obs = ds[ev]['obs']['swmf_sw'+ph]
-            ot = [t+orange for t in ds[ev]['swmf_sw_otime'+ph]]
-            orange += ot[-1]-ot[0]
-            if j==0:
-                h=''
-            else:
-                h='_'
-            ax[i].plot(ot,obs['Ma'],label=h+r'$M_{Alf}$',c='magenta')
-            ax[i].plot(ot,obs['Beta'],label=h+r'$\beta$',c='tab:blue')
-        general_plot_settings(ax[i],ylabel=r'$M_{Alf},\beta$'+ev,
-                              legend=(i==0),
-                              do_xlabel=(i==len(ds.keys())-1))
-    #save
-    betaMa.tight_layout(pad=0.8)
-    betaMa.savefig(unfiled+'/betaMa.png')
-    plt.close(betaMa)
-    '''
-    for i,ev in enumerate(ds.keys()):
-        dst, ax = plt.subplots(3,1,sharey=False,sharex=False,
-                               figsize=[18,4*3])
-        filltime = [float(n) for n in ds[ev]['time'+ph].to_numpy()]
-        sw = ds[ev]['obs']['swmf_sw'+ph]
-        swtime = ds[ev]['swmf_sw_otime'+ph]
+    for i,event in enumerate(ds.keys()):
+        dst, ax = plt.subplots(4,1,sharey=False,sharex=False,
+                               figsize=[18,4*4])
+        #filltime = [float(n) for n in ds[event]['time'+ph].to_numpy()]
+        filltime = [float(n) for n in
+                    ds[event]['obs']['swmf_sw'+ph].index.to_numpy()]
+        sw = ds[event]['obs']['swmf_sw'+ph]
+        swtime = ds[event]['swmf_sw_otime'+ph]
         swt = [float(n) for n in swtime.to_numpy()]#bad hack
-        sim = ds[ev]['obs']['swmf_log'+ph]
-        simtime = ds[ev]['swmf_log_otime'+ph]
+        sim = ds[event]['obs']['swmf_log'+ph]
+        simtime = ds[event]['swmf_log_otime'+ph]
         simt = [float(n) for n in simtime.to_numpy()]#bad hack
-        index = ds[ev]['obs']['swmf_index'+ph]
-        indextime = ds[ev]['swmf_index_otime'+ph]
+        index = ds[event]['obs']['swmf_index'+ph]
+        indextime = ds[event]['swmf_index_otime'+ph]
         indext = [float(n) for n in indextime.to_numpy()]#bad hack
-        obs = ds[ev]['obs']['omni'+ph]
-        obstime = ds[ev]['omni_otime'+ph]
+        obs = ds[event]['obs']['omni'+ph]
+        obstime = ds[event]['omni_otime'+ph]
         ot = [float(n) for n in obstime.to_numpy()]#bad hack
-        sup = ds[ev]['obs']['supermag'+ph]
-        suptime = ds[ev]['supermag_otime'+ph]
-        supt = [float(n) for n in suptime.to_numpy()]#bad hack
+        #sup = ds[event]['obs']['supermag'+ph]
+        #suptime = ds[event]['supermag_otime'+ph]
+        #supt = [float(n) for n in suptime.to_numpy()]#bad hack
+        if kwargs.get('tabulate',False):
+            #start,impact,peak1,peak2,inter_start,inter_end=locate_phase(
+            #                                                    sw.index)
+            moments = locate_phase(sw.index)
+            main_int_newell=integrate.trapz(
+                                sw.loc[(sw.index>moments['impact'])&
+                                       (sw.index<moments['peak1']),
+                                            'Newell']*60)
+            rec_int_newell=integrate.trapz(
+                                sw.loc[sw.index>moments['peak2'],
+                                            'Newell']*60)
+            #Tabulate
+            print('\n{:<25}{:<20}'.format('****','****'))
+            print('{:<25}{:s}'.format('Event',event))
+            print('{:<25}{}'.format('Mainphase length',
+                                    moments['peak1']-moments['impact']))
+            print('{:<25}{:<.3}({:<.3})'.format('Min Dst',
+                                                  sim['dst_sm'].min(),
+                                               float(obs['sym_h'].min())))
+            if all(obs['al'].isna()):
+                al = np.zeros(len(obs['al']))
+            else:
+                al = obs['al']
+            print('{:<25}{:<.3}({:<.3})'.format('Min AL',
+                                                 index['AL'].min(),
+                                                 al.min()))
+                                                 #sup['SML (nT)'].min()))
+            print('{:<25}{:<.3}/{:<.3}'.format('Min/Mean Bz',
+                                    sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'bz'].min(),
+                                    sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'bz'].mean()))
+            print('{:<25}{:<.3}/{:<.3}'.format('Max/Mean Pdyn',
+                                    sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'pdyn'].max(),
+                                    sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'pdyn'].mean()))
+            print('{:<25}{:<.3}/{:<.3}'.format('Max/Mean abs(By)',
+                                abs(sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'by']).max(),
+                                abs(sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'by']).mean()))
+            print('{:<25}{:<.3}/{:<.3}'.format('Max/Mean M_A',
+                                    sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'Ma'].max(),
+                                    sw.loc[(sw.index>moments['impact'])&
+                                           (sw.index<moments['peak1']),
+                                           'Ma'].mean()))
+            print('{:<25}{:<.3}/{:<.3}'.format('Main/Rec Int Newell',
+                                       main_int_newell,
+                                       rec_int_newell))
+            print('{:<25}{:<20}\n'.format('****','****'))
+            pass
         #IMF
         ax[0].fill_between(swt,sw['B'], ec='dimgrey',fc='thistle',
                                hatch=hatches[i], label=r'$|B|$')
@@ -1596,188 +1998,84 @@ def solarwind_figure(ds,ph,path,hatches):
         general_plot_settings(ax[0],ylabel=r'$B\left[nT\right]$',
                               do_xlabel=False, legend=True,
                               timedelta=dotimedelta)
+        #Plasma
+        ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
+                               hatch=hatches[i],label=r'$P_{dyn}$')
+        ax[1].plot(swt,sw['Ma'],label=r'$M_{Alf}$',c='magenta')
+        ax[1].plot(swt,sw['Beta'],label=r'$\beta$',c='tab:blue')
+        general_plot_settings(ax[1],ylabel=r'$M_{Alf},\beta$'+event,
+                              legend=True,do_xlabel=False,ylim=[0,25],
+                              timedelta=dotimedelta)
         #Dst index
-        ax[1].plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
-        ax[1].plot(ot,obs['sym_h'],label='Obs',c='maroon')
-        general_plot_settings(ax[1],ylabel=r'Sym-H$\left[nT\right]$',
+        ax[2].plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
+        ax[2].plot(ot,obs['sym_h'],label='Obs',c='maroon')
+        general_plot_settings(ax[2],ylabel=r'Sym-H$\left[nT\right]$',
                               do_xlabel=False, legend=True,
                               timedelta=dotimedelta)
         #AL index
-        rax = ax[2].twinx()
-        rax.plot(indext,index['AL'],label='Sim',c='tab:blue')
-        #rax.plot(ot,obs['al'],label='Obs',c='maroon')
-        rax.plot(supt,sup['SML (nT)'],label='Obs',c='maroon')
+        ax[3].plot(indext,index['AL'],label='Sim',c='tab:blue')
+        #ax[3].plot(supt,sup['SML (nT)'],label='Obs',c='maroon')
+        ax[3].plot(ot,al,label='Obs',c='maroon')
         #Newell coupling function
-        ax[2].fill_between(swt, sw['Newell'], label=ev+'Newell',
+        ax[3].fill_between(swt, sw['Newell']/100, label=event+'Newell',
                            fc='grey')
-        ax[2].spines['left'].set_color('grey')
-        ax[2].tick_params(axis='y',colors='grey')
-        ax[2].set_ylabel(r'Newell $\left[ Wb/s\right]$')
-        general_plot_settings(rax,ylabel=r'AL$\left[nT\right]$',
+        general_plot_settings(ax[3],ylabel=r'AL$\left[nT\right]$,'+
+                            r'Newell$\left[ 10\times kWb/s\right]$',
                               do_xlabel=True, legend=True,
                               timedelta=dotimedelta)
-        ax[2].set_xlabel(r'Time $\left[hr:min\right]$')
+        ax[3].set_xlabel(r'Time $\left[hr:min\right]$')
+        for axis in ax:
+            axis.axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis.axvline(0,ls='--',color='black')
         #save
+        dst.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
         dst.tight_layout(pad=0.8)
-        figname = path+'/dst_'+ev+'.png'
+        figname = path+'/dst_'+event+'.png'
         dst.savefig(figname)
         plt.close(dst)
         print('\033[92m Created\033[00m',figname)
-    """
-    #Dst index
-    for i,ev in enumerate(ds.keys()):
-        srange = dt.timedelta(minutes=0)
-        orange = dt.timedelta(minutes=0)
-        for j,ph in enumerate(['_qt','_main','_rec']):
-            sim = ds[ev]['obs']['swmf_log'+ph]
-            obs = ds[ev]['obs']['omni'+ph]
-            st = [t+srange for t in ds[ev]['swmf_log_otime'+ph]]
-            ot = [t+orange for t in ds[ev]['omni_otime'+ph]]
-            srange += st[-1]-st[0]
-            orange += ot[-1]-ot[0]
-            if j==0:
-                h=''
-            else:
-                h='_'
-            ax[i].plot(ot,obs['sym_h'],label=h+r'SYM-H(OMNI)',c='magenta')
-            ax[i].plot(st,sim['dst_sm'],label=h+r'sim',c='tab:blue')
-        general_plot_settings(ax[i],ylabel=r'$\Delta B\left[nT\right]$ '+ev,
-                              legend=(i==0),
-                              do_xlabel=(i==len(ds.keys())-1))
-    #save
-    dst.tight_layout(pad=0.8)
-    dst.savefig(unfiled+'/dst.png')
-    plt.close(dst)
-    """
-
-    '''
-    #Magnetopause standoff
-    mpStan, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                                          figsize=[14,4*len(ds.keys())])
-    for i,ev in enumerate(ds.keys()):
-        trange = dt.timedelta(minutes=0)
-        srange = dt.timedelta(minutes=0)
-        for j,ph in enumerate(['_qt','_main','_rec']):
-            mp = ds[ev]['mp'+ph]
-            sw = ds[ev]['obs']['swmf_sw'+ph]
-            if not mp.empty:
-                times = [t+trange for t in ds[ev]['time'+ph]]
-                trange += times[-1]-times[0]
-            st = [t+srange for t in ds[ev]['swmf_sw_otime'+ph]]
-            srange += st[-1]-st[0]
-            if j==0:
-                h=''
-            else:
-                h='_'
-            ax[i].plot(st,sw['r_shue98'],label=h+r'Shue98',c='magenta')
-            if not mp.empty:
-                ax[i].plot(times,mp['X_subsolar [Re]'],label=h+r'sim',
-                           c='tab:blue')
-        general_plot_settings(ax[i],ylabel=r'Standoff $R_e$'+ev,
-                              legend=(i==0),
-                              do_xlabel=(i==len(ds.keys())-1))
-    #save
-    mpStan.tight_layout(pad=0.8)
-    mpStan.savefig(unfiled+'/mpStan.png')
-    plt.close(mpStan)
-
-    #Coupling functions and CPCP
-    coupl, ax = plt.subplots(len(ds.keys()),1,sharey=True,sharex=True,
-                                          figsize=[14,4*len(ds.keys())])
-    months = [2,2,5,9]
-    for i,ev in enumerate(ds.keys()):
-        lrange = dt.timedelta(minutes=0)
-        srange = dt.timedelta(minutes=0)
-        orange = dt.timedelta(minutes=0)
-        ax2 = ax[i].twinx()
-        for j,ph in enumerate(['_qt','_main','_rec']):
-            log = ds[ev]['obs']['swmf_log'+ph]
-            sw = ds[ev]['obs']['swmf_sw'+ph]
-            obs = ds[ev]['obs']['omni'+ph]
-            lt = [t+lrange for t in ds[ev]['swmf_log_otime'+ph]]
-            st = [t+srange for t in ds[ev]['swmf_sw_otime'+ph]]
-            ot = [t+orange for t in ds[ev]['omni_otime'+ph]]
-            lrange += lt[-1]-lt[0]
-            srange += st[-1]-st[0]
-            orange += ot[-1]-ot[0]
-            if j==0:
-                h=''
-            else:
-                h='_'
-            ax[i].plot(st,sw['Newell']/1e3,label=h+r'Newell',c='magenta')
-            T = 2*pi*(months[i]/12)
-            ax[i].plot(ot,29.28 - 3.31*sin(T+1.49)+17.81*obs['pc_n'],
-                       label=h+r'Ridley and Kihn',c='black')
-            ax[i].set_ylim([0,250])
-            try:
-                ax[i].plot(lt,log['cpcpn'],label=h+r'cpcpN',c='tab:blue')
-                ax[i].plot(lt,log['cpcps'],label=h+r'cpcpS',c='lightblue')
-            except: KeyError
-            ax2.plot(st,sw['eps']/1e12,label=h+r'$\epsilon$',c='maroon')
-            ax2.spines['right'].set_color('maroon')
-            ax2.set_ylabel(r'$\epsilon\left[TW\right]$')
-        general_plot_settings(ax[i],
-                              ylabel=r'Potential $\left[kV\right]$ '+ev,
-                              legend=(i==0),
-                              do_xlabel=(i==len(ds.keys())-1))
-    #save
-    coupl.tight_layout(pad=0.8)
-    coupl.savefig(unfiled+'/coupl.png')
-    plt.close(coupl)
-    '''
-
-def quiet_figures(ds):
-    region_interface_averages(ds)
 
 def main_rec_figures(dataset):
     ##Main + Recovery phase
-    hatches = ['','*','x','o']
-    #for phase,path in [('_qt',outQT),('_main',outMN1),('_rec',outRec)]:
+    #hatches = ['','*','x','o']
+    hatches = ['','','','']
+    #for phase,path in [('_main',outMN1),('_rec',outRec)]:
     for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        #stack_energy_region_fig(dataset,phase,path,hatches)
+        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=True)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
-        #polar_cap_flux_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        #imf_figure(dataset,phase,path,hatches)
-        #solarwind_figure(dataset,phase,path,hatches)
+        solarwind_figure(dataset,phase,path,hatches,tabulate=True)
         #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
-        quantity_timings(dataset, phase, path)
+        #quantify_timings(dataset, phase, path)
         pass
-    #quantity_timings(dataset, '', unfiled)
-    power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
+    #quantify_timings(dataset, '', path)
+    #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
+    #polar_cap_flux_stats(dataset,unfiled)
 
 def interval_figures(dataset):
-    hatches = ['','*','x','o']
+    #hatches = ['','*','x','o']
+    hatches = ['','','','']
     for phase,path in [('_interv',outInterv)]:
         #stack_energy_type_fig(dataset,phase,path)
         #stack_energy_region_fig(dataset,phase,path,hatches)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
-        polar_cap_flux_fig(dataset,phase,path)
+        #polar_cap_flux_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #imf_figure(dataset,phase,path,hatches)
         #quantity_timings(dataset, phase, path)
         lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path)
-
-def lshell_figures(ds):
-    lshell_contour_figure(ds)
-
-def bonus_figures(ds):
-    pass
-
-def solarwind_figures(ds):
-    hatches = ['','*','x','o']
-    for ph,path in [('_lineup',outLine)]:
-        imf_figure(ds,ph,path,hatches)
 
 if __name__ == "__main__":
     #Need input path, then create output dir's
@@ -1802,21 +2100,25 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     dataset = {}
-    #ds['feb'] = load_hdf_sort(inPath+'feb2014_results.h5')
-    #ds['star'] = load_hdf_sort(inPath+'starlink2_results.h5')
-    #ds['feb'] = load_hdf_sort(inPath+'feb_termonly_results.h5')
-    #ds['star'] = load_hdf_sort(inPath+'star_termonly_results.h5')
-    #ds['may'] = load_hdf_sort(inPath+'may2019_results.h5')
     dataset['may'] = load_hdf_sort(inAnalysis+'may2019_results.h5')
+    dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
+                                   tshift=45)
+    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
+    #dataset['aug'] = {}
+    dataset['jun'] = {}
 
     #Log files and observational indices
-    #ds['feb']['obs'] = read_indices(inPath, prefix='feb2014_',
-    #                                read_supermag=False, tshift=45)
-    #ds['star']['obs'] = read_indices(inPath, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                                 end=ds['star']['times'][-1])
     dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
                                     read_supermag=False)
+    dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
+                                    read_supermag=False, tshift=45)
+    dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
+                                     read_supermag=False,
+                    end=dataset['star']['msdict']['closed'].index[-1])
+    #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
+    #                                     read_supermag=False)
+    dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
+                                         read_supermag=False)
 
     #NOTE hotfix for closed region tail_closed
     #for ev in ds.keys():
@@ -1834,18 +2136,19 @@ if __name__ == "__main__":
                 'lobes':dataset[event]['msdict'].get(
                                                'lobes',pd.DataFrame())}
     ##Parse storm phases
-    for event_key in dataset.keys():
+    for event_key in [k for k in dataset.keys() if 'aug' not in k and
+                                                   'jun' not in k]:
         event = dataset[event_key]
         msdict = event['msdict']
         #NOTE delete this!! | 
         #                   V
-        msdict = hotfix_interfSharing(event['mpdict']['ms_full'],msdict)
+        msdict = hotfix_interfSharing(event['mpdict'],msdict,
+                                      event['inner_mp'])
         msdict = hotfix_psb(msdict)
         #                   ^
         #                   |
         combined_closed_rc = combine_closed_rc(msdict)
         msdict['closed_rc'] = combined_closed_rc
-        obs_srcs = list(event['obs'].keys())
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             if 'mpdict' in event.keys():
                 event['mp'+phase], event['time'+phase]=parse_phase(
@@ -1859,26 +2162,18 @@ if __name__ == "__main__":
             if 'termdict' in event.keys():
                 event['termdict'+phase],event['time'+phase]=parse_phase(
                                                  event['termdict'],phase)
+    for event_key in dataset.keys():
+        event = dataset[event_key]
+        obs_srcs = list(event['obs'].keys())
+        for phase in ['_qt','_main','_rec','_interv','_lineup']:
             for src in obs_srcs:
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
                                 parse_phase(event['obs'][src],phase))
 
-    ######################################################################
-    ##Quiet time
-    #quiet_figures(dataset)
     ######################################################################
     ##Main + Recovery phase
     main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
     #interval_figures(dataset)
-    ######################################################################
-    ##Lshell plots
-    #lshell_figures(dataset)
-    ######################################################################
-    ##Bonus plot
-    #bonus_figures(dataset)
-    ######################################################################
-    #Series of solar wind observatioins/inputs/indices
-    #solarwind_figures(dataset)
     ######################################################################

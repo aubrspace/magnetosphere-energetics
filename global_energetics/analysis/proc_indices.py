@@ -49,7 +49,7 @@ def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
     Outputs
         df- dataframe containing transformed keylist vars+[yr,mo,dy...]
     """
-    #import spacepy
+    import spacepy
     from spacepy import coordinates as coord
     from spacepy import time as spacetime
     #break datetime into components (weird way to getaround a type issue)
@@ -70,15 +70,13 @@ def df_coord_transform(df, timekey, keylist, sys_pair, to_sys_pair):
                                          int(df['min'][index]),
                                          int(df['sec'][index])))
     #get dataframe with just keylist variables
-    coord_df = pd.DataFrame()
-    for key in keylist:
-        coord_df[key] = df[key][0:-1]
+    coord_df = df[keylist].copy(deep=True)
     #Make coordinates object, then add ticks, then convert
     points = coord.Coords(coord_df.values,sys_pair[0],sys_pair[1])
     points.ticks = spacetime.Ticktock(datetimes, 'UTC')
-    trans_points = points.convert(to_sys_pair[0], to_sys_pair[1])
-    for dim in enumerate([trans_points.x, trans_points.y, trans_points.z]):
-        df[keylist[dim[0]]+to_sys_pair[0]] = np.append(dim[1], np.nan)
+    points_newCoord = points.convert(to_sys_pair[0],to_sys_pair[1])
+    for i, key in enumerate(keylist):
+        df[key+'_'+to_sys_pair[0]] = points_newCoord.data[:,i]
     #return df with fancy new columns
     return df
 
@@ -491,12 +489,23 @@ def get_swmf_data(datapath,**kwargs):
     swmflogdata.index = swmflogdata['Time [UTC]']
     swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
     ##SIMULATION SOLARWIND
+    coordsys = pd.read_csv(solarwind).loc[2][0]#NOTE come back to this
     swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[0,1,2,4,5,6,7],
         parse_dates={'Time [UTC]':['year','month','day',
                                    'hour','min','sec','msec']},
         date_parser=datetimeparser,
         infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
     swdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+    if coordsys=='GSE':
+        print('GSE solarwind data found!!! Converting to GSM...')
+        swdata = df_coord_transform(swdata, 'Time [UTC]', ['vx','vy','vz'],
+                                  ('GSE','car'), ('GSM','car'))
+        swdata = df_coord_transform(swdata, 'Time [UTC]', ['bx','by','bz'],
+                                  ('GSE','car'), ('GSM','car'))
+        for key in ['bx','by','bz','vx','vy','vz']:
+            swdata[key] = swdata[key+'_GSM']
+            swdata.drop(columns=[key+'_GSM'])
+        #from IPython import embed; embed()
     swdata.index = swdata['Time [UTC]']
     swdata.drop(columns=['Time [UTC]'],inplace=True)
     swdata=swdata[swdata.index < geoindexdata.index[-1]]

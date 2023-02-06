@@ -46,8 +46,8 @@ if __name__ == "__main__":
     #Some other fail
     starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-061500-011.plt',
                 'ccmc_2022-02-02/3d__var_1_e20220202-061600-036.plt')
-    febstorm = ('localdbug/feb2014/3d__var_1_e20140218-060300-037.plt',
-                'localdbug/feb2014/3d__var_1_e20140218-060400-033.plt')
+    febstorm = ('febstorm/3d__var_1_e20140218-060300-037.plt',
+                'febstorm/3d__var_1_e20140218-060400-033.plt')
     feb_asym = ('febstorm/3d__var_1_e20140219-130000-000.plt',
                 'febstorm/3d__var_1_e20140219-130100-010.plt')
     trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
@@ -81,8 +81,9 @@ if __name__ == "__main__":
     '''
 
     #for inputs in starlink:
-    inputs = ccmc6[-1::]
-    if True:
+    #inputs = starlink
+    #if True:
+    for inputs in [febstorm]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -110,11 +111,12 @@ if __name__ == "__main__":
                                     outputpath='babyrun/',
                                     customTerms={'test':'TestArea [Re^2]'})
             '''
+            '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=True,
                                       disp_result=False,
                                       do_cms=False,
-                                      analysis_type='mag',
+                                      analysis_type='energymassmag',
                                       modes=['sphere','terminator'],
                                       #modes=['iso_betastar','closed','nlobe','slobe','rc'],
                                       sp_rmax=2.65,
@@ -127,6 +129,20 @@ if __name__ == "__main__":
                                       outputpath='babyrun/')
                                       #customTerms={'test':'TestArea [Re^2]'})
                                       #analysis_type='energymassmag',
+            '''
+            #MODE 2 "full" magnetosphere stuff
+            magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+                                    do_cms=True,
+                                    analysis_type='energymassmag',
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe','rc'],
+                                    customTerms={'test':'TestArea [Re^2]'},
+                                    do_interfacing=True,
+                                    integrate_surface=True,
+                                    integrate_volume=True,
+                                    integrate_line=False,
+                                    outputpath='babyrun/')
+                                    #tshift=45,
     #with tp.session.suspend():
     if False:#manually switch on or off
         #adjust view settings

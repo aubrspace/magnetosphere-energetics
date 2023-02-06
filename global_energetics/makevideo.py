@@ -189,7 +189,8 @@ if __name__ == '__main__':
     if '-q' in sys.argv or '--quick':
         FRAME_LOC = PATHTOIMAGES
     else:
-        FRAME_LOC = set_frames(PATHTOIMAGES)
+        pass
+    FRAME_LOC = set_frames(PATHTOIMAGES)
 
     #Create video from .png
     compile_video(FRAME_LOC, FRAME_LOC, FRAMERATE, 'video')

@@ -4,6 +4,7 @@
 """
 import warnings
 import numpy as np
+import datetime as dt
 import pandas as pd
 
 def load_hdf_sort(hdf, **kwargs):
@@ -30,6 +31,9 @@ def load_hdf_sort(hdf, **kwargs):
     for key in store.keys():
         if ('mp' in key) or ('ms' in key):
             gmdict[key] = store[key].sort_values(by='Time [UTC]')
+            if 'tshift' in kwargs:
+                gmdict[key]['Time [UTC]'] += dt.timedelta(minutes=
+                                                    kwargs.get('tshift',0))
             gmdict[key].index=gmdict[key]['Time [UTC]']
             gmdict[key].drop(columns=['Time [UTC]'],inplace=True)
         if 'ie' in key:
@@ -41,10 +45,16 @@ def load_hdf_sort(hdf, **kwargs):
         if 'flow_line' in key or 'cross' in key:
             #crossdict[key] = store[key]
             crossdict[key] = store[key].sort_values(by=['Time [UTC]','X'])
+            if 'tshift' in kwargs:
+                crossdict[key]['Time [UTC]'] += dt.timedelta(minutes=
+                                                    kwargs.get('tshift',0))
             crossdict[key].index=crossdict[key]['Time [UTC]']
             crossdict[key].drop(columns=['Time [UTC]'],inplace=True)
         if 'terminator' in key or 'sphere2' in key:
             termdict[key] = store[key].sort_values(by='Time [UTC]')
+            if 'tshift' in kwargs:
+                termdict[key]['Time [UTC]'] += dt.timedelta(minutes=
+                                                    kwargs.get('tshift',0))
             termdict[key].index=termdict[key]['Time [UTC]']
             termdict[key].drop(columns=['Time [UTC]'],inplace=True)
             for item in termdict[key].keys():
@@ -54,7 +64,7 @@ def load_hdf_sort(hdf, **kwargs):
     for leaddict in [gmdict, iedict, uadict, bsdict, crossdict,termdict]:
         try:
             times = leaddict[[k for k in leaddict.keys()][0]].index
-            data.update({'times':times})
+            data.update({'time':times})
             break
         except IndexError:
             print('Dict empty, looking at next to find time!')
@@ -71,7 +81,7 @@ def load_hdf_sort(hdf, **kwargs):
         else:
             mp = pd.DataFrame()
         if '/mp_iso_betastar_inner_surface' in gmdict.keys():
-            inner_mp = gmdict['/mp_iso_betastar_surface']
+            inner_mp = gmdict['/mp_iso_betastar_inner_surface']
         else:
             inner_mp = pd.DataFrame()
 

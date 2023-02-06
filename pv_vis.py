@@ -15,12 +15,12 @@ from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
                              display_visuals,update_rotation,read_tecplot,
                              get_dipole_field,tec2para,update_fluxVolume,
                              update_fluxResults,export_datacube,
-                             update_datacube, fix_names)
+                             update_datacube, fix_names,get_surface_flux)
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
-if __name__ == "__main__":
-#if True:
+#if __name__ == "__main__":
+if True:
     start_time = time.time()
     if 'Users' in os.getcwd():
         path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
@@ -46,35 +46,38 @@ if __name__ == "__main__":
                       key=pv_magnetopause.time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    for infile in filelist[-2:-1]:
-        outfile = 'datacube'+infile.split('1118-')[-1].split('-')[0]+'.npz'
+    filelist = [f for f in filelist if ('020500' in f) or ('02200' in f)]
+    for infile in filelist[0:1]:
+        aux = read_aux(infile.replace('.plt','.aux'))
+        localtime = get_time(infile)
+        tstart = dt.datetime(2015,11,18,1,50,0)
+        outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
+                                                       localtime=localtime,
                                                        path=herepath,
                                                        ffj=True)
-        '''
-        oldsource = read_tecplot(infile)
-        pipelinehead = MergeBlocks(registrationName='MergeBlocks1',
-                                   Input=oldsource)
-        field = fix_names(pipelinehead)
-        '''
-        clip = PointVolumeInterpolator(registrationName='datacubesource',
-                                       Input=field, Source='Bounded Volume')
-        clip.Kernel = 'VoronoiKernel'
-        clip.Locator = 'Static Point Locator'
-        clip.Source.Origin = [-8,-10,-8]
-        clip.Source.Scale = [20,20,20]
-        clip.Source.RefinementMode = 'Use cell-size'
-        clip.Source.CellSize = 0.0625
-        datacube = export_datacube(clip,path=outpath,filename=
-             'datacube'+infile.split('1118-')[-1].split('-')[0]+'.npz')
-        datacubeDisplay = Show(datacube, renderView1,
-                               'UniformGridRepresentation')
-
-    for i,infile in enumerate(filelist):
-        print(str(i)+'/'+str(len(filelist))+
+        #get_surface_flux(mp, 'B_nT','Bnormal_net')
+        #mp_Bnorm = FindSource('Bnormal_net')
+        # Adjust visuals
+        SetActiveView(renderView1)
+        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=False,
+                        fontsize=20,localtime=localtime,
+                        mpContourBy='B_x_nT',
+                        contourMin=-5,
+                        contourMax=5,
+                        tstart=tstart,doFFJ=True,
+                        show_mp=True,timestamp=True)
+        # Save screenshot
+        layout = GetLayout()
+        layout.SetSize(1280, 720)# Single hyperwall screen
+        SaveScreenshot(outpath+outfile,layout,
+                       SaveAllViews=1,ImageResolution=[1280,720])
+    #for i,infile in enumerate(filelist):
+    if False:
+        print(str(i+2)+'/'+str(len(filelist))+
               ' processing '+infile.split('/')[-1]+'...')
-        outfile = 'datacube'+infile.split('1118-')[-1].split('-')[0]+'.npz'
+        outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
         if os.path.exists(outpath+outfile):
             print(outfile+' already exists, skipping')
         else:
@@ -87,12 +90,22 @@ if __name__ == "__main__":
             Delete(oldsource)
 
             ###Update time varying filters
-            datacube.Script = update_datacube(path=outpath,filename=outfile)
+            aux = read_aux(infile.replace('.plt','.aux'))
+            localtime = get_time(infile)
+            timestamp1 = FindSource('tstamp')
+            timestamp1.Text = str(localtime)
+            timestamp2 = FindSource('tsim')
+            timestamp2.Text = 'tsim: '+str(localtime-tstart)
+            #datacube.Script = update_datacube(path=outpath,filename=outfile)
+
             #Reload the view with all the updates
             renderView1.Update()
 
             # Render and save screenshot
             RenderAllViews()
+            layout.SetSize(1280, 720)# Single hyperwall screen
+            SaveScreenshot(outpath+outfile,layout,
+                       SaveAllViews=1,ImageResolution=[1280,720])
 
             # Set the current source to be replaced on next loop
             oldsource = newsource
