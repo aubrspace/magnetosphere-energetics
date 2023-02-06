@@ -139,6 +139,27 @@ def merge_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                         outputpath+'/energetics.h5', 'Combined_zones')
     '''
 
+def combine_hdfs2(datapath, outputpath, *, combo_name='energetics.h5',
+                                           progress=True):
+    filelist = glob.glob(os.path.join(datapath,'*.h5'))
+    output_data = {}
+    for infile in filelist[0:3]:
+        if progress:
+            print(infile)
+        with pd.HDFStore(infile) as input_data:
+            for key in input_data.keys():
+                print(key)
+                input_dataframe = input_data[key]
+                if key in output_data:
+                    output_data[key] = pd.concat([input_dataframe,
+                                                  output_data[key]],
+                                                 ignore_index=True)
+                else:
+                    output_data[key] = input_dataframe
+    with pd.HDFStore(outputpath+'/'+combo_name) as output:
+       for key in output_data.keys():
+            output[key] = output_data[key]
+
 def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                                           progress=True):
     """Function combines all .h5 files at the given datapath, cleans and
@@ -180,5 +201,5 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
 if __name__ == "__main__":
     DATA = sys.argv[1]
     OPATH = sys.argv[2]
-    combine_hdfs(DATA, OPATH)
+    combine_hdfs2(DATA, OPATH)
     #merge_hdfs(DATA, OPATH)
