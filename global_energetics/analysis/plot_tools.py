@@ -102,7 +102,7 @@ def general_plot_settings(ax, **kwargs):
         if (xlims[1]-xlims[0])*1e-9/3600 > 4.5:
             #Manually adjust the xticks
             n = 3600*4.5/1e-9
-            locs = [-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
+            locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
         else:
             n = 3600*0.5/1e-9
             locs = [-8*n,-7*n,-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n]

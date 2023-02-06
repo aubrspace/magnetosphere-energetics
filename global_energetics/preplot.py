@@ -21,7 +21,7 @@ def IDL_to_hdf5(filepath, **kwargs):
     """
     if os.path.exists(filepath):
         #import spacepy
-        from spacepy import pybats as bats
+        #from spacepy import pybats as bats
         fil = bats.IdlFile(filepath)
         hdffile = filepath.split('/')[-1].split('.out')[0]+'.h5'
         fil.toHDF5(os.getcwd()+'/'+hdffile)

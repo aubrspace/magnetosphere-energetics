@@ -24,7 +24,7 @@ def read_MFI_SWE_WIND(filename):
                        date_parser=datetimeparser2,
                        infer_datetime_format=True, keep_date_col=True)
           """)
-    from spacepy import time as spacetime
+    #from spacepy import time as spacetime
     df = pd.read_csv(filename,sep='\s+',header=1,skiprows=[2])
     month, day = spacetime.doy2date(df['Year'],df['DOY'])
     df['mn'] = month; df['dy'] = day
