@@ -107,6 +107,8 @@ def work(mhddatafile):
                                                            marktime))
         marktime=time.time()
     #Caclulate surfaces
+    '''
+    #MODE 1 "terminator" polar cap stuff
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=False,
                                     analysis_type='energymassmag',
@@ -118,13 +120,21 @@ def work(mhddatafile):
                                     integrate_line=True,
                                     outputpath=CONTEXT['OUTPUTPATH'],
                                     logger=log)
-                                    #customTerms={'test':'TestArea [Re^2]'},
-                                    #modes=['iso_betastar','closed',
-                                    #       'nlobe','slobe','rc'],
+    '''
+    #MODE 2 "full" magnetosphere stuff
+    magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+                                    do_cms=True,
+                                    analysis_type='energymassmag',
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe','rc'],
+                                    customTerms={'test':'TestArea [Re^2]'},
+                                    do_interfacing=True,
+                                    integrate_surface=True,
+                                    integrate_volume=True,
+                                    integrate_line=False,
+                                    outputpath=CONTEXT['OUTPUTPATH'],
+                                    logger=log)
                                     #tshift=45,
-                                    #lshells=[7,12,17,22,27,32],
-                                    #lshell_vars=['uB','uB_dipole',
-                                    #             'u_db','uHydro'],
     if log.level==10:
         log.debug('Analysis: --- {:.2f}s ---'.format(time.time()-
                                                            marktime))
@@ -176,25 +186,16 @@ if __name__ == '__main__':
     ########################################
     ### SET GLOBAL INPUT PARAMETERS HERE ###
     #RUNDIR = 'usermod'
-    RUNDIR = 'ccmc_2019-05-13'
+    #RUNDIR = 'ccmc_2019-05-13'
     #RUNDIR = 'starlink'
-    #RUNDIR = 'ccmc_2022-02-02'
+    RUNDIR = 'ccmc_2022-02-02'
     #RUNDIR = 'febstorm'
     MHDDIR = os.path.join(RUNDIR)
     IEDIR = os.path.join(RUNDIR)
     IMDIR = os.path.join(RUNDIR)
     SCRIPTDIR = './'
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink')
-    OUTPUTPATH = os.path.join(SCRIPTDIR, '1mintermredo3_output_may2019')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_may2019')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_feb2014')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'output_starlink2')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_starlink2')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_may2019')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_feb2014')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'term2_output_feb2014')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_starlink')
-    #OUTPUTPATH = os.path.join(SCRIPTDIR, 'polCap_output_starlink2')
+    #OUTPUTPATH = os.path.join(SCRIPTDIR, '1min_output_feb2014')
+    OUTPUTPATH = os.path.join(SCRIPTDIR, '1min_output_starlink2')
     PNGPATH = os.path.join(OUTPUTPATH, 'png')
     LOGLEVEL = logging.DEBUG
     ########################################

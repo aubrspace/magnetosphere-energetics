@@ -794,16 +794,16 @@ def update_datacube(**kwargs):
     return """
     # Get input
     data = inputs[0]
-    #p = data.PointData['P_nPa']
-    #rho = data.PointData['Rho_amu_cm3']
-    #bx = data.PointData['B_x_nT']
-    #by = data.PointData['B_y_nT']
-    #bz = data.PointData['B_z_nT']
-    #ux = data.PointData['U_x_km_s']
-    #uy = data.PointData['U_y_km_s']
-    #uz = data.PointData['U_z_km_s']
+    p = data.PointData['P_nPa']
+    rho = data.PointData['Rho_amu_cm3']
+    bx = data.PointData['B_x_nT']
+    by = data.PointData['B_y_nT']
+    bz = data.PointData['B_z_nT']
+    ux = data.PointData['U_x_km_s']
+    uy = data.PointData['U_y_km_s']
+    uz = data.PointData['U_z_km_s']
     status = data.PointData['Status']
-    #pdyn = data.PointData['Dp_nPa']
+    pdyn = data.PointData['Dp_nPa']
     bs = data.PointData['beta_star']
     mp = data.PointData['mp_state']
     ffj = data.PointData['ffj_state']
@@ -819,16 +819,16 @@ def update_datacube(**kwargs):
     X = numpy.linspace(bounds[0],bounds[1],shape_xyz[0])
     Y = numpy.linspace(bounds[2],bounds[3],shape_xyz[1])
     Z = numpy.linspace(bounds[4],bounds[5],shape_xyz[2])
-    #P = numpy.reshape(p,shape_xyz)
-    #RHO = numpy.reshape(rho,shape_xyz)
-    #BX = numpy.reshape(bx,shape_xyz)
-    #BY = numpy.reshape(by,shape_xyz)
-    #BZ = numpy.reshape(bz,shape_xyz)
-    #UX = numpy.reshape(ux,shape_xyz)
-    #UY = numpy.reshape(uy,shape_xyz)
-    #UZ = numpy.reshape(uz,shape_xyz)
+    P = numpy.reshape(p,shape_xyz)
+    RHO = numpy.reshape(rho,shape_xyz)
+    BX = numpy.reshape(bx,shape_xyz)
+    BY = numpy.reshape(by,shape_xyz)
+    BZ = numpy.reshape(bz,shape_xyz)
+    UX = numpy.reshape(ux,shape_xyz)
+    UY = numpy.reshape(uy,shape_xyz)
+    UZ = numpy.reshape(uz,shape_xyz)
     STATUS = numpy.reshape(status,shape_xyz)
-    #PDYN = numpy.reshape(pdyn,shape_xyz)
+    PDYN = numpy.reshape(pdyn,shape_xyz)
     BS = numpy.reshape(bs,shape_xyz)
     MP = numpy.reshape(mp,shape_xyz)
     FFJ = numpy.reshape(ffj,shape_xyz)
@@ -839,11 +839,11 @@ def update_datacube(**kwargs):
 
     # Save data
     numpy.savez(outpath+outname,x=X,y=Y,z=Z,
-                                #p=P,rho=rho,
-                                #bx=bx,by=by,bz=bz,
-                                #ux=ux,uy=uy,uz=uz,
+                                p=P,rho=rho,
+                                bx=bx,by=by,bz=bz,
+                                ux=ux,uy=uy,uz=uz,
                                 status=status,
-                                #pdyn=pdyn,
+                                pdyn=pdyn,
                                 betastar=BS,mp=MP,ffj=FFJ,
                                 dims=shape_xyz)
                     """

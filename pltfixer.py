@@ -48,7 +48,7 @@ def fix_plt_files(pathtofiles,**kwargs):
                 os.remove(infile)
         else:
             try:
-                print(str(i)+' fixing '+infile+' into '+outfile+'....')
+                print(str(i)+' fixing '+infile+' into '+outfile_name+'....')
                 ds = tp.data.load_tecplot(infile)
                 ds.variable('X*').name = 'x'
                 ds.variable('Y*').name = 'y'
@@ -62,11 +62,11 @@ def fix_plt_files(pathtofiles,**kwargs):
                 tp.data.save_tecplot_plt(pathtofiles+outfile_name,
                                          dataset=ds)
                 tp.new_layout()
-                if not keep:
+                if not kwargs.get('keep',False):
                     os.remove(infile)
             except tp.exception.TecplotLogicError as err:
                 if kwargs.get('verbose',False):
-                    print('FAILED!!\n'+err)
+                    print('FAILED!!\n'+str(err))
                 else:
                     print('FAILED!!')
 
@@ -125,6 +125,6 @@ if __name__ == '__main__':
 
     # Modify files
     fix_plt_files(pathtofiles,verbose=doVerbose,
-                  standarize_names=DOSTANDARDIZE,
+                  standardize=DOSTANDARDIZE,
                   keep=keepboth)
     print('DONE')
