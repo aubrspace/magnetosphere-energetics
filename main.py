@@ -96,23 +96,26 @@ if __name__ == "__main__":
             field_data.zone(1).name = 'future'
         main = tp.active_frame()
         main.name = 'main'
+        if '-c' in sys.argv:
+            tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
+            tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Y = 0}')
+            tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Z = 0}')
 
         #Perform data extraction
         with tp.session.suspend():
-            '''
             #Caclulate surfaces
             magnetosphere.get_magnetosphere(field_data,save_mesh=False,
-                                    do_cms=True,
-                                    analysis_type='energymassmag',
+                                    verbose=True,
+                                    do_cms=False,
+                                    analysis_type='',
                                     modes=['iso_betastar','closed',
-                                           'nlobe','slobe','rc'],
+                                           'nlobe','slobe'],
                                     do_interfacing=True,
                                     integrate_surface=True,
-                                    integrate_volume=True,
+                                    integrate_volume=False,
                                     integrate_line=False,
                                     outputpath='babyrun/',
                                     customTerms={'test':'TestArea [Re^2]'})
-            '''
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=True,
@@ -132,6 +135,7 @@ if __name__ == "__main__":
                                       #customTerms={'test':'TestArea [Re^2]'})
                                       #analysis_type='energymassmag',
             '''
+            '''
             #MODE 2 "full" magnetosphere stuff
             magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
@@ -145,6 +149,7 @@ if __name__ == "__main__":
                                     integrate_line=False,
                                     outputpath='babyrun/')
                                     #tshift=45,
+            '''
     #with tp.session.suspend():
     if False:#manually switch on or off
         #adjust view settings

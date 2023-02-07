@@ -239,9 +239,10 @@ def prep_field_data(field_data, **kwargs):
             closed_index = field_data.variable('lcb').index
             closed_zone = field_data.zone('*lcb*')
         elif has_status == True:
-            closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
-            closed_zone = setup_isosurface(1,closed_index,'lcb',
-                                        blankvalue=kwargs.get('inner_r',3))
+            closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0,
+                                             kwargs.get('inner_r',3))
+            closed_zone = setup_isosurface(1,closed_index,'lcb')
+                                           #blankvalue=kwargs.get('inner_r',3))
     else:
         if do_trace:
             closedzone_index = streamfind_bisection(field_data,
@@ -261,13 +262,15 @@ def prep_field_data(field_data, **kwargs):
             aux['inner_l'] = 0
             return aux, None, None
         else:
-            closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0)
+            closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0,
+                                             kwargs.get('inner_r',3))
             closed_zone = setup_isosurface(1,closed_index,'lcb',
                                         blankvalue=kwargs.get('inner_r',3))
             if do_cms:
                 future_closed_index = calc_closed_state('future_lcb',
                                                         'Status', 3,
-                                                        tail_cap, 1)
+                                                        tail_cap, 1,
+                                                     kwargs.get('inner_r',3))
                 future_closed_zone =setup_isosurface(1,future_closed_index,
                                                      'future_lcb',
                                         blankvalue=kwargs.get('inner_r',3))
@@ -302,6 +305,8 @@ def prep_field_data(field_data, **kwargs):
             closed_index = None
             closed_zone = None
     if do_cms:
+        print('closed_zone: '+closed_zone.name)
+        print('future_closed_zone: '+future_closed_zone.name)
         return aux, closed_zone, future_closed_zone
     else:
         print('closed_zone: '+closed_zone.name)
@@ -341,6 +346,11 @@ def generate_3Dobj(sourcezone, **kwargs):
                       'incompattable w/ analysis type', UserWarning)
     else:
         kwargs.update({'modes':modes})
+
+    #If 'closed' in modes but 'rc' is not then we need to make sure that we
+    # get the full closed region and not just L>threshold
+    if 'closed' in modes and 'rc' not in modes:
+        kwargs.update({'full_closed':True})
 
     #Will have both a current and future source if cms is on
     if kwargs.get('do_cms',False):

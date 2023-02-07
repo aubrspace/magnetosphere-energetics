@@ -354,10 +354,43 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                 new_eq+='({Xd [R]}>0) &&'#Dayside
             elif 'night' in conditions:
                 new_eq+='({Xd [R]}<0) &&'#Nightside
+        #DAY/NIGHT MAPPED (need th,phi detailed mapping output)
+        if ('daymapped' in conditions) or ('nightmapped' in conditions):
+            if 'daymapped' in conditions:
+                if 'closed' in zone.name:
+                    #Take either north or south mapped to sunward as "Day"
+                    new_eq+=('(({phi_1 [deg]}>270||'+
+                               '({phi_1 [deg]}<90&&{phi_1 [deg]}>0))||'+
+                              '({phi_2 [deg]}>270||'+
+                               '({phi_2 [deg]}<90&&{phi_2 [deg]}>0)))&&')
+                elif 'nlobe' in zone.name:
+                    new_eq+=('({phi_1 [deg]}>270||'+
+                               '({phi_1 [deg]}<90&&{phi_1 [deg]}>0))&&')
+                elif 'slobe' in zone.name:
+                    new_eq+=('({phi_2 [deg]}>270||'+
+                               '({phi_2 [deg]}<90&&{phi_2 [deg]}>0))&&')
+            elif 'nightmapped' in conditions:
+                if 'closed' in zone.name:
+                    #Take both north and south mapped to antisunward: "Night"
+                    new_eq+=('(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
+                              '({phi_2 [deg]}<270&&{phi_2 [deg]}>90))&&')
+                elif 'nlobe' in zone.name:
+                    new_eq+=('({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&')
+                elif 'slobe' in zone.name:
+                    new_eq+=('({phi_2 [deg]}<270&&{phi_2 [deg]}>90)&&')
+                elif 'mp' in zone.name and 'inner' not in zone.name:
+                    new_eq+=('(({Status}==2&&'+
+                               '({phi_1 [deg]}<270&&{phi_1 [deg]}>90))||'+
+                              '({Status}==1&&'+
+                               '({phi_2 [deg]}<270&&{phi_2 [deg]}>90))||'+
+                              '({Status}==3&&'+
+                               '({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
+                               '({phi_2 [deg]}<270&&{phi_2 [deg]}>90)))&&')
 
         #Write out the equation modifications
         if any([a in c for c in conditions for a in
-                           ['open','closed','tail','on_innerbound','L7']]):
+                           ['open','closed','tail','on_innerbound','L7',
+                            'daymapped','nightmapped']]):
             #chop hanging && and close up condition
             new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
             try:
@@ -365,6 +398,8 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                 mods.update({name+modname:outputname+modname+units})
             except TecplotLogicError:
                 print('Equation eval failed!\n',new_eq,'\n')
+            if 'nightmapped' in conditions:
+                print(zone.name,'\n',new_eq,'\n')
     return mods
 
 def get_interface_integrands(zone,integrands,**kwargs):
@@ -381,7 +416,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
         get_day_flank_tail(zone)
 
     interfaces, test_i = {}, [i.split(' ')[0] for i in integrands][0]
-    variables = zone.dataset.variable_names
+    #variables = zone.dataset.variable_names
     #Depending on the zone we'll have different interfaces
     #TODO: implement the ~15 new combinations with the extention
     #       -code it up
@@ -408,6 +443,11 @@ def get_interface_integrands(zone,integrands,**kwargs):
     #       - look at the results that we plan to actually use
     ##Magnetopause
     if ('mp' in zone.name) and ('inner' not in zone.name):
+        if 'phi_1 [deg]' in zone.dataset.variable_names:
+            #Nightside-Mapped
+            interfaces.update(conditional_mod(zone,integrands,
+                                      ['nightmapped'],'NightMapped'))
+        '''
         #Flank
         interfaces.update(conditional_mod(zone,integrands,
                                           ['open','not tail'],'Flank'))
@@ -425,6 +465,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                               ['closed','not tail','<L7'],'Dayside_inner',
                                           L=kwargs.get('lshelllim',7)))
+        '''
     ##InnerBoundary
     if ('inner' in zone.name):
         #Poles
@@ -462,7 +503,15 @@ def get_interface_integrands(zone,integrands,**kwargs):
                                     ['openS','night'],'PolesNightS'))
     ##Lobes
     if 'lobe' in zone.name:
-        #Flank- but not really bc it's hard to infer
+        #Day/Night Mapped
+        if 'phi_1 [deg]' in zone.dataset.variable_names:
+            #Dayside-Mapped
+            interfaces.update(conditional_mod(zone,integrands,
+                                          ['daymapped'],'DayMapped'))
+            #Nightside-Mapped
+            interfaces.update(conditional_mod(zone,integrands,
+                                      ['nightmapped'],'NightMapped'))
+        #Flank- letting magnetopause have it
         #Poles
         interfaces.update(conditional_mod(zone,integrands,
                 ['on_innerbound'],'Poles',inner_r=kwargs.get('inner_r',3)))
@@ -474,23 +523,39 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                                     ['on_innerbound','night'],'PolesNight',
                                         inner_r=kwargs.get('inner_r',3)))
-        #Tail(lobe)
+        #Tail(lobe)- for magnetopause
         #interfaces.update(conditional_mod(zone,integrands,['tail'],
         #                                  'Tail_lobe'))
         #PlasmaSheetBoundaryLayer- Very hard to infer, will save for post
     ##Closed
     if 'close' in zone.name:
-        #Dayside- again letting magnetopause lead here
-        #L7
-        interfaces.update(conditional_mod(zone,integrands,['=L7'],'L7',
+        if kwargs.get('full_closed',False):
+            #Dayside- again letting magnetopause lead here
+            #PlasmaSheetBoundaryLayer- skipped
+            #Tail- let the magnetopause take it
+            #Inner- now no diff between Low/Mid lat
+            interfaces.update(conditional_mod(zone,integrands,
+               ['on_innerbound'],'Inner',inner_r=kwargs.get('inner_r',3)))
+            #Day/Night Mapped
+            if 'phi_1 [deg]' in zone.dataset.variable_names:
+                #Dayside-Mapped
+                interfaces.update(conditional_mod(zone,integrands,
+                                          ['daymapped'],'DayMapped'))
+                #Nightside-Mapped
+                interfaces.update(conditional_mod(zone,integrands,
+                                      ['nightmapped'],'NightMapped'))
+        else:
+            #Dayside- again letting magnetopause lead here
+            #L7
+            interfaces.update(conditional_mod(zone,integrands,['=L7'],'L7',
                                           L=kwargs.get('lshelllim',7)))
-        #PlasmaSheetBoundaryLayer- skipped
-        #MidLatitude
-        interfaces.update(conditional_mod(zone,integrands,
+            #PlasmaSheetBoundaryLayer- skipped
+            #MidLatitude
+            interfaces.update(conditional_mod(zone,integrands,
                ['on_innerbound'],'MidLat',inner_r=kwargs.get('inner_r',3)))
-        #Tail(closed/NearEarthXLine)
-        #interfaces.update(conditional_mod(zone,integrands,['tail'],
-        #                                  'Tail_close'))
+            #Tail(closed/NearEarthXLine)
+            #interfaces.update(conditional_mod(zone,integrands,['tail'],
+            #                                  'Tail_close'))
     ##RingCurrent
     if 'rc' in zone.name:
         #Dayside_Inner- will be 0 at many points as interface only occurs when
@@ -528,7 +593,11 @@ def calc_integral(term, zone, **kwargs):
         result(dict{str:float})
     """
     if kwargs.get('VariableOption','Scalar')=='Scalar':
-        variable = zone.dataset.variable(term[0].split('[')[0]+'*')
+        if '[' in term[0]:
+            variable_name = term[0].split('[')[0]+'*'
+        else:
+            variable_name = term[0]
+        variable = zone.dataset.variable(variable_name)
     else:
         variable = None
     value = integrate_tecplot(variable, zone,

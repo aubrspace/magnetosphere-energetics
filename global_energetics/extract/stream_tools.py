@@ -889,18 +889,26 @@ def get_surface_variables(zone, analysis_type, **kwargs):
         zone.values('surface_normal_x').as_numpy_array()]), ('Surface '+
                                               'geometry not calculated!')
     ##Throw-away variables, these will be overwritten each time
-    eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered)
-    eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered)
-    eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered)
+    eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered,
+                               zones=[zone])
+    eq('{uy_cc}={U_y [km/s]}', value_location=ValueLocation.CellCentered,
+                               zones=[zone])
+    eq('{uz_cc}={U_z [km/s]}', value_location=ValueLocation.CellCentered,
+                               zones=[zone])
     if 'energy' in analysis_type or analysis_type == 'all':
         eq('{Utot_cc}={Utot [J/Re^3]}',
                          value_location=ValueLocation.CellCentered)
-    eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{By_cc}={B_y [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered)
-    eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered)
+    eq('{Bx_cc}={B_x [nT]}', value_location=ValueLocation.CellCentered,
+                             zones=[zone])
+    eq('{By_cc}={B_y [nT]}', value_location=ValueLocation.CellCentered,
+                             zones=[zone])
+    eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered,
+                             zones=[zone])
+    eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered,
+                               zones=[zone])
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
-    eq('{W_cc}=0', value_location=ValueLocation.CellCentered)
+    #eq('{W_cc}=0', value_location=ValueLocation.CellCentered,
+    #               zones=[zone.index])
 
     ##Variables now only applied to this zone
     zonelist = [zone]
@@ -921,9 +929,12 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 zones=[zone.index])
     '''
     if 'virial' in analysis_type:
-        eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered)
-        eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered)
-        eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered)
+        eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered,
+                             zones=[zone])
+        eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered,
+                             zones=[zone])
+        eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered,
+                             zones=[zone])
         get_virials()
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
@@ -1832,12 +1843,14 @@ def calc_state(mode, sourcezone, **kwargs):
                                       kwargs.get('x_subsolar'),
                                       kwargs.get('tail_cap', -20),
                                       sourcezone)
-    elif 'lcb' in mode:
+    elif 'lcb' in mode or ('closed' in mode and
+                           kwargs.get('full_closed',False)):
         assert kwargs.get('do_trace',False) == False, (
                             "lcb mode only works with do_trace==False!")
         assert closed_zone is not None,('No closed_zone present!'+
                                                  ' Cant do lcb')
-        zonename = closed_zone.name
+        #zonename = closed_zone.name
+        zonename = 'ms_'+mode
         if 'future' in sourcezone.name:
             state_index = sourcezone.dataset.variable(
                               kwargs.get('future_closed_zone').name).index
@@ -2513,6 +2526,8 @@ def calc_betastar_state(zonename, srczone, **kwargs):
     else:
         eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+
                                  '{X [R]} <'+xmax+'&&{r [R]} >='+core_r)
+    if 'Status' in srczone.dataset.variable_names:
+        eqstr+='&&{Status}!=0'
     eqstr=(eqstr+',IF({beta_star}['+srcZnIndex+']<'+betamax+',1,')
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
@@ -2607,17 +2622,18 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, sourcezone,*, rmin=0):
                             str(rmin)+',1, 0)')
     return sourcezone.dataset.variable(mode).index
 
-def calc_closed_state(statename, status_key, status_val, xmin, source):
+def calc_closed_state(statename, status_key,status_val,xmin,source,core_r):
     """Function creates state variable for the closed fieldline region
     Inputs
         status_key/val-string key and value used to denote closed fldlin
         xmin- minimum cuttoff value
+        core_r- inner boundary cuttoff
     Outputs
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
-    eq('{'+statename+'} = IF({X [R]} > '+str(xmin)+','+
-                    'IF({'+status_key+'}['+str(source+1)+']=='+
+    eq('{'+statename+'}=IF({X [R]}>'+str(xmin)+'&&{r [R]}>='+str(core_r)+
+                    ',IF({'+status_key+'}['+str(source+1)+']=='+
                                             str(status_val)+',1,0), 0)',
                                                               zones=[0])
     return tp.active_frame().dataset.variable(statename).index
