@@ -595,10 +595,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                          do_interfacing=kwargs.get('do_interfacing',False))
     ################################################################
     if integrate_volume:
-        for state_index in enumerate(state_indices):
-            region = zonelist[state_index[0]]
+        for i,state_index in enumerate(state_indices):
+            region = zonelist[i]
             print('\nWorking on: '+region.name+' volume')
-            energies = volume_analysis(field_data.variable(state_index[1]),
+            energies = volume_analysis(field_data.variable(state_index),
                                        **kwargs)
             energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name+'_volume':energies})
@@ -631,8 +631,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     eq = tp.data.operate.execute_equation
                     eq('{'+usename+'}={'+var+'}',zones=[region],
                             value_location=ValueLocation.CellCentered)
-                    savemeshvars[kwargs.get('modes')[state_index[0]]].append(
-                                                                     usename)
+                    savemeshvars[kwargs.get('modes')[i]].append(usename)
     ################################################################
     if integrate_line:
         for zone in kwargs.get('zonelist1D'):

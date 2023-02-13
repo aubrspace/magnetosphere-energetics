@@ -829,7 +829,7 @@ def get_surf_geom_variables(zone,**kwargs):
         zone.aux_data.update({'hmin':
                hvals[np.where(np.logical_and(xvals<-5,xvals>-8))].min()})
 
-def get_day_flank_tail(zone):
+def get_day_flank_tail(zone,**kwargs):
     """Function assigns variables to represent dayside, flank, and tail,
         typically for the magnetopause zone
     Inputs
@@ -845,9 +845,26 @@ def get_day_flank_tail(zone):
              '(abs({X [R]}-'+str(zone.values('X *').min())+')<0.5)'+
              ',1,0)',zones=[zone.index])
         eq('{Flank} = IF({Day}==0&&{Tail}==0,1,0)', zones=[zone.index])
-    elif 'lobe' in zone.name:
+    #TODO check this visually
+    elif 'lobe' in zone.name or 'closed' in zone.name:
         eq('{Tail} = IF(abs({X [R]}-'+str(zone.values('X *').min())+
                                           ')<0.5,1,0)',zones=[zone.index])
+    elif 'global' in zone.name:
+        statevalues = zone.values(kwargs.get('state_var').name
+                                  ).as_numpy_array()
+        X=zone.values('X *').as_numpy_array()[np.where(statevalues==1)].min()
+        if 'mp' in kwargs.get('state_var').name:
+            h = zone.values('h').as_numpy_array()[np.where(statevalues==1)]
+            tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
+            eq('{Tail} = IF(({'+kwargs.get('state_var').name+'}==1)&&'+
+               '({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
+                '({X [R]}<-10&&{h}<'+str(tail_h)+')||'+
+                '(abs({X [R]}-'+str(X)+')<0.5)'+
+                ',1,0)',zones=[zone.index])
+        elif ('Lobe' in kwargs.get('state_var').name or
+              'lcb' in kwargs.get('state_var').name):
+            eq('{Tail} = IF(({'+kwargs.get('state_var').name+'}==1)&&'+
+               'abs({X [R]}-'+str(X)+')<0.5,1,0)',zones=[zone.index])
     '''
     ##############################################################
     #Day, flank, tail definitions
@@ -882,12 +899,21 @@ def get_surface_variables(zone, analysis_type, **kwargs):
             find_DFT(bool) - False,
             do_cms(bool) - False,
             dt(float) - 60
+            surface_unevaluated_type (str)- creates variables here as if it
+                                            were that analysis type, only
+                                            read if analysis_type==''
     """
     eq = tp.data.operate.execute_equation
     #Check that geometry variables have already been calculated
     assert any([x!=0 for x in
         zone.values('surface_normal_x').as_numpy_array()]), ('Surface '+
                                               'geometry not calculated!')
+    if analysis_type=='' and 'surface_unevaluated_type' in kwargs:
+        assert('Utot [J/Re^3]' in zone.dataset.variable_names,
+                            'Cannot set unevaluated surface analysis type: ',
+                             kwargs.get('surface_unevaluated_type'),
+                            ' without associated variables!')
+        analysis_type = kwargs.get('surface_unevaluated_type')
     ##Throw-away variables, these will be overwritten each time
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered,
                                zones=[zone])
@@ -1678,7 +1704,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     #user_selected
     if 'add_eqset' in kwargs:
         for eq in [eq for eq in alleq if eq in kwargs.get('add_eqset')]:
-            eqeval(alleq[eq])
+            eqeval(alleq[eq],value_location=cc)
     if 'global_eq' in kwargs:
         eqeval(kwargs.get('global_eq'))
 

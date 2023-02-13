@@ -46,7 +46,8 @@ if True:
                       key=pv_magnetopause.time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    filelist = [f for f in filelist if ('020500' in f) or ('02200' in f)]
+    filelist = [f for f in filelist if ('020500' in f)]
+    #or ('02200' in f)]
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
@@ -56,7 +57,8 @@ if True:
                                                        infile,
                                                        localtime=localtime,
                                                        path=herepath,
-                                                       ffj=True)
+                                                       ffj=True,
+                                                       doEnergyFlux=True)
         #get_surface_flux(mp, 'B_nT','Bnormal_net')
         #mp_Bnorm = FindSource('Bnormal_net')
         # Adjust visuals
@@ -64,9 +66,13 @@ if True:
         display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=False,
                         fontsize=20,localtime=localtime,
                         mpContourBy='B_x_nT',
-                        contourMin=-5,
-                        contourMax=5,
+                            contourMin=-5,
+                            contourMax=5,
+                        fteContourBy='K_W_Re2',
+                            ftecontourMin=-3e8,
+                            ftecontourMax=3e8,
                         tstart=tstart,doFFJ=True,
+                        show_fte=True,
                         show_mp=True,timestamp=True)
         # Save screenshot
         layout = GetLayout()

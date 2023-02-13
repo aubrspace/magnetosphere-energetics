@@ -39,15 +39,13 @@ def write_to_hdf(filename, data):
     os.makedirs(pathstring, exist_ok=True)
     #Combine all dataframes that are passed
     with pd.HDFStore(filename) as store:
-        for df in data.items():
-            if type(df[1]) != type(pd.DataFrame()):
+        for key,df in data.items():
+            if type(df) != type(pd.DataFrame()):
                 raise TypeError ('write_to_hdf expects Dict of DataFrames')
-            if '/'+df[0] in store.keys():
-                data[df[0]] = store[df[0]].append(data[df[0]],
-                                                  ignore_index=True)
-            #print(df[1])
-            #print(data[df[0]])
-            store['/'+df[0]] = data[df[0]]
+            if '/'+key in store.keys():
+                updated_df = pd.concat([store[key],df],ignore_index=True)
+                #data[key] = store[key].append(data[key],ignore_index=True)
+            store['/'+key] = data[key]
 
 def display_progress(meshfile, integralfile, zonename):
     """Function displays current status of hdf5 files
@@ -143,7 +141,7 @@ def combine_hdfs2(datapath, outputpath, *, combo_name='energetics.h5',
                                            progress=True):
     filelist = glob.glob(os.path.join(datapath,'*.h5'))
     output_data = {}
-    for infile in filelist[0:3]:
+    for infile in filelist:
         if progress:
             print(infile)
         with pd.HDFStore(infile) as input_data:

@@ -124,9 +124,9 @@ def work(mhddatafile):
     #MODE 2 "full" magnetosphere stuff
     magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     do_cms=True,
-                                    analysis_type='energymassmag',
+                                    analysis_type='energy',
                                     modes=['iso_betastar','closed',
-                                           'nlobe','slobe','rc'],
+                                           'nlobe','slobe'],
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
                                     integrate_surface=True,
@@ -207,7 +207,7 @@ if __name__ == '__main__':
     ########################################
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(MHDDIR+'/*.plt'),
-                                key=makevideo.time_sort)[::]
+                                key=makevideo.time_sort)[::100]
     #Pick up only the files that haven't been processed
     if os.path.exists(OUTPUTPATH+'/energeticsdata'):
         parseddonelist, parsednotdone = [], []
@@ -249,7 +249,7 @@ if __name__ == '__main__':
     if ('-nc' not in sys.argv) and ('--noclean' not in sys.argv):
         #Combine and delete individual energetics files
         if os.path.exists(OUTPUTPATH+'/energeticsdata'):
-            write_disp.combine_hdfs(os.path.join(OUTPUTPATH,'energeticsdata'),
+            write_disp.combine_hdfs2(os.path.join(OUTPUTPATH,'energeticsdata'),
                                 OUTPUTPATH)
             shutil.rmtree(OUTPUTPATH+'/energeticsdata/')
     if ('--noproc' in sys.argv) or ('-np' in sys.argv):

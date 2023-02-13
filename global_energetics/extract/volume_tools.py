@@ -14,11 +14,10 @@ import pandas as pd
 #interpackage modules, different path if running as main to test
 from global_energetics.extract.surface_tools import (energy_to_dB,
                                         get_open_close_integrands,
+                                         get_interface_integrands,
                                                get_dft_integrands,
+                                                  conditional_mod,
                                                     calc_integral)
-from global_energetics.extract.stream_tools import (integrate_tecplot,
-                                                    get_day_flank_tail,
-                                                      dump_to_pandas)
 
 def energy_post_integr(results, **kwargs):
     """Creates dictionary of key:value combos of existing results
@@ -155,8 +154,9 @@ def get_energy_integrands(state_var):
     existing_variables = state_var.dataset.variable_names
     #Integrands
     #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
-    integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','u_db [J/Re^3]',
-                  'uHydro [J/Re^3]']
+    #integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','u_db [J/Re^3]',
+    #              'uHydro [J/Re^3]']
+    integrands = ['Utot [J/Re^3]']
     for term in integrands:
         name = term.split(' ')[0]
         if 'Pth' in term:
@@ -168,49 +168,67 @@ def get_energy_integrands(state_var):
             energydict.update({name+state:name+' [J]'})
     return energydict
 
-def get_mobile_integrands(zone,state_var,integrands,tdelta, analysis_type):
+def get_mobile_integrands(zone,state_var,integrands,**kwargs):
     """Creates dict of integrands for surface motion effects
     Inputs
         zone(Zone)- tecplot Zone
         state_var(Variable)- tecplot variable used to isolate vol in zone
         integrands(dict{str:str})- (static) in/output terms to calculate
         tdelta(float)- timestep between output files
+        kwargs:
+            cms_simple(bool)- don't put both acqu and forf but just net
     Outputs
         mobiledict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
+    tdelta = kwargs.get('tdelta',60)
+    analysis_type = kwargs.get('analysis_type','')
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
     dstate = 'delta_'+str(state_var.name)
     #Don't proliferate IM tracking variables
-    for term in [(t,d) for t,d in integrands.items() if'track' not in t]:
-        if ('energy' in analysis_type) or ('rhoU_r' in term[0]):
-            name = term[0].split(' [')[0]
-            outputname = term[1].split(' [')[0]
-            units = '['+term[1].split('[')[1].split(']')[0]+']'
+    integrand_VarOut_pairs = [(t,d) for t,d in integrands.items()
+                                                         if 'track' not in t]
+    for variablename,outputname in integrand_VarOut_pairs:
+        if ('energy' in analysis_type) or ('rhoU_r' in variablename):
+            new_variablename = variablename.split(' [')[0]
+            new_outputname = outputname.split(' [')[0]
+            units = '['+outputname.split('[')[1].split(']')[0]+']'
             if 'Js' in units:
                 units = '[J]'
-            else:
+            elif 'J' in units:
                 units = '[W]'
+            else:
+                units = '[Re^3'+units+'/s]'
             if dstate in zone.dataset.variable_names:
                 #NOTE Undo naming convention previously created where volume
                 # energy is only INTERIOR to state volume, the delta volume
                 # (acquired specifically) is strictly OUTSIDE state volume.
                 # This means we need to undo the renaming done in
                 # 'get_(somecore)_integrands'
-                if 'J' in term[1]:
-                    basevar = term[1].replace('J]','J/Re^3]')
-                elif 'Area' in term[1]:
-                    basevar = term[0]
+                if 'J' in outputname:
+                    basevar = outputname.replace('J]','J/Re^3]')
+                elif 'Area' in outputname:
+                    basevar = variablename
 
                 #Assign the base variable value (from CURRENT time)
                 #NOTE could explore averaging soln @ tn,tn+1
-                eq('{'+name+'_acqu}=IF({'+dstate+'}==1,'+
+                if kwargs.get('cms_simple',False):
+                    #TODO run this through to make sure it will work
+                    eq('{'+new_variablename+'_net}=IF({'+dstate+'}!=0,'+
+                                 '-1*{'+dstate+'}*{'+basevar+'}/'+td+',0)',
+                                                               zones=[zone])
+                    mobiledict.update({new_variablename+'_net':
+                                              new_outputname+'_net '+units})
+                else:
+                    eq('{'+new_variablename+'_acqu}=IF({'+dstate+'}==1,'+
                                             '-1*{'+basevar+'}/'+td+',0)',
                                                              zones=[zone])
-                eq('{'+name+'_forf}=IF({'+dstate+'}==-1,'+
+                    eq('{'+new_variablename+'_forf}=IF({'+dstate+'}==-1,'+
                                                 '{'+basevar+'}/'+td+',0)',
                                                              zones=[zone])
-                mobiledict.update({name+'_acqu':outputname+'_acqu '+units,
-                                   name+'_forf':outputname+'_forf '+units})
+                    mobiledict.update({new_variablename+'_acqu':
+                                                new_outputname+'_acqu '+units,
+                                       new_variablename+'_forf':
+                                                new_outputname+'_forf '+units})
     return mobiledict
 
 def get_lshell_integrands(zone,state_var,integrands,**kwargs):
@@ -278,17 +296,11 @@ def volume_analysis(state_var, **kwargs):
     Outputs
         magnetic_energy- volume integrated magnetic energy B2/2mu0
     """
-    #TODO: somewhere around here explore a way to represent
-    #       integrated energy vs Lshell over time (maybe that contour style)
-    #       especially for the closed field line region, specifically
-    #       broken up by dayside (X>0) vs nightside (X<0)
     #Check for global variables
     assert 'r [R]' in state_var.dataset.variable_names, ('Need to'+
                                        'calculate global variables first!')
     if 'analysis_type' in kwargs:
         analysis_type = kwargs.get('analysis_type')
-    #if 'mp' not in state_var.name:
-    #    kwargs.update({'do_cms':False})
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     global_zone = state_var.dataset.zone(0)
@@ -311,18 +323,30 @@ def volume_analysis(state_var, **kwargs):
         integrands.update(get_biotsavart_integrands(state_var))
     if 'trackIM' in analysis_type:
         integrands.update(get_imtrack_integrands(state_var))
-    integrands.update(kwargs.get('customTerms', {}))
+    #integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications THIS ACCOUNTS FOR SURFACE MOTION
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
-                                        ('energy' in analysis_type)):
+                                        ('energy' in analysis_type) or
+                                        (kwargs.get('customTerms',{})!={})):
         mobile_terms = get_mobile_integrands(global_zone,state_var,
                                              integrands,
-                                             kwargs.get('deltatime',60),
-                                             analysis_type)
+                                             **kwargs)
         if kwargs.get('do_interfacing',False):
-            pass
-        else:
+        #and'mp' not in state_var.name:
+            interface_terms = get_interface_integrands(global_zone,
+                                                       mobile_terms,**kwargs,
+                                                       state_var=state_var)
+            mobile_terms.update(interface_terms)
+            '''
+            daymapped_terms = conditional_mod(global_zone,mobile_terms,
+                                              ['daymapped'],'DayMapped')
+            nightmapped_terms = conditional_mod(global_zone,mobile_terms,
+                                              ['nightmapped'],'NightMapped')
+            mobile_terms.update(daymapped_terms)
+            mobile_terms.update(nightmapped_terms)
+            '''
+        elif not kwargs.get('do_interfacing',False):
             if 'mp' in state_var.name:
                 #Integral bounds for spatially parsing results
                 #mobile_terms.update(get_dft_integrands(global_zone,
@@ -354,7 +378,7 @@ def volume_analysis(state_var, **kwargs):
             print('{:<20}{:<25}{:>.3}'.format(state_var.name,
                                'Volume [Re^3]',results['Volume [Re^3]'][0]))
         if kwargs.get('do_cms',False):
-            if 'delta_'+str(state_var.name) in state_var.dataset.variable_names:
+            if'delta_'+str(state_var.name)in state_var.dataset.variable_names:
                 results.update(calc_integral(('delta_'+str(state_var.name),
                                           'dVolume [Re^3]'), global_zone))
             if kwargs.get('verbose',False):

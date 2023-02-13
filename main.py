@@ -96,25 +96,24 @@ if __name__ == "__main__":
             field_data.zone(1).name = 'future'
         main = tp.active_frame()
         main.name = 'main'
-        if '-c' in sys.argv:
-            tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
-            tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Y = 0}')
-            tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Z = 0}')
 
         #Perform data extraction
         with tp.session.suspend():
             #Caclulate surfaces
             magnetosphere.get_magnetosphere(field_data,save_mesh=False,
                                     verbose=True,
-                                    do_cms=False,
-                                    analysis_type='',
+                                    do_cms=True,
+                                    analysis_type='energy',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     do_interfacing=True,
                                     integrate_surface=True,
-                                    integrate_volume=False,
+                                    integrate_volume=True,
                                     integrate_line=False,
                                     outputpath='babyrun/',
+                                    #surface_unevaluated_type='energy',
+                                    #add_eqset=['energy_flux','volume_energy'],
+                                    #customTerms={'Utot [J/Re^3]':'Utot [J]'})
                                     customTerms={'test':'TestArea [Re^2]'})
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
@@ -208,6 +207,10 @@ if __name__ == "__main__":
                                     mode='allstations',
                                     station_file=
                          'ccmc_2019-08-30/magnetometers_e20190830-161300.mag')
+    if '-c' in sys.argv:
+        tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
+        tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Y = 0}')
+        tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Z = 0}')
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
