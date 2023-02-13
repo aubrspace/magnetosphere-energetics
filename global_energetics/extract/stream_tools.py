@@ -18,7 +18,6 @@ import pandas as pd
 from global_energetics.extract import shue
 from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
-from progress.bar import Bar
 
 def standardize_vars(**kwargs):
     """Function attempts to standarize variable names for consistency
