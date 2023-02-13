@@ -14,6 +14,7 @@ import datetime as dt
 import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
 import matplotlib.dates as mdates
 from matplotlib import ticker, colors
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
@@ -2037,6 +2038,95 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         plt.close(dst)
         print('\033[92m Created\033[00m',figname)
 
+def diagram_summary(dataset,phase,path):
+    """Function plots a summary plot for each timestamp which can be
+        played as a video showing the key interface fluxes
+    Inputs
+        dataset
+        path
+        kwargs:
+    Returns
+        None
+    """
+    dotimedelta=True
+    #Load the base background diagram
+    background = mpimg.imread('/Users/ngpdl/Desktop/diagram.png')
+    for i,event in enumerate(dataset.keys()):
+        #Nickname data that we want to use
+        moments = locate_phase(dataset[event]['msdict']['lobes'].index)
+        sw = dataset[event]['obs']['swmf_sw'+phase]
+        swt = [float(n) for n in sw.index.to_numpy()]#bad hack
+        sim = dataset[event]['obs']['swmf_log'+phase]
+        simt = [float(n) for n in sim.index.to_numpy()]#bad hack
+        index = dataset[event]['obs']['swmf_index'+phase]
+        indext = [float(n) for n in index.index.to_numpy()]#bad hack
+        obs = dataset[event]['obs']['omni'+phase]
+        ot = [float(n) for n in obs.index.to_numpy()]#bad hack
+
+        #Set the path for all the image files
+        os.makedirs(os.path.join(path,'diagram_summaries_'+event),
+                    exist_ok=True)
+        #Create a new image for each timestamp
+        for i,now in enumerate(swt[int(len(swt)/2):int(len(swt)/2)+1]):
+            ##Setup figure layout
+            figure = plt.figure(figsize=(16,16))
+                                #layout="constrained")
+            spec = figure.add_gridspec(4,4)
+            top = figure.add_subplot(spec[0,0:4])
+            main = figure.add_subplot(spec[1:4,0:4])
+            # Top dst or something with vertical bar for current time
+            #Dst index
+            top.plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
+            top.plot(ot,obs['sym_h'],label='Obs',c='maroon')
+            top.axvline(now,color='black')
+            general_plot_settings(top,ylabel=r'Sym-H$\left[nT\right]$',
+                                  do_xlabel=True, legend=True,
+                                  timedelta=dotimedelta)
+            #TODO: figure out why time labels aren't showing up
+            # Main image with diagram background
+            main.imshow(background)
+            #from IPython import embed; embed()
+            #Vector for K values:
+                #K1
+                #K2a
+                #K2b
+                #K3
+                #K4
+                #K5
+                #K6
+                #K7
+            #Vector for M values:
+                #M1
+                #M2a
+                #M2b
+                #M3
+                #M4
+                #M5
+                #M6
+                #M7
+            #Vector for P values:
+                #Pa
+                #Pb
+            #IMF vector w/ outof plane component:
+                #Bxz
+                #By
+                #Pdyn
+            #Bar for energy values
+                #Lobes
+                #Closed
+            #Other items:
+                #K1 Day/Night Ratio
+                #K5 Day/Night Ratio
+            #save
+            figure.suptitle('t='+str(sw.index[i]),ha='left',
+                            x=0.01,y=0.99)
+            figure.tight_layout(pad=0.8)
+            figname = os.path.join(path,'diagram_summaries_'+event,
+                                   'state_'+str(i)+'.png')
+            figure.savefig(figname)
+            plt.close(figure)
+            print('\033[92m Created\033[00m',figname)
+
 def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
@@ -2050,7 +2140,7 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        solarwind_figure(dataset,phase,path,hatches,tabulate=True)
+        #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
         #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
@@ -2060,6 +2150,7 @@ def main_rec_figures(dataset):
     #quantify_timings(dataset, '', path)
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
+    diagram_summary(dataset,'',unfiled)
 
 def interval_figures(dataset):
     #hatches = ['','*','x','o']
@@ -2100,25 +2191,26 @@ if __name__ == "__main__":
 
     #HDF data, will be sorted and cleaned
     dataset = {}
-    dataset['may'] = load_hdf_sort(inAnalysis+'may2019_results.h5')
-    dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
-                                   tshift=45)
-    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
+    #dataset['may'] = load_hdf_sort(inAnalysis+'may2019_results.h5')
+    #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
+    #                               tshift=45)
+    #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
+    dataset['star'] = load_hdf_sort(inAnalysis+'temp/test.h5')
     #dataset['aug'] = {}
-    dataset['jun'] = {}
+    #dataset['jun'] = {}
 
     #Log files and observational indices
-    dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
-                                    read_supermag=False)
-    dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
-                                    read_supermag=False, tshift=45)
+    #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
+    #                                read_supermag=False)
+    #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
+    #                                read_supermag=False, tshift=45)
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=False,
                     end=dataset['star']['msdict']['closed'].index[-1])
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
-    dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
-                                         read_supermag=False)
+    #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
+    #                                     read_supermag=False)
 
     #NOTE hotfix for closed region tail_closed
     #for ev in ds.keys():
@@ -2140,6 +2232,7 @@ if __name__ == "__main__":
                                                    'jun' not in k]:
         event = dataset[event_key]
         msdict = event['msdict']
+        '''
         #NOTE delete this!! | 
         #                   V
         msdict = hotfix_interfSharing(event['mpdict'],msdict,
@@ -2149,6 +2242,7 @@ if __name__ == "__main__":
         #                   |
         combined_closed_rc = combine_closed_rc(msdict)
         msdict['closed_rc'] = combined_closed_rc
+        '''
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             if 'mpdict' in event.keys():
                 event['mp'+phase], event['time'+phase]=parse_phase(

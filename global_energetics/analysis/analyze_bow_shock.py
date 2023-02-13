@@ -29,7 +29,6 @@ from global_energetics.analysis.analyze_energetics import (plot_swflowP,
                                                           plot_swbz,
                                                           plot_dst,plot_al)
 from global_energetics.analysis.proc_virial import (process_virial)
-from global_energetics.analysis.workingtitle import (locate_phase)
 from global_energetics.analysis.proc_hdf import(group_subzones,
                                                 load_hdf_sort)
 
