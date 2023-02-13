@@ -21,9 +21,33 @@ from global_energetics.extract.stream_tools import (integrate_tecplot,
 from global_energetics.extract.view_set import variable_blank
 
 def post_proc_interface2(results,**kwargs):
+    """Modifies terms in results dictionary
+    Inputs
+        results
+    Return
+        results(modified)
+    """
     #Get the K2a and b interfaces out
-    #TODO: do the subtraction specifically for K2 interfaces
-    pass
+    mp_surf = results['mp_iso_betastar_surface']
+    closed_surf = results['ms_closed_surface']
+    lobes_surf = results['ms_lobes_surface']
+    for base,unit in [k.split('K5day&K2a') for k in closed_surf.keys()
+                      if'K2a' in k]:
+        closed_surf[base+'K2a'+unit]=(closed_surf[base+'K5day&K2a'+unit]
+                                      -mp_surf[base+'K5day'+unit])
+    for base,unit in [k.split('K1day&K2a') for k in lobes_surf.keys()
+                      if'K2a' in k]:
+        lobes_surf[base+'K2a'+unit]=(lobes_surf[base+'K1day&K2a'+unit]
+                                      -mp_surf[base+'K1day'+unit])
+    for base,unit in [k.split('K5night&K2b') for k in closed_surf.keys()
+                      if'K2b' in k]:
+        closed_surf[base+'K2b'+unit]=(closed_surf[base+'K5night&K2b'+unit]
+                                      -mp_surf[base+'K5night'+unit])
+    for base,unit in [k.split('K1night&K2b') for k in lobes_surf.keys()
+                      if'K2b' in k]:
+        lobes_surf[base+'K2b'+unit]=(lobes_surf[base+'K1night&K2b'+unit]
+                                      -mp_surf[base+'K1night'+unit])
+    return results
 
 def post_proc_interface(results,**kwargs):
     """Interface matching section of post processing to save integrations
