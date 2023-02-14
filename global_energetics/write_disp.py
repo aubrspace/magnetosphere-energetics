@@ -141,12 +141,11 @@ def combine_hdfs2(datapath, outputpath, *, combo_name='energetics.h5',
                                            progress=True):
     filelist = glob.glob(os.path.join(datapath,'*.h5'))
     output_data = {}
-    for infile in filelist:
+    for i,infile in enumerate(filelist):
         if progress:
-            print(infile)
+            print('{:>4}/{:<4}\t{:<25}'.format(i+1,len(filelist),infile))
         with pd.HDFStore(infile) as input_data:
             for key in input_data.keys():
-                print(key)
                 input_dataframe = input_data[key]
                 if key in output_data:
                     output_data[key] = pd.concat([input_dataframe,
