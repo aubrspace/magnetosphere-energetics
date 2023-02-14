@@ -82,6 +82,7 @@ def general_plot_settings(ax, **kwargs):
             legend_loc(see pyplot)- 'upper right' etc
             iscontour(boolean)- default False
     """
+    #TODO: is the missing xlabel in here?
     #Xlabel
     if kwargs.get('iscontour',False):
         ax.set_xlim(kwargs.get('xlim',None))

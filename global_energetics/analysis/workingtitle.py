@@ -193,6 +193,24 @@ def prep_for_correlations(data_input, solarwind_input,**kwargs):
     data_output.loc[data_output['minusdEdt']>0,'gatherRelease']='releasing'
     return data_output
 
+def hotfix_cdiff(mpdict,msdict):
+    lobes_copy = msdict['lobes'].copy(deep=True)
+    closed_copy = msdict['closed'].copy(deep=True)
+    mp_copy = mpdict['ms_full'].copy(deep=True)
+    for region in [lobes_copy,closed_copy,mp_copy]:
+        for target in [k for k in region.keys() if 'Utot_net' in k]:
+            ogindex = region[target].copy(deep=True).index
+            fdiff = region[target].reset_index(drop=True)
+            back = fdiff.copy(deep=True)
+            back.index = back.index-1
+            back.drop(index=[-1],inplace=True)
+            cdiff = (fdiff+back)/2
+            region[target] = cdiff.values
+    mpdict['ms_full'] = mp_copy
+    msdict['lobes'] = lobes_copy
+    msdict['closed'] = closed_copy
+    return mpdict,msdict
+
 def hotfix_interfSharing(mpdict,msdict,inner):
     """
     """
@@ -1719,23 +1737,61 @@ def lobe_balance_fig(dataset,phase,path):
         else: dotimedelta=False
         #NOTE get lobe only 
         lobes = dataset[event]['msdict'+phase]['lobes']
+        mp = dataset[event]['mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
-        dEdt = central_diff(lobes['Utot [J]'],60)
-        axis.plot(times,lobes['K_net [W]']/1e12, label='static',
-                     color='maroon')
-        #axis.plot(times,lobes['Utot_net [W]'], label='motion')
-        axis.plot(times,(-1*dEdt-lobes['K_net [W]'])/1e12,
-                     label='motion',color='magenta')
-        #axis.plot(times,-1*dEdt, label='-dEdt')
-        axis.fill_between(times,-1*dEdt/1e12,fc='grey',
-                             label=r'$-\frac{dE}{dt}$')
+        dEdt_cdiff = central_diff(lobes['Utot [J]'],60)
+        dEdt_summed = (#static
+                  mp['K_netK1 [W]']+
+                  lobes['K_netK2a [W]']+
+                  lobes['K_netK2b [W]']+
+                  lobes['K_netK3 [W]']+
+                  lobes['K_netK4 [W]']+
+                  #+motion
+                  mp['Utot_netK1 [W]']+
+                  lobes['Utot_netK1day&K2a [W]']
+                          -mp['Utot_netK1day [W]']+
+                  lobes['Utot_netK1night&K2b [W]']
+                          -mp['Utot_netK1night [W]']+
+                  lobes['Utot_netK3 [W]']+
+                  lobes['Utot_netK4 [W]'])
+        axis.fill_between(times,dEdt_summed/1e12
+                         ,label='-dEdt_summed', fc='grey')
+        axis.plot(times,-1*dEdt_cdiff/1e12
+                         ,label='-dEdt_cdiff', ls='--')
+        axis.plot(times,(dEdt_summed+dEdt_cdiff)/1e12,label='error')
+        from IPython import embed; embed()
+        '''
+        #Static + Motion terms
+        axis.plot(times,(mp['K_netK1 [W]']+
+                         mp['Utot_netK1 [W]'])/1e12
+                         , label='K+M1')
+        axis.plot(times,(lobes['K_netK2a [W]']+
+                         lobes['Utot_netK1day&K2a [W]']
+                          -mp['Utot_netK1day [W]'])/1e12
+                         , label='K+M2a')
+        axis.plot(times,(lobes['K_netK2b [W]']+
+                         lobes['Utot_netK1night&K2b [W]']
+                          -mp['Utot_netK1night [W]'])/1e12
+                         , label='K+M2b')
+        axis.plot(times,(lobes['K_netK3 [W]']+
+                         lobes['Utot_netK3 [W]'])/1e12
+                         , label='K+M3')
+        axis.plot(times,(lobes['K_netK4 [W]']+
+                         lobes['Utot_netK4 [W]'])/1e12
+                         , label='K+M4')
+        '''
+        #axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylabel=r'Net Power $\left[ TW\right]$',
+                              timedelta=dotimedelta)
         #NOTE mark impact w vertical line here
         #dtime_impact = (dt.datetime(2019,5,14,4,0)-
         #                dt.datetime(2019,5,14,7,45)).total_seconds()*1e9
         #axis.axvline(dtime_impact,color='black',ls='--')
         #axis.axvline(0,color='black',ls='--')
         #axis.axhline(0,color='black')
+        '''
         rax = axis.twinx()
         rax.plot(times,
                  dataset[event]['msdict'+phase]['lobes']['Utot [J]']/1e15,
@@ -1744,6 +1800,7 @@ def lobe_balance_fig(dataset,phase,path):
         rax.set_ylabel(r'Energy $\left[ PJ \right]$',color='tab:blue')
         rax.spines['right'].set_color('tab:blue')
         rax.tick_params(axis='y',colors='tab:blue')
+        '''
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta,
@@ -1758,6 +1815,7 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(total_balance_figure)
         print('\033[92m Created\033[00m',figurename)
 
+    '''
     #plot
     for i,event in enumerate(dataset.keys()):
         #setup figure
@@ -1765,6 +1823,7 @@ def lobe_balance_fig(dataset,phase,path):
         dotimedelta=True
         lobes = dataset[event]['msdict'+phase]['lobes']
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        moments = locate_phase(dataset[event]['time'])
         dEdt = central_diff(lobes['Utot [J]'],60)
         axis.fill_between(times,(-1*dEdt).cumsum()*60,
                           label='-dEdt', fc='grey')
@@ -1786,25 +1845,60 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(total_acc_figure)
         print('\033[92m Created\033[00m',figurename)
 
+    '''
     #plot
     for i,event in enumerate(dataset.keys()):
         #setup figure
-        detailed_balance_figure,axis = plt.subplots(1,1,figsize=[28,16])
+        detailed_balance_figure,(axis,axis2) =plt.subplots(2,1,sharey=True,
+                                                        figsize=[28,16])
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
         else: dotimedelta=False
         #NOTE get lobe only 
+        mp = dataset[event]['mp'+phase]
         lobes = dataset[event]['msdict'+phase]['lobes']
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        moments = locate_phase(dataset[event]['time'])
         dEdt = central_diff(lobes['Utot [J]'],60)
-        axis.fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
-        axis.plot(times,lobes['K_netFlank [W]'], label='Sheath')
-        axis.plot(times,lobes['K_netPSB [W]'], label='Closed')
-        axis.plot(times,lobes['K_netPoles [W]'], label='Poles')
-        axis.plot(times,lobes['K_netTail_lobe [W]'], label='Tail')
-        axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
+        #axis.fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
+        #axis2.fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
+        axis.fill_between(times,
+                  mp['K_netK1 [W]']+
+                  lobes['K_netK2a [W]']+
+                  lobes['K_netK2b [W]']+
+                  lobes['K_netK3 [W]']+
+                  lobes['K_netK4 [W]']
+                         ,label='-dEdt_static', fc='grey')
+        axis2.fill_between(times,
+                   mp['Utot_netK1 [W]']+
+                   lobes['Utot_netK1day&K2a [W]']
+                          -mp['Utot_netK1day [W]']+
+                   lobes['Utot_netK1night&K2b [W]']
+                          -mp['Utot_netK1night [W]']+
+                   lobes['Utot_netK3 [W]']+
+                   lobes['Utot_netK4 [W]']
+                         ,label='-dEdt_motion', fc='grey')
+        #Static terms
+        axis.plot(times,mp['K_netK1 [W]'], label='K1')
+        axis.plot(times,lobes['K_netK2a [W]'], label='K2a')
+        axis.plot(times,lobes['K_netK2b [W]'], label='K2b')
+        axis.plot(times,lobes['K_netK3 [W]'], label='K3')
+        axis.plot(times,lobes['K_netK4 [W]'], label='K4')
+        #Motion terms
+        axis2.plot(times,mp['Utot_netK1 [W]'], label='M1')
+        axis2.plot(times,lobes['Utot_netK1day&K2a [W]']
+                          -mp['Utot_netK1day [W]'], label='M2a')
+        axis2.plot(times,lobes['Utot_netK1night&K2b [W]']
+                          -mp['Utot_netK1night [W]'], label='M2b')
+        axis2.plot(times,lobes['Utot_netK3 [W]'], label='M3')
+        axis2.plot(times,lobes['Utot_netK4 [W]'], label='M4')
+        #axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ W\right]$',
+                              timedelta=dotimedelta)
+        general_plot_settings(axis2,do_xlabel=True,legend=True,
+                              ylabel=r'Net Power $\left[ W\right]$',
+                              ylim=(-1e13,1.2e13),
                               timedelta=dotimedelta)
         #save
         detailed_balance_figure.suptitle('t0='+str(moments['peak1']),
@@ -1818,27 +1912,51 @@ def lobe_balance_fig(dataset,phase,path):
     #plot
     for i,event in enumerate(dataset.keys()):
         #setup figure
-        detailed_acc_figure,axis = plt.subplots(1,1,figsize=[16,8])
+        detailed_acc_figure,(axis,axis2) =plt.subplots(2,1,sharey=True,
+                                                        figsize=[28,16])
         dotimedelta=True
         lobes = dataset[event]['msdict'+phase]['lobes']
+        mp = dataset[event]['mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        moments = locate_phase(dataset[event]['time'])
         dEdt = central_diff(lobes['Utot [J]'],60)
-        axis.fill_between(times,(-1*dEdt).cumsum()*60,
-                          label='-dEdt', fc='grey')
-        axis.plot(times,(lobes['K_netFlank [W]']).cumsum()*60,
-                  label='Sheath')
-        axis.plot(times,(lobes['K_netPSB [W]']).cumsum()*60,
-                  label='Closed')
-        axis.plot(times,(lobes['K_netPoles [W]']).cumsum()*60,
-                  label='Poles')
-        axis.plot(times,(lobes['K_netTail_lobe [W]']).cumsum()*60,
-                  label='Tail')
-        axis.plot(times,(-1*dEdt-lobes['K_net [W]']).cumsum()*60,
-                  label='motion')
-        axis.plot(times,-1*(lobes['Utot [J]']-lobes['Utot [J]'][0]),
-                  color='tab:blue',linestyle='--')
+        axis.fill_between(times,
+                  (mp['K_netK1 [W]']+
+                   lobes['K_netK2a [W]']+
+                   lobes['K_netK2b [W]']+
+                   lobes['K_netK3 [W]']+
+                   lobes['K_netK4 [W]']).cumsum()*60
+                         ,label='-dEdt_static', fc='grey')
+        axis2.fill_between(times,
+                   (mp['Utot_netK1 [W]']+
+                    lobes['Utot_netK1day&K2a [W]']
+                          -mp['Utot_netK1day [W]']+
+                    lobes['Utot_netK1night&K2b [W]']
+                          -mp['Utot_netK1night [W]']+
+                    lobes['Utot_netK3 [W]']+
+                    lobes['Utot_netK4 [W]']).cumsum()*60
+                         ,label='-dEdt_motion', fc='grey')
+        #Static terms
+        axis.plot(times,mp['K_netK1 [W]'].cumsum()*60, label='K1')
+        axis.plot(times,lobes['K_netK2a [W]'].cumsum()*60, label='K2a')
+        axis.plot(times,lobes['K_netK2b [W]'].cumsum()*60, label='K2b')
+        axis.plot(times,lobes['K_netK3 [W]'].cumsum()*60, label='K3')
+        axis.plot(times,lobes['K_netK4 [W]'].cumsum()*60, label='K4')
+        #Motion terms
+        axis2.plot(times,mp['Utot_netK1 [W]'].cumsum()*60, label='M1')
+        axis2.plot(times,(lobes['Utot_netK1day&K2a [W]']
+                          -mp['Utot_netK1day [W]']).cumsum()*60, label='M2a')
+        axis2.plot(times,(lobes['Utot_netK1night&K2b [W]']
+                          -mp['Utot_netK1night [W]']).cumsum()*60, label='M2b')
+        axis2.plot(times,lobes['Utot_netK3 [W]'].cumsum()*60, label='M3')
+        axis2.plot(times,lobes['Utot_netK4 [W]'].cumsum()*60, label='M4')
+        #axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                           ylabel=r'Accumulated Energy $\left[ J\right]$',
+                              ylabel=r'Net Power $\left[ W\right]$',
+                              timedelta=dotimedelta)
+        general_plot_settings(axis2,do_xlabel=True,legend=True,
+                              ylabel=r'Net Power $\left[ W\right]$',
+                              #ylim=(-1e13,1.2e13),
                               timedelta=dotimedelta)
         #save
         detailed_acc_figure.suptitle('t0='+str(moments['peak1']),
@@ -2053,7 +2171,13 @@ def diagram_summary(dataset,phase,path):
     background = mpimg.imread('/Users/ngpdl/Desktop/diagram.png')
     for i,event in enumerate(dataset.keys()):
         #Nickname data that we want to use
-        moments = locate_phase(dataset[event]['msdict']['lobes'].index)
+        mp = dataset[event]['mpdict'+phase]['ms_full']
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        closed = dataset[event]['msdict'+phase]['closed']
+        #working_lobes = prep_for_correlations(lobes,solarwind)
+        #working_closed = prep_for_correlations(closed,solarwind,
+        #                                       keyset='closed')
+        moments = locate_phase(lobes.index)
         sw = dataset[event]['obs']['swmf_sw'+phase]
         swt = [float(n) for n in sw.index.to_numpy()]#bad hack
         sim = dataset[event]['obs']['swmf_log'+phase]
@@ -2141,7 +2265,7 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -2192,10 +2316,11 @@ if __name__ == "__main__":
     #HDF data, will be sorted and cleaned
     dataset = {}
     #dataset['may'] = load_hdf_sort(inAnalysis+'may2019_results.h5')
+    #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
-    dataset['star'] = load_hdf_sort(inAnalysis+'temp/test.h5')
+    dataset['star'] = load_hdf_sort(inAnalysis+'temp/test_star2.h5')
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
@@ -2212,6 +2337,13 @@ if __name__ == "__main__":
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
     #                                     read_supermag=False)
 
+    #NOTE hotfix change FD to CD for motional terms
+    #       all calculations are performed as (n_1-n_0)/dt,
+    #       this will change to  (n_1-n_-1)/2dt
+    for event_key in dataset.keys():
+        event = dataset[event_key]
+        event['mpdict'],event['msdict'] = hotfix_cdiff(event['mpdict'],
+                                                       event['msdict'])
     #NOTE hotfix for closed region tail_closed
     #for ev in ds.keys():
     #    for t in[t for t in ds[ev]['msdict']['closed'].keys()
