@@ -1737,7 +1737,7 @@ def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
 
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, global_key='global_field',
-                                            blankvar='r *',blankvalue=3,
+                                            blankvar='',blankvalue=3,
                                               blankop=RelOp.LessThan):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
@@ -2027,7 +2027,7 @@ def calc_state(mode, sourcezone, **kwargs):
                        'available calc_state functions')
     if 'iso_betastar' in mode:
         #Generate outersurface with blanking the inner boundary
-        zone = setup_isosurface(1, state_index, zonename,
+        zone = setup_isosurface(1, state_index, zonename,blankvar='r *',
                                 blankvalue=kwargs.get('inner_r',3))
         #Sphere at fixed radius
         innerzone = setup_isosurface(kwargs.get('inner_r',3),

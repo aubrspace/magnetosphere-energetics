@@ -20,6 +20,29 @@ from global_energetics.extract.stream_tools import (integrate_tecplot,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
+def central_diff(dataframe,dt,**kwargs):
+    """Takes central difference of the columns of a dataframe
+    Inputs
+        df (DataFrame)- data
+        dt (int)- spacing used for denominator
+        kwargs:
+            fill (float)- fill value for ends of diff
+    Returns
+        cdiff (DataFrame)
+    """
+    working_dataframe = dataframe.copy(deep=True)#I hate having to do this
+    ogindex = dataframe.index
+    working_dataframe.reset_index(drop=True,inplace=True)
+    working_dataframe_fwd = working_dataframe.copy()
+    working_dataframe_fwd.index = working_dataframe.index-1
+    working_dataframe_bck = working_dataframe.copy()
+    working_dataframe_bck.index = working_dataframe.index+1
+    cdiff = (working_dataframe_fwd-working_dataframe_bck)/(2*dt)
+    cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
+    cdiff.index = ogindex
+    cdiff.fillna(value=kwargs.get('fill',0),inplace=True)
+    return cdiff
+
 def post_proc_interface2(results,**kwargs):
     """Modifies terms in results dictionary
     Inputs
@@ -28,25 +51,30 @@ def post_proc_interface2(results,**kwargs):
         results(modified)
     """
     #Get the K2a and b interfaces out
-    mp_surf = results['mp_iso_betastar_surface']
-    closed_surf = results['ms_closed_surface']
-    lobes_surf = results['ms_lobes_surface']
-    for base,unit in [k.split('K5day&K2a') for k in closed_surf.keys()
-                      if'K2a' in k]:
-        closed_surf[base+'K2a'+unit]=(closed_surf[base+'K5day&K2a'+unit]
-                                      -mp_surf[base+'K5day'+unit])
-    for base,unit in [k.split('K1day&K2a') for k in lobes_surf.keys()
-                      if'K2a' in k]:
-        lobes_surf[base+'K2a'+unit]=(lobes_surf[base+'K1day&K2a'+unit]
-                                      -mp_surf[base+'K1day'+unit])
-    for base,unit in [k.split('K5night&K2b') for k in closed_surf.keys()
-                      if'K2b' in k]:
-        closed_surf[base+'K2b'+unit]=(closed_surf[base+'K5night&K2b'+unit]
-                                      -mp_surf[base+'K5night'+unit])
-    for base,unit in [k.split('K1night&K2b') for k in lobes_surf.keys()
-                      if'K2b' in k]:
-        lobes_surf[base+'K2b'+unit]=(lobes_surf[base+'K1night&K2b'+unit]
-                                      -mp_surf[base+'K1night'+unit])
+    if kwargs.get('type','surface')=='surface':
+        mp = results['mp_iso_betastar_surface']
+        closed = results['ms_closed_surface']
+        lobes = results['ms_lobes_surface']
+    elif kwargs.get('type','surface')=='volume':
+        mp = results['mp_iso_betastar_volume']
+        closed = results['ms_closed_volume']
+        lobes = results['ms_lobes_volume']
+    for base,unit in [k.split('K5day&K2a') for k in closed.keys()
+                      if'&K2a' in k]:
+        closed[base+'K2a'+unit]=(closed[base+'K5day&K2a'+unit]
+                                      -mp[base+'K5day'+unit])
+    for base,unit in [k.split('K1day&K2a') for k in lobes.keys()
+                      if'&K2a' in k]:
+        lobes[base+'K2a'+unit]=(lobes[base+'K1day&K2a'+unit]
+                                      -mp[base+'K1day'+unit])
+    for base,unit in [k.split('K5night&K2b') for k in closed.keys()
+                      if'&K2b' in k]:
+        closed[base+'K2b'+unit]=(closed[base+'K5night&K2b'+unit]
+                                      -mp[base+'K5night'+unit])
+    for base,unit in [k.split('K1night&K2b') for k in lobes.keys()
+                      if'&K2b' in k]:
+        lobes[base+'K2b'+unit]=(lobes[base+'K1night&K2b'+unit]
+                                      -mp[base+'K1night'+unit])
     return results
 
 def post_proc_interface(results,**kwargs):

@@ -42,10 +42,10 @@ def write_to_hdf(filename, data):
         for key,df in data.items():
             if type(df) != type(pd.DataFrame()):
                 raise TypeError ('write_to_hdf expects Dict of DataFrames')
-            if '/'+key in store.keys():
-                updated_df = pd.concat([store[key],df],ignore_index=True)
-                #data[key] = store[key].append(data[key],ignore_index=True)
-            store['/'+key] = data[key]
+            #if '/'+key in store.keys():
+            #    updated_df = pd.concat([store[key],df],ignore_index=True)
+            #store['/'+key] = data[key]
+            store[key] = data[key]
 
 def display_progress(meshfile, integralfile, zonename):
     """Function displays current status of hdf5 files

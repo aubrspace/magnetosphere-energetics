@@ -5,8 +5,10 @@ import sys
 import os
 import time
 import logging
+import glob
 import numpy as np
 from numpy import pi
+import pandas as pd
 import datetime as dt
 import spacepy
 import tecplot as tp
@@ -37,8 +39,14 @@ if __name__ == "__main__":
     #            'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
     #starlink = ('starlink/3d__var_1_e20220204-223000-000.plt',
     #            'starlink/3d__var_1_e20220204-224000-000.plt')
-    starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-223000-000.plt',
-                'ccmc_2022-02-02/3d__var_1_e20220202-224000-000.plt')
+    #starlink = ('ccmc_2022-02-02/3d__var_1_e20220202-223000-000.plt',
+    #            'ccmc_2022-02-02/3d__var_1_e20220202-224000-000.plt')
+    starlink = ('ccmc_2022-02-02/3d__var_1_e20220203-051400-036.plt',
+                'ccmc_2022-02-02/3d__var_1_e20220203-051500-026.plt')
+    starlink2 = ('ccmc_2022-02-02/3d__var_1_e20220203-051500-026.plt',
+                 'ccmc_2022-02-02/3d__var_1_e20220203-051600-024.plt')
+    starlink3 = ('ccmc_2022-02-02/3d__var_1_e20220203-051600-024.plt',
+                 'ccmc_2022-02-02/3d__var_1_e20220203-051700-004.plt')
     #Current fails
     #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
     #            'starlink/3d__var_1_e20220202-050400-000.plt')
@@ -85,7 +93,14 @@ if __name__ == "__main__":
     #for inputs in starlink:
     #inputs = starlink
     #if True:
-    for inputs in [starlink]:
+    mp_surf = pd.DataFrame()
+    mp_vol = pd.DataFrame()
+    lobe_surf = pd.DataFrame()
+    lobe_vol = pd.DataFrame()
+    closed_surf = pd.DataFrame()
+    closed_vol = pd.DataFrame()
+    for inputs in [starlink,starlink2,starlink3]:
+        #for inputs in [starlink]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -100,7 +115,8 @@ if __name__ == "__main__":
         #Perform data extraction
         with tp.session.suspend():
             #Caclulate surfaces
-            magnetosphere.get_magnetosphere(field_data,save_mesh=False,
+            _,results = magnetosphere.get_magnetosphere(field_data,
+                                                        save_mesh=False,
                                     verbose=True,
                                     do_cms=True,
                                     analysis_type='energy',
@@ -149,6 +165,107 @@ if __name__ == "__main__":
                                     outputpath='babyrun/')
                                     #tshift=45,
             '''
+            """
+            mp_surf=pd.concat([mp_surf,results['mp_iso_betastar_surface']],
+                              ignore_index=True)
+            mp_vol=pd.concat([mp_vol,results['mp_iso_betastar_volume']],
+                             ignore_index=True)
+            lobe_surf=pd.concat([lobe_surf,results['ms_lobes_surface']],
+                                ignore_index=True)
+            lobe_vol=pd.concat([lobe_vol,results['ms_lobes_volume']],
+                                ignore_index=True)
+            closed_surf=pd.concat([closed_surf,
+                                   results['ms_closed_surface']],
+                                ignore_index=True)
+            closed_vol=pd.concat([closed_vol,results['ms_closed_volume']],
+                                ignore_index=True)
+    for file in glob.glob('babyrun/energeticsdata/*.h5'):
+        results = pd.HDFStore(file)
+        mp_surf=pd.concat([mp_surf,results['mp_iso_betastar_surface']],
+                              ignore_index=True)
+        mp_vol=pd.concat([mp_vol,results['mp_iso_betastar_volume']],
+                             ignore_index=True)
+        lobe_surf=pd.concat([lobe_surf,results['ms_lobes_surface']],
+                                ignore_index=True)
+        lobe_vol=pd.concat([lobe_vol,results['ms_lobes_volume']],
+                                ignore_index=True)
+        closed_surf=pd.concat([closed_surf,
+                                   results['ms_closed_surface']],
+                                ignore_index=True)
+        closed_vol=pd.concat([closed_vol,results['ms_closed_volume']],
+                                ignore_index=True)
+    if True:
+        #K1,5 from mp
+        K1 = mp_surf['K_netK1 [W]']
+        K5 = mp_surf['K_netK5 [W]']
+        #K2,3,4 from lobes
+        K2al = lobe_surf['K_netK2a [W]']
+        K2bl = lobe_surf['K_netK2b [W]']
+        K3 = lobe_surf['K_netK3 [W]']
+        K4 = lobe_surf['K_netK4 [W]']
+        #K2,6,7 from closed
+        K2ac = closed_surf['K_netK2a [W]']
+        K2bc = closed_surf['K_netK2b [W]']
+        K6 = closed_surf['K_netK6 [W]']
+        K7 = closed_surf['K_netK7 [W]']
+
+        #M1,5 from mp
+        M1 = mp_vol['Utot_netK1 [W]']
+        M5 = mp_vol['Utot_netK5 [W]']
+        #M2,3,4 from lobes
+        M2al = lobe_vol['Utot_netK2a [W]']
+        M2bl = lobe_vol['Utot_netK2b [W]']
+        M3 = lobe_vol['Utot_netK3 [W]']
+        M4 = lobe_vol['Utot_netK4 [W]']
+        #M2,6,7 from closed
+        M2ac = closed_vol['Utot_netK2a [W]']
+        M2bc = closed_vol['Utot_netK2b [W]']
+        M6 = closed_vol['Utot_netK6 [W]']
+        M7 = closed_vol['Utot_netK7 [W]']
+
+        #print('before: ',M1)
+        for M in [M1,M5,M2al,M2bl,M3,M4,M2ac,M2bc,M6,M7]:
+            M[1::] = [(M.loc[i]+M.loc[i-1])/2 for i in M.index
+                      if i-1 in M.index]
+            M.loc[0] = 0
+        #print('after: ',M1)
+
+        #Combine into dEdt_sum
+        #   Lobes- (KM1,2,3,4)
+        dEdt_suml = K1+K2al+K2bl+K3+K4+M1+M2al+M2bl+M3+M4
+        #   Closed- (KM5,2,6,7)
+        dEdt_sumc = K5+K2ac+K2bc+K6+K7+M5+M2ac+M2bc+M6+M7
+        #   Total- (KM,1,5,3,4,6,7)
+        dEdt_sumt = K1+K5+K3+K4+K6+K7+M1+M5+M3+M4+M6+M7
+        #Send Utot_lobes to cdiff
+        dEdt_cdiffl=-1*surface_tools.central_diff(lobe_vol['Utot [J]'],60)
+        dEdt_cdiffc=-1*surface_tools.central_diff(closed_vol['Utot [J]'],60)
+        dEdt_cdifft = -1*surface_tools.central_diff(mp_vol['Utot [J]'],60)
+
+        #Display error with just "test" functions
+        error_2as = (K2al+K2ac)/K2ac*100
+        error_2bs = (K2bl+K2bc)/K2bc*100
+        error_2am = (M2al+M2ac)/M2ac*100
+        error_2bm = (M2bl+M2bc)/M2bc*100
+        error_volume = (mp_vol['Volume [Re^3]']-lobe_vol['Volume [Re^3]']
+                        - closed_vol['Volume [Re^3]'])
+        #Display error with K_net and Utot_net
+        error_dEdtl = dEdt_suml - dEdt_cdiffl
+        error_dEdtc = dEdt_sumc - dEdt_cdiffc
+        error_dEdtt = dEdt_sumt - dEdt_cdifft
+
+        print('\nLobes\ndEdt_sum {:<.3}\t'.format(dEdt_suml[1])+
+              'dEdt_cdiff {:<.3}\t'.format(dEdt_cdiffl[1])+
+              'error {:<.3}'.format(error_dEdtl[1]))
+        print('\nClosed\ndEdt_sum {:<.3}\t'.format(dEdt_sumc[1])+
+              'dEdt_cdiff {:<.3}\t'.format(dEdt_cdiffc[1])+
+              'error {:<.3}'.format(error_dEdtc[1]))
+        print('\nTot\ndEdt_sum {:<.3}\t'.format(dEdt_sumt[1])+
+              'dEdt_cdiff {:<.3}\t'.format(dEdt_cdifft[1])+
+              'error {:<.3}'.format(error_dEdtt[1]))
+        print('\nno issues!')
+            """
+
     #with tp.session.suspend():
     if False:#manually switch on or off
         #adjust view settings

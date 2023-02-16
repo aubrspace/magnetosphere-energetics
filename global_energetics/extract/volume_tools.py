@@ -184,6 +184,8 @@ def get_mobile_integrands(zone,state_var,integrands,**kwargs):
     analysis_type = kwargs.get('analysis_type','')
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
     dstate = 'delta_'+str(state_var.name)
+    source_index = str(zone.index+1)
+    future_index = str(zone.dataset.zone('future*').index+1)
     #Don't proliferate IM tracking variables
     integrand_VarOut_pairs = [(t,d) for t,d in integrands.items()
                                                          if 'track' not in t]
@@ -211,21 +213,15 @@ def get_mobile_integrands(zone,state_var,integrands,**kwargs):
 
                 #Assign the base variable value (from CURRENT time)
                 #NOTE could explore averaging soln @ tn,tn+1
-                if kwargs.get('cms_simple',False):
-                    #TODO run this through to make sure it will work
-                    eq('{'+new_variablename+'_net}=IF({'+dstate+'}!=0,'+
-                                 '-1*{'+dstate+'}*{'+basevar+'}/'+td+',0)',
-                                                               zones=[zone])
-                    mobiledict.update({new_variablename+'_net':
-                                              new_outputname+'_net '+units})
-                else:
-                    eq('{'+new_variablename+'_acqu}=IF({'+dstate+'}==1,'+
-                                            '-1*{'+basevar+'}/'+td+',0)',
-                                                             zones=[zone])
-                    eq('{'+new_variablename+'_forf}=IF({'+dstate+'}==-1,'+
-                                                '{'+basevar+'}/'+td+',0)',
-                                                             zones=[zone])
-                    mobiledict.update({new_variablename+'_acqu':
+                eq('{'+new_variablename+'_acqu}=IF({'+dstate+'}==1,'+
+                            '-1*({'+basevar+'}['+source_index+']+'+
+                                '{'+basevar+'}['+future_index+'])/2'+
+                                                    '/'+td+',0)',zones=[zone])
+                eq('{'+new_variablename+'_forf}=IF({'+dstate+'}==-1,'+
+                               '({'+basevar+'}['+source_index+']+'+
+                                '{'+basevar+'}['+future_index+'])/2'+
+                                                    '/'+td+',0)',zones=[zone])
+                mobiledict.update({new_variablename+'_acqu':
                                                 new_outputname+'_acqu '+units,
                                        new_variablename+'_forf':
                                                 new_outputname+'_forf '+units})

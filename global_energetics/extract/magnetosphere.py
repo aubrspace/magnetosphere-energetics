@@ -14,6 +14,7 @@ import pandas as pd
 from global_energetics.extract import swmf_access
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
+from global_energetics.extract.surface_tools import post_proc_interface2
 from global_energetics.extract.volume_tools import volume_analysis
 from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     get_global_variables,
@@ -624,6 +625,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                    s.drop(columns=['Time [UTC]'])][0]
             lobes['Time [UTC]'] = t
             data_to_write.update({'ms_lobes_volume':lobes})
+            data_to_write.update(post_proc_interface2(data_to_write,
+                                                      type='volume'))
             if save_mesh:
                 for var in ['beta_star','uB [J/Re^3]','Pth [J/Re^3]',
                       'KE [J/Re^3]','uHydro [J/Re^3]','Utot [J/Re^3]']:
