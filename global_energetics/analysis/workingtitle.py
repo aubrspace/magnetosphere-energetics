@@ -442,7 +442,7 @@ def parse_phase(indata,phasekey,**kwargs):
         phase (same datatype given)
         rel_time (series object of times starting from 0)
     """
-    #assert ((type(indata)==dict or type(indata)==pd.core.frame.DataFrame or
+    #assert((type(indata)==dict or type(indata)==pd.core.frame.DataFrame or
     #         type(indata)==pd.core.series.Series),
     #        'Data type only excepts dict, DataFrame, or Series')
 
@@ -461,7 +461,7 @@ def parse_phase(indata,phasekey,**kwargs):
 
     #Set condition based on dividers and phase requested
     if 'qt' in phasekey:
-        cond=(times>times[0]+moments['start']) & (times<moments['impact'])
+        cond=(times>times[0]+moments['start'])&(times<moments['impact'])
     elif 'main' in phasekey:
         if '2' in phasekey:
             cond = (times>moments['peak1']) & (times<moments['peak2'])
@@ -470,7 +470,7 @@ def parse_phase(indata,phasekey,**kwargs):
     elif 'rec' in phasekey:
         cond = times>moments['peak1']#NOTE
     elif 'interv' in phasekey:
-        #cond=(times>moments['inter_start']) & (times<moments['inter_end'])
+        #cond=(times>moments['inter_start'])&(times<moments['inter_end'])
         cond = (times>moments['impact']) & (times<moments['peak1'])
     elif 'lineup' in phasekey:
         cond = times>times[0]+moments['start']
@@ -1741,6 +1741,7 @@ def lobe_balance_fig(dataset,phase,path):
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
         dEdt_cdiff = central_diff(lobes['Utot [J]'],60)
+        '''
         dEdt_summed = (#static
                   mp['K_netK1 [W]']+
                   lobes['K_netK2a [W]']+
@@ -1760,7 +1761,6 @@ def lobe_balance_fig(dataset,phase,path):
         axis.plot(times,-1*dEdt_cdiff/1e12
                          ,label='-dEdt_cdiff', ls='--')
         axis.plot(times,(dEdt_summed+dEdt_cdiff)/1e12,label='error')
-        from IPython import embed; embed()
         '''
         #Static + Motion terms
         axis.plot(times,(mp['K_netK1 [W]']+
@@ -1780,7 +1780,6 @@ def lobe_balance_fig(dataset,phase,path):
         axis.plot(times,(lobes['K_netK4 [W]']+
                          lobes['Utot_netK4 [W]'])/1e12
                          , label='K+M4')
-        '''
         #axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
@@ -2174,6 +2173,7 @@ def diagram_summary(dataset,phase,path):
         mp = dataset[event]['mpdict'+phase]['ms_full']
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed']
+        mpt = [float(n) for n in mp.index.to_numpy()]#bad hack
         #working_lobes = prep_for_correlations(lobes,solarwind)
         #working_closed = prep_for_correlations(closed,solarwind,
         #                                       keyset='closed')
@@ -2191,27 +2191,84 @@ def diagram_summary(dataset,phase,path):
         os.makedirs(os.path.join(path,'diagram_summaries_'+event),
                     exist_ok=True)
         #Create a new image for each timestamp
-        for i,now in enumerate(swt[int(len(swt)/2):int(len(swt)/2)+1]):
-            ##Setup figure layout
-            figure = plt.figure(figsize=(16,16))
-                                #layout="constrained")
-            spec = figure.add_gridspec(4,4)
-            top = figure.add_subplot(spec[0,0:4])
-            main = figure.add_subplot(spec[1:4,0:4])
-            # Top dst or something with vertical bar for current time
-            #Dst index
-            top.plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
-            top.plot(ot,obs['sym_h'],label='Obs',c='maroon')
-            top.axvline(now,color='black')
-            general_plot_settings(top,ylabel=r'Sym-H$\left[nT\right]$',
+        #for i,now in enumerate(simt[int(len(simt)/2):int(len(simt)/2)+1]):
+        ##Setup figure layout
+        figure = plt.figure(figsize=(12,12))
+        spec = figure.add_gridspec(4,4)
+        top = figure.add_subplot(spec[0,0:4])
+        main = figure.add_subplot(spec[1:4,0:4])
+        # Top dst or something with vertical bar for current time
+        #Dst index
+        top.plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
+        top.plot(ot,obs['sym_h'],label='Obs',c='maroon')
+        timeline = top.axvline(mpt[0],color='black')
+        general_plot_settings(top,ylabel=r'Sym-H$\left[nT\right]$',
                                   do_xlabel=True, legend=True,
                                   timedelta=dotimedelta)
-            #TODO: figure out why time labels aren't showing up
-            # Main image with diagram background
-            main.imshow(background)
-            #from IPython import embed; embed()
-            #Vector for K values:
-                #K1
+        # Main image with diagram background
+        main.imshow(background)
+        # Base vectors for each item
+        #K1
+        k1 = main.quiver([1000],[130],[-1500],[3000],color='green')
+        k1text = main.text(1120,160,r'$\vec{K}_1$ ')
+        #K2a
+        k2a = main.quiver([760],[470],[-3000],[-1500],color='green')
+        k2atext = main.text(735,440,r'$\vec{K}_{2a}$ ')
+        #K2b
+        k2b = main.quiver([1060],[375],[1500],[-3000],color='green')
+        k2btext = main.text(1060,330,r'$\vec{K}_{2b}$ ')
+        #K3
+        k3 = main.quiver([805],[670],[1000],[4000],color='green')
+        k3text = main.text(660,770,r'$\vec{K}_3$ ')
+        #K4
+        k4 = main.quiver([1350],[1150],[5000],[0],color='green')
+        k4text = main.text(1125,1100,r'$\vec{K}_4$ ')
+        #K5
+        k5 = main.quiver([560],[510],[-4000],[1000],color='green')
+        k5text = main.text(370,575,r'$\vec{K}_5$ ')
+        #K6
+        k6 = main.quiver([910],[625],[-4000],[1000],color='green')
+        k6text = main.text(920,580,r'$\vec{K}_6$ ')
+        #K7
+        k7 = main.quiver([1350],[600],[5000],[0],color='green')
+        k7text = main.text(1130,700,r'$\vec{K}_7$ ')
+        for i,(now,xpos)in enumerate([z for z in zip(mp.index,mpt)]
+                                     [1336:1337]
+                                     ):
+            for vector in [
+                           {'vector':k1,
+                            'text':k1text,
+                            'data':mp['K_netK1 [W]']},
+                           {'vector':k2a,
+                            'text':k2atext,
+                            'data':lobes['K_netK2a [W]']},
+                           {'vector':k2b,
+                            'text':k2btext,
+                            'data':lobes['K_netK2b [W]']},
+                           {'vector':k3,
+                            'text':k3text,
+                            'data':lobes['K_netK3 [W]']},
+                           {'vector':k4,
+                            'text':k4text,
+                            'data':lobes['K_netK4 [W]']},
+                           {'vector':k5,
+                            'text':k5text,
+                            'data':mp['K_netK5 [W]']},
+                           {'vector':k6,
+                            'text':k6text,
+                            'data':closed['K_netK6 [W]']},
+                           {'vector':k7,
+                            'text':k7text,
+                            'data':closed['K_netK7 [W]']}
+                           ]:
+                factor = vector['data'][now]/max(abs(
+                                  vector['data'].quantile([0.05,0.95])))
+                vector['vector'].U = np.array([int(
+                                            vector['vector'].U*factor)])
+                vector['vector'].V = np.array([int(
+                                            vector['vector'].V*factor)])
+                vector['text'].set_text(vector['text'].get_text()+
+                              '{:<.2}'.format(vector['data'][now]/1e12))
                 #K2a
                 #K2b
                 #K3
@@ -2242,13 +2299,23 @@ def diagram_summary(dataset,phase,path):
                 #K1 Day/Night Ratio
                 #K5 Day/Night Ratio
             #save
-            figure.suptitle('t='+str(sw.index[i]),ha='left',
-                            x=0.01,y=0.99)
-            figure.tight_layout(pad=0.8)
+            if now<moments['impact']:
+                labelcolor='black'
+            elif now>moments['impact']:
+                labelcolor='red'
+            elif now>moments['peak2']:
+                labelcolor='blue'
+            timeline.set_xdata([xpos])
+            title = figure.suptitle('t='+str(now),ha='left',
+                                    x=0.01,y=0.99,color=labelcolor)
+            if i==0:
+                main.set_xticks([])
+                main.set_yticks([])
+                figure.tight_layout(pad=0.8)
             figname = os.path.join(path,'diagram_summaries_'+event,
                                    'state_'+str(i)+'.png')
             figure.savefig(figname)
-            plt.close(figure)
+            from IPython import embed; embed()
             print('\033[92m Created\033[00m',figname)
 
 def main_rec_figures(dataset):
@@ -2265,7 +2332,7 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)

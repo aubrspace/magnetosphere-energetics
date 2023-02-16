@@ -38,7 +38,11 @@ def get_time(infile,**kwargs):
             except ValueError:
                 warnings.warn("Tried reading "+infile+
                           " as GM3d or IE output and failed",UserWarning)
-                time_dt = None
+                #Last ditch effort to sort by any numbers in filename
+                numbervalue=int(''.join([l for l in infile.split('/')[-1]
+                                                        if l.isnumeric()]))
+                time_dt = (dt.datetime(1800,1,1)+
+                           dt.timedelta(minutes=numbervalue))
     finally:
         return time_dt
 
