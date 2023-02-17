@@ -331,7 +331,7 @@ def volume_analysis(state_var, **kwargs):
         if kwargs.get('do_interfacing',False):
         #and'mp' not in state_var.name:
             interface_terms = get_interface_integrands(global_zone,
-                                                       mobile_terms,**kwargs,
+                                                     mobile_terms,**kwargs,
                                                        state_var=state_var)
             mobile_terms.update(interface_terms)
             '''

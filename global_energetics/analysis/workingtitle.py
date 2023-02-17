@@ -198,7 +198,8 @@ def hotfix_cdiff(mpdict,msdict):
     closed_copy = msdict['closed'].copy(deep=True)
     mp_copy = mpdict['ms_full'].copy(deep=True)
     for region in [lobes_copy,closed_copy,mp_copy]:
-        for target in [k for k in region.keys() if 'Utot_net' in k]:
+        for target in [k for k in region.keys() if 'Utot_net' in k or
+                                                   'dVolume' in k]:
             ogindex = region[target].copy(deep=True).index
             fdiff = region[target].reset_index(drop=True)
             back = fdiff.copy(deep=True)
@@ -1737,10 +1738,43 @@ def lobe_balance_fig(dataset,phase,path):
         else: dotimedelta=False
         #NOTE get lobe only 
         lobes = dataset[event]['msdict'+phase]['lobes']
+        closed = dataset[event]['msdict'+phase]['closed']
         mp = dataset[event]['mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
-        dEdt_cdiff = central_diff(lobes['Utot [J]'],60)
+        '''
+        dVdt_cdiff = -1*central_diff(lobes['Volume [Re^3]'],60)
+        axis.plot(times,lobes['dVolume [Re^3]'],label='dVolume_calc')
+        axis.plot(times,-1*dVdt_cdiff,label='dVolume_cdiff')
+        #axis.plot(times,lobes['dVolume [Re^3]'].cumsum()*60,
+        #          label='dVolume_direct')
+        #axis.plot(times,-1*dVdt_cdiff.cumsum()*60,
+        #          label='dVolume_cdiff')
+        #axis.plot(times,lobes['Volume [Re^3]']-lobes['Volume [Re^3]'][0],
+        #          label='Volume')
+        '''
+        dEdt_cdiff = -1*central_diff(lobes['Utot [J]'],60)
+        dEdt_static = (#static
+                  mp['K_netK1 [W]']+
+                  lobes['K_netK2a [W]']+
+                  lobes['K_netK2b [W]']+
+                  lobes['K_netK3 [W]']+
+                  lobes['K_netK4 [W]'])
+        dEdt_motion = (#motion
+                  mp['Utot_netK1 [W]']+
+                  lobes['Utot_netK2a [W]']+
+                  lobes['Utot_netK2b [W]']+
+                  lobes['Utot_netK3 [W]']+
+                  lobes['Utot_netK4 [W]'])
+        axis.plot(times,(lobes['K_net [W]']-dEdt_static)/1e12
+                         ,label='-dEdt_static_error')
+        axis.plot(times,(lobes['Utot_net [W]']-dEdt_motion)/1e12
+                         ,label='-dEdt_motion_error')
+        #axis.plot(times,mp['Utot_netK1 [W]']/1e12,label='K1')
+        #axis.plot(times,lobes['Utot_netK2a [W]']/1e12,label='K2a')
+        #axis.plot(times,lobes['Utot_netK2b [W]']/1e12,label='K2b')
+        #axis.plot(times,lobes['Utot_netK3 [W]']/1e12,label='K3')
+        #axis.plot(times,lobes['Utot_netK4 [W]']/1e12,label='K4')
         '''
         dEdt_summed = (#static
                   mp['K_netK1 [W]']+
@@ -1750,17 +1784,18 @@ def lobe_balance_fig(dataset,phase,path):
                   lobes['K_netK4 [W]']+
                   #+motion
                   mp['Utot_netK1 [W]']+
-                  lobes['Utot_netK1day&K2a [W]']
-                          -mp['Utot_netK1day [W]']+
-                  lobes['Utot_netK1night&K2b [W]']
-                          -mp['Utot_netK1night [W]']+
+                  lobes['Utot_netK2a [W]']+
+                  lobes['Utot_netK2b [W]']+
                   lobes['Utot_netK3 [W]']+
                   lobes['Utot_netK4 [W]'])
         axis.fill_between(times,dEdt_summed/1e12
                          ,label='-dEdt_summed', fc='grey')
-        axis.plot(times,-1*dEdt_cdiff/1e12
-                         ,label='-dEdt_cdiff', ls='--')
-        axis.plot(times,(dEdt_summed+dEdt_cdiff)/1e12,label='error')
+        '''
+        #axis.plot(times,-1*dEdt_cdiff/1e12
+        #                 ,label='-dEdt_cdiff', ls='--')
+        #axis.plot(times,(dEdt_summed-dEdt_cdiff)/1e12,label='error')
+        #axis.plot(times,lobes['K_net [W]']/1e12,label='Knet')
+        #axis.plot(times,(dEdt_cdiff-lobes['K_net [W]'])/1e12,label='Mnet')
         '''
         #Static + Motion terms
         axis.plot(times,(mp['K_netK1 [W]']+
@@ -1781,8 +1816,10 @@ def lobe_balance_fig(dataset,phase,path):
                          lobes['Utot_netK4 [W]'])/1e12
                          , label='K+M4')
         #axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
+        '''
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              ylabel=r'Net Power $\left[ TW\right]$',
+                              #ylabel=r'Net Power $\left[ TW\right]$',
+                              ylabel=r'dVolumedt $\left[ Re^3/s\right]$',
                               timedelta=dotimedelta)
         #NOTE mark impact w vertical line here
         #dtime_impact = (dt.datetime(2019,5,14,4,0)-
@@ -1810,6 +1847,40 @@ def lobe_balance_fig(dataset,phase,path):
                                       ha='left',x=0.01,y=0.99)
         total_balance_figure.tight_layout(pad=1)
         figurename = path+'/lobe_balance_total'+phase+'_'+event+'.png'
+        total_balance_figure.savefig(figurename)
+        plt.close(total_balance_figure)
+        print('\033[92m Created\033[00m',figurename)
+
+        #setup figure
+        total_balance_figure,axis = plt.subplots(1,1,figsize=[16,8])
+        dEdt_cdiff = central_diff(closed['Utot [J]'],60)
+        dEdt_summed = (#static
+                  mp['K_netK5 [W]']+
+                  closed['K_netK2a [W]']+
+                  closed['K_netK2b [W]']+
+                  closed['K_netK6 [W]']+
+                  closed['K_netK7 [W]']+
+                  #+motion
+                  mp['Utot_netK5 [W]']+
+                  closed['Utot_netK2a [W]']+
+                  closed['Utot_netK2b [W]']+
+                  closed['Utot_netK6 [W]']+
+                  closed['Utot_netK7 [W]'])
+        axis.fill_between(times,dEdt_summed/1e12
+                         ,label='-dEdt_summed', fc='grey')
+        axis.plot(times,-1*dEdt_cdiff/1e12
+                         ,label='-dEdt_cdiff', ls='--')
+        axis.plot(times,(dEdt_summed+dEdt_cdiff)/1e12,label='error')
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylabel=r'Net Power $\left[ TW\right]$',
+                              timedelta=dotimedelta,
+                              #ylim=[-10,10]
+                              )
+        #save
+        total_balance_figure.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_balance_figure.tight_layout(pad=1)
+        figurename = path+'/closed_balance_total'+phase+'_'+event+'.png'
         total_balance_figure.savefig(figurename)
         plt.close(total_balance_figure)
         print('\033[92m Created\033[00m',figurename)
@@ -1870,10 +1941,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ,label='-dEdt_static', fc='grey')
         axis2.fill_between(times,
                    mp['Utot_netK1 [W]']+
-                   lobes['Utot_netK1day&K2a [W]']
-                          -mp['Utot_netK1day [W]']+
-                   lobes['Utot_netK1night&K2b [W]']
-                          -mp['Utot_netK1night [W]']+
+                   lobes['Utot_netK2a [W]']+
+                   lobes['Utot_netK2b [W]']+
                    lobes['Utot_netK3 [W]']+
                    lobes['Utot_netK4 [W]']
                          ,label='-dEdt_motion', fc='grey')
@@ -1885,10 +1954,8 @@ def lobe_balance_fig(dataset,phase,path):
         axis.plot(times,lobes['K_netK4 [W]'], label='K4')
         #Motion terms
         axis2.plot(times,mp['Utot_netK1 [W]'], label='M1')
-        axis2.plot(times,lobes['Utot_netK1day&K2a [W]']
-                          -mp['Utot_netK1day [W]'], label='M2a')
-        axis2.plot(times,lobes['Utot_netK1night&K2b [W]']
-                          -mp['Utot_netK1night [W]'], label='M2b')
+        axis2.plot(times,lobes['Utot_netK2a [W]'],label='M2a')
+        axis2.plot(times,lobes['Utot_netK2b [W]'],label='M2b')
         axis2.plot(times,lobes['Utot_netK3 [W]'], label='M3')
         axis2.plot(times,lobes['Utot_netK4 [W]'], label='M4')
         #axis.plot(times,-1*dEdt-lobes['K_net [W]'], label='motion')
@@ -2170,7 +2237,8 @@ def diagram_summary(dataset,phase,path):
     background = mpimg.imread('/Users/ngpdl/Desktop/diagram.png')
     for i,event in enumerate(dataset.keys()):
         #Nickname data that we want to use
-        mp = dataset[event]['mpdict'+phase]['ms_full']
+        #mp = dataset[event]['mpdict'+phase]['ms_full']
+        mp = dataset[event]['mp'+phase]
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed']
         mpt = [float(n) for n in mp.index.to_numpy()]#bad hack
@@ -2209,95 +2277,82 @@ def diagram_summary(dataset,phase,path):
         main.imshow(background)
         # Base vectors for each item
         #K1
-        k1 = main.quiver([1000],[130],[-1500],[3000],color='green')
-        k1text = main.text(1120,160,r'$\vec{K}_1$ ')
+        k1 = main.quiver([1000],[130],[-1500],[3000],color='green',
+                         scale=10,scale_units='dots')
+        k1text = main.text(1120,160,r'$\vec{K}_1$')
         #K2a
-        k2a = main.quiver([760],[470],[-3000],[-1500],color='green')
-        k2atext = main.text(735,440,r'$\vec{K}_{2a}$ ')
+        k2a = main.quiver([760],[470],[-3000],[-1500],color='green',
+                         scale=10,scale_units='dots')
+        k2atext = main.text(735,440,r'$\vec{K}_{2a}$')
         #K2b
-        k2b = main.quiver([1060],[375],[1500],[-3000],color='green')
-        k2btext = main.text(1060,330,r'$\vec{K}_{2b}$ ')
+        k2b = main.quiver([1060],[375],[1500],[-3000],color='green',
+                         scale=10,scale_units='dots')
+        k2btext = main.text(1060,330,r'$\vec{K}_{2b}$')
         #K3
-        k3 = main.quiver([805],[670],[1000],[4000],color='green')
-        k3text = main.text(660,770,r'$\vec{K}_3$ ')
+        k3 = main.quiver([805],[670],[1000],[4000],color='green',
+                         scale=10,scale_units='dots')
+        k3text = main.text(660,770,r'$\vec{K}_3$')
         #K4
-        k4 = main.quiver([1350],[1150],[5000],[0],color='green')
-        k4text = main.text(1125,1100,r'$\vec{K}_4$ ')
+        k4 = main.quiver([1350],[1150],[5000],[0],color='green',
+                         scale=10,scale_units='dots')
+        k4text = main.text(1125,1100,r'$\vec{K}_4$')
         #K5
-        k5 = main.quiver([560],[510],[-4000],[1000],color='green')
-        k5text = main.text(370,575,r'$\vec{K}_5$ ')
+        k5 = main.quiver([560],[510],[-4000],[1000],color='green',
+                         scale=10,scale_units='dots')
+        k5text = main.text(370,575,r'$\vec{K}_5$')
         #K6
-        k6 = main.quiver([910],[625],[-4000],[1000],color='green')
-        k6text = main.text(920,580,r'$\vec{K}_6$ ')
+        k6 = main.quiver([910],[625],[-4000],[1000],color='green',
+                         scale=10,scale_units='dots')
+        k6text = main.text(920,580,r'$\vec{K}_6$')
         #K7
-        k7 = main.quiver([1350],[600],[5000],[0],color='green')
-        k7text = main.text(1130,700,r'$\vec{K}_7$ ')
+        k7 = main.quiver([1350],[600],[5000],[0],color='green',
+                         scale=10,scale_units='dots')
+        k7text = main.text(1130,700,r'$\vec{K}_7$')
+        base_values = {}
         for i,(now,xpos)in enumerate([z for z in zip(mp.index,mpt)]
-                                     [1336:1337]
+                                     #[1336:1337]
+                                     #[60:62]
                                      ):
-            for vector in [
+            for j,vector in enumerate([
                            {'vector':k1,
                             'text':k1text,
-                            'data':mp['K_netK1 [W]']},
+                            'data':mp['K_netK1 [W]'].fillna(value=0)},
                            {'vector':k2a,
                             'text':k2atext,
-                            'data':lobes['K_netK2a [W]']},
+                            'data':lobes['K_netK2a [W]'].fillna(value=0)},
                            {'vector':k2b,
                             'text':k2btext,
-                            'data':lobes['K_netK2b [W]']},
+                            'data':lobes['K_netK2b [W]'].fillna(value=0)},
                            {'vector':k3,
                             'text':k3text,
-                            'data':lobes['K_netK3 [W]']},
+                            'data':lobes['K_netK3 [W]'].fillna(value=0)},
                            {'vector':k4,
                             'text':k4text,
-                            'data':lobes['K_netK4 [W]']},
+                            'data':lobes['K_netK4 [W]'].fillna(value=0)},
                            {'vector':k5,
                             'text':k5text,
-                            'data':mp['K_netK5 [W]']},
+                            'data':mp['K_netK5 [W]'].fillna(value=0)},
                            {'vector':k6,
                             'text':k6text,
-                            'data':closed['K_netK6 [W]']},
+                            'data':closed['K_netK6 [W]'].fillna(value=0)},
                            {'vector':k7,
                             'text':k7text,
-                            'data':closed['K_netK7 [W]']}
-                           ]:
-                factor = vector['data'][now]/max(abs(
-                                  vector['data'].quantile([0.05,0.95])))
-                vector['vector'].U = np.array([int(
-                                            vector['vector'].U*factor)])
-                vector['vector'].V = np.array([int(
-                                            vector['vector'].V*factor)])
-                vector['text'].set_text(vector['text'].get_text()+
+                            'data':closed['K_netK7 [W]'].fillna(value=0)}
+                           ]):
+                #factor = vector['data'][now]/max(abs(
+                #                  vector['data'].quantile([0.05,0.95])))
+                if i==0:
+                    base_values.update({'baseU'+str(j):vector['vector'].U})
+                    base_values.update({'baseV'+str(j):vector['vector'].V})
+                    base_values.update({'basetext'+str(j):
+                                        vector['text'].get_text()})
+                factor = vector['data'][now]/10e12
+                vector['vector'].set_UVC(
+                    np.array([int(base_values['baseU'+str(j)]*factor)]),
+                    np.array([int(base_values['baseV'+str(j)]*factor)]))
+                vector['text'].set_text(base_values['basetext'+str(j)]+
                               '{:<.2}'.format(vector['data'][now]/1e12))
-                #K2a
-                #K2b
-                #K3
-                #K4
-                #K5
-                #K6
-                #K7
-            #Vector for M values:
-                #M1
-                #M2a
-                #M2b
-                #M3
-                #M4
-                #M5
-                #M6
-                #M7
-            #Vector for P values:
-                #Pa
-                #Pb
-            #IMF vector w/ outof plane component:
-                #Bxz
-                #By
-                #Pdyn
-            #Bar for energy values
-                #Lobes
-                #Closed
-            #Other items:
-                #K1 Day/Night Ratio
-                #K5 Day/Night Ratio
+            #from IPython import embed; embed()
             #save
             if now<moments['impact']:
                 labelcolor='black'
@@ -2315,7 +2370,6 @@ def diagram_summary(dataset,phase,path):
             figname = os.path.join(path,'diagram_summaries_'+event,
                                    'state_'+str(i)+'.png')
             figure.savefig(figname)
-            from IPython import embed; embed()
             print('\033[92m Created\033[00m',figname)
 
 def main_rec_figures(dataset):
@@ -2332,7 +2386,7 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -2341,7 +2395,7 @@ def main_rec_figures(dataset):
     #quantify_timings(dataset, '', path)
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
-    diagram_summary(dataset,'',unfiled)
+    #diagram_summary(dataset,'',unfiled)
 
 def interval_figures(dataset):
     #hatches = ['','*','x','o']
@@ -2357,6 +2411,7 @@ def interval_figures(dataset):
         #imf_figure(dataset,phase,path,hatches)
         #quantity_timings(dataset, phase, path)
         lobe_balance_fig(dataset,phase,path)
+        #diagram_summary(dataset,phase,unfiled)
         #lobe_power_histograms(dataset, phase, path)
 
 if __name__ == "__main__":
