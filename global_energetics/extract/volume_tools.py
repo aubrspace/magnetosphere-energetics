@@ -12,6 +12,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
+from global_energetics.extract.stream_tools import get_daymapped_nightmapped
 from global_energetics.extract.surface_tools import (energy_to_dB,
                                         get_open_close_integrands,
                                          get_interface_integrands,
@@ -150,7 +151,7 @@ def get_energy_integrands(state_var):
         energydict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
     state, energydict  = state_var.name, {}
-    eq = tp.data.operate.execute_equation
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     existing_variables = state_var.dataset.variable_names
     #Integrands
     #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
@@ -164,7 +165,8 @@ def get_energy_integrands(state_var):
             energydict.update({'Eth'+state:'Eth [J]'})
         elif name+state not in existing_variables:
         #Create variable for integrand that only exists in isolated zone
-            eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})')
+            eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})',
+                                                            value_location=CC)
             energydict.update({name+state:name+' [J]'})
     return energydict
 
@@ -183,12 +185,13 @@ def get_mobile_integrands(zone,state_var,integrands,**kwargs):
     tdelta = kwargs.get('tdelta',60)
     analysis_type = kwargs.get('analysis_type','')
     mobiledict, td, eq = {}, str(tdelta), tp.data.operate.execute_equation
+    CC = ValueLocation.CellCentered
     dstate = 'delta_'+str(state_var.name)
     source_index = str(zone.index+1)
     future_index = str(zone.dataset.zone('future*').index+1)
     #Don't proliferate IM tracking variables
     integrand_VarOut_pairs = [(t,d) for t,d in integrands.items()
-                                                         if 'track' not in t]
+                                                       if 'track' not in t]
     for variablename,outputname in integrand_VarOut_pairs:
         if ('energy' in analysis_type) or ('rhoU_r' in variablename):
             new_variablename = variablename.split(' [')[0]
@@ -204,27 +207,28 @@ def get_mobile_integrands(zone,state_var,integrands,**kwargs):
                 #NOTE Undo naming convention previously created where volume
                 # energy is only INTERIOR to state volume, the delta volume
                 # (acquired specifically) is strictly OUTSIDE state volume.
-                # This means we need to undo the renaming done in
-                # 'get_(somecore)_integrands'
                 if 'J' in outputname:
                     basevar = outputname.replace('J]','J/Re^3]')
                 elif 'Area' in outputname:
                     basevar = variablename
 
-                #Assign the base variable value (from CURRENT time)
-                #NOTE could explore averaging soln @ tn,tn+1
-                eq('{'+new_variablename+'_acqu}=IF({'+dstate+'}==1,'+
-                            '-1*({'+basevar+'}['+source_index+']+'+
-                                '{'+basevar+'}['+future_index+'])/2'+
-                                                    '/'+td+',0)',zones=[zone])
-                eq('{'+new_variablename+'_forf}=IF({'+dstate+'}==-1,'+
-                               '({'+basevar+'}['+source_index+']+'+
-                                '{'+basevar+'}['+future_index+'])/2'+
-                                                    '/'+td+',0)',zones=[zone])
+                #Assign the base variable value
+                #  from CURRENT time for forfeited volume
+                #  from FUTURE time for acquired volume
+                eq('{'+new_variablename+'_acqu}='+
+                        'IF({'+dstate+'}['+source_index+']==1,'+
+                            '-1*({'+basevar+'}['+future_index+'])'+
+                                                '/'+td+',0)',zones=[zone],
+                                                        value_location=CC)
+                eq('{'+new_variablename+'_forf}='+
+                        'IF({'+dstate+'}['+source_index+']==-1,'+
+                               '({'+basevar+'}['+source_index+'])'+
+                                                '/'+td+',0)',zones=[zone],
+                                                        value_location=CC)
                 mobiledict.update({new_variablename+'_acqu':
-                                                new_outputname+'_acqu '+units,
+                                            new_outputname+'_acqu '+units,
                                        new_variablename+'_forf':
-                                                new_outputname+'_forf '+units})
+                                            new_outputname+'_forf '+units})
     return mobiledict
 
 def get_lshell_integrands(zone,state_var,integrands,**kwargs):
@@ -330,6 +334,8 @@ def volume_analysis(state_var, **kwargs):
                                              **kwargs)
         if kwargs.get('do_interfacing',False):
         #and'mp' not in state_var.name:
+            #get_daymapped_nightmapped(global_zone,**kwargs,
+            #                          state_var=state_var)
             interface_terms = get_interface_integrands(global_zone,
                                                      mobile_terms,**kwargs,
                                                        state_var=state_var)
@@ -363,20 +369,30 @@ def volume_analysis(state_var, **kwargs):
         if kwargs.get('verbose',False):
             print('{:<20}{:<25}{:>.3}'.format(
                       state_var.name,term[1],results[term[1]][0]))
+    pieces = np.sum([results[k] for k in results.keys() if 'K' in k])
+    if 'mp' in state_var.name and kwargs.get('do_interfacing',False):
+        pieces-=(results['Utot_acquK1 [W]'][0]+
+                 results['Utot_forfK1 [W]'][0]+
+                 results['Utot_acquK5 [W]'][0]+
+                 results['Utot_forfK5 [W]'][0])
+    print('{:<20}{:<25}{:>.3}'.format(state_var.name,'error',
+               ((results['Utot_acqu [W]'][0]+
+                 results['Utot_forf [W]'][0])-pieces)))
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):
-        eq('{Volume '+state_var.name+'}=IF({'+state_var.name+'}<1, 0,1)')
-        results.update(calc_integral(('Volume '+state_var.name,
-                                      'Volume [Re^3]'), global_zone))
+        results.update(calc_integral((state_var.name,
+                                          'Volume [Re^3]'),global_zone))
                                   #**{'VariableOption':'LengthAreaVolume'}))
         if kwargs.get('verbose',False):
             print('{:<20}{:<25}{:>.3}'.format(state_var.name,
                                'Volume [Re^3]',results['Volume [Re^3]'][0]))
         if kwargs.get('do_cms',False):
             if'delta_'+str(state_var.name)in state_var.dataset.variable_names:
-                results.update(calc_integral(('delta_'+str(state_var.name),
-                                          'dVolume [Re^3]'), global_zone))
+                eq('{dVolume '+state_var.name+'}={delta_'+state_var.name+'}',
+                                    value_location=ValueLocation.CellCentered)
+                results.update(calc_integral(('delta_'+state_var.name,
+                                          'dVolume [Re^3]'),global_zone))
             if kwargs.get('verbose',False):
                 print('{:<20}{:<25}{:>.3}'.format(state_var.name,
                              'dVolume [Re^3]',results['dVolume [Re^3]'][0]))

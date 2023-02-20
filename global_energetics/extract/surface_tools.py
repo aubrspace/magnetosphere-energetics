@@ -350,104 +350,96 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
     """
     mods, eq = {}, tp.data.operate.execute_equation
     variables = tp.active_frame().dataset.variable_names
-    #Condition options:'open','closed','tail','on_innerbound','<L7','>L7'
 
-    #Check that this interface hasn't already been done by another sz
-    #if [i.split(' ')[0] for i in integrands][0]+modname in variables:
-    #    return mods
     for term in integrands.items():
         name = term[0].split(' [')[0]
         outputname = term[1].split(' [')[0]
         units = ' ['+term[1].split('[')[1].split(']')[0]+']'
         new_eq = '{'+name+modname+'} = IF('
-        if 'state_var' in conditions:
-            new_eq+='({'+kwargs.get('state_var').name+'}==1) &&'
+        condition_source = str(zone.index+1)
+        if 'state_var' in kwargs:
+            value_location = ValueLocation.CellCentered
+            if 'acqu' in outputname:
+                #NOTE 'acquired' cells are not yet in the target volume!!
+                condition_source = str(zone.dataset.zone('future*').index+1)
+        else:
+            value_location = ValueLocation.Nodal
         #OPEN CLOSED
         if (any(['open' in c for c in conditions]) or
             any(['closed' in c for c in conditions])):
             if (any(['not open' in c for c in conditions]) or
                 any(['closed' in c for c in conditions])):
-                new_eq+='({Status}==3) &&'#closed
+                new_eq+='({Status}['+condition_source+']==3) &&'#closed
             elif any(['N' in c for c in conditions]):
-                new_eq+='({Status}==2) &&'#open north
+                new_eq+='({Status}['+condition_source+']==2) &&'#open north
             elif any(['S' in c for c in conditions]):
-                new_eq+='({Status}==1) &&'#open south
+                new_eq+='({Status}['+condition_source+']==1) &&'#open south
             else:
-                new_eq+='({Status}==2 || {Status}==1) &&'#open
+                new_eq+=('({Status}['+condition_source+']==2 || '+
+                          '{Status}['+condition_source+']==1) &&')#open
         #TAIL
         if any(['tail' in c for c in conditions]):
             if 'not tail' in conditions:
-                new_eq+='({Tail}==0) &&'
+                new_eq+='({Tail}['+condition_source+']==0) &&'
             else:
-                new_eq+='({Tail}==1) &&'
+                new_eq+='({Tail}['+condition_source+']==1) &&'
         #INNER BOUNDARY
         if any(['on_innerbound' in c for c in conditions]):
             if 'not on_innerbound' in conditions:
-                new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
-                                          ')>{Cell Size [Re]}*0.75) &&'][0]
+                new_eq+=('(abs({r [R]}['+condition_source+']-'+
+                               str(kwargs.get('inner_r',3))+')>'+
+                           '{Cell Size [Re]}['+condition_source+']*0.75) &&')
             else:
-                new_eq+=['(abs({r [R]}-'+str(kwargs.get('inner_r',3))+
-                                          ')<{Cell Size [Re]}*0.75) &&'][0]
+                new_eq+=('(abs({r [R]}['+condition_source+']-'+
+                               str(kwargs.get('inner_r',3))+')<'+
+                           '{Cell Size [Re]}['+condition_source+']*0.75) &&')
         #L7
         if any(['L7' in c for c in conditions]):
             if '<L7' in conditions:
-                new_eq+='({Lshell}<'+str(kwargs.get('L',7))+') &&'
+                new_eq+=('({Lshell}['+condition_source+']<'+
+                                            str(kwargs.get('L',7))+') &&')
             elif '>L7' in conditions:
-                new_eq+='({Lshell}>'+str(kwargs.get('L',7))+') &&'
+                new_eq+=('({Lshell}['+condition_source+']>'+
+                                            str(kwargs.get('L',7))+') &&')
             elif '=L7' in conditions:
-                new_eq+=['(abs({Lshell}-'+str(kwargs.get('L',7))+')<'+
-                                              '{Cell Size [Re]}*1)&&'][0]
+                new_eq+=('(abs({Lshell}['+condition_source+']-'+
+                                            str(kwargs.get('L',7))+')<'+
+                               '{Cell Size [Re]}['+condition_source+']*1)&&')
                 #NOTE 0.75*cell size worked for everyone but L7,
                 #       which was optimized at 1*cell size
         #DAY/NIGHT (of dipole axis)
         if ('day' in conditions) or ('night' in conditions):
             if 'day' in conditions:
-                new_eq+='({Xd [R]}>0) &&'#Dayside
+                new_eq+='({Xd [R]}['+condition_source+']>0) &&'#Dayside
             elif 'night' in conditions:
-                new_eq+='({Xd [R]}<0) &&'#Nightside
+                new_eq+='({Xd [R]}['+condition_source+']<0) &&'#Nightside
         #DAY/NIGHT MAPPED (need th,phi detailed mapping output)
         if ('daymapped' in conditions) or ('nightmapped' in conditions):
             if 'daymapped' in conditions:
-                if 'nlobe' in zone.name:
-                    new_eq+=('({phi_1 [deg]}>270||'+
-                               '({phi_1 [deg]}<90&&{phi_1 [deg]}>0))&&')
-                elif 'slobe' in zone.name:
-                    new_eq+=('({phi_2 [deg]}>270||'+
-                               '({phi_2 [deg]}<90&&{phi_2 [deg]}>0))&&')
-                else:#Use case for VOLUME's and closed field lines
-                    #Take either north or south mapped to sunward as "Day"
-                    new_eq+=('(({phi_1 [deg]}>270||'+
-                               '({phi_1 [deg]}<90&&{phi_1 [deg]}>0))||'+
-                              '({phi_2 [deg]}>270||'+
-                               '({phi_2 [deg]}<90&&{phi_2 [deg]}>0)))&&')
-            elif 'nightmapped' in conditions:
-                if 'nlobe' in zone.name:
-                    new_eq+=('({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&')
-                elif 'slobe' in zone.name:
-                    new_eq+=('({phi_2 [deg]}<270&&{phi_2 [deg]}>90)&&')
-                elif 'mp' in zone.name and 'inner' not in zone.name:
-                    new_eq+=('(({Status}==2&&'+
-                               '({phi_1 [deg]}<270&&{phi_1 [deg]}>90))||'+
-                              '({Status}==1&&'+
-                               '({phi_2 [deg]}<270&&{phi_2 [deg]}>90))||'+
-                              '({Status}==3&&'+
-                               '({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
-                               '({phi_2 [deg]}<270&&{phi_2 [deg]}>90)))&&')
+                if 'lobe' in kwargs.get('target'):
+                    new_eq+=('({daymapped_'+kwargs.get('target')+'}'+
+                              '['+condition_source+']==1)&&')
                 else:
-                    #Take both north and south mapped to antisunward: "Night"
-                    new_eq+=('(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
-                              '({phi_2 [deg]}<270&&{phi_2 [deg]}>90))&&')
-
+                    new_eq+=('({daymapped}'+
+                              '['+condition_source+']==1)&&')
+            if 'nightmapped' in conditions:
+                if 'lobe' in kwargs.get('target'):
+                    new_eq+=('({nightmapped_'+kwargs.get('target')+'}'+
+                              '['+condition_source+']==1)&&')
+                else:
+                    new_eq+=('({nightmapped}'+
+                              '['+condition_source+']==1)&&')
         #Write out the equation modifications
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7',
                             'daymapped','nightmapped']]):
             #chop hanging && and close up condition
-            new_eq='&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'},0)'
+            new_eq=('&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'}['+
+                                                  str(zone.index+1)+'],0)')
             try:
-                eq(new_eq,zones=[zone])
+                eq(new_eq,zones=[zone],value_location=value_location)
                 mods.update({name+modname:outputname+modname+units})
-            except TecplotLogicError:
+            except TecplotLogicError as err:
                 print('Equation eval failed!\n',new_eq,'\n')
     return mods
 
@@ -467,7 +459,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
         if target=='NLobe':target='nlobe'
         if target=='SLobe':target='slobe'
     else:
-        target = zone.name
+        target = zone.name.split('ms_')[-1]
     #May need to identify the 'tail' portion of the surface
     if (('mp'in target and 'inner' not in target) or
         ('lobe' in target) or ('close' in target)):
@@ -476,53 +468,36 @@ def get_interface_integrands(zone,integrands,**kwargs):
     interfaces, test_i = {}, [i.split(' ')[0] for i in integrands][0]
     #variables = zone.dataset.variable_names
     #Depending on the zone we'll have different interfaces
-    #TODO: implement the ~15 new combinations with the extention
-    #       -code it up
-    #       -run just test area result
-    #       -check add up areas
-    #       -check visually
-    #       -run for several conditions to verify it works
-    #   Downshift number of integrals as much as possible
-    #       - no RC zone
-    #       - combine 'dayside_reg' and 'dayside_inner'
-    #       - only the variables absolutely necessary
-    #           x Knet
-    #           x TestArea
-    #           x Utot
-    #       - No duplicates (from the old or the new extensions
-    #       - K2a/b, M2b maybe keep based on above
-    #       - dont need 'psb', 'tail_closed', 'tail_lobes', 'inner'
-    #   Verify the 'light' extension works in multiproc mode
-    #       - run a subset
-    #       - look at the results that we plan to actually use
-    #       - double check the 'error' TestArea calculations
-    #   Move results to GL, and run on existing dataset
-    #       - run a subset
-    #       - look at the results that we plan to actually use
     ##Magnetopause
     if ('mp' in target) and ('inner' not in target):
         # K1
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['open','not tail'],'K1',**kwargs))
+                                         ['open','not tail'],'K1',**kwargs,
+                                          target=target))
         # K1_day
         interfaces.update(conditional_mod(zone,integrands,
                                           ['open','daymapped','not tail'],
-                                          'K1day',**kwargs))
+                                          'K1day',**kwargs,
+                                          target=target))
         # K1_night
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['open','nightmapped','not tail'],
-                                          'K1night',**kwargs))
+                                         ['open','nightmapped','not tail'],
+                                          'K1night',**kwargs,
+                                          target=target))
         # K5
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['closed','not tail'],'K5',**kwargs))
+                                       ['closed','not tail'],'K5',**kwargs,
+                                          target=target))
         # K5_day
         interfaces.update(conditional_mod(zone,integrands,
                                        ['closed','daymapped','not tail'],
-                                        'K5day',**kwargs))
+                                        'K5day',**kwargs,
+                                          target=target))
         # K5_night
         interfaces.update(conditional_mod(zone,integrands,
                                        ['closed','nightmapped','not tail'],
-                                        'K5night',**kwargs))
+                                        'K5night',**kwargs,
+                                          target=target))
         '''Demo interface
         if 'phi_1 [deg]' in zone.dataset.variable_names:
             #Nightside-Mapped
@@ -553,7 +528,8 @@ def get_interface_integrands(zone,integrands,**kwargs):
         pass
         '''
         #Poles
-        #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
+        #interfaces.update(conditional_mod(zone,integrands,['open'],
+                                           'Poles'))
         #Poles dayside only
         interfaces.update(conditional_mod(zone,integrands,
                                         ['openN','day'],'PolesDayN'))
@@ -578,30 +554,34 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
         #Poles dayside only
         interfaces.update(conditional_mod(zone,integrands,
-                                        ['openN','day'],'PolesDayN',**kwargs))
+                                     ['openN','day'],'PolesDayN',**kwargs))
         interfaces.update(conditional_mod(zone,integrands,
-                                        ['openS','day'],'PolesDayS',**kwargs))
+                                     ['openS','day'],'PolesDayS',**kwargs))
         #Poles nightside only
         interfaces.update(conditional_mod(zone,integrands,
-                                    ['openN','night'],'PolesNightN',**kwargs))
+                                 ['openN','night'],'PolesNightN',**kwargs))
         interfaces.update(conditional_mod(zone,integrands,
-                                    ['openS','night'],'PolesNightS',**kwargs))
+                                 ['openS','night'],'PolesNightS',**kwargs))
     ##Lobes
     if 'lobe' in target:
         # K1_day+K2a
         interfaces.update(conditional_mod(zone,integrands,
                             ['daymapped','not on_innerbound','not tail'],
-                                          'K1day&K2a',**kwargs))
+                                          'K1day&K2a',**kwargs,
+                                          target=target))
         # K1_night+K2b
         interfaces.update(conditional_mod(zone,integrands,
                             ['nightmapped','not on_innerbound','not tail'],
-                                          'K1night&K2b',**kwargs))
+                                          'K1night&K2b',**kwargs,
+                                          target=target))
         # K3
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['on_innerbound'],'K3',**kwargs))
+                                          ['on_innerbound'],'K3',**kwargs,
+                                          target=target))
         # K4
         interfaces.update(conditional_mod(zone,integrands,['tail'],'K4',
-                                          **kwargs))
+                                          **kwargs,
+                                          target=target))
         '''
         #Day/Night Mapped
         if 'phi_1 [deg]' in zone.dataset.variable_names:
@@ -633,17 +613,21 @@ def get_interface_integrands(zone,integrands,**kwargs):
         # K5_day+K2a
         interfaces.update(conditional_mod(zone,integrands,
                             ['daymapped','not on_innerbound','not tail'],
-                                          'K5day&K2a',**kwargs))
+                                          'K5day&K2a',**kwargs,
+                                          target=target))
         # K5_night+K2b
         interfaces.update(conditional_mod(zone,integrands,
                             ['nightmapped','not on_innerbound','not tail'],
-                                          'K5night&K2b',**kwargs))
+                                          'K5night&K2b',**kwargs,
+                                          target=target))
         # K6
         interfaces.update(conditional_mod(zone,integrands,['tail'],'K6',
-                                          **kwargs))
+                                          **kwargs,
+                                          target=target))
         # K7
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['on_innerbound'],'K7',**kwargs))
+                                          ['on_innerbound'],'K7',**kwargs,
+                                          target=target))
         '''
         if kwargs.get('full_closed',False):
             #Dayside- again letting magnetopause lead here

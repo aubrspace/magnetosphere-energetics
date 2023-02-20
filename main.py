@@ -47,6 +47,8 @@ if __name__ == "__main__":
                  'ccmc_2022-02-02/3d__var_1_e20220203-051600-024.plt')
     starlink3 = ('ccmc_2022-02-02/3d__var_1_e20220203-051600-024.plt',
                  'ccmc_2022-02-02/3d__var_1_e20220203-051700-004.plt')
+    starlink4 = ('ccmc_2022-02-02/3d__var_1_e20220203-115400-000.plt',
+                 'ccmc_2022-02-02/3d__var_1_e20220203-115500-004.plt')
     #Current fails
     #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
     #            'starlink/3d__var_1_e20220202-050400-000.plt')
@@ -99,7 +101,7 @@ if __name__ == "__main__":
     lobe_vol = pd.DataFrame()
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
-    for inputs in [starlink,starlink2,starlink3]:
+    for inputs in [starlink4]:
         #for inputs in [starlink]:
         tp.new_layout()
         mhddatafile = inputs[0]
@@ -127,6 +129,7 @@ if __name__ == "__main__":
                                     integrate_volume=True,
                                     integrate_line=False,
                                     outputpath='babyrun/',
+                                    full_closed=True,
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'Utot [J/Re^3]':'Utot [J]'})
@@ -328,6 +331,7 @@ if __name__ == "__main__":
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Y = 0}')
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Z = 0}')
+    from IPython import embed; embed()
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

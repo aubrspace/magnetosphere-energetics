@@ -828,6 +828,48 @@ def get_surf_geom_variables(zone,**kwargs):
         zone.aux_data.update({'hmin':
                hvals[np.where(np.logical_and(xvals<-5,xvals>-8))].min()})
 
+def get_daymapped_nightmapped(zone,**kwargs):
+    """Function assigns variables to represent day and night mapped,
+    Inputs
+        zone(Zone)- tecplot Zone object to do calculation
+    """
+    eq = tp.data.operate.execute_equation
+    if 'mp' in zone.name:
+        pass
+    elif 'lobe' in zone.name or 'closed' in zone.name:
+        pass
+    elif 'global' in zone.name:
+        if 'NLobe' in kwargs.get('state_var').name:
+            eq('{daymapped_nlobe}=IF'+
+               '({phi_1 [deg]}>270||'+
+                '({phi_1 [deg]}<90&&{phi_1 [deg]}>0),1,0)',zones=[zone])
+            eq('{nightmapped_nlobe}=IF'+
+                        '({phi_1 [deg]}<270&&{phi_1 [deg]}>90,1,0)',
+                                                           zones=[zone])
+        elif 'SLobe' in kwargs.get('state_var').name:
+            eq('{daymapped_slobe}=IF'+
+                        '({phi_2 [deg]}>270||'+
+                               '({phi_2 [deg]}<90&&{phi_2 [deg]}>0),1,0)',
+                                                           zones=[zone])
+            eq('{nightmapped_slobe}=IF'+
+                        '({phi_2 [deg]}<270&&{phi_2 [deg]}>90,1,0)',
+                                                           zones=[zone])
+        else:
+            if 'mp' in kwargs.get('state_var').name:
+                targetname = 'mp_iso_betastar'
+            elif 'lcb' in kwargs.get('state_var').name:
+                targetname = 'closed'
+            eq('{daymapped'+targetname+'}=IF'+
+                    '(({phi_1 [deg]}>=270||'+
+                        '({phi_1 [deg]}<=90&&{phi_1 [deg]}>=0))||'+
+                            '({phi_2 [deg]}>=270||'+
+                            '({phi_2 [deg]}<=90&&{phi_2 [deg]}>=0)),1,0)',
+                                                            zones=[zone])
+            eq('{nightmapped'+targetname+'}=IF'+
+                        '(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
+                             '({phi_2 [deg]}<270&&{phi_2 [deg]}>90),1,0)',
+                                                            zones=[zone])
+
 def get_day_flank_tail(zone,**kwargs):
     """Function assigns variables to represent dayside, flank, and tail,
         typically for the magnetopause zone
@@ -1483,7 +1525,32 @@ def equations(**kwargs):
                                 '({B_z [nT]}-{Bdz})**2)'+
                                    '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                '{Utot [J/Re^3]}':'{uHydro [J/Re^3]}+{uB [J/Re^3]}'}
-
+    ######################################################################
+    #Daynightmapping terms, includes:
+    # Specific mappings for lobes
+    #   daymapped_nlobe
+    #   nightmapped_nlobe
+    #   daymapped_slobe
+    #   nightmapped_slobe
+    # Generic mappings for closed and general magnetosphere
+    #   daymapped
+    #   nightmapped
+    equations['daynightmapping'] = {
+        '{daymapped_nlobe}':'IF({phi_1 [deg]}>270||'+
+                              '({phi_1 [deg]}<90&&{phi_1 [deg]}>0),1,0)',
+        '{nightmapped_nlobe}':'IF({phi_1 [deg]}<270&&'+
+                                 '{phi_1 [deg]}>90,1,0)',
+        '{daymapped_slobe}':'IF({phi_2 [deg]}>270||'+
+                              '({phi_2 [deg]}<90&&{phi_2 [deg]}>0),1,0)',
+        '{nightmapped_slobe}':'IF({phi_2 [deg]}<270&&'+
+                                 '{phi_2 [deg]}>90,1,0)',
+        '{daymapped}':'IF(({phi_1 [deg]}>=270||'+
+                        '({phi_1 [deg]}<=90&&{phi_1 [deg]}>=0))||'+
+                         '({phi_2 [deg]}>=270||'+
+                         '({phi_2 [deg]}<=90&&{phi_2 [deg]}>=0)),1,0)',
+        '{nightmapped}':'IF(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
+                            '({phi_2 [deg]}<270&&{phi_2 [deg]}>90),1,0)',
+            }
     ######################################################################
     #Virial Volumetric energy terms, includes:
     #   Disturbance Magnetic Energy per volume
@@ -1679,6 +1746,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eqeval(alleq['fieldmapping'])
     #Volumetric energy terms
     eqeval(alleq['volume_energy'],value_location=cc)
+    if kwargs.get('do_interfacing',False):
+        eqeval(alleq['daynightmapping'],value_location=cc)
     #Virial volume terms
     if 'virial' in analysis_type or analysis_type=='all':
         eqeval(alleq['virial_intermediate'],value_location=cc)
@@ -1880,7 +1949,7 @@ def calc_state(mode, sourcezone, **kwargs):
             state_index = sourcezone.dataset.variable(
                               kwargs.get('future_closed_zone').name).index
         else:
-            state_index = sourcezone.dataset.variable(closed_zone.name).index
+            state_index=sourcezone.dataset.variable(closed_zone.name).index
     elif 'lobe' in mode:
         if 'future' in sourcezone.name:
             mpvar = sourcezone.dataset.variable('future_mp*')
@@ -2571,7 +2640,7 @@ def calc_delta_state(t0state, t1state):
     """
     eq = tp.data.operate.execute_equation
     eq('{delta_'+t0state+'}=IF({'+t1state+'}==1 && {'+t0state+'}==0, 1,'+
-                            'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
+                        'IF({'+t1state+'}==0 && {'+t0state+'}==1,-1, 0))',
                                 zones=[0])
 
 def calc_iso_rho_state(xmax, xmin, hmax, rhomax, rmin_north, rmin_south,

@@ -211,7 +211,8 @@ def prep_field_data(field_data, **kwargs):
         get_global_variables(field_data, analysis_type,aux=aux,
                              modes=kwargs.get('modes',[]),
                              verbose=kwargs.get('verbose',False),
-                             customTerms=kwargs.get('customTerms',{}))
+                             customTerms=kwargs.get('customTerms',{}),
+                        do_interfacing=kwargs.get('do_interfacing',False))
         if do_1Dsw or 'bs' in kwargs.get('modes',[]):
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
@@ -242,8 +243,9 @@ def prep_field_data(field_data, **kwargs):
         elif has_status == True:
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0,
                                              kwargs.get('inner_r',3))
-            closed_zone = setup_isosurface(1,closed_index,'lcb')
-                                           #blankvalue=kwargs.get('inner_r',3))
+            closed_zone = setup_isosurface(1,closed_index,'lcb',
+                                        blankvalue=kwargs.get('inner_r',3),
+                                           blankvar='')
     else:
         if do_trace:
             closedzone_index = streamfind_bisection(field_data,
@@ -266,15 +268,17 @@ def prep_field_data(field_data, **kwargs):
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0,
                                              kwargs.get('inner_r',3))
             closed_zone = setup_isosurface(1,closed_index,'lcb',
-                                        blankvalue=kwargs.get('inner_r',3))
+                                        blankvalue=kwargs.get('inner_r',3),
+                                           blankvar='')
             if do_cms:
                 future_closed_index = calc_closed_state('future_lcb',
                                                         'Status', 3,
                                                         tail_cap, 1,
-                                                     kwargs.get('inner_r',3))
+                                                   kwargs.get('inner_r',3))
                 future_closed_zone =setup_isosurface(1,future_closed_index,
                                                      'future_lcb',
-                                        blankvalue=kwargs.get('inner_r',3))
+                                        blankvalue=kwargs.get('inner_r',3),
+                                                     blankvar='')
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closed_zone.index).values('X *').max())
@@ -284,7 +288,7 @@ def prep_field_data(field_data, **kwargs):
         inner_l = min(kwargs.get('lshelllim',7),
                 field_data.zone(closed_zone.index).values('Lshell').min())
         print('x_subsolar: {}, x_nexl: {},inner_L: {}'.format(
-                                                  x_subsolar, x_nexl,inner_l))
+                                              x_subsolar, x_nexl,inner_l))
         aux['x_subsolar'] = x_subsolar
         aux['x_nexl'] = x_nexl
         aux['inner_l'] = inner_l
