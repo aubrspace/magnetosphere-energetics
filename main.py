@@ -101,6 +101,7 @@ if __name__ == "__main__":
     lobe_vol = pd.DataFrame()
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
+    #for inputs in [starlink,starlink2,starlink3,starlink4]:
     for inputs in [starlink4]:
         #for inputs in [starlink]:
         tp.new_layout()
@@ -331,7 +332,6 @@ if __name__ == "__main__":
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Y = 0}')
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Z = 0}')
-    from IPython import embed; embed()
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),

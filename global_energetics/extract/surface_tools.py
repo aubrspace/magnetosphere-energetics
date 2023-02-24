@@ -16,6 +16,7 @@ from global_energetics.extract.stream_tools import (integrate_tecplot,
                                                     get_surface_variables,
                                                     get_day_flank_tail,
                                                   get_surf_geom_variables,
+                                                get_daymapped_nightmapped,
                                             get_surface_velocity_estimate,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
@@ -363,7 +364,8 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                 #NOTE 'acquired' cells are not yet in the target volume!!
                 condition_source = str(zone.dataset.zone('future*').index+1)
         else:
-            value_location = ValueLocation.Nodal
+            #value_location = ValueLocation.Nodal
+            value_location = ValueLocation.CellCentered
         #OPEN CLOSED
         if (any(['open' in c for c in conditions]) or
             any(['closed' in c for c in conditions])):
@@ -418,17 +420,17 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
             if 'daymapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
                     new_eq+=('({daymapped_'+kwargs.get('target')+'}'+
-                              '['+condition_source+']==1)&&')
+                              '['+condition_source+']>0)&&')
                 else:
                     new_eq+=('({daymapped}'+
-                              '['+condition_source+']==1)&&')
+                              '['+condition_source+']>0)&&')
             if 'nightmapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
                     new_eq+=('({nightmapped_'+kwargs.get('target')+'}'+
-                              '['+condition_source+']==1)&&')
+                              '['+condition_source+']>0)&&')
                 else:
                     new_eq+=('({nightmapped}'+
-                              '['+condition_source+']==1)&&')
+                              '['+condition_source+']>0)&&')
         #Write out the equation modifications
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7',
@@ -800,6 +802,7 @@ def surface_analysis(zone, **kwargs):
     if ('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
+    get_daymapped_nightmapped(zone)
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     ###################################################################
@@ -835,8 +838,25 @@ def surface_analysis(zone, **kwargs):
         if kwargs.get('verbose',False):
             print('{:<30}{:<35}{:>.3}'.format(
                       zone.name,term[1],results[term[1]][0]))
-    if 'closed' in zone.name:
-        for k in [k for k in results.keys()if 'PSB' in k]:print(results[k])
+    if kwargs.get('verbose',False) and 'TestArea [Re^2]' in results.keys():
+        powers = np.sum([
+                results['ExB_injection'+k.split('injection')[-1]]+
+                results['P0_injection'+k.split('injection')[-1]]
+                for k in results.keys()if 'tionK' in k])
+        powers += np.sum([
+                results['ExB_escape'+k.split('escape')[-1]]+
+                results['P0_escape'+k.split('escape')[-1]]
+                for k in results.keys()if 'apeK' in k])
+        power_error = (results['ExB_injection [W]'][0]+
+                       results['P0_injection [W]'][0]+
+                       results['ExB_escape [W]'][0]+
+                       results['P0_escape [W]'][0] - powers)
+        areas=np.sum([results[k]for k in results.keys() if'TestAreaK'in k])
+        area_error = results['TestArea [Re^2]'][0]-areas
+        print('{:<20}{:<25}{:>.3}'.format(zone.name,'power_error',
+                                          power_error))
+        print('{:<20}{:<25}{:>.3}'.format(zone.name,'area_error',
+                                          area_error))
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doSurfaceArea', True):

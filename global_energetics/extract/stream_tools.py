@@ -833,11 +833,35 @@ def get_daymapped_nightmapped(zone,**kwargs):
     Inputs
         zone(Zone)- tecplot Zone object to do calculation
     """
-    eq = tp.data.operate.execute_equation
-    if 'mp' in zone.name:
-        pass
-    elif 'lobe' in zone.name or 'closed' in zone.name:
-        pass
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    if 'lobe' in zone.name:
+        if 'nlobe' in zone.name:
+            eq('{daymapped_nlobe}=IF'+
+               '({phi_1 [deg]}>270||'+
+                '({phi_1 [deg]}<90&&{phi_1 [deg]}>0),1,0)',
+                                            value_location=CC,zones=[zone])
+            eq('{nightmapped_nlobe}=IF'+
+                        '({phi_1 [deg]}<270&&{phi_1 [deg]}>90,1,0)',
+                                            value_location=CC,zones=[zone])
+        elif 'slobe' in zone.name:
+            eq('{daymapped_slobe}=IF'+
+                        '({phi_2 [deg]}>270||'+
+                               '({phi_2 [deg]}<90&&{phi_2 [deg]}>0),1,0)',
+                                            value_location=CC,zones=[zone])
+            eq('{nightmapped_slobe}=IF'+
+                        '({phi_2 [deg]}<270&&{phi_2 [deg]}>90,1,0)',
+                                            value_location=CC,zones=[zone])
+    elif 'mp' in zone.name or 'closed' in zone.name:
+        eq('{daymapped}=IF'+
+                    '(({phi_1 [deg]}>=270||'+
+                        '({phi_1 [deg]}<=90&&{phi_1 [deg]}>=0))||'+
+                            '({phi_2 [deg]}>=270||'+
+                            '({phi_2 [deg]}<=90&&{phi_2 [deg]}>=0)),1,0)',
+                                            value_location=CC,zones=[zone])
+        eq('{nightmapped}=IF'+
+                        '(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
+                             '({phi_2 [deg]}<270&&{phi_2 [deg]}>90),1,0)',
+                                            value_location=CC,zones=[zone])
     elif 'global' in zone.name:
         if 'NLobe' in kwargs.get('state_var').name:
             eq('{daymapped_nlobe}=IF'+

@@ -153,6 +153,8 @@ def get_energy_integrands(state_var):
     state, energydict  = state_var.name, {}
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     existing_variables = state_var.dataset.variable_names
+    #source_index = str(zone.index+1)
+    #future_index = str(zone.dataset.zone('future*').index+1)
     #Integrands
     #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
     #integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','u_db [J/Re^3]',
@@ -165,8 +167,17 @@ def get_energy_integrands(state_var):
             energydict.update({'Eth'+state:'Eth [J]'})
         elif name+state not in existing_variables:
         #Create variable for integrand that only exists in isolated zone
-            eq('{'+name+state+'}=IF({'+state+'}<1, 0, {'+term+'})',
-                                                            value_location=CC)
+            eq('{'+name+state+'}=IF({'+state+'}[1]<1, 0, {'+term+'}[1])',
+                                                  zones=[0],value_location=CC)
+            '''
+            #Add the statevariableonly version of ex.(Utot) to the FUTURE
+            # dataset specifically in the cells which have already been
+            # determined to be "acquired"
+            #equ = ('{'+name+state+'}=IF({delta_'+state+'}[1]==1,{'+
+            #       term+'}[2],0)')
+            eq('{'+name+state+'}=IF({delta_'+state+'}[1]==1,{'+term+'}[2],0)',
+                                                  zones=[1],value_location=CC)
+            '''
             energydict.update({name+state:name+' [J]'})
     return energydict
 
@@ -212,16 +223,18 @@ def get_mobile_integrands(zone,state_var,integrands,**kwargs):
                 elif 'Area' in outputname:
                     basevar = variablename
 
+                print(basevar)
                 #Assign the base variable value
                 #  from CURRENT time for forfeited volume
                 #  from FUTURE time for acquired volume
+                #TODO values seem entirely too low!!Could be too strict arguments?
                 eq('{'+new_variablename+'_acqu}='+
-                        'IF({'+dstate+'}['+source_index+']==1,'+
+                        'IF({'+dstate+'}['+source_index+']>0,'+
                             '-1*({'+basevar+'}['+future_index+'])'+
                                                 '/'+td+',0)',zones=[zone],
                                                         value_location=CC)
                 eq('{'+new_variablename+'_forf}='+
-                        'IF({'+dstate+'}['+source_index+']==-1,'+
+                        'IF({'+dstate+'}['+source_index+']<0,'+
                                '({'+basevar+'}['+source_index+'])'+
                                                 '/'+td+',0)',zones=[zone],
                                                         value_location=CC)
