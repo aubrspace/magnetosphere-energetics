@@ -161,13 +161,17 @@ def prep_for_correlations(data_input, solarwind_input,**kwargs):
     data_output['minusdEdt'] = -dEdt
     data_output['motion'] = -dEdt/1e12 - data_output['static']
     if kwargs.get('keyset','lobes')== 'lobes':
-        data_output['sheath'] = data_output['K_netFlank [W]']/1e12
-        data_output['closed'] = data_output['K_netPSB [W]']/1e12
-        data_output['passed'] = abs(data_output['sheath']+data_output['closed'])
-    elif kwargs.get('keyset','lobes')== 'closed_rc':
-        data_output['sheath'] = data_output['K_netDayside [W]']/1e12
-        data_output['lobes'] = data_output['K_netPSB [W]']/1e12
-        data_output['passed'] = abs(data_output['sheath']+data_output['lobes'])
+        #data_output['K1'] = data_output['K_netK1 [W]']/1e12
+        data_output['K2a'] = data_output['K_netK2a [W]']/1e12
+        data_output['K2b'] = data_output['K_netK2b [W]']/1e12
+        sheath = 'K2a'
+        #data_output['passed']=abs(data_output['sheath']+data_output['closed'])
+    elif kwargs.get('keyset','lobes')== 'closed':
+        #data_output['K5'] = data_output['K_netK5 [W]']/1e12
+        data_output['K2a'] = data_output['K_netK2a [W]']/1e12
+        data_output['K2b'] = data_output['K_netK2b [W]']/1e12
+        sheath = 'K2a'
+        #data_output['passed'] = abs(data_output['sheath']+data_output['lobes'])
     for i,xvariable in enumerate(['bz','pdyn','Newell']):
         #Then interpolate other datasource and add it to the copied df
         data_output[xvariable] = np.interp(ytime, xtime,
@@ -186,8 +190,8 @@ def prep_for_correlations(data_input, solarwind_input,**kwargs):
                                                 data_output['static'])
     data_output.loc[data_output['motion']>0,'expandContract']='contracting'
     #inflow/outflow (static)
-    data_output['inoutflow']=['inflow']*len(data_output['sheath'])
-    data_output.loc[data_output['sheath']>0,'inoutflow']='outflow'
+    data_output['inoutflow']=['inflow']*len(data_output[sheath])
+    data_output.loc[data_output[sheath]>0,'inoutflow']='outflow'
     #Gathering/releasing (-dEdt)
     data_output['gatherRelease']=['gathering']*len(data_output['static'])
     data_output.loc[data_output['minusdEdt']>0,'gatherRelease']='releasing'
@@ -200,6 +204,9 @@ def hotfix_cdiff(mpdict,msdict):
     for region in [lobes_copy,closed_copy,mp_copy]:
         for target in [k for k in region.keys() if 'Utot_net' in k or
                                                    'dVolume' in k]:
+            #TODO: change this to a higher order central difference
+            # -(n-2)+8(n+1)-8(n-1)+(n-2)
+            #           12h
             ogindex = region[target].copy(deep=True).index
             fdiff = region[target].reset_index(drop=True)
             back = fdiff.copy(deep=True)
@@ -292,17 +299,19 @@ def central_diff(dataframe,dt,**kwargs):
     Returns
         cdiff (DataFrame)
     """
-    working_dataframe = dataframe.copy(deep=True)#I hate having to do this
-    ogindex = dataframe.index
-    working_dataframe.reset_index(drop=True,inplace=True)
-    working_dataframe_fwd = working_dataframe.copy()
-    working_dataframe_fwd.index = working_dataframe.index-1
-    working_dataframe_bck = working_dataframe.copy()
-    working_dataframe_bck.index = working_dataframe.index+1
-    cdiff = (working_dataframe_fwd-working_dataframe_bck)/(2*dt)
-    cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
-    cdiff.index = ogindex
-    cdiff.fillna(value=kwargs.get('fill',0),inplace=True)
+    df = dataframe.copy(deep=True)
+    df = df.reset_index(drop=True).fillna(method='ffill')
+    df_fwd = df.copy(deep=True)
+    df_bck = df.copy(deep=True)
+    df_fwd.index -= 1
+    df_bck.index += 1
+    if kwargs.get('forward',False):
+        cdiff = (df_fwd-df)/dt
+        cdiff.drop(index=[-1],inplace=True)
+    else:
+        cdiff = (df_fwd-df_bck)/(2*dt)
+        cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
+    cdiff.index = dataframe.index
     return cdiff
 
 def get_interfaces(sz):
@@ -349,7 +358,8 @@ def locate_phase(times,**kwargs):
     feb2014_inter_end = dt.datetime(2014,2,18,17,30)
     #Starlink
     #TODO
-    starlink_impact = dt.datetime(2022,2,2,23,58)
+    starlink_impact = (dt.datetime(2022,2,2,23,58)+
+                       dt.timedelta(hours=3,minutes=55))
     starlink_endMain1 = dt.datetime(2022,2,3,11,54)
     #starlink_endMain1 = dt.datetime(2022,2,4,13,10)
     starlink_endMain2 = dt.datetime(2022,2,3,11,54)
@@ -619,7 +629,7 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
             Elobes = ds[ev]['msdict'+ph]['lobes']['Utot [J]']
             Eclosed = ds[ev]['msdict'+ph]['closed']['Utot [J]']
             Erc = ds[ev]['msdict'+ph]['rc']['Utot [J]']
-            Etotal = Elobes+Eclosed+Erc
+            Etotal = Elobes+Eclosed
             ElobesPercent = (Elobes/Etotal)*100
             lobes = ds[ev]['msdict'+ph]['lobes']
             #Tabulate
@@ -633,14 +643,22 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                                 ElobesPercent.min()))
             print('{:<25}{:<20}'.format('****','****'))
             dEdt = central_diff(lobes['Utot [J]'],60)/1e12
-            K1 = lobes['K_netFlank [W]']/1e12
-            K2 = lobes['K_netPSB [W]']/1e12
-            motion = -dEdt - lobes['K_net [W]']/1e12
-            inner = lobes['K_netPoles [W]']/1e12
-            tail = lobes['K_netTail_lobe [W]']/1e12
-            for flux,label in [(dEdt,'dEdt'),(K1,'K1'),(K2,'K2'),
-                               (motion,'motion'),(inner,'inner'),
-                               (tail,'tail')]:
+            K1 = lobes['K_netK1 [W]']/1e12
+            K2a = lobes['K_netK2a [W]']/1e12
+            K2b = lobes['K_netK2b [W]']/1e12
+            K3 = lobes['K_netK3 [W]']/1e12
+            K4 = lobes['K_netK4 [W]']/1e12
+            #motion = -dEdt - lobes['K_net [W]']/1e12
+            M1 = lobes['Utot_netK1 [W]']/1e12
+            M2a = lobes['Utot_netK2a [W]']/1e12
+            M2b = lobes['Utot_netK2b [W]']/1e12
+            M3 = lobes['Utot_netK3 [W]']/1e12
+            M4 = lobes['Utot_netK4 [W]']/1e12
+            for flux,label in [(dEdt,'dEdt'),
+                               (K1,'K1'),(K2a,'K2a'),(K2b,'K2b'),
+                               (K3,'K1'),(K4,'K4'),
+                               (M1,'M1'),(M2a,'M2a'),(M2b,'M2b'),
+                               (M3,'M1'),(M4,'M4')]:
                 fluxMain = flux[(lobes.index>moments['impact'])&
                                 (lobes.index<moments['peak2'])]
                 fluxRec = flux[(lobes.index>moments['peak2'])]
@@ -1350,7 +1368,7 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
         #tempfig,(xaxis,yaxis) = plt.subplots(2,1,figsize=[16,4])
         #Prepare data
         lobes = dataset[event]['msdict'+phase]['lobes']
-        closed = dataset[event]['msdict'+phase]['closed_rc']
+        closed = dataset[event]['msdict'+phase]['closed']
         solarwind = dataset[event]['obs']['swmf_sw'+phase]
         working_lobes = prep_for_correlations(lobes,solarwind)
         working_polar_cap = compile_polar_cap(
@@ -1455,11 +1473,11 @@ def quantify_timings(dataset, phase, path,**kwargs):
         #   motion, static, sheath,lobe/closed,minusdEdt, passed,
         #   volume, energy, +tags
         lobes = dataset[event]['msdict'+phase]['lobes']
-        closed = dataset[event]['msdict'+phase]['closed_rc']
+        closed = dataset[event]['msdict'+phase]['closed']
+        mp = dataset[event]['mp'+phase]
         solarwind = dataset[event]['obs']['swmf_sw'+phase]
         working_lobes = prep_for_correlations(lobes,solarwind)
-        working_closed = prep_for_correlations(closed,solarwind,
-                                               keyset='closed_rc')
+        working_closed = prep_for_correlations(closed,solarwind)
         working_polar_cap = compile_polar_cap(
                  dataset[event]['termdict'+phase]['sphere2.65_surface'],
                  dataset[event]['termdict'+phase]['terminator2.65north'],
@@ -1475,33 +1493,52 @@ def quantify_timings(dataset, phase, path,**kwargs):
 
         #Lobes-Sheath -> Lobes-Closed
         sheath2closed_figure,axis = plt.subplots(1,1,figsize=[16,8])
-        time_shifts, r_values['K1-K2']=pearson_r_shifts(
-                                                  working_lobes['sheath'],
-                                               -1*working_lobes['closed'])
-        time_shifts, r_values['K2-K3']=pearson_r_shifts(
-                                                 working_closed['lobes'],
-                                              -1*working_closed['sheath'])
-        time_shifts, r_values['P1-P2']=pearson_r_shifts(
-                                             working_polar_cap['DayRxn'],
-                                        -1*working_polar_cap['NightRxn'])
-        time_shifts, r_values['K1-P1']=pearson_r_shifts(
-                                                  working_lobes['sheath'],
-                                           -1*working_polar_cap['DayRxn'])
-        time_shifts, r_values['K2-P2']=pearson_r_shifts(
-                                                  working_lobes['closed'],
-                                         -1*working_polar_cap['NightRxn'])
-        time_shifts, r_values['P1_motion']=pearson_r_shifts(
-                                           -1*working_polar_cap['DayRxn'],
+        time_shifts, r_values['K1-K5']=pearson_r_shifts(
+                                                  mp['K_netK1 [W]'],
+                                                  mp['K_netK5 [W]'])
+        time_shifts, r_values['K1-K2b']=pearson_r_shifts(
+                                                  mp['K_netK1 [W]'],
+                                                  working_lobes['K2b'])
+        time_shifts, r_values['K2a-K2b']=pearson_r_shifts(
+                                                  working_lobes['K2a'],
+                                                  working_lobes['K2b'])
+        #time_shifts, r_values['K2a-K2b']=pearson_r_shifts(
+        #                                         working_closed['K2a'],
+        #                                      -1*working_closed['K2b'])
+        time_shifts, r_values['K2b-K5']=pearson_r_shifts(
+                                                  working_closed['K2b'],
+                                                  mp['K_netK5 [W]'])
+        time_shifts, r_values['Pa-Pb']=pearson_r_shifts(
+                                            working_polar_cap['DayRxn'],
+                                            working_polar_cap['NightRxn'])
+        time_shifts, r_values['K1K2a-Pa']=pearson_r_shifts(
+                                 mp['K_netK1 [W]']+working_lobes['K2a'],
+                                              working_polar_cap['DayRxn'])
+        time_shifts, r_values['K2b-Pb']=pearson_r_shifts(
+                                                   working_lobes['K2b'],
+                                            working_polar_cap['NightRxn'])
+        '''
+        time_shifts, r_values['Pa_motion']=pearson_r_shifts(
+                                           working_polar_cap['DayRxn'],
                                                   working_lobes['motion'])
-        time_shifts, r_values['P2_motion']=pearson_r_shifts(
-                                         -1*working_polar_cap['NightRxn'],
+        time_shifts, r_values['Pb_motion']=pearson_r_shifts(
+                                         working_polar_cap['NightRxn'],
                                                   working_lobes['motion'])
-        axis.plot(time_shifts/60,r_values['K1-K2'],
-                  label='K1-K2')
-        axis.plot(time_shifts/60,r_values['K2-K3'],
-                  label='K2-K3')
-        axis.plot(time_shifts/60,r_values['P1-P2'],
-                  label='P1-P2')
+        '''
+        axis.plot(time_shifts/60,r_values['K1-K5'],
+                  label='K1-K5')
+        axis.plot(time_shifts/60,r_values['K1-K2b'],
+                  label='K1-K2b')
+        axis.plot(time_shifts/60,r_values['K2a-K2b'],
+                  label='K2a-K2b')
+        axis.plot(time_shifts/60,r_values['K2b-K5'],
+                  label='K2b-K5')
+        axis.plot(time_shifts/60,r_values['Pa-Pb'],
+                  label='Pa-Pb')
+        axis.plot(time_shifts/60,r_values['K1K2a-Pa'],
+                  label='K1K2a-Pa')
+        axis.plot(time_shifts/60,r_values['K2b-Pb'],
+                  label='K2b-Pb')
 
         axis.legend()
         axis.set_xlabel(r'Timeshift $\left[min\right]$')
@@ -1520,23 +1557,23 @@ def quantify_timings(dataset, phase, path,**kwargs):
         solarwind2system_figure1,axis1 = plt.subplots(1,1,figsize=[16,8])
         solarwind2system_figure2,axis2 = plt.subplots(1,1,figsize=[16,8])
         time_shifts, r_values['bz-K1']=pearson_r_shifts(
-                                                  -1*solarwind['bz'],
-                                               -1*working_lobes['sheath'])
+                                                  solarwind['bz'],
+                                               mp['K_netK1 [W]'])
         time_shifts, r_values['newell-K1']=pearson_r_shifts(
                                                  solarwind['Newell'],
-                                               -1*working_lobes['sheath'])
+                                               mp['K_netK1 [W]'])
         time_shifts, r_values['epsilon-K1']=pearson_r_shifts(
                                                  solarwind['eps'],
-                                               -1*working_lobes['sheath'])
-        time_shifts, r_values['bz-P1']=pearson_r_shifts(
-                                                  -1*solarwind['bz'],
-                                           -1*working_polar_cap['DayRxn'])
-        time_shifts, r_values['newell-P1']=pearson_r_shifts(
+                                               mp['K_netK1 [W]'])
+        time_shifts, r_values['bz-Pa']=pearson_r_shifts(
+                                                  solarwind['bz'],
+                                           working_polar_cap['DayRxn'])
+        time_shifts, r_values['newell-Pa']=pearson_r_shifts(
                                                  solarwind['Newell'],
-                                           -1*working_polar_cap['DayRxn'])
-        time_shifts, r_values['epsilon-P1']=pearson_r_shifts(
+                                           working_polar_cap['DayRxn'])
+        time_shifts, r_values['epsilon-Pa']=pearson_r_shifts(
                                                  solarwind['eps'],
-                                           -1*working_polar_cap['DayRxn'])
+                                           working_polar_cap['DayRxn'])
         if kwargs.get('tabulate',True):
             r_values.index = time_shifts
             print('\nPhase: '+phase+'\nEvent: '+event+'\n')
@@ -1554,12 +1591,12 @@ def quantify_timings(dataset, phase, path,**kwargs):
                   label='newell-K1')
         axis1.plot(time_shifts/60,r_values['epsilon-K1'],
                   label='epsilon-K1')
-        axis2.plot(time_shifts/60,r_values['bz-P1'],
-                  label='bz-P1')
-        axis2.plot(time_shifts/60,r_values['newell-P1'],
-                  label='newell-P1')
-        axis2.plot(time_shifts/60,r_values['epsilon-P1'],
-                  label='epsilon-P1')
+        axis2.plot(time_shifts/60,r_values['bz-Pa'],
+                  label='bz-Pa')
+        axis2.plot(time_shifts/60,r_values['newell-Pa'],
+                  label='newell-Pa')
+        axis2.plot(time_shifts/60,r_values['epsilon-Pa'],
+                  label='epsilon-Pa')
         for axis in [axis1,axis2]:
             axis.legend()
             axis.set_xlabel(r'Timeshift $\left[min\right]$')
@@ -1754,6 +1791,7 @@ def lobe_balance_fig(dataset,phase,path):
         #          label='Volume')
         '''
         dEdt_cdiff = -1*central_diff(lobes['Utot [J]'],60)
+        dEdt_fdiff = -1*central_diff(lobes['Utot [J]'],60,forward=True)
         dEdt_static = (#static
                   mp['K_netK1 [W]']+
                   lobes['K_netK2a [W]']+
@@ -1770,7 +1808,11 @@ def lobe_balance_fig(dataset,phase,path):
                          ,label='-dEdt_static_error')
         axis.plot(times,(lobes['Utot_net [W]']-dEdt_motion)/1e12
                          ,label='-dEdt_motion_error')
-        #axis.plot(times,mp['Utot_netK1 [W]']/1e12,label='K1')
+        #axis.plot(times,dEdt_cdiff/1e12,label='Cdiff')
+        #axis.plot(times,lobes['K_net [W]']/1e12,label='K')
+        #axis.plot(times,lobes['Utot_net [W]']/2e12,label='M')
+        #axis.plot(times,(lobes['Utot_net [W]']/2+lobes['K_net [W]'])/1e12,
+        #          label='K+M')
         #axis.plot(times,lobes['Utot_netK2a [W]']/1e12,label='K2a')
         #axis.plot(times,lobes['Utot_netK2b [W]']/1e12,label='K2b')
         #axis.plot(times,lobes['Utot_netK3 [W]']/1e12,label='K3')
@@ -1853,29 +1895,44 @@ def lobe_balance_fig(dataset,phase,path):
 
         #setup figure
         total_balance_figure,axis = plt.subplots(1,1,figsize=[16,8])
-        dEdt_cdiff = central_diff(closed['Utot [J]'],60)
-        dEdt_summed = (#static
+        dEdt_cdiff = -1*central_diff(closed['Utot [J]'],60)
+        dEdt_fdiff = -1*central_diff(closed['Utot [J]'],60,forward=True)
+        dEdt_static = (#static
                   mp['K_netK5 [W]']+
                   closed['K_netK2a [W]']+
                   closed['K_netK2b [W]']+
                   closed['K_netK6 [W]']+
-                  closed['K_netK7 [W]']+
-                  #+motion
+                  closed['K_netK7 [W]'])
+        dEdt_motion = (#motion
                   mp['Utot_netK5 [W]']+
                   closed['Utot_netK2a [W]']+
                   closed['Utot_netK2b [W]']+
                   closed['Utot_netK6 [W]']+
                   closed['Utot_netK7 [W]'])
-        axis.fill_between(times,dEdt_summed/1e12
-                         ,label='-dEdt_summed', fc='grey')
-        axis.plot(times,-1*dEdt_cdiff/1e12
-                         ,label='-dEdt_cdiff', ls='--')
-        axis.plot(times,(dEdt_summed+dEdt_cdiff)/1e12,label='error')
+        axis.fill_between(times,dEdt_cdiff/1e12
+                         ,label='-dEdt_cdiff',fc='grey')
+        axis.plot(times,dEdt_static/1e12
+                         ,label='-dEdt_static')
+        #axis.plot(times,(dEdt_cdiff-closed['K_net [W]'])
+        #                 /closed['Utot_net [W]']
+        #                 ,label='Mfix_ratio')
+        #axis.plot(times,closed['K_net [W]']/1e12
+        #                 ,label='K')
+        #axis.plot(times,dEdt_motion/1e12
+        #                 ,label='-dEdt_motion')
+        axis.plot(times,closed['Utot_net [W]']/1e12
+                         ,label='M')
+        axis.plot(times,(closed['Utot_net [W]']+closed['K_net [W]'])/1e12
+                         ,label='K+M')
+        #axis.plot(times,(closed['K_net [W]']+closed['Utot_net [W]'])/1e12
+        #                 ,label='K+Merror')
+        #axis.plot(times,(dEdt_static+-dEdt_cdiff)/1e12,label='error')
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta,
-                              #ylim=[-10,10]
+                              #ylim=[-4,4]
                               )
+        #from IPython import embed; embed()
         #save
         total_balance_figure.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -1884,8 +1941,8 @@ def lobe_balance_fig(dataset,phase,path):
         total_balance_figure.savefig(figurename)
         plt.close(total_balance_figure)
         print('\033[92m Created\033[00m',figurename)
+        from IPython import embed; embed()
 
-    '''
     #plot
     for i,event in enumerate(dataset.keys()):
         #setup figure
@@ -1894,13 +1951,19 @@ def lobe_balance_fig(dataset,phase,path):
         lobes = dataset[event]['msdict'+phase]['lobes']
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
-        dEdt = central_diff(lobes['Utot [J]'],60)
-        axis.fill_between(times,(-1*dEdt).cumsum()*60,
+        dEdt_cdiff = -1*central_diff(lobes['Utot [J]'],60)
+        dEdt_fdiff = -1*central_diff(lobes['Utot [J]'],60,forward=True)
+        axis.fill_between(times,(dEdt_fdiff).cumsum()*60,
                           label='-dEdt', fc='grey')
-        axis.plot(times,(lobes['K_net [W]']).cumsum()*60,
-                  label='Static')
-        axis.plot(times,(-1*dEdt-lobes['K_net [W]']).cumsum()*60,
-                  label='motion')
+        #axis.plot(times,(lobes['K_net [W]']).cumsum()*60,
+        #          label='Static')
+        #axis.plot(times,lobes['Utot_net [W]'].cumsum()*60,
+        #          label='motion_calc')
+        axis.plot(times,
+                  (lobes['K_net [W]']+lobes['Utot_net [W]']).cumsum()*60,
+                  label='Summed')
+        #axis.plot(times,(dEdt-lobes['K_net [W]']).cumsum()*60,
+        #          label='motion_infer')
         axis.plot(times,-1*(lobes['Utot [J]']-lobes['Utot [J]'][0]),
                   color='tab:blue',linestyle='--')
         general_plot_settings(axis,do_xlabel=True,legend=True,
@@ -1915,7 +1978,6 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(total_acc_figure)
         print('\033[92m Created\033[00m',figurename)
 
-    '''
     #plot
     for i,event in enumerate(dataset.keys()):
         #setup figure
@@ -1929,7 +1991,8 @@ def lobe_balance_fig(dataset,phase,path):
         lobes = dataset[event]['msdict'+phase]['lobes']
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
-        dEdt = central_diff(lobes['Utot [J]'],60)
+        dEdt_cdiff = -1*central_diff(lobes['Utot [J]'],60)
+        dEdt_fdiff = -1*central_diff(lobes['Utot [J]'],60,forward=True)
         #axis.fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
         #axis2.fill_between(times,-1*dEdt,label='-dEdt', fc='grey')
         axis.fill_between(times,
@@ -1985,7 +2048,8 @@ def lobe_balance_fig(dataset,phase,path):
         mp = dataset[event]['mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
-        dEdt = central_diff(lobes['Utot [J]'],60)
+        dEdt_cdiff = -1*central_diff(lobes['Utot [J]'],60)
+        dEdt_fdiff = -1*central_diff(lobes['Utot [J]'],60,forward=True)
         axis.fill_between(times,
                   (mp['K_netK1 [W]']+
                    lobes['K_netK2a [W]']+
@@ -2442,7 +2506,7 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
-    dataset['star'] = load_hdf_sort(inAnalysis+'temp/test_star2.h5')
+    dataset['star'] = load_hdf_sort(inAnalysis+'temp/test3_star2.h5')
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
@@ -2466,6 +2530,9 @@ if __name__ == "__main__":
         event = dataset[event_key]
         event['mpdict'],event['msdict'] = hotfix_cdiff(event['mpdict'],
                                                        event['msdict'])
+        for key in ['K_net','Utot_net']:
+            event['msdict']['lobes'][key+'K1 [W]'] = event['mpdict'][
+                                                  'ms_full'][key+'K1 [W]']
     #NOTE hotfix for closed region tail_closed
     #for ev in ds.keys():
     #    for t in[t for t in ds[ev]['msdict']['closed'].keys()
@@ -2520,8 +2587,8 @@ if __name__ == "__main__":
 
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(dataset)
+    #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    #interval_figures(dataset)
+    interval_figures(dataset)
     ######################################################################
