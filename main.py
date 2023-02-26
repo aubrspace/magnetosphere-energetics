@@ -94,7 +94,6 @@ if __name__ == "__main__":
 
     #for inputs in starlink:
     #inputs = starlink
-    #if True:
     mp_surf = pd.DataFrame()
     mp_vol = pd.DataFrame()
     lobe_surf = pd.DataFrame()
@@ -102,8 +101,9 @@ if __name__ == "__main__":
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
-    for inputs in [starlink4]:
-        #for inputs in [starlink]:
+    #if False:
+    #for inputs in [starlink4]:
+    for inputs in [starlink,starlink2,starlink3]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -183,6 +183,7 @@ if __name__ == "__main__":
                                 ignore_index=True)
             closed_vol=pd.concat([closed_vol,results['ms_closed_volume']],
                                 ignore_index=True)
+            """
     for file in glob.glob('babyrun/energeticsdata/*.h5'):
         results = pd.HDFStore(file)
         mp_surf=pd.concat([mp_surf,results['mp_iso_betastar_surface']],
@@ -216,37 +217,43 @@ if __name__ == "__main__":
         #M1,5 from mp
         M1 = mp_vol['Utot_netK1 [W]']
         M5 = mp_vol['Utot_netK5 [W]']
+        Mmp = mp_vol['Utot_net [W]']
         #M2,3,4 from lobes
         M2al = lobe_vol['Utot_netK2a [W]']
         M2bl = lobe_vol['Utot_netK2b [W]']
         M3 = lobe_vol['Utot_netK3 [W]']
         M4 = lobe_vol['Utot_netK4 [W]']
+        Ml = lobe_vol['Utot_net [W]']
         #M2,6,7 from closed
         M2ac = closed_vol['Utot_netK2a [W]']
         M2bc = closed_vol['Utot_netK2b [W]']
         M6 = closed_vol['Utot_netK6 [W]']
         M7 = closed_vol['Utot_netK7 [W]']
+        Mc = closed_vol['Utot_net [W]']
 
-        #print('before: ',M1)
-        for M in [M1,M5,M2al,M2bl,M3,M4,M2ac,M2bc,M6,M7]:
-            M[1::] = [(M.loc[i]+M.loc[i-1])/2 for i in M.index
-                      if i-1 in M.index]
-            M.loc[0] = 0
-        #print('after: ',M1)
+        #Adjust M terms to central difference
+        if len(M1)>1:
+            for M in [M1,M5,M2al,M2bl,M3,M4,M2ac,M2bc,M6,M7,Mmp,Ml,Mc]:
+                M[1::] = [(M.loc[i]+M.loc[i-1])/2 for i in M.index
+                        if i-1 in M.index]
+                M.loc[0] = 0
 
         #Combine into dEdt_sum
         #   Lobes- (KM1,2,3,4)
-        dEdt_suml = K1+K2al+K2bl+K3+K4+M1+M2al+M2bl+M3+M4
+        #dEdt_suml = K1+K2al+K2bl+K3+K4+M1+M2al+M2bl+M3+M4
+        dEdt_suml = lobe_surf['K_net [W]']+lobe_vol['Utot_net [W]']
         #   Closed- (KM5,2,6,7)
-        dEdt_sumc = K5+K2ac+K2bc+K6+K7+M5+M2ac+M2bc+M6+M7
+        #dEdt_sumc = K5+K2ac+K2bc+K6+K7+M5+M2ac+M2bc+M6+M7
+        dEdt_sumc = closed_surf['K_net [W]']+closed_vol['Utot_net [W]']
         #   Total- (KM,1,5,3,4,6,7)
-        dEdt_sumt = K1+K5+K3+K4+K6+K7+M1+M5+M3+M4+M6+M7
+        #dEdt_sumt = K1+K5+K3+K4+K6+K7+M1+M5+M3+M4+M6+M7
+        dEdt_sumt = mp_surf['K_net [W]']+mp_vol['Utot_net [W]']
         #Send Utot_lobes to cdiff
         dEdt_cdiffl=-1*surface_tools.central_diff(lobe_vol['Utot [J]'],60)
         dEdt_cdiffc=-1*surface_tools.central_diff(closed_vol['Utot [J]'],60)
         dEdt_cdifft = -1*surface_tools.central_diff(mp_vol['Utot [J]'],60)
 
-        #Display error with just "test" functions
+        #Display errors
         error_2as = (K2al+K2ac)/K2ac*100
         error_2bs = (K2bl+K2bc)/K2bc*100
         error_2am = (M2al+M2ac)/M2ac*100
@@ -268,7 +275,7 @@ if __name__ == "__main__":
               'dEdt_cdiff {:<.3}\t'.format(dEdt_cdifft[1])+
               'error {:<.3}'.format(error_dEdtt[1]))
         print('\nno issues!')
-            """
+    from IPython import embed; embed()
 
     #with tp.session.suspend():
     if False:#manually switch on or off

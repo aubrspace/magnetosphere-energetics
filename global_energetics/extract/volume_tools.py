@@ -230,14 +230,31 @@ def get_mobile_integrands(zone,state_var,integrands,**kwargs):
                 #TODO values seem entirely too low!!Could be too strict arguments?
                 eq('{'+new_variablename+'_acqu}='+
                         'IF({'+dstate+'}['+source_index+']>0,'+
+                        '{'+dstate+'}['+source_index+']*'+
+                #            '-1*({'+basevar+'}['+future_index+'])'+
+                            '-1*({'+basevar+'}['+future_index+']+'+
+                                '{'+basevar+'}['+source_index+'])/2'+
+                                                '/'+td+',0)',zones=[zone],
+                                                        value_location=CC)
+                eq('{'+new_variablename+'_forf}='+
+                        'IF({'+dstate+'}['+source_index+'],'+
+                        '{'+dstate+'}['+source_index+']*'+
+                               '({'+basevar+'}['+future_index+']+'+
+                                '{'+basevar+'}['+source_index+'])/2'+
+                                                '/'+td+',0)',zones=[zone],
+                                                        value_location=CC)
+                '''
+                eq('{'+new_variablename+'_acqu}='+
+                        'IF({'+dstate+'}['+source_index+']==1,'+
                             '-1*({'+basevar+'}['+future_index+'])'+
                                                 '/'+td+',0)',zones=[zone],
                                                         value_location=CC)
                 eq('{'+new_variablename+'_forf}='+
-                        'IF({'+dstate+'}['+source_index+']<0,'+
+                        'IF({'+dstate+'}['+source_index+']==-1,'+
                                '({'+basevar+'}['+source_index+'])'+
                                                 '/'+td+',0)',zones=[zone],
                                                         value_location=CC)
+                '''
                 mobiledict.update({new_variablename+'_acqu':
                                             new_outputname+'_acqu '+units,
                                        new_variablename+'_forf':
