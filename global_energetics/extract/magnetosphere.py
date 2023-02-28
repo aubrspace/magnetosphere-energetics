@@ -21,6 +21,7 @@ from global_energetics.extract.stream_tools import (streamfind_bisection,
                                                     calc_state,
                                                     get_surf_geom_variables,
                                                     setup_isosurface,
+                                                    setup_solidvolume,
                                                     calc_closed_state,
                                                     calc_delta_state,
                                                     get_1D_sw_variables,
@@ -246,6 +247,9 @@ def prep_field_data(field_data, **kwargs):
             closed_zone = setup_isosurface(1,closed_index,'lcb',
                                         blankvalue=kwargs.get('inner_r',3),
                                            blankvar='')
+            #closed_zone = setup_solidvolume(field_data.zone(0), 1,
+            #                                closed_index, 'lcb')
+
     else:
         if do_trace:
             closedzone_index = streamfind_bisection(field_data,
@@ -265,11 +269,15 @@ def prep_field_data(field_data, **kwargs):
             aux['inner_l'] = 0
             return aux, None, None
         else:
+            tp.data.operate.execute_equation('{Status_cc}={Status}',
+                                    value_location=ValueLocation.CellCentered)
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0,
                                              kwargs.get('inner_r',3))
             closed_zone = setup_isosurface(1,closed_index,'lcb',
                                         blankvalue=kwargs.get('inner_r',3),
                                            blankvar='')
+            #closed_zone = setup_solidvolume(field_data.zone(0), 1,
+            #                                closed_index, 'lcb')
             if do_cms:
                 future_closed_index = calc_closed_state('future_lcb',
                                                         'Status', 3,
@@ -279,6 +287,9 @@ def prep_field_data(field_data, **kwargs):
                                                      'future_lcb',
                                         blankvalue=kwargs.get('inner_r',3),
                                                      blankvar='')
+                #future_closed_zone = setup_solidvolume(field_data.zone(1), 1,
+                #                                       future_closed_index,
+                #                                       'future_lcb')
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closed_zone.index).values('X *').max())

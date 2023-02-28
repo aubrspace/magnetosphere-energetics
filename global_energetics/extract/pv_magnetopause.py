@@ -11,7 +11,11 @@ import datetime as dt
 from paraview.simple import *
 import magnetometer
 from magnetometer import(get_stations_now, read_station_paraview)
+#from pv_input_tools import todimensional
+from pv_equations import (equations, eqeval, get_dipole_field,
+                          create_iso_surface)
 
+'''
 def get_time(infile,**kwargs):
     date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
     time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
@@ -41,7 +45,9 @@ def read_aux(infile):
             data[line.split(':')[0]]=line.split(':')[-1].replace(
                                                  ' ','').replace('\n','')
     return data
+'''
 
+'''
 def get_dipole_field(auxdata, *, B0=31000):
     """Function calculates dipole field in given coordinate system based on
         current time in UTC
@@ -81,7 +87,9 @@ def get_dipole_field(auxdata, *, B0=31000):
                                             M33+'*'+str(axis[2]))+')'
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
+'''
 
+'''
 def equations(**kwargs):
     """Defines equations that will be used for global variables
     Inputs- none
@@ -317,7 +325,9 @@ def equations(**kwargs):
                               '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)'}
     ######################################################################
     return equations
+'''
 
+'''
 def tec2para(instr):
     badchars = ['{','}','[',']']
     replacements = {' [':'_','**':'^','1e':'10^','pi':'3.14159',#generic
@@ -336,7 +346,9 @@ def tec2para(instr):
         outstr = ''.join(outstr.split(bc))
     #print('WAS: ',instr,'\tIS: ',outstr)
     return outstr
+'''
 
+'''
 def eqeval(eqset,pipeline,**kwargs):
     for lhs_tec,rhs_tec in eqset.items():
         lhs = tec2para(lhs_tec)
@@ -346,7 +358,9 @@ def eqeval(eqset,pipeline,**kwargs):
         var.ResultArrayName = lhs
         pipeline = var
     return pipeline
+'''
 
+'''
 def read_tecplot(infile):
     """Function reads tecplot binary file
     Inputs
@@ -367,7 +381,9 @@ def read_tecplot(infile):
     arraylist = [s for s in status if s!='0' and s!='1']
     sourcedata.PointArrayStatus = arraylist
     return sourcedata
+'''
 
+'''
 def fix_names(pipeline,**kwargs):
     names = ProgrammableFilter(registrationName='names', Input=pipeline)
     names.Script = """
@@ -388,6 +404,7 @@ def fix_names(pipeline,**kwargs):
     """
     pipeline = names
     return pipeline
+'''
 
 def get_vectors(pipeline,**kwargs):
     """Function sets up calculator filters to turn components into vector
@@ -674,6 +691,7 @@ def setup_outline(source,**kwargs):
     # Hide the scalar bar for this color map if not used.
     HideScalarBarIfNotNeeded(variableLUT, renderView)
 
+'''
 def create_iso_surface(inputsource, variable, name, **kwargs):
     """Function creates iso surface from variable
     Inputs
@@ -715,6 +733,7 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
         outputsource = iso3
 
     return outputsource
+'''
 
 def point2cell(inputsource, fluxes):
     point2cell = PointDatatoCellData(registrationName='surface_p2cc',
@@ -1258,6 +1277,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView.CameraFocalPoint = [47.90558157105895, 0.33132763449067765, 3.5946634254149736]
         renderView.CameraViewUp = [-0.05356990972544573, 0.0003538349672490677, 0.9985640387941195]
 
+'''
 def todimensional(pipeline, **kwargs):
     """Function modifies dimensionless variables -> dimensional variables
     Inputs
@@ -1342,6 +1362,7 @@ def todimensional(pipeline, **kwargs):
     #dataset.frame.plot().axes.y_axis.variable = dataset.variable('Y *')
     #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
     return pipeline
+'''
 
 def add_fluxVolume(field,**kwargs):
     """Function adds field lines to current view
@@ -1640,6 +1661,7 @@ def setup_pipeline(infile,**kwargs):
 
 if __name__ == "__main__":
 #if True:
+    #from pv_input_tools import time_sort, read_aux, read_tecplot
     start_time = time.time()
     ######################################################################
     # USER INPUTS

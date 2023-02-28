@@ -167,7 +167,7 @@ def get_energy_integrands(state_var):
             energydict.update({'Eth'+state:'Eth [J]'})
         elif name+state not in existing_variables:
         #Create variable for integrand that only exists in isolated zone
-            eq('{'+name+state+'}=IF({'+state+'}[1]<1, 0, {'+term+'}[1])',
+            eq('{'+name+state+'}=IF({'+state+'}[1]==1, {'+term+'}[1],0)',
                                                   zones=[0],value_location=CC)
             '''
             #Add the statevariableonly version of ex.(Utot) to the FUTURE
@@ -359,17 +359,19 @@ def volume_analysis(state_var, **kwargs):
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
                                         ('energy' in analysis_type) or
                                         (kwargs.get('customTerms',{})!={})):
-        mobile_terms = get_mobile_integrands(global_zone,state_var,
-                                             integrands,
-                                             **kwargs)
+        #mobile_terms = get_mobile_integrands(global_zone,state_var,
+        #                                     integrands,
+        #                                     **kwargs)
         if kwargs.get('do_interfacing',False):
         #and'mp' not in state_var.name:
             #get_daymapped_nightmapped(global_zone,**kwargs,
             #                          state_var=state_var)
             interface_terms = get_interface_integrands(global_zone,
-                                                     mobile_terms,**kwargs,
+                                                       #mobile_terms,**kwargs,
+                                                       integrands,**kwargs,
                                                        state_var=state_var)
-            mobile_terms.update(interface_terms)
+            #mobile_terms.update(interface_terms)
+            integrands.update(interface_terms)
             '''
             daymapped_terms = conditional_mod(global_zone,mobile_terms,
                                               ['daymapped'],'DayMapped')
@@ -385,7 +387,7 @@ def volume_analysis(state_var, **kwargs):
                 #                                       mobile_terms))
                 mobile_terms.update(get_open_close_integrands(global_zone,
                                                              mobile_terms))
-        integrands.update(mobile_terms)
+        #integrands.update(mobile_terms)
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,
                                                 integrands,**kwargs))
@@ -401,13 +403,10 @@ def volume_analysis(state_var, **kwargs):
                       state_var.name,term[1],results[term[1]][0]))
     pieces = np.sum([results[k] for k in results.keys() if 'K' in k])
     if 'mp' in state_var.name and kwargs.get('do_interfacing',False):
-        pieces-=(results['Utot_acquK1 [W]'][0]+
-                 results['Utot_forfK1 [W]'][0]+
-                 results['Utot_acquK5 [W]'][0]+
-                 results['Utot_forfK5 [W]'][0])
-    print('{:<20}{:<25}{:>.3}'.format(state_var.name,'error',
-               ((results['Utot_acqu [W]'][0]+
-                 results['Utot_forf [W]'][0])-pieces)))
+        pieces-=(results['UtotK1 [J]'][0]+
+                 results['UtotK5 [J]'][0])
+    print('{:<20}{:<25}{:>%}'.format(state_var.name,'error',
+               (pieces-results['Utot [J]'][0])/results['Utot [J]'][0]))
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):

@@ -900,7 +900,7 @@ def get_day_flank_tail(zone,**kwargs):
     Inputs
         zone(Zone)- tecplot Zone object to do calculation
     """
-    eq = tp.data.operate.execute_equation
+    eq, cc = tp.data.operate.execute_equation, ValueLocation.CellCentered
     #Check that geometry variables have already been calculated
     if 'mp' in zone.name:
         tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
@@ -908,16 +908,17 @@ def get_day_flank_tail(zone,**kwargs):
         eq('{Tail} = IF(({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
              '({X [R]}<-10&&{h}<'+str(tail_h)+')||'+
              '(abs({X [R]}-'+str(zone.values('X *').min())+')<0.5)'+
-             ',1,0)',zones=[zone.index])
+             ',1,0)',zones=[zone.index],value_location=cc)
         eq('{Flank} = IF({Day}==0&&{Tail}==0,1,0)', zones=[zone.index])
     #TODO check this visually
     elif 'lobe' in zone.name or 'closed' in zone.name:
         eq('{Tail} = IF(abs({X [R]}-'+str(zone.values('X *').min())+
-                                          ')<0.5,1,0)',zones=[zone.index])
+                          ')<0.5,1,0)',zones=[zone.index],value_location=cc)
+    '''
     elif 'global' in zone.name:
         statevalues = zone.values(kwargs.get('state_var').name
                                   ).as_numpy_array()
-        X=zone.values('X *').as_numpy_array()[np.where(statevalues==1)].min()
+        X=zone.values('x_cc').as_numpy_array()[np.where(statevalues==1)].min()
         if 'mp' in kwargs.get('state_var').name:
             h = zone.values('h').as_numpy_array()[np.where(statevalues==1)]
             tail_h = float(zone.dataset.zone('mp*').aux_data['hmin'])
@@ -925,11 +926,13 @@ def get_day_flank_tail(zone,**kwargs):
                '({X [R]}<-5&&{h}<'+str(tail_h)+'*0.8)||'+
                 '({X [R]}<-10&&{h}<'+str(tail_h)+')||'+
                 '(abs({X [R]}-'+str(X)+')<0.5)'+
-                ',1,0)',zones=[zone.index])
+                ',1,0)',zones=[zone.index],value_location=cc)
         elif ('Lobe' in kwargs.get('state_var').name or
               'lcb' in kwargs.get('state_var').name):
             eq('{Tail} = IF(({'+kwargs.get('state_var').name+'}==1)&&'+
-               'abs({X [R]}-'+str(X)+')<0.5,1,0)',zones=[zone.index])
+               'abs({X [R]}-'+str(X)+')<0.5,1,0)',zones=[zone.index],
+                                                    value_location=cc)
+    '''
     '''
     ##############################################################
     #Day, flank, tail definitions
@@ -1828,6 +1831,31 @@ def integrate_tecplot(var, zone, *, VariableOption='Scalar'):
     result = float(tp.active_frame().aux_data['CFDA.INTEGRATION_TOTAL'])
     return result
 
+def setup_solidvolume(source, blankindex, state_variable,zonename,**kwargs):
+    plt = tp.active_frame().plot()
+    #turn on blanking
+    plt.value_blanking.active = True
+    #set to "primary value" for blanking
+    plt.value_blanking.cell_mode = ValueBlankCellMode.PrimaryValue
+    #clear all conditions
+    for index in range(0,8):
+        plt.value_blanking.constraint(index).active=False
+    #set blank condition to not= statevariable
+    inverse_stateblank = plt.value_blanking.constraint(blankindex)
+    inverse_stateblank.variable = source.dataset.variable(state_variable)
+    inverse_stateblank.comparison_operator = RelOp.NotEqualTo
+    inverse_stateblank.comparison_value = kwargs.get('state_value',1)
+    inverse_stateblank.active=True
+    #extract blanked regions
+    [newzone] = tp.data.extract.extract_blanked_zones(source)
+    #set zone name
+    newzone.name = zonename
+    #turn off blanked condition
+    inverse_stateblank.active=False
+    #turn off blanking
+    plt.value_blanking.active = False
+    return newzone
+
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, global_key='global_field',
                                             blankvar='',blankvalue=3,
@@ -2122,6 +2150,8 @@ def calc_state(mode, sourcezone, **kwargs):
         #Generate outersurface with blanking the inner boundary
         zone = setup_isosurface(1, state_index, zonename,blankvar='r *',
                                 blankvalue=kwargs.get('inner_r',3))
+        #zone = setup_solidvolume(sourcezone, 1, state_index, zonename)
+        #innerzone=None
         #Sphere at fixed radius
         innerzone = setup_isosurface(kwargs.get('inner_r',3),
                                 sourcezone.dataset.variable('r *').index,
@@ -2569,7 +2599,7 @@ def calc_lobe_state(mp_var, northsouth, sourcezone, **kwargs):
     Return
         index- index for the created variable
     """
-    eq = tp.data.operate.execute_equation
+    eq, cc = tp.data.operate.execute_equation, ValueLocation.CellCentered
     src=str(sourcezone.index+1)#Needs to be ref for non fixed vars (XYZR)
                                #mp_var is exception (lives in zone0)
     status = kwargs.get('status','Status')
@@ -2580,15 +2610,17 @@ def calc_lobe_state(mp_var, northsouth, sourcezone, **kwargs):
     if'future'in sourcezone.name: state = 'future_'+state
     #calculate
     if northsouth == 'north':
-        eq('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
-                            '{'+status+'}['+src+']==2,1,0)',zones=[0])
+        eqstr=('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
+                            '{'+status+'}['+src+']<3&&'+
+                            '{'+status+'}['+src+']>=2,1,0)')
     elif northsouth == 'south':
-        eq('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
-                            '{'+status+'}['+src+']==1,1,0)',zones=[0])
+        eqstr=('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
+                            '{'+status+'}['+src+']<2&&'+
+                            '{'+status+'}['+src+']>0,1,0)')
     else:
-        eq('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
-            '({'+status+'}['+src+']==2 ||{'+status+'}['+src+']==1),1,0)',
-                zones=[0])
+        eqstr=('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
+            '({'+status+'}['+src+']<3 &&{'+status+'}['+src+']>0),1,0)')
+    eq(eqstr, zones=[0], value_location=cc)
     return sourcezone.dataset.variable(state).index
 
 def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin,
@@ -2637,22 +2669,22 @@ def calc_betastar_state(zonename, srczone, **kwargs):
 {dn_x} = ddx({d_Betastar0.7})
 {dn_y} = ddy({d_Betastar0.7})
     '''
-    eq = tp.data.operate.execute_equation
+    eq, cc = tp.data.operate.execute_equation, ValueLocation.CellCentered
     if kwargs.get('sunward_pole',False):
         #PALEO variant for dipole facing subsolar point
         eqstr=('{'+zonename+'}=IF({X [R]}>'+xmin+'&&'+'{r [R]}>='+core_r)
     else:
         eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+
                                  '{X [R]} <'+xmax+'&&{r [R]} >='+core_r)
-    if 'Status' in srczone.dataset.variable_names:
-        eqstr+='&&{Status}!=0'
+    if 'Status_cc' in srczone.dataset.variable_names:
+        eqstr+='&&{Status_cc}>0'
     eqstr=(eqstr+',IF({beta_star}['+srcZnIndex+']<'+betamax+',1,')
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
     else:
         eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
-    eq(eqstr, zones=[0])
+    eq(eqstr, zones=[0], value_location=cc)
     return tp.active_frame().dataset.variable(zonename).index
 
 def calc_delta_state(t0state, t1state):
@@ -2749,11 +2781,10 @@ def calc_closed_state(statename, status_key,status_val,xmin,source,core_r):
     Outputs
         state_var_index- index to find state variable in tecplot
     """
-    eq = tp.data.operate.execute_equation
-    eq('{'+statename+'}=IF({X [R]}>'+str(xmin)+'&&{r [R]}>='+str(core_r)+
-                    ',IF({'+status_key+'}['+str(source+1)+']=='+
-                                            str(status_val)+',1,0), 0)',
-                                                              zones=[0])
+    eq, cc = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    eqstr = ('{'+statename+'}=IF({X [R]}>'+str(xmin)+'&&{r [R]}>='+str(core_r)+
+                    ',IF({'+status_key+'}['+str(source+1)+']>=3,1,0), 0)')
+    eq(eqstr,zones=[0],value_location=cc)
     return tp.active_frame().dataset.variable(statename).index
 
 def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin,sourcezone):

@@ -31,17 +31,19 @@ def central_diff(dataframe,dt,**kwargs):
     Returns
         cdiff (DataFrame)
     """
-    working_dataframe = dataframe.copy(deep=True)#I hate having to do this
-    ogindex = dataframe.index
-    working_dataframe.reset_index(drop=True,inplace=True)
-    working_dataframe_fwd = working_dataframe.copy()
-    working_dataframe_fwd.index = working_dataframe.index-1
-    working_dataframe_bck = working_dataframe.copy()
-    working_dataframe_bck.index = working_dataframe.index+1
-    cdiff = (working_dataframe_fwd-working_dataframe_bck)/(2*dt)
-    cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
-    cdiff.index = ogindex
-    cdiff.fillna(value=kwargs.get('fill',0),inplace=True)
+    df = dataframe.copy(deep=True)
+    df = df.reset_index(drop=True).fillna(method='ffill')
+    df_fwd = df.copy(deep=True)
+    df_bck = df.copy(deep=True)
+    df_fwd.index -= 1
+    df_bck.index += 1
+    if kwargs.get('forward',False):
+        cdiff = (df_fwd-df)/dt
+        cdiff.drop(index=[-1],inplace=True)
+    else:
+        cdiff = (df_fwd-df_bck)/(2*dt)
+        cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
+    cdiff.index = dataframe.index
     return cdiff
 
 def post_proc_interface2(results,**kwargs):
@@ -371,18 +373,20 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
             any(['closed' in c for c in conditions])):
             if (any(['not open' in c for c in conditions]) or
                 any(['closed' in c for c in conditions])):
-                new_eq+='({Status}['+condition_source+']==3) &&'#closed
+                new_eq+='({Status_cc}['+condition_source+']>=3) &&'#closed
             elif any(['N' in c for c in conditions]):
-                new_eq+='({Status}['+condition_source+']==2) &&'#open north
+                new_eq+=('({Status_cc}['+condition_source+']<3&&'+
+                          '{Status_cc}['+condition_source+']>=2)&&')#north
             elif any(['S' in c for c in conditions]):
-                new_eq+='({Status}['+condition_source+']==1) &&'#open south
+                new_eq+=('({Status_cc}['+condition_source+']<2 &&'+
+                          '{Status_cc}['+condition_source+']>0) &&')#south
             else:
-                new_eq+=('({Status}['+condition_source+']==2 || '+
-                          '{Status}['+condition_source+']==1) &&')#open
+                new_eq+=('({Status_cc}['+condition_source+']<3 && '+
+                          '{Status_cc}['+condition_source+']>0) &&')#open
         #TAIL
         if any(['tail' in c for c in conditions]):
             if 'not tail' in conditions:
-                new_eq+='({Tail}['+condition_source+']==0) &&'
+                new_eq+='({Tail}['+condition_source+']<1) &&'
             else:
                 new_eq+='({Tail}['+condition_source+']==1) &&'
         #INNER BOUNDARY
@@ -460,8 +464,10 @@ def get_interface_integrands(zone,integrands,**kwargs):
         if target=='lcb':target='closed'
         if target=='NLobe':target='nlobe'
         if target=='SLobe':target='slobe'
+        dotail = ''
     else:
         target = zone.name.split('ms_')[-1]
+        dotail='not tail'
     #May need to identify the 'tail' portion of the surface
     if (('mp'in target and 'inner' not in target) or
         ('lobe' in target) or ('close' in target)):
@@ -474,30 +480,30 @@ def get_interface_integrands(zone,integrands,**kwargs):
     if ('mp' in target) and ('inner' not in target):
         # K1
         interfaces.update(conditional_mod(zone,integrands,
-                                         ['open','not tail'],'K1',**kwargs,
+                                         ['open',dotail],'K1',**kwargs,
                                           target=target))
         # K1_day
         interfaces.update(conditional_mod(zone,integrands,
-                                          ['open','daymapped','not tail'],
+                                          ['open','daymapped',dotail],
                                           'K1day',**kwargs,
                                           target=target))
         # K1_night
         interfaces.update(conditional_mod(zone,integrands,
-                                         ['open','nightmapped','not tail'],
+                                         ['open','nightmapped',dotail],
                                           'K1night',**kwargs,
                                           target=target))
         # K5
         interfaces.update(conditional_mod(zone,integrands,
-                                       ['closed','not tail'],'K5',**kwargs,
+                                       ['closed',dotail],'K5',**kwargs,
                                           target=target))
         # K5_day
         interfaces.update(conditional_mod(zone,integrands,
-                                       ['closed','daymapped','not tail'],
+                                       ['closed','daymapped',dotail],
                                         'K5day',**kwargs,
                                           target=target))
         # K5_night
         interfaces.update(conditional_mod(zone,integrands,
-                                       ['closed','nightmapped','not tail'],
+                                       ['closed','nightmapped',dotail],
                                         'K5night',**kwargs,
                                           target=target))
         '''Demo interface

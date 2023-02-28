@@ -123,14 +123,14 @@ if __name__ == "__main__":
                                     verbose=True,
                                     do_cms=True,
                                     analysis_type='energy',
-                                    modes=['iso_betastar','closed',
+                                    modes=['iso_betastar',
+                                           'closed',
                                            'nlobe','slobe'],
                                     do_interfacing=True,
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     integrate_line=False,
                                     outputpath='babyrun/',
-                                    full_closed=True,
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'Utot [J/Re^3]':'Utot [J]'})
@@ -214,30 +214,42 @@ if __name__ == "__main__":
         K6 = closed_surf['K_netK6 [W]']
         K7 = closed_surf['K_netK7 [W]']
 
-        #M1,5 from mp
-        M1 = mp_vol['Utot_netK1 [W]']
-        M5 = mp_vol['Utot_netK5 [W]']
-        Mmp = mp_vol['Utot_net [W]']
-        #M2,3,4 from lobes
-        M2al = lobe_vol['Utot_netK2a [W]']
-        M2bl = lobe_vol['Utot_netK2b [W]']
-        M3 = lobe_vol['Utot_netK3 [W]']
-        M4 = lobe_vol['Utot_netK4 [W]']
-        Ml = lobe_vol['Utot_net [W]']
-        #M2,6,7 from closed
-        M2ac = closed_vol['Utot_netK2a [W]']
-        M2bc = closed_vol['Utot_netK2b [W]']
-        M6 = closed_vol['Utot_netK6 [W]']
-        M7 = closed_vol['Utot_netK7 [W]']
-        Mc = closed_vol['Utot_net [W]']
+        #T1,5 from mp
+        T1 = mp_vol['UtotK1 [J]']
+        T5 = mp_vol['UtotK5 [J]']
+        Tmp = mp_vol['Utot [J]']
+        #T2,3,4 from lobes
+        T2al = lobe_vol['UtotK2a [J]']
+        T2bl = lobe_vol['UtotK2b [J]']
+        T3 = lobe_vol['UtotK3 [J]']
+        T4 = lobe_vol['UtotK4 [J]']
+        Tl = lobe_vol['Utot [J]']
+        #T2,6,7 from closed
+        T2ac = closed_vol['UtotK2a [J]']
+        T2bc = closed_vol['UtotK2b [J]']
+        T6 = closed_vol['UtotK6 [J]']
+        T7 = closed_vol['UtotK7 [J]']
+        Tc = closed_vol['Utot [J]']
 
         #Adjust M terms to central difference
-        if len(M1)>1:
-            for M in [M1,M5,M2al,M2bl,M3,M4,M2ac,M2bc,M6,M7,Mmp,Ml,Mc]:
-                M[1::] = [(M.loc[i]+M.loc[i-1])/2 for i in M.index
-                        if i-1 in M.index]
-                M.loc[0] = 0
+        #T1,5 from mp
+        dTdt1 = -1*surface_tools.central_diff(T1,60)
+        dTdt5 = -1*surface_tools.central_diff(T5,60)
+        dTdtmp = -1*surface_tools.central_diff(Tmp,60)
+        #T2,3,4 from lobes
+        dTdt2al = -1*surface_tools.central_diff(T2al,60)
+        dTdt2bl = -1*surface_tools.central_diff(T2bl,60)
+        dTdt3 = -1*surface_tools.central_diff(T3,60)
+        dTdt4 = -1*surface_tools.central_diff(T4,60)
+        dTdtl = -1*surface_tools.central_diff(Tl,60)
+        #T2,6,7 from closed
+        dTdt2ac = -1*surface_tools.central_diff(T2ac,60)
+        dTdt2bc = -1*surface_tools.central_diff(T2bc,60)
+        dTdt6 = -1*surface_tools.central_diff(T6,60)
+        dTdt7 = -1*surface_tools.central_diff(T7,60)
+        dTdtc = -1*surface_tools.central_diff(Tc,60)
 
+        '''
         #Combine into dEdt_sum
         #   Lobes- (KM1,2,3,4)
         #dEdt_suml = K1+K2al+K2bl+K3+K4+M1+M2al+M2bl+M3+M4
@@ -252,14 +264,16 @@ if __name__ == "__main__":
         dEdt_cdiffl=-1*surface_tools.central_diff(lobe_vol['Utot [J]'],60)
         dEdt_cdiffc=-1*surface_tools.central_diff(closed_vol['Utot [J]'],60)
         dEdt_cdifft = -1*surface_tools.central_diff(mp_vol['Utot [J]'],60)
+        '''
 
         #Display errors
         error_2as = (K2al+K2ac)/K2ac*100
         error_2bs = (K2bl+K2bc)/K2bc*100
-        error_2am = (M2al+M2ac)/M2ac*100
-        error_2bm = (M2bl+M2bc)/M2bc*100
+        error_2a = (dTdt2al+dTdt2ac)/dTdt2ac*100
+        error_2b = (dTdt2bl+dTdt2bc)/dTdt2bc*100
         error_volume = (mp_vol['Volume [Re^3]']-lobe_vol['Volume [Re^3]']
                         - closed_vol['Volume [Re^3]'])
+        '''
         #Display error with K_net and Utot_net
         error_dEdtl = dEdt_suml - dEdt_cdiffl
         error_dEdtc = dEdt_sumc - dEdt_cdiffc
@@ -275,6 +289,7 @@ if __name__ == "__main__":
               'dEdt_cdiff {:<.3}\t'.format(dEdt_cdifft[1])+
               'error {:<.3}'.format(error_dEdtt[1]))
         print('\nno issues!')
+        '''
     from IPython import embed; embed()
 
     #with tp.session.suspend():
