@@ -359,19 +359,22 @@ def volume_analysis(state_var, **kwargs):
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
                                         ('energy' in analysis_type) or
                                         (kwargs.get('customTerms',{})!={})):
+        pass
         #mobile_terms = get_mobile_integrands(global_zone,state_var,
         #                                     integrands,
         #                                     **kwargs)
-        if kwargs.get('do_interfacing',False):
+    #TODO: this should be going but is not..
+    if kwargs.get('do_interfacing',False):
         #and'mp' not in state_var.name:
             #get_daymapped_nightmapped(global_zone,**kwargs,
             #                          state_var=state_var)
-            interface_terms = get_interface_integrands(global_zone,
+        interface_terms = get_interface_integrands(global_zone,
                                                        #mobile_terms,**kwargs,
                                                        integrands,**kwargs,
                                                        state_var=state_var)
-            #mobile_terms.update(interface_terms)
-            integrands.update(interface_terms)
+        #mobile_terms.update(interface_terms)
+        integrands.update(interface_terms)
+        """
             '''
             daymapped_terms = conditional_mod(global_zone,mobile_terms,
                                               ['daymapped'],'DayMapped')
@@ -388,6 +391,7 @@ def volume_analysis(state_var, **kwargs):
                 mobile_terms.update(get_open_close_integrands(global_zone,
                                                              mobile_terms))
         #integrands.update(mobile_terms)
+        """
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,
                                                 integrands,**kwargs))

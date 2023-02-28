@@ -121,7 +121,7 @@ if __name__ == "__main__":
             _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                     verbose=True,
-                                    do_cms=True,
+                                    do_cms=False,
                                     analysis_type='energy',
                                     modes=['iso_betastar',
                                            'closed',
