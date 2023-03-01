@@ -16,7 +16,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
-from labellines import labelLines
+#from labellines import labelLines
 import swmfpy
 #interpackage imports
 from global_energetics.extract.shue import (r0_alpha_1998, r_shue)
@@ -520,7 +520,7 @@ def plot_VortPower(axis, dfdict, timekey, ylabel, control_key, *,
         axis.set_ylim(ylim)
     axis.set_xlabel(r'\textit{Time [UTC]}')
     axis.set_ylabel(ylabel)
-    labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
+    #labelLines(axis.get_lines(),zorder=2.5,align=False,fontsize=11)
 
 def plot_stackedPower(axis, dfdict, timekey, ylabel, control_key, *,
                    xlim=None, ylim=None, Color=None, Size=2, ls=None):

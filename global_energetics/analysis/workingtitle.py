@@ -1774,20 +1774,26 @@ def lobe_balance_fig(dataset,phase,path):
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
 
+        # Rearranging because this is tricky
+        U_day = mp['UtotK1day [J]']+mp['UtotK5day [J]']
+        U_night = mp['UtotK1night [J]']+mp['UtotK5night [J]']
+        U_2a=(lobes['UtotK1day&K2a [J]']+closed['UtotK5day&K2a [J]']-K_day)/2
+        U_2b=(lobes['UtotK1night&K2b [J]']+
+              closed['UtotK5night&K2b [J]']-K_night)/2
+        U_1 = lobes['Utot [J]']-U_2a-U2_b
+        U_5 = closed['Utot [J]']-U_2a-U2_b
         # Central difference of partial volume integrals, total change
         # Total
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
         # Partials (spatial)
-        K_1 = -1*central_diff(mp['UtotK1 [J]'],60)
-        K_2a_lobes = -1*central_diff(lobes['UtotK2a [J]'],60)
-        K_2a_closed = -1*central_diff(closed['UtotK2a [J]'],60)
-        K_2b_lobes = -1*central_diff(lobes['UtotK2b [J]'],60)
-        K_2b_closed = -1*central_diff(closed['UtotK2b [J]'],60)
+        K_1 = -1*central_diff(U_1,60)
+        K_2a = -1*central_diff(U_2a,60)
+        K_2b = -1*central_diff(U_2b,60)
         K_3 = -1*central_diff(lobes['UtotK3 [J]'],60)
         K_4 = -1*central_diff(lobes['UtotK4 [J]'],60)
-        K_5 = -1*central_diff(mp['UtotK5 [J]'],60)
+        K_5 = -1*central_diff(U_5,60)
         K_6 = -1*central_diff(closed['UtotK6 [J]'],60)
         K_7 = -1*central_diff(closed['UtotK7 [J]'],60)
 
@@ -1798,10 +1804,10 @@ def lobe_balance_fig(dataset,phase,path):
         M_mp = K_mp - mp['K_net [W]']
         # Partials
         M_1 = K_1 - mp['K_netK1 [W]']
-        M_2a_lobes = K_2a_lobes - lobes['K_netK2a [W]']
-        M_2a_closed = K_2a_closed - closed['K_netK2a [W]']
-        M_2b_lobes = K_2b_lobes - lobes['K_netK2b [W]']
-        M_2b_closed = K_2b_closed - closed['K_netK2b [W]']
+        M_2a_lobes = K_2a - lobes['K_netK2a [W]']
+        M_2a_closed = K_2a - closed['K_netK2a [W]']
+        M_2b_lobes = K_2b - lobes['K_netK2b [W]']
+        M_2b_closed = K_2b - closed['K_netK2b [W]']
         M_3 = K_3 - lobes['K_netK3 [W]']
         M_4 = K_4 - lobes['K_netK4 [W]']
         M_5 = K_5 - mp['K_netK5 [W]']
