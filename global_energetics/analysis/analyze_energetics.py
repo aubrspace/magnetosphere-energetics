@@ -26,7 +26,7 @@ from global_energetics.analysis.plot_tools import (general_plot_settings,
                                                    mark_times, shade_plot)
 from global_energetics.analysis.proc_hdf import(group_subzones,
                                                 load_hdf_sort)
-from global_energetics.analysis.proc_energy_temporal import(process_energy)
+from global_energetics.analysis.proc_energy_timeseries import(process_energy)
 from global_energetics.analysis.proc_indices import (read_indices,
                                                      get_expanded_sw)
 

@@ -33,7 +33,6 @@ from global_energetics.analysis.analyze_energetics import plot_power
 from global_energetics.analysis.proc_energy_spatial import reformat_lshell
 from global_energetics.analysis.proc_timing import (peak2peak,
                                                     pearson_r_shifts)
-import seaborn as sns
 
 def combine_closed_rc(data_dict):
     """Function recombines closed and ring current results into one region
@@ -2323,8 +2322,7 @@ if __name__ == "__main__":
     #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
-    #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
-    dataset['star'] = load_hdf_sort(inAnalysis+'temp/test4_star2.h5')
+    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
