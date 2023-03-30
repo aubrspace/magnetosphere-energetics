@@ -159,7 +159,7 @@ def get_energy_integrands(state_var):
     #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
     #integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','u_db [J/Re^3]',
     #              'uHydro [J/Re^3]']
-    integrands = ['Utot [J/Re^3]']
+    integrands = ['Utot [J/Re^3]','test']
     for term in integrands:
         name = term.split(' ')[0]
         if 'Pth' in term:
@@ -167,8 +167,7 @@ def get_energy_integrands(state_var):
             energydict.update({'Eth'+state:'Eth [J]'})
         elif name+state not in existing_variables:
         #Create variable for integrand that only exists in isolated zone
-            eq('{'+name+state+'}=IF({'+state+'}[1]==1, {'+term+'}[1],0)',
-                                                  zones=[0],value_location=CC)
+            eq('{'+name+state+'}=IF({'+state+'}==1, {'+term+'},0)',zones=[0,1])
             '''
             #Add the statevariableonly version of ex.(Utot) to the FUTURE
             # dataset specifically in the cells which have already been
@@ -180,6 +179,141 @@ def get_energy_integrands(state_var):
             '''
             energydict.update({name+state:name+' [J]'})
     return energydict
+
+def make_trade_eq(from_state,to_state,tagname,tstep):
+    """Creates the equation string and evaluates 'trade' state
+        Fix from states with [1] designating the currentzone
+        Fix to states with [2] designating the futurezone
+              Reverse for opposite sign
+
+          ex. if( dayclosed[now] & ext[future]) then +M5a
+              elif( dayclosed[future] & ext[now] then -M5a
+    Inputs
+        from_state,to_state (str(variablename))- denotes sign convention
+        tagname (str)- tag put on variable
+    Returns
+        tradestr (str)- equation to be used to evaluate equation
+    """
+
+    tradestr = ('if('+from_state.replace('}=','}[1]=')+'&&'+
+                     to_state.replace('}=','}[2]=')+',{value}[1]/'+tstep+','+
+                'if('+from_state.replace('}=','}[2]=')+'&&'+
+                     to_state.replace('}=','}[1]=')+',-1*{value}[2]/'+tstep+
+                                                                       ',0))')
+    return '{name'+tagname+'} = '+tradestr
+
+def get_volume_trades(zone,integrands,**kwargs):
+    """Thinking in terms of volume element 'trades' we track the mobile
+        contributions of the quantity exchange between volumes
+
+        ex. suppose a pressure pulse forces the lobes to compress, then
+            several volume elements trade
+                were:           'open north' status
+                are now:        'external' (not magnetosphere) status
+
+            this trade would represent a loss of (insert quantity) from the
+            lobes to the sheath. This will be needed to quantify the net
+            exchange between the two volumes (in this case sheath and north
+            lobe).
+
+    Inputs
+        zone
+        integrands
+        kwargs:
+    Returns
+        trade_integrands
+    """
+    tdelta = str(kwargs.get('tdelta',60))
+    analysis_type = kwargs.get('analysis_type','')
+    trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
+    tradelist = []
+    state_name = kwargs.get('state_var').name
+    # Define state strings
+    ext = '({mp_iso_betastar}==0)'
+    dayclosed = '({daymapped}==1&&{lcb}==1)'
+    nightclosed = '({nightmapped}==1&&{lcb}==1)'
+    daylobes = ('(({daymapped_nlobe}==1&&{NLobe}==1) ||'+
+                 '({daymapped_slobe}==1&&{SLobe}==1)   )')
+    nightlobes = ('(({nightmapped_nlobe}==1&&{NLobe}==1) ||'+
+                  '({nightmapped_slobe}==1&&{SLobe}==1)   )')
+    daylobeN = '({daymapped_nlobe}==1&&{NLobe}==1)'
+    nightlobeN = '({nightmapped_nlobe}==1&&{NLobe}==1)'
+    daylobeS = '({daymapped_slobe}==1&&{SLobe}==1)'
+    nightlobeS = '({nightmapped_slobe}==1&&{SLobe}==1)'
+    # Closed
+    if ('lcb' in state_name and 'lcb' in zone.dataset.variable_names):
+        #M5a    from  day_closed    ->  ext
+        #M5b    from  night_closed  ->  ext
+        tradelist.append(make_trade_eq(dayclosed,ext,'M5a',tdelta))
+        tradelist.append(make_trade_eq(nightclosed,ext,'M5b',tdelta))
+        if ('NLobe' in zone.dataset.variable_names and
+            'SLobe' in zone.dataset.variable_names):
+            #M2a    from  day_closed    ->  day_lobes
+            #M2b    from  night_closed  <-  night_lobes
+            #M2c    from  day_closed    <-  night_lobes
+            #M2d    from  night_closed  <-  day_lobes
+            tradelist.append(make_trade_eq(dayclosed,daylobes,'M2a',tdelta))
+            tradelist.append(make_trade_eq(dayclosed,nightlobes,'M2c',tdelta))
+        #Mic    from  day_closed    <-  night_closed
+        tradelist.append(make_trade_eq(nightclosed,dayclosed,'Mic',tdelta))
+    # North Lobe
+    if ('NLobe' in zone.dataset.variable_names and 'NLobe' in state_name):
+        #M1a    from  day_lobeN     ->  ext
+        #M1b    from  night_lobeN   ->  ext
+        tradelist.append(make_trade_eq(daylobeN,ext,'M1a',tdelta))
+        tradelist.append(make_trade_eq(nightlobeN,ext,'M1b',tdelta))
+        if 'lcb' in zone.dataset.variable_names:
+            #M2a    from  day_lobeN     <-  day_closed
+            #M2b    from  night_lobeN   ->  night_closed
+            #M2c    from  day_closed    <-  night_lobes
+            #M2d    from  night_closed  <-  day_lobes
+            tradelist.append(make_trade_eq(nightlobeN,nightclosed,'M2b',tdelta))
+            tradelist.append(make_trade_eq(daylobeN,nightclosed,'M2d',tdelta))
+        #Mil    from  day_lobeN     ->  night_lobeN
+        tradelist.append(make_trade_eq(daylobeN,nightlobeN,'Mil',tdelta))
+    # South Lobe
+    if ('SLobe' in zone.dataset.variable_names and 'SLobe' in state_name):
+        #M1a    from  day_lobeS     ->  ext
+        #M1b    from  night_lobeS   ->  ext
+        tradelist.append(make_trade_eq(daylobeS,ext,'M1a',tdelta))
+        tradelist.append(make_trade_eq(nightlobeS,ext,'M1b',tdelta))
+        if 'lcb' in zone.dataset.variable_names:
+            #M2a    from  day_lobeS     <-  day_closed
+            #M2b    from  night_lobeS   ->  night_closed
+            #M2c    from  day_closed    <-  night_lobes
+            #M2d    from  night_closed  <-  day_lobes
+            tradelist.append(make_trade_eq(nightlobeS,nightclosed,'M2b',tdelta))
+            tradelist.append(make_trade_eq(daylobeS,nightclosed,'M2d',tdelta))
+        #Mil    from  day_lobeS     ->  night_lobeS
+        tradelist.append(make_trade_eq(daylobeS,nightlobeS,'Mil',tdelta))
+    # Debug trades (linear combinations of above, for testing only!)
+    if kwargs.get('debug',False) and 'mp' in state_name:
+        lobes = '({NLobe}==1 || {SLobe}==1)'
+        closed = '({lcb}==1)'
+        interior = '({mp_iso_betastar}==1)'
+        # M1    from  lobes     ->  ext
+        # M2    from  lobes     ->  closed
+        # M5    from  closed    ->  ext
+        # M     from  interior  ->  ext
+        tradelist.append(make_trade_eq(lobes,ext,'M1',tdelta))
+        tradelist.append(make_trade_eq(lobes,closed,'M2',tdelta))
+        tradelist.append(make_trade_eq(closed,ext,'M5',tdelta))
+        tradelist.append(make_trade_eq(interior,ext,'M',tdelta))
+    # Evaluate all equations and update the integrands for return
+    for varstr,name in integrands.items():
+        for tradestr in tradelist:
+            qty,unit = name.split(' ')
+            tradetag = tradestr.split('{name')[1].split('}')[0]
+            new_eq = tradestr.replace('value',varstr).replace('name',qty)
+            if unit=='[J]':
+                newunit = '[W]'
+            try:
+                eq(new_eq,zones=[zone],value_location=ValueLocation.Nodal)
+                trade_integrands[qty+tradetag]=' '.join([qty+tradetag,newunit])
+            except TecplotLogicError as err:
+                print('Equation eval failed!\n',new_eq,'\n')
+                if kwargs.get('debug',False): print(err)
+    return trade_integrands
 
 def get_mobile_integrands(zone,state_var,integrands,**kwargs):
     """Creates dict of integrands for surface motion effects
@@ -359,76 +493,71 @@ def volume_analysis(state_var, **kwargs):
     if kwargs.get('do_cms', False) and (('virial' in analysis_type) or
                                         ('energy' in analysis_type) or
                                         (kwargs.get('customTerms',{})!={})):
+        #TODO actively replacing this with the 'volume trades' model
         pass
-        #mobile_terms = get_mobile_integrands(global_zone,state_var,
-        #                                     integrands,
-        #                                     **kwargs)
-    #TODO: this should be going but is not..
+        '''
+        mobile_terms = get_mobile_integrands(global_zone,state_var,
+                                             integrands,
+                                             **kwargs)
+        '''
     if kwargs.get('do_interfacing',False):
-        #and'mp' not in state_var.name:
-            #get_daymapped_nightmapped(global_zone,**kwargs,
-            #                          state_var=state_var)
+        interface_terms = get_volume_trades(global_zone,integrands,
+                                            **kwargs,state_var=state_var)
+        '''
         interface_terms = get_interface_integrands(global_zone,
                                                        #mobile_terms,**kwargs,
                                                        integrands,**kwargs,
                                                        state_var=state_var)
         #mobile_terms.update(interface_terms)
+        '''
         integrands.update(interface_terms)
-        """
-            '''
-            daymapped_terms = conditional_mod(global_zone,mobile_terms,
-                                              ['daymapped'],'DayMapped')
-            nightmapped_terms = conditional_mod(global_zone,mobile_terms,
-                                              ['nightmapped'],'NightMapped')
-            mobile_terms.update(daymapped_terms)
-            mobile_terms.update(nightmapped_terms)
-            '''
-        elif not kwargs.get('do_interfacing',False):
-            if 'mp' in state_var.name:
-                #Integral bounds for spatially parsing results
-                #mobile_terms.update(get_dft_integrands(global_zone,
-                #                                       mobile_terms))
-                mobile_terms.update(get_open_close_integrands(global_zone,
-                                                             mobile_terms))
-        #integrands.update(mobile_terms)
-        """
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,
                                                 integrands,**kwargs))
     ###################################################################
     #Evaluate integrals
+    if 'truegridfile' in kwargs:
+        useNumpy = True
+    else:
+        useNumpy = False
     if kwargs.get('verbose',False):
         print('{:<20}{:<25}{:<9}'.format('Volume','Term','Value'))
         print('{:<20}{:<25}{:<9}'.format('******','****','*****'))
     for term in integrands.items():
-        results.update(calc_integral(term, global_zone))
+        results.update(calc_integral(term, global_zone,useNumpy=useNumpy))
         if kwargs.get('verbose',False):
             print('{:<20}{:<25}{:>.3}'.format(
                       state_var.name,term[1],results[term[1]][0]))
-    pieces = np.sum([results[k] for k in results.keys() if 'K' in k])
-    if 'mp' in state_var.name and kwargs.get('do_interfacing',False):
-        pieces-=(results['UtotK1 [J]'][0]+
-                 results['UtotK5 [J]'][0])
-    print('{:<20}{:<25}{:>%}'.format(state_var.name,'error',
+    '''
+    pieces = np.sum([results[k] for k in results.keys() if 'M' in k])
+    if ('mp' in state_var.name and kwargs.get('do_interfacing',False) and
+                                                 kwargs.get('debug',False)):
+        pieces-=(results['UtotM1 [J]'][0]+
+                 results['UtotM5 [J]'][0])
+        print('{:<20}{:<25}{:>%}'.format(state_var.name,'error',
                (pieces-results['Utot [J]'][0])/results['Utot [J]'][0]))
+    '''
     ###################################################################
     #Non scalar integrals (empty integrands)
     if kwargs.get('doVolume', True):
-        results.update(calc_integral((state_var.name,
-                                          'Volume [Re^3]'),global_zone))
+        results.update(calc_integral((state_var.name,'Volume [Re^3]'),
+                                     global_zone, useNumpy=useNumpy))
                                   #**{'VariableOption':'LengthAreaVolume'}))
         if kwargs.get('verbose',False):
             print('{:<20}{:<25}{:>.3}'.format(state_var.name,
                                'Volume [Re^3]',results['Volume [Re^3]'][0]))
+        '''
         if kwargs.get('do_cms',False):
             if'delta_'+str(state_var.name)in state_var.dataset.variable_names:
                 eq('{dVolume '+state_var.name+'}={delta_'+state_var.name+'}',
                                     value_location=ValueLocation.CellCentered)
                 results.update(calc_integral(('delta_'+state_var.name,
-                                          'dVolume [Re^3]'),global_zone))
+                                              'dVolume [Re^3]'),global_zone,
+                                             useNumpy=useNumpy))
             if kwargs.get('verbose',False):
                 print('{:<20}{:<25}{:>.3}'.format(state_var.name,
                              'dVolume [Re^3]',results['dVolume [Re^3]'][0]))
+        '''
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:

@@ -10,7 +10,7 @@ import numpy as np
 from numpy import pi
 import pandas as pd
 import datetime as dt
-import spacepy
+#import spacepy
 import tecplot as tp
 import tecplot
 from tecplot.constant import *
@@ -85,25 +85,17 @@ if __name__ == "__main__":
             'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt',
             'ccmc_2019-05-13/3d__var_1_e20190515-004700-018.plt')
 
+    oggridfile = 'ccmc_2022-02-02/3d__var_1_e20220202-volume.plt'
 
-    '''
-    #load from file
-    tp.load_layout('/Users/ngpdl/Desktop/volume_diff_sandbox/visual_starter/blank_visuals.lay')
-    field_data = tp.active_frame().dataset
-    '''
-
-    #for inputs in starlink:
-    #inputs = starlink
     mp_surf = pd.DataFrame()
     mp_vol = pd.DataFrame()
     lobe_surf = pd.DataFrame()
     lobe_vol = pd.DataFrame()
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
-    #for inputs in [starlink,starlink2,starlink3,starlink4]:
-    #if False:
+    if False:
     #for inputs in [starlink4]:
-    for inputs in [starlink,starlink2,starlink3]:
+    #for inputs in [starlink,starlink2,starlink3]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -121,19 +113,19 @@ if __name__ == "__main__":
             _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                     verbose=True,
-                                    do_cms=False,
+                                    debug=True,
+                                    do_cms=True,
                                     analysis_type='energy',
-                                    modes=['iso_betastar',
-                                           'closed',
+                                    modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     do_interfacing=True,
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     integrate_line=False,
+                                    truegridfile=oggridfile,
                                     outputpath='babyrun/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
-                                    #customTerms={'Utot [J/Re^3]':'Utot [J]'})
                                     customTerms={'test':'TestArea [Re^2]'})
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
@@ -169,7 +161,9 @@ if __name__ == "__main__":
                                     outputpath='babyrun/')
                                     #tshift=45,
             '''
-            """
+    if True:
+        for file in glob.glob('babyrun/energeticsdata/*.h5'):
+            results = pd.HDFStore(file)
             mp_surf=pd.concat([mp_surf,results['mp_iso_betastar_surface']],
                               ignore_index=True)
             mp_vol=pd.concat([mp_vol,results['mp_iso_betastar_volume']],
@@ -183,23 +177,6 @@ if __name__ == "__main__":
                                 ignore_index=True)
             closed_vol=pd.concat([closed_vol,results['ms_closed_volume']],
                                 ignore_index=True)
-            """
-    for file in glob.glob('babyrun/energeticsdata/*.h5'):
-        results = pd.HDFStore(file)
-        mp_surf=pd.concat([mp_surf,results['mp_iso_betastar_surface']],
-                              ignore_index=True)
-        mp_vol=pd.concat([mp_vol,results['mp_iso_betastar_volume']],
-                             ignore_index=True)
-        lobe_surf=pd.concat([lobe_surf,results['ms_lobes_surface']],
-                                ignore_index=True)
-        lobe_vol=pd.concat([lobe_vol,results['ms_lobes_volume']],
-                                ignore_index=True)
-        closed_surf=pd.concat([closed_surf,
-                                   results['ms_closed_surface']],
-                                ignore_index=True)
-        closed_vol=pd.concat([closed_vol,results['ms_closed_volume']],
-                                ignore_index=True)
-    if True:
         #K1,5 from mp
         K1 = mp_surf['K_netK1 [W]']
         K5 = mp_surf['K_netK5 [W]']
@@ -214,65 +191,56 @@ if __name__ == "__main__":
         K6 = closed_surf['K_netK6 [W]']
         K7 = closed_surf['K_netK7 [W]']
 
-        #T1,5 from mp
-        T1 = mp_vol['UtotK1 [J]']
-        T5 = mp_vol['UtotK5 [J]']
-        Tmp = mp_vol['Utot [J]']
-        #T2,3,4 from lobes
-        T2al = lobe_vol['UtotK2a [J]']
-        T2bl = lobe_vol['UtotK2b [J]']
-        T3 = lobe_vol['UtotK3 [J]']
-        T4 = lobe_vol['UtotK4 [J]']
-        Tl = lobe_vol['Utot [J]']
-        #T2,6,7 from closed
-        T2ac = closed_vol['UtotK2a [J]']
-        T2bc = closed_vol['UtotK2b [J]']
-        T6 = closed_vol['UtotK6 [J]']
-        T7 = closed_vol['UtotK7 [J]']
-        Tc = closed_vol['Utot [J]']
+        #M1,2,5,total from mp
+        M1 = mp_vol['testM1 [W]']
+        M2 = mp_vol['testM2 [W]']
+        M5 = mp_vol['testM5 [W]']
+        M = mp_vol['testM [W]']
+        #M1a,1b,2b,il from lobes
+        M1a = lobe_vol['testM1a [W]']
+        M1b = lobe_vol['testM1b [W]']
+        M2b = lobe_vol['testM2b [W]']
+        M2d = lobe_vol['testM2d [W]']
+        Mil = lobe_vol['testMil [W]']
+        #M5a,5b,2a,ic from closed
+        M5a = closed_vol['testM5a [W]']
+        M5b = closed_vol['testM5b [W]']
+        M2a = closed_vol['testM2a [W]']
+        M2c = closed_vol['testM2c [W]']
+        Mic = closed_vol['testMic [W]']
+        for m in [M1,M2,M5,M,M1a,M1b,M2a,M2b,M2c,M2d,M5a,M5b,Mic,Mil]:
+            m = (m[0]+m[1])/2
 
-        #Adjust M terms to central difference
-        #T1,5 from mp
-        dTdt1 = -1*surface_tools.central_diff(T1,60)
-        dTdt5 = -1*surface_tools.central_diff(T5,60)
+        #Volume totals
+        Tmp = mp_vol['test [J]']
+        Tl = lobe_vol['test [J]']
+        Tc = closed_vol['test [J]']
+
+        #Central difference
         dTdtmp = -1*surface_tools.central_diff(Tmp,60)
-        #T2,3,4 from lobes
-        dTdt2al = -1*surface_tools.central_diff(T2al,60)
-        dTdt2bl = -1*surface_tools.central_diff(T2bl,60)
-        dTdt3 = -1*surface_tools.central_diff(T3,60)
-        dTdt4 = -1*surface_tools.central_diff(T4,60)
         dTdtl = -1*surface_tools.central_diff(Tl,60)
-        #T2,6,7 from closed
-        dTdt2ac = -1*surface_tools.central_diff(T2ac,60)
-        dTdt2bc = -1*surface_tools.central_diff(T2bc,60)
-        dTdt6 = -1*surface_tools.central_diff(T6,60)
-        dTdt7 = -1*surface_tools.central_diff(T7,60)
         dTdtc = -1*surface_tools.central_diff(Tc,60)
 
-        '''
         #Combine into dEdt_sum
         #   Lobes- (KM1,2,3,4)
-        #dEdt_suml = K1+K2al+K2bl+K3+K4+M1+M2al+M2bl+M3+M4
-        dEdt_suml = lobe_surf['K_net [W]']+lobe_vol['Utot_net [W]']
+        # NOTE M2 is from lobes -> closed and is equiv to:
+        #           -M2a+M2b-M2c+M2d
+        #   use -M2 or the reverse of above for closed balance
+        #dEdt_suml = K1+K2al+K2bl+K3+K4+M1a+M1b+M2a+M2b
+        dEdt_suml = M1a+M1b-M2a+M2b-M2c+M2d
         #   Closed- (KM5,2,6,7)
-        #dEdt_sumc = K5+K2ac+K2bc+K6+K7+M5+M2ac+M2bc+M6+M7
-        dEdt_sumc = closed_surf['K_net [W]']+closed_vol['Utot_net [W]']
+        #dEdt_sumc = K5+K2ac+K2bc+K6+K7+M5a+M5b+M2a+M2b
+        dEdt_sumc = M5a+M5b+M2a-M2b+M2c-M2d
         #   Total- (KM,1,5,3,4,6,7)
-        #dEdt_sumt = K1+K5+K3+K4+K6+K7+M1+M5+M3+M4+M6+M7
-        dEdt_sumt = mp_surf['K_net [W]']+mp_vol['Utot_net [W]']
-        #Send Utot_lobes to cdiff
-        dEdt_cdiffl=-1*surface_tools.central_diff(lobe_vol['Utot [J]'],60)
-        dEdt_cdiffc=-1*surface_tools.central_diff(closed_vol['Utot [J]'],60)
-        dEdt_cdifft = -1*surface_tools.central_diff(mp_vol['Utot [J]'],60)
-        '''
+        #dEdt_sumt1 = K1+K5+K3+K4+K6+K7+M1a+M1b+M5a+M5b
+        #dEdt_sumt2 = K1+K5+K3+K4+K6+K7+M1+M5
+        dEdt_sumt = M
 
         #Display errors
-        error_2as = (K2al+K2ac)/K2ac*100
-        error_2bs = (K2bl+K2bc)/K2bc*100
-        error_2a = (dTdt2al+dTdt2ac)/dTdt2ac*100
-        error_2b = (dTdt2bl+dTdt2bc)/dTdt2bc*100
         error_volume = (mp_vol['Volume [Re^3]']-lobe_vol['Volume [Re^3]']
                         - closed_vol['Volume [Re^3]'])
+        from IPython import embed; embed()
+    if False:
         '''
         #Display error with K_net and Utot_net
         error_dEdtl = dEdt_suml - dEdt_cdiffl
@@ -290,66 +258,7 @@ if __name__ == "__main__":
               'error {:<.3}'.format(error_dEdtt[1]))
         print('\nno issues!')
         '''
-    from IPython import embed; embed()
 
-    #with tp.session.suspend():
-    if False:#manually switch on or off
-        #adjust view settings
-        #proc = 'Multi Frame Manager'
-        #cmd = 'MAKEFRAMES3D ARRANGE=TILE SIZE=50'
-        #tp.macro.execute_extended_command(command_processor_id=proc,
-        #                                  command=cmd)
-        mode = ['iso_day', 'other_iso', 'iso_tail', 'hood_open_north']
-        zone_hidekeys = ['sphere', 'box','shue','future','innerbound',
-                         'lcb','nlobe','slobe','closed','rc']
-        timestamp=True
-        for n, frame in enumerate(tp.frames()):
-            #frame[1].activate()
-            if n==0:
-                legend = False
-                timestamp = True
-                doslice = False#
-                slicelegend = False
-                fieldlegend = True
-                fieldline=False
-            if n==1:
-                legend = True
-                timestamp = False
-                doslice = True
-                slicelegend = False
-                fieldlegend = False
-                fieldline=True
-            if n==2:
-                legend = False
-                timestamp = False
-                doslice = True
-                slicelegend = True
-                fieldlegend = False
-                fieldline=False
-            if n==3:
-                legend = True
-                save = True
-                timestamp = False
-                doslice = False
-                slicelegend = False
-                fieldlegend = False
-                fieldline=True
-                zone_hidekeys = ['sphere', 'box','shue','future','lcb']
-            view_set.display_single_iso(frame, mhddatafile,
-                                        mode=mode[n],
-                                        show_contour=False,
-                                        show_fieldline=fieldline,
-                                        show_legend=legend,
-                                        show_slegend=slicelegend,
-                                        show_flegend=fieldlegend,
-                                        show_slice=doslice,
-                                        timestamp_pos=[4,5],
-                                        zone_hidekeys=zone_hidekeys,
-                                        show_timestamp=timestamp)
-            view_set.add_fieldlines(tp.active_frame(),mhddatafile,showleg=True,
-                                    mode='allstations',
-                                    station_file=
-                         'ccmc_2019-08-30/magnetometers_e20190830-161300.mag')
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{Y = 0}')

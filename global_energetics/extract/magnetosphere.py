@@ -184,7 +184,6 @@ def prep_field_data(field_data, **kwargs):
     Return
         aux
         closed_index
-        future_closed_index (only used if do_cms=True)
     """
     #pass along some kwargs from get_magnetopause
     analysis_type = kwargs.get('analysis_type', 'energy')
@@ -202,8 +201,37 @@ def prep_field_data(field_data, **kwargs):
         show_settings(**kwargs)
     #Auxillary data from tecplot file
     aux = field_data.zone('global_field').aux_data
-    if do_cms:
-        future_aux = field_data.zone('future*').aux_data
+    # If a truegrid file is given, then take that information in
+    if 'truegridfile' in kwargs:
+        if '.plt' in kwargs.get('truegridfile'):
+            tp.data.load_tecplot(kwargs.get('truegridfile'),reset_style=False)
+            truegrid = field_data.zone(-1)
+            truegrid.name = 'truegrid'
+            ## Extract the dual and true grid info and sort using pandas
+            field_data.add_variable('trueCellVolume')
+            # Create a cellcentered XYZ for the true grid
+            eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
+            eq('{Xcc}={X [R]}',value_location=cc,zones=[truegrid.index])
+            eq('{Ycc}={Y [R]}',value_location=cc,zones=[truegrid.index])
+            eq('{Zcc}={Z [R]}',value_location=cc,zones=[truegrid.index])
+            # Set numpy objects
+            x = field_data.zone(0).values('X *').as_numpy_array()
+            y = field_data.zone(0).values('Y *').as_numpy_array()
+            z = field_data.zone(0).values('Z *').as_numpy_array()
+            xCell = truegrid.values('Xcc').as_numpy_array()
+            yCell = truegrid.values('Ycc').as_numpy_array()
+            zCell = truegrid.values('Zcc').as_numpy_array()
+            trueCellVols = truegrid.values('Cell Volume').as_numpy_array()
+            # Combine into data frames
+            target = pd.DataFrame({'X':x,'Y':y,'Z':z})
+            source = pd.DataFrame({'X':xCell,'Y':yCell,'Z':zCell,
+                                   'trueVolume':trueCellVols})
+            # Sort and load back into the main zone
+            target.sort_values(by=['X','Y','Z'],inplace=True)
+            source.sort_values(by=['X','Y','Z'],inplace=True)
+            target['trueVolume'] = source['trueVolume'].values
+            field_data.zone(0).values('trueCellVolume')[::] = target[
+                                             'trueVolume'].sort_index().values
     #set frame name and calculate global variables
     if field_data.variable_names.count('r [R]') ==0:
         main_frame = tp.active_frame()
@@ -232,9 +260,6 @@ def prep_field_data(field_data, **kwargs):
         x_subsolar = float(aux['x_subsolar'])
         x_nexl = float(aux['x_nexl'])
         inner_l = float(aux['inner_l'])
-        if do_cms:
-            future_x_subsolar = float(future_aux['x_subsolar'])
-            future_x_nexl = float(future_aux['x_nexl'])
         closed_index = None
         closed_zone = None
         #Assign closed zone info if already exists
@@ -279,17 +304,8 @@ def prep_field_data(field_data, **kwargs):
             #closed_zone = setup_solidvolume(field_data.zone(0), 1,
             #                                closed_index, 'lcb')
             if do_cms:
-                future_closed_index = calc_closed_state('future_lcb',
-                                                        'Status', 3,
-                                                        tail_cap, 1,
+                calc_closed_state('lcb','Status', 3,tail_cap, 1,
                                                    kwargs.get('inner_r',3))
-                future_closed_zone =setup_isosurface(1,future_closed_index,
-                                                     'future_lcb',
-                                        blankvalue=kwargs.get('inner_r',3),
-                                                     blankvar='')
-                #future_closed_zone = setup_solidvolume(field_data.zone(1), 1,
-                #                                       future_closed_index,
-                #                                       'future_lcb')
         x_subsolar = 1
         x_subsolar = max(x_subsolar,
                 field_data.zone(closed_zone.index).values('X *').max())
@@ -303,30 +319,13 @@ def prep_field_data(field_data, **kwargs):
         aux['x_subsolar'] = x_subsolar
         aux['x_nexl'] = x_nexl
         aux['inner_l'] = inner_l
-        if do_cms:
-            future_x_subsolar = 1
-            future_x_subsolar = max(future_x_subsolar,
-              field_data.zone(future_closed_zone.index).values('X *').max())
-            future_x_nexl = -1*kwargs.get('inner_r',3)
-            future_x_nexl = min(future_x_nexl,
-             field_data.zone(future_closed_zone.index).values('X *').min())
-            future_inner_l = min(kwargs.get('lshelllim',7),
-             field_data.zone(future_closed_zone.index).values('Lshell').min())
-            future_aux['x_subsolar'] = future_x_subsolar
-            future_aux['x_nexl'] = future_x_nexl
-            future_aux['inner_l'] = future_inner_l
         if do_trace:
             #delete streamzone
             field_data.delete_zones(closedzone_index)
             closed_index = None
             closed_zone = None
-    if do_cms:
-        print('closed_zone: '+closed_zone.name)
-        print('future_closed_zone: '+future_closed_zone.name)
-        return aux, closed_zone, future_closed_zone
-    else:
-        print('closed_zone: '+closed_zone.name)
-        return aux, closed_zone, None
+    print('closed_zone: '+closed_zone.name)
+    return aux, closed_zone
 
 def generate_3Dobj(sourcezone, **kwargs):
     """Creates isosurface zone depending on mode setting
@@ -377,31 +376,23 @@ def generate_3Dobj(sourcezone, **kwargs):
 
     #Create the tecplot objects from the source and store into lists
     for m in modes:
-        for source in sources:
-            if ((source==sourcezone) or
-                        any([m in n for n in source.dataset.zone_names])):
-                zone,inner_zone,state_index=calc_state(m, source,**kwargs)
-                if(type(zone)!=type(None)or type(inner_zone)!=type(None)):
-                    if 'zone_rename' in kwargs:
-                        zone.name = kwargs.get('zone_rename','')+'_'+m
-                    if 'future' in source.name:
-                        zone.name='future_'+zone.name
-                        calc_delta_state(sourcezone.dataset.variable(
-                                    state_index).name.split('future_')[-1],
-                            futurezone.dataset.variable(state_index).name)
-                    elif 'terminator' in m:
-                        zonelist1D.append(zone)#North
-                        zonelist1D.append(inner_zone)#South
-                        kwargs.update({'zonelist1D':zonelist1D})
-                    else:
-                        zonelist.append(zone)
-                        state_indices.append(state_index)
-                        if 'bs' in kwargs.get('modes',[]):
-                            zonelist.append(inner_zone)
-                            state_indices.append(state_index)
-                            get_surf_geom_variables(inner_zone,**kwargs)
-                        if 'modes' in kwargs:
-                            get_surf_geom_variables(zone,**kwargs)
+        zone,inner_zone,state_index=calc_state(m, sources,**kwargs)
+        if (type(zone)!=type(None)or type(inner_zone)!=type(None)):
+            if 'zone_rename' in kwargs:
+                zone.name = kwargs.get('zone_rename','')+'_'+m
+            if 'terminator' in m:
+                zonelist1D.append(zone)#North
+                zonelist1D.append(inner_zone)#South
+                kwargs.update({'zonelist1D':zonelist1D})
+            else:
+                zonelist.append(zone)
+                state_indices.append(state_index)
+                if 'bs' in kwargs.get('modes',[]):
+                    zonelist.append(inner_zone)
+                    state_indices.append(state_index)
+                    get_surf_geom_variables(inner_zone,**kwargs)
+                if 'modes' in kwargs:
+                    get_surf_geom_variables(zone,**kwargs)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
@@ -522,14 +513,12 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         itr_max = kwargs.get('itr_max', 100)
         tol = kwargs.get('tol', 0.1)
     #prepare field data
-    aux, closed_zone, future_closed_zone = prep_field_data(field_data,
-                                                           **kwargs)
+    aux, closed_zone = prep_field_data(field_data,**kwargs)
     # !!! kwargs updated !!!
     kwargs.update({'x_subsolar':float(aux['x_subsolar'])})
     kwargs.update({'x_nexl':float(aux['x_nexl'])})
     #NOTE for const L lim kwargs.update({'lshelllim':float(aux['inner_l'])})
     kwargs.update({'closed_zone':closed_zone})
-    kwargs.update({'future_closed_zone':future_closed_zone})
     main_frame = [fr for fr in tp.frames('main')][0]
 
     # !!! kwargs updated !!!

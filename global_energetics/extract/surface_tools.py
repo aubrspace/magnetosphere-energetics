@@ -423,17 +423,17 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         if ('daymapped' in conditions) or ('nightmapped' in conditions):
             if 'daymapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
-                    new_eq+=('({daymapped_'+kwargs.get('target')+'}'+
+                    new_eq+=('({daymapped_'+kwargs.get('target')+'_cc}'+
                               '['+condition_source+']>0)&&')
                 else:
-                    new_eq+=('({daymapped}'+
+                    new_eq+=('({daymapped_cc}'+
                               '['+condition_source+']>0)&&')
             if 'nightmapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
-                    new_eq+=('({nightmapped_'+kwargs.get('target')+'}'+
+                    new_eq+=('({nightmapped_'+kwargs.get('target')+'_cc}'+
                               '['+condition_source+']>0)&&')
                 else:
-                    new_eq+=('({nightmapped}'+
+                    new_eq+=('({nightmapped_cc}'+
                               '['+condition_source+']>0)&&')
         #Write out the equation modifications
         if any([a in c for c in conditions for a in
@@ -709,7 +709,16 @@ def calc_integral(term, zone, **kwargs):
         variable = zone.dataset.variable(variable_name)
     else:
         variable = None
-    value = integrate_tecplot(variable, zone,
+        if kwargs.get('useNumpy',False):
+            volumes = zone.values('trueCellVolume').as_numpy_array()
+            value = np.sum(volumes)
+    if (kwargs.get('useNumpy',False) and
+        kwargs.get('VariableOption','Scalar')=='Scalar'):
+        scalars = zone.values(term[0]).as_numpy_array()
+        volumes = zone.values('trueCellVolume').as_numpy_array()
+        value = np.dot(scalars,volumes)
+    else:
+        value = integrate_tecplot(variable, zone,
                       VariableOption=kwargs.get('VariableOption','Scalar'))
     result = {term[1]:[value]}
     return result

@@ -38,7 +38,7 @@ def fix_plt_files(pathtofiles,**kwargs):
     """
     for i,infile in enumerate(glob.glob(pathtofiles+'*_var*.plt')):
         outfile = 'paraview'.join(infile.split('/')[-1].split('var'))
-        if kwargs.get('standardize',True):
+        if kwargs.get('standardize',False):
             outfile_name = standardize_name(outfile)
         else:
             outfile_name = outfile
@@ -88,6 +88,7 @@ if __name__ == '__main__':
         -c              uses pytecplot in 'connected' mode,
                             see pytecplot for more details
         -k  --keep      keeps both original and modified .plt files
+        -s  --standard  standardizes the name to a common type
 
     Example:
         python pltfixer.py -c localdbug/fte/
@@ -122,6 +123,9 @@ if __name__ == '__main__':
         keepboth = True
     else:
         keepboth = False
+    if (DOSTANDARDIZE and '-s' not in sys.argv and
+                          '--standard' not in sys.argv):
+        DOSTANDARDIZE=False
 
     # Modify files
     fix_plt_files(pathtofiles,verbose=doVerbose,
