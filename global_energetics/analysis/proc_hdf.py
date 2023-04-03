@@ -182,7 +182,9 @@ def check_timing(df,times):
         df.sort_index()
     for key in df.keys():
         interp_df[key] = df[key]
-    interp_df.interpolate(method='time',inplace=True)
+    #NOTE method='time' used to work with older version of pandas...
+    #interp_df.interpolate(method='time',inplace=True)
+    interp_df.interpolate(method='ffill',inplace=True)
     return interp_df
 
 def check_units(df,*, smallunit='[nT]', bigunit='[J]', factor=-8e13):

@@ -388,11 +388,13 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
                                      if 'closed_rc' not in l]):
         szval = sz[value_key]
         #NOTE changed just for this work
-        colorwheel = ['magenta', 'magenta', 'tab:blue']
+        #colorwheel = ['magenta', 'magenta', 'tab:blue']
+        colorwheel = ['maroon', 'magenta', 'tab:blue']
         labelwheel = ['ClosedInner', 'Closed', 'Lobes']
         if szlabel=='rc':
-            kwargs['hatch'] ='x'
-            kwargs['edgecolor'] ='grey'
+            #kwargs['hatch'] ='x'
+            #kwargs['edgecolor'] ='grey'
+            pass
         else:
             kwargs['hatch'] =''
             kwargs['edgecolor'] =None
