@@ -423,17 +423,17 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         if ('daymapped' in conditions) or ('nightmapped' in conditions):
             if 'daymapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
-                    new_eq+=('({daymapped_'+kwargs.get('target')+'_cc}'+
+                    new_eq+=('({daymapped_'+kwargs.get('target')+'}'+
                               '['+condition_source+']>0)&&')
                 else:
-                    new_eq+=('({daymapped_cc}'+
+                    new_eq+=('({daymapped}'+
                               '['+condition_source+']>0)&&')
             if 'nightmapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
-                    new_eq+=('({nightmapped_'+kwargs.get('target')+'_cc}'+
+                    new_eq+=('({nightmapped_'+kwargs.get('target')+'}'+
                               '['+condition_source+']>0)&&')
                 else:
-                    new_eq+=('({nightmapped_cc}'+
+                    new_eq+=('({nightmapped}'+
                               '['+condition_source+']>0)&&')
         #Write out the equation modifications
         if any([a in c for c in conditions for a in
@@ -887,3 +887,26 @@ def surface_analysis(zone, **kwargs):
                                                        if 'Virial' in key]:
             results.update(energy_to_dB([t for t in term.items()][0]))
     return pd.DataFrame(results)
+
+def plane_analysis(x,y,z,plane_var,loc,**kwargs):
+    """Calculate flux through a specific plane slice through the domain
+    Inputs
+        x,y,z (TecplotVariables)- define the XYZ variables
+        plane_var (TecplotVariable)- coordinate to slice on
+        loc (float)- value of slice location
+        kwargs:
+            analysis_type
+    Returns
+        results (pandas DataFrame)
+    """
+    # Store original xyz
+    # Set xyz variables
+    # Create planar zone
+    # Get surface variables
+    get_surface_variables(zone, analysis_type, **kwargs)
+    # Get integrands
+    # Perform integrations
+    # Reset xyz variables
+    # Return results
+    pass
+

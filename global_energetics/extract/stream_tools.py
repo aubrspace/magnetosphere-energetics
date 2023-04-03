@@ -809,11 +809,11 @@ def get_surf_geom_variables(zone,**kwargs):
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
             len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']<0)])):
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=[zone], value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=[zone], value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=[zone], value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
                zones=[zone.index], value_location=CC)

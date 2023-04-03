@@ -93,9 +93,9 @@ if __name__ == "__main__":
     lobe_vol = pd.DataFrame()
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
-    if False:
-    #for inputs in [starlink4]:
-    #for inputs in [starlink,starlink2,starlink3]:
+    #if False:
+    for inputs in [starlink4]:
+    #for inputs in [starlink,starlink2,starlink3,starlink4]:
         tp.new_layout()
         mhddatafile = inputs[0]
         OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
@@ -192,29 +192,29 @@ if __name__ == "__main__":
         K7 = closed_surf['K_netK7 [W]']
 
         #M1,2,5,total from mp
-        M1 = mp_vol['testM1 [W]']
-        M2 = mp_vol['testM2 [W]']
-        M5 = mp_vol['testM5 [W]']
-        M = mp_vol['testM [W]']
+        M1 = mp_vol['UtotM1 [W]']
+        M2 = mp_vol['UtotM2 [W]']
+        M5 = mp_vol['UtotM5 [W]']
+        M = mp_vol['UtotM [W]']
         #M1a,1b,2b,il from lobes
-        M1a = lobe_vol['testM1a [W]']
-        M1b = lobe_vol['testM1b [W]']
-        M2b = lobe_vol['testM2b [W]']
-        M2d = lobe_vol['testM2d [W]']
-        Mil = lobe_vol['testMil [W]']
+        M1a = lobe_vol['UtotM1a [W]']
+        M1b = lobe_vol['UtotM1b [W]']
+        M2b = lobe_vol['UtotM2b [W]']
+        M2d = lobe_vol['UtotM2d [W]']
+        Mil = lobe_vol['UtotMil [W]']
         #M5a,5b,2a,ic from closed
-        M5a = closed_vol['testM5a [W]']
-        M5b = closed_vol['testM5b [W]']
-        M2a = closed_vol['testM2a [W]']
-        M2c = closed_vol['testM2c [W]']
-        Mic = closed_vol['testMic [W]']
+        M5a = closed_vol['UtotM5a [W]']
+        M5b = closed_vol['UtotM5b [W]']
+        M2a = closed_vol['UtotM2a [W]']
+        M2c = closed_vol['UtotM2c [W]']
+        Mic = closed_vol['UtotMic [W]']
         for m in [M1,M2,M5,M,M1a,M1b,M2a,M2b,M2c,M2d,M5a,M5b,Mic,Mil]:
             m = (m[0]+m[1])/2
 
         #Volume totals
-        Tmp = mp_vol['test [J]']
-        Tl = lobe_vol['test [J]']
-        Tc = closed_vol['test [J]']
+        Tmp = mp_vol['Utot [J]']
+        Tl = lobe_vol['Utot [J]']
+        Tc = closed_vol['Utot [J]']
 
         #Central difference
         dTdtmp = -1*surface_tools.central_diff(Tmp,60)
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         #Display errors
         error_volume = (mp_vol['Volume [Re^3]']-lobe_vol['Volume [Re^3]']
                         - closed_vol['Volume [Re^3]'])
-        from IPython import embed; embed()
+        #from IPython import embed; embed()
     if False:
         '''
         #Display error with K_net and Utot_net
