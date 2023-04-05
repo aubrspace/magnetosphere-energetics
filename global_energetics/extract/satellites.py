@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Extraction routine for ionosphere surface
 """
+import sys
 import os
 import time
 import glob
@@ -8,6 +9,7 @@ import numpy as np
 import datetime as dt
 import pandas as pd
 import tecplot as tp
+from tecplot.constant import ReadDataOption
 
 def add_units(var):
     """Function adds appropriate units to field data variable
@@ -165,5 +167,95 @@ def get_satellite_zones(field_data, datapath, *, coordsys='GSM'):
     add_currentlocation(satzones, field_data)
     return satzones
 
-if __name__ == "__main__":
+def txt_to_hdf5(infile,**kwargs):
+    """converts a text file into hd5 for easier working w pandas
+    Inputs
+        infile
+        kwargs:
+            skiprows- DEFAULT 65!!!
+    Returns
+        outfile
+    """
+    #NOTE could use pandas parsing arguments in 'read_csv' but it was finicky
+    #     Added the '#' characters to the .txt file myself to denote skips
+    outfile = 'satout.h5'
+    data = pd.read_csv('mysatdata.txt',comment='#',header=None,sep='\s+',
+                       skiprows=kwargs.get('skiprows',65))
+    timevalues = []
+    parser_str = kwargs.get('parser_str','%y/%m/%d %H:%M:%S')
+    for values in data.values:
+        timevalues.append(dt.datetime.strptime(' '.join(values[0:2]),
+                                               parser_str))
+    data['time'] = timevalues
+    data.drop(columns=[0,1],inplace=True)
+    data.columns = ['sat','Xgsm','Ygsm','Zgsm','time']
+    store = pd.HDFStore(outfile)
+    for sat in data.sat.unique():
+        satdata = data.copy(deep=True)[data['sat']==sat]
+        satdata.reset_index(drop=True,inplace=True)
+        store[sat] = satdata
+    store.close()
+    print('Created ',outfile,'!')
+    return outfile
+
+def read_satellite_loc(zone,time,locdata):
+    """Reads data at specific satellite location from zone data
+    Inputs
+        zone (TecplotZone)
+        time (datetime)
+        locdata (DataFrame) - time, [xyz]GSM
+    Returns
+        outputdata (DataFrame)- time, [...] all output values
+    """
     pass
+
+if __name__ == "__main__":
+    start_time = time.time()
+    #hdffile = txt_to_hdf5('mysatdata.txt')
+    MHDDIR = 'ccmc_2022-02-02/'
+    from global_energetics import makevideo
+    if '-c' in sys.argv:
+        tp.session.connect()
+        tp.new_layout()
+    # Create 'virtual_sat_out' file
+    outfile = pd.HDFStore('virtual_sat_out.h5')
+    # Read satellite location file for available satellites
+    locfile = pd.HDFStore('star2satloc.h5')
+    # glob for the available 3d files and get source_times
+    source_files = sorted(glob.glob(MHDDIR+'3d__var*.plt'),
+                          key=makevideo.time_sort)
+    source_times=[makevideo.get_time(f) for f in source_files]
+    i = 1
+    nsat = len(locfile.keys())
+    total = len(source_times) * nsat
+    # For each satellite:
+    for sat in locfile.keys():
+        # Initiate DataFrame for this satellite output
+        vsat_df = pd.DataFrame()
+        # Interpolate locations and loc_times to source_times
+        loc_times = locfile[sat]['time']
+        xtimes = [float(t) for t in loc_times.values]
+        ytimes = [pd.Timestamp(t).value for t in source_times]
+        xlocs = np.interp(ytimes,xtimes,locfile[sat]['Xgsm'].values)
+        ylocs = np.interp(ytimes,xtimes,locfile[sat]['Ygsm'].values)
+        zlocs = np.interp(ytimes,xtimes,locfile[sat]['Zgsm'].values)
+        for sfile,stime,X,Y,Z in zip(source_files,source_times,
+                                     xlocs,ylocs,zlocs):
+            # Load tecplot source data file at the timestamp and extract
+            print('{:.1%} Extracting '.format(i/total),sat,' at ',stime)
+            tp.new_layout()
+            tp.data.load_tecplot(sfile)
+            variable_names = tp.active_frame().dataset.variable_names
+            probe = tp.data.query.probe_at_position(X,Y,Z)[0]
+            snapshot = pd.DataFrame(data=[probe],columns=variable_names)
+            snapshot['time'] = stime
+            vsat_df = pd.concat([vsat_df,snapshot])
+            i+=1
+        outfile[sat] = vsat_df
+    locfile.close()
+    outfile.close()
+
+    #timestamp
+    ltime = time.time()-start_time
+    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))

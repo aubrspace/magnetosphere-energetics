@@ -302,13 +302,11 @@ if __name__ == "__main__":
             display_2D_contours(tp.active_frame(),
                 outputname='localdbug/2Dcuts/test/'+zfile.split('.h5')[0],
                                 filename = zfile)
-            '''
             #Y
             set_yaxis(mode='Y') #set to XY
             display_2D_contours(tp.active_frame(), axis='XY',
                 outputname='localdbug/2Dcuts/test/'+yfile.split('.h5')[0],
                                 filename = yfile)
-            '''
 
             #Clean up
             os.remove(os.getcwd()+'/'+zfile)

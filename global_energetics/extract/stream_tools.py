@@ -1452,7 +1452,7 @@ def equations(**kwargs):
     equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
     equations['basic2d_XZ'] = {'{r [R]}':'sqrt({X [R]}**2 + {Z [R]}**2)'}
     #Dipolar coordinate variables
-    if 'aux' in kwargs:
+    if 'aux' in kwargs and kwargs.get('is3D'):
         aux=kwargs.get('aux')
         equations['dipole_coord'] = {
          '{mXhat_x}':'sin(('+aux['BTHETATILT']+'+90)*pi/180)',
@@ -1521,7 +1521,7 @@ def equations(**kwargs):
                                                  '{U_z [km/s]}*{Z [R]})'}
     ######################################################################
     #Dipole field (requires coordsys and UT information!!!)
-    if 'aux' in kwargs:
+    if kwargs.get('aux')!=None:
         aux=kwargs.get('aux')
         Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
         equations['dipole'] = {
@@ -1530,6 +1530,8 @@ def equations(**kwargs):
                 Bdz_eq.split('=')[0]:Bdz_eq.split('=')[-1],
                '{Bdmag [nT]}':'sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)'}
         g = aux['GAMMA']
+    else:
+        g = '1.66667'
     ######################################################################
     #Volumetric energy terms, includes:
     #   Total Magnetic Energy per volume
@@ -1773,7 +1775,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                                                 kwargs.get('is3D',True)):
         eqeval(alleq['fieldmapping'])
     #Volumetric energy terms
-    eqeval(alleq['volume_energy'])
+    if 'energy' in analysis_type or analysis_type=='all':
+        eqeval(alleq['volume_energy'])
     #eqeval(alleq['volume_energy'],value_location=cc)
     if kwargs.get('do_interfacing',False):
         eqeval(alleq['daynightmapping'])
