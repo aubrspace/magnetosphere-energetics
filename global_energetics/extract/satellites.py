@@ -10,6 +10,7 @@ import datetime as dt
 import pandas as pd
 import tecplot as tp
 from tecplot.constant import ReadDataOption
+from global_energetics.makevideo import get_time, time_sort
 
 def add_units(var):
     """Function adds appropriate units to field data variable
@@ -204,7 +205,7 @@ def interpolate_satellite_loc(satfile,source_files,ofilename):
     # Read satellite location file for available satellites
     locfile = pd.HDFStore(satfile)
     # glob for the available 3d files and get source_times
-    source_times=[makevideo.get_time(f) for f in source_files]
+    source_times=[get_time(f) for f in source_files]
     i = 1
     nsat = len(locfile.keys())
     # For each satellite:
@@ -226,9 +227,40 @@ def interpolate_satellite_loc(satfile,source_files,ofilename):
     outfile.close()
     return ofilename
 
+def extract_satellite(sourcefile,satfile):
+    """Loads source file,returns {sat:DataFrame} at corresponding vsat locs
+    Inputs
+        sourcefile
+        satfile
+        outfile
+    Returns
+        vsatdict {sat(str):data(DataFrame)}
+    """
+    # Create 'vsat' dict
+    vsatdict = {}
+    # Read satellite location file for available satellites
+    locfile = pd.HDFStore(satfile,'r')
+    sourcetime = get_time(sourcefile)
+    i = 1
+    nsat = len(locfile.keys())
+    for sat in locfile.keys():
+        X,Y,Z = locfile[sat][locfile[sat]['time']==sourcetime][[
+                                              'Xgsm','Ygsm','Zgsm']].values[0]
+        # Load tecplot source data file at the timestamp and extract
+        print('{:.1%} Extracting '.format(i/nsat),sat,' at ',sourcetime)
+        tp.new_layout()
+        tp.data.load_tecplot(sourcefile)
+        variable_names = tp.active_frame().dataset.variable_names
+        probe = tp.data.query.probe_at_position(X,Y,Z)[0]
+        snapshot = pd.DataFrame(data=[probe],columns=variable_names)
+        snapshot['time'] = sourcetime
+        vsatdict[sat] = snapshot
+        i+=1
+    locfile.close()
+    return vsatdict
+
 if __name__ == "__main__":
     start_time = time.time()
-    from global_energetics import makevideo
     if '-c' in sys.argv:
         tp.session.connect()
         tp.new_layout()
@@ -242,12 +274,13 @@ if __name__ == "__main__":
         MHDDIR = 'ccmc_2022-02-02/'
         # glob for the available 3d files and get source_times
         source_files = sorted(glob.glob(MHDDIR+'3d__var*.plt'),
-                              key=makevideo.time_sort)
+                              key=time_sort)
         ofilename = interpolate_satellite_loc(hdffile,source_files,
                                               'star2satloc.h5')
     else:
         ofilename = 'star2satloc.h5'
 
+    results = extract_satellite(source_files[0],ofilename)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
