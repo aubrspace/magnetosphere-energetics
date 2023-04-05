@@ -201,16 +201,15 @@ def hotfix_cdiff(mpdict,msdict):
     closed_copy = msdict['closed'].copy(deep=True)
     mp_copy = mpdict['ms_full'].copy(deep=True)
     for region in [lobes_copy,closed_copy,mp_copy]:
-        for target in [k for k in region.keys() if 'Utot_net' in k or
-                                                   'dVolume' in k]:
+        for target in [k for k in region.keys() if 'UtotM' in k]:
             #TODO: change this to a higher order central difference
             # -(n-2)+8(n+1)-8(n-1)+(n-2)
             #           12h
             ogindex = region[target].copy(deep=True).index
             fdiff = region[target].reset_index(drop=True)
             back = fdiff.copy(deep=True)
-            back.index = back.index-1
-            back.drop(index=[-1],inplace=True)
+            back.index = back.index+1
+            back.drop(index=[back.index.max()],inplace=True)
             cdiff = (fdiff+back)/2
             region[target] = cdiff.values
     mpdict['ms_full'] = mp_copy
@@ -1780,76 +1779,45 @@ def lobe_balance_fig(dataset,phase,path):
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
 
-        # Rearranging because this is tricky
-        U_day = mp['UtotK1day [J]']+mp['UtotK5day [J]']
-        U_night = mp['UtotK1night [J]']+mp['UtotK5night [J]']
-        '''
-        U_2a=(lobes['UtotK1day&K2a [J]']+closed['UtotK5day&K2a [J]']-U_day)/2
-        U_2b=(lobes['UtotK1night&K2b [J]']+
-              closed['UtotK5night&K2b [J]']-U_night)/2
-        U_1 = lobes['Utot [J]']-U_2a-U_2b
-        U_5 = closed['Utot [J]']-U_2a-U_2b
-        '''
-        K_day = -1*central_diff(U_day,60)
-        M_day = K_day - mp['K_netK1day [W]']+mp['K_netK5day [W]']
-        M_2alobes = M_day*0
-        M_2aclosed = M_day*0
-        K_2alobes = M_2alobes + lobes['K_netK2a [W]']
-        K_2aclosed = M_2aclosed + closed['K_netK2a [W]']
+        #K1,5 from mp
+        Ks1 = mp['K_netK1 [W]']
+        Ks5 = mp['K_netK5 [W]']
+        #K2,3,4 from lobes
+        Ks2al = lobes['K_netK2a [W]']
+        Ks2bl = lobes['K_netK2b [W]']
+        Ks3 = lobes['K_netK3 [W]']
+        Ks4 = lobes['K_netK4 [W]']
+        #K2,6,7 from closed
+        Ks2ac = closed['K_netK2a [W]']
+        Ks2bc = closed['K_netK2b [W]']
+        Ks6 = closed['K_netK6 [W]']
+        Ks7 = closed['K_netK7 [W]']
 
-        K_night = -1*central_diff(U_night,60)
-        M_night = K_night - mp['K_netK1night [W]']+mp['K_netK5night [W]']
-        M_2blobes = M_day*0
-        M_2bclosed = M_day*0
-        K_2blobes = M_2blobes + lobes['K_netK2b [W]']
-        K_2bclosed = M_2bclosed + closed['K_netK2b [W]']
+        #M1,5,total from mp
+        M1 = mp['UtotM1 [W]']
+        M5 = mp['UtotM5 [W]']
+        M = mp['UtotM [W]']
+        #M1a,1b,2b,il from lobes
+        M1a = lobes['UtotM1a [W]']
+        M1b = lobes['UtotM1b [W]']
+        M2b = lobes['UtotM2b [W]']
+        M2d = lobes['UtotM2d [W]']
+        Mil = lobes['UtotMil [W]']
+        #M5a,5b,2a,ic from closed
+        M5a = closed['UtotM5a [W]']
+        M5b = closed['UtotM5b [W]']
+        M2a = closed['UtotM2a [W]']
+        M2c = closed['UtotM2c [W]']
+        Mic = closed['UtotMic [W]']
 
-        M_1 = (-1*central_diff(lobes['Utot [J]'],60) -lobes['K_net [W]']
-               -M_2alobes-M_2blobes)
-        M_5 =(-1*central_diff(closed['Utot [J]'],60) -closed['K_net [W]']
-               -M_2aclosed-M_2bclosed)
-        M_1day = (-1*central_diff(mp['UtotK1day [J]'],60))
-                  #-mp['K_netK1day [W]']-lobes['K_netK2a [W]'])
-        M_5day = (-1*central_diff(mp['UtotK5day [J]'],60)
-                  -mp['K_netK5day [W]']-closed['K_netK2a [W]'])
-        M_1night = (-1*central_diff(mp['UtotK1night [J]'],60))
-                  #-mp['K_netK1night [W]']-lobes['K_netK2b [W]'])
-        M_5night = (-1*central_diff(mp['UtotK5night [J]'],60)
-                  -mp['K_netK5night [W]']-closed['K_netK2b [W]'])
-        K_1 = M_1 + mp['K_netK1 [W]']
-        K_5 = M_5 + mp['K_netK5 [W]']
+        M_lobes = M1a+M1b-M2a+M2b-M2c+M2d
+        M_closed = M5a+M5b+M2a-M2b+M2c-M2d
 
         # Central difference of partial volume integrals, total change
         # Total
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
-        # Partials (spatial)
-        #K_1 = -1*central_diff(U_1,60)
-        #K_2a = -1*central_diff(U_2a,60)
-        #K_2b = -1*central_diff(U_2b,60)
-        K_3 = -1*central_diff(lobes['UtotK3 [J]'],60)
-        K_4 = -1*central_diff(lobes['UtotK4 [J]'],60)
-        #K_5 = -1*central_diff(U_5,60)
-        K_6 = -1*central_diff(closed['UtotK6 [J]'],60)
-        K_7 = -1*central_diff(closed['UtotK7 [J]'],60)
-
-        # Motional components derived from total - static
-        # Total
-        M_closed = K_closed - closed['K_net [W]']
-        M_lobes = K_lobes - lobes['K_net [W]']
-        M_mp = K_mp - mp['K_net [W]']
-        # Partials
-        #M_1 = K_1 - mp['K_netK1 [W]']
-        M_2a_lobes = K_2alobes - lobes['K_netK2a [W]']
-        M_2a_closed = K_2aclosed - closed['K_netK2a [W]']
-        M_2b_lobes = K_2blobes - lobes['K_netK2b [W]']
-        M_2b_closed = K_2bclosed - closed['K_netK2b [W]']
-        M_3 = K_3 - lobes['K_netK3 [W]']
-        M_4 = K_4 - lobes['K_netK4 [W]']
-        #M_5 = K_5 - mp['K_netK5 [W]']
-        M_6 = K_6 - closed['K_netK6 [W]']
-        M_7 = K_7 - closed['K_netK7 [W]']
 
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
@@ -1862,6 +1830,7 @@ def lobe_balance_fig(dataset,phase,path):
         axis.plot(times,K_lobes/1e12,label='Total Lobes')
         axis.plot(times,lobes['K_net [W]']/1e12,label='Static Lobes')
         axis.plot(times,M_lobes/1e12,label='Motion Lobes')
+        axis.plot(times,(lobes['K_net [W]']+M_lobes)/1e12,label='Summed Lobes')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
@@ -1883,16 +1852,15 @@ def lobe_balance_fig(dataset,phase,path):
         #Plot
         axis.fill_between(times,K_lobes/1e12,
                           label='Total Lobes',fc='grey')
-        axis.plot(times,(K_1+K_2alobes+K_2blobes+K_3+K_4)/1e12,
-                  label='Summed Lobes')
-        axis.plot(times,K_1/1e12,label='K1')
-        axis.plot(times,K_2alobes/1e12,label='K2a')
-        axis.plot(times,K_2blobes/1e12,label='K2b')
-        axis.plot(times,K_3/1e12,label='K3')
-        axis.plot(times,K_4/1e12,label='K4')
+        axis.plot(times,(lobes['K_net [W]']+M_lobes)/1e12,label='Summed Lobes')
+        axis.plot(times,(Ks1+M1)/1e12,label='K1')
+        axis.plot(times,(Ks2al-M2a-M2c)/1e12,label='K2a')
+        axis.plot(times,(Ks2bl+M2b+M2d)/1e12,label='K2b')
+        axis.plot(times,Ks3/1e12,label='K3')
+        axis.plot(times,Ks4/1e12,label='K4')
 
         axis2.fill_between(times,lobes['K_net [W]']/1e12,
-                          label='Total Lobes',fc='grey')
+                          label='Total Static',fc='grey')
         axis2.plot(times,(mp['K_netK1 [W]']+lobes['K_netK2a [W]']+
                           lobes['K_netK2b [W]']+lobes['K_netK3 [W]']+
                           lobes['K_netK4 [W]'])/1e12,
@@ -1905,14 +1873,14 @@ def lobe_balance_fig(dataset,phase,path):
 
         axis3.fill_between(times,M_lobes/1e12,
                           label='Total Lobes',fc='grey')
-        axis3.plot(times,(M_1+M_2a_lobes+M_2b_lobes+M_3+M_4)/1e12,
+        axis3.plot(times,(M1-M2a+M2b-M2c+M2d)/1e12,
         #axis3.plot(times,(M_1day+M_1night+M_3+M_4)/1e12,
-                  label='Summed Lobes')
-        axis3.plot(times,M_1/1e12,label='M1Day')
-        axis3.plot(times,M_2a_lobes/1e12,label='M2a*')
-        axis3.plot(times,M_2b_lobes/1e12,label='M2b*')
-        axis3.plot(times,M_3/1e12,label='M3')
-        axis3.plot(times,M_4/1e12,label='M4')
+                   label='Summed Lobes')
+        axis3.plot(times,M1/1e12,label='M1')
+        axis3.plot(times,-M2a/1e12,label='M2a')
+        axis3.plot(times,M2b/1e12,label='M2b')
+        axis3.plot(times,-M2c/1e12,label='M2c')
+        axis3.plot(times,M2d/1e12,label='M2d')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               legend_loc='upper left',
@@ -1942,9 +1910,11 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         closed_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_lobes/1e12,label='Total Closed')
-        axis.plot(times,lobes['K_net [W]']/1e12,label='Static Closed')
-        axis.plot(times,M_lobes/1e12,label='Motion Closed')
+        axis.plot(times,K_closed/1e12,label='Total Closed')
+        axis.plot(times,closed['K_net [W]']/1e12,label='Static Closed')
+        axis.plot(times,M_closed/1e12,label='Motion Closed')
+        axis.plot(times,(closed['K_net [W]']+M_closed)/1e12,
+                  label='Summed Closed')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
@@ -1966,13 +1936,13 @@ def lobe_balance_fig(dataset,phase,path):
         #Plot
         axis.fill_between(times,K_closed/1e12,
                           label='Total Closed',fc='grey')
-        axis.plot(times,(K_5+K_2aclosed+K_2bclosed+K_6+K_7)/1e12,
+        axis.plot(times,(closed['K_net [W]']+M_closed)/1e12,
                   label='Summed Closed')
-        axis.plot(times,K_5/1e12,label='K5')
-        axis.plot(times,K_2aclosed/1e12,label='K2a')
-        axis.plot(times,K_2bclosed/1e12,label='K2b')
-        axis.plot(times,K_6/1e12,label='K6')
-        axis.plot(times,K_7/1e12,label='K7')
+        axis.plot(times,(Ks5+M5)/1e12,label='K5')
+        axis.plot(times,(Ks2ac+M2a+M2c)/1e12,label='K2a')
+        axis.plot(times,(Ks2bc-M2b-M2d)/1e12,label='K2b')
+        axis.plot(times,Ks6/1e12,label='K6')
+        axis.plot(times,Ks7/1e12,label='K7')
 
         axis2.fill_between(times,closed['K_net [W]']/1e12,
                           label='Total closed',fc='grey')
@@ -1988,13 +1958,13 @@ def lobe_balance_fig(dataset,phase,path):
 
         axis3.fill_between(times,M_closed/1e12,
                           label='Total Closed',fc='grey')
-        axis3.plot(times,(M_5+M_2a_closed+M_2b_closed+M_6+M_7)/1e12,
+        axis3.plot(times,(M5+M2a-M2b+M2c-M2d)/1e12,
                   label='Summed Closed')
-        axis3.plot(times,M_5/1e12,label='M5')
-        axis3.plot(times,M_2a_closed/1e12,label='M2a*')
-        axis3.plot(times,M_2b_closed/1e12,label='M2b*')
-        axis3.plot(times,M_6/1e12,label='M6')
-        axis3.plot(times,M_7/1e12,label='M7')
+        axis3.plot(times,M5/1e12,label='M5')
+        axis3.plot(times,M2a/1e12,label='M2a')
+        axis3.plot(times,-M2b/1e12,label='M2b')
+        axis3.plot(times,M2c/1e12,label='M2c')
+        axis3.plot(times,-M2d/1e12,label='M2d')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               legend_loc='upper left',
@@ -2022,6 +1992,8 @@ def lobe_balance_fig(dataset,phase,path):
         lobe_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
         axis.plot(times,K_lobes.cumsum()*60/1e15,label='Total Lobes')
+        axis.plot(times,(M_lobes+lobes['K_net [W]']).cumsum()*60/1e15,
+                         label='Summed Lobes')
         axis.plot(times,lobes['K_net [W]'].cumsum()*60/1e15,
                   label='Static Lobes')
         axis.plot(times,M_lobes.cumsum()*60/1e15,label='Motion Lobes')
@@ -2048,13 +2020,13 @@ def lobe_balance_fig(dataset,phase,path):
         #Plot
         axis.fill_between(times,K_lobes.cumsum()*60/1e15,
                           label='Total Lobes',fc='grey')
-        axis.plot(times,(K_1+K_2alobes+K_2blobes+K_3+K_4).cumsum()*60/1e15,
-                  label='Summed Lobes')
-        axis.plot(times,K_1.cumsum()*60/1e15,label='K1')
-        axis.plot(times,K_2alobes.cumsum()*60/1e15,label='K2a')
-        axis.plot(times,K_2blobes.cumsum()*60/1e15,label='K2b')
-        axis.plot(times,K_3.cumsum()*60/1e15,label='K3')
-        axis.plot(times,K_4.cumsum()*60/1e15,label='K4')
+        axis.plot(times,(M_lobes+lobes['K_net [W]']).cumsum()*60/1e15,
+                         label='Summed Lobes')
+        axis.plot(times,(Ks1+M1).cumsum()*60/1e15,label='K1')
+        axis.plot(times,(Ks2al-M2a-M2c).cumsum()*60/1e15,label='K2a')
+        axis.plot(times,(Ks2bl+M2b+M2d).cumsum()*60/1e15,label='K2b')
+        axis.plot(times,Ks3.cumsum()*60/1e15,label='K3')
+        axis.plot(times,Ks4.cumsum()*60/1e15,label='K4')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                         ylabel=r'Accumulated Power $\left[ PJ\right]$',
@@ -2073,8 +2045,8 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         inner_circulation,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_2aclosed/1e12,label='Cusp')
-        axis.plot(times,-K_2bclosed/1e12,label='-1*Tail')
+        axis.plot(times,(Ks2ac+M2a+M2c)/1e12,label='Cusp')
+        axis.plot(times,-(Ks2bc-M2b-M2d)/1e12,label='-1*Tail')
         axis.axhline(0,color='black')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
@@ -2095,19 +2067,19 @@ def lobe_balance_fig(dataset,phase,path):
         external,(axis,axis2) = plt.subplots(2,1,figsize=[16,16])
         #Plot
         axis.fill_between(times,(mp['K_netK1 [W]']+mp['K_netK5 [W]']+
-                         lobes['K_netK4 [W]']+closed['K_netK7 [W]'])/1e12,
+                         lobes['K_netK4 [W]']+closed['K_netK6 [W]'])/1e12,
                           fc='grey',label='Static')
-        axis.plot(times,mp['K_netK1 [W]']/1e12,label=r'$K_s1$')
-        axis.plot(times,mp['K_netK5 [W]']/1e12,label=r'$K_s5$')
+        axis.plot(times,(mp['K_netK1 [W]'])/1e12,label=r'$K_s1$')
+        axis.plot(times,(mp['K_netK5 [W]'])/1e12,label=r'$K_s5$')
         axis.plot(times,lobes['K_netK4 [W]']/1e12,label=r'$K_s4$')
-        axis.plot(times,closed['K_netK7 [W]']/1e12,label=r'$K_s7$')
+        axis.plot(times,closed['K_netK6 [W]']/1e12,label=r'$K_s6$')
 
-        axis2.fill_between(times,(K_1+K_5+K_4+K_7)/1e12,
+        axis2.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6)/1e12,
                            label='Total',fc='grey')
-        axis2.plot(times,K_1/1e12,label='K1')
-        axis2.plot(times,K_5/1e12,label='K5')
-        axis2.plot(times,K_4/1e12,label='K4')
-        axis2.plot(times,K_7/1e12,label='K7')
+        axis2.plot(times,(M1+Ks1)/1e12,label='K1')
+        axis2.plot(times,(M5+Ks5)/1e12,label='K5')
+        axis2.plot(times,Ks4/1e12,label='K4')
+        axis2.plot(times,Ks6/1e12,label='K6')
         #axis2.axhline(0,color='black')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
@@ -2705,12 +2677,13 @@ if __name__ == "__main__":
     #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    #interval_figures(dataset)
+    interval_figures(dataset)
     ######################################################################
     #TODO
     ph = '_lineup'
     phase = '_interv'
-    for event in dataset.keys():
+    if False:
+    #for event in dataset.keys():
         #Figure setup
         demo_figure = plt.figure(figsize=(30,20),
                                  layout="constrained")
@@ -2738,60 +2711,42 @@ if __name__ == "__main__":
         obs = dataset[event]['obs']['omni'+ph]
         obstime = dataset[event]['omni_otime'+ph]
         ot = [float(n) for n in obstime.to_numpy()]#bad hack
-        from IPython import embed; embed()
-        # Rearranging because this is tricky
-        U_day = mp['UtotK1day [J]']+mp['UtotK5day [J]']
-        U_night = mp['UtotK1night [J]']+mp['UtotK5night [J]']
-        '''
-        U_2a=(lobes['UtotK1day&K2a [J]']+closed['UtotK5day&K2a [J]']-U_day)/2
-        U_2b=(lobes['UtotK1night&K2b [J]']+
-              closed['UtotK5night&K2b [J]']-U_night)/2
-        U_1 = lobes['Utot [J]']-U_2a-U_2b
-        U_5 = closed['Utot [J]']-U_2a-U_2b
-        '''
-        K_day = -1*central_diff(U_day,60)
-        M_day = K_day - mp['K_netK1day [W]']+mp['K_netK5day [W]']
-        M_2alobes = M_day*0
-        M_2aclosed = M_day*0
-        K_2alobes = M_2alobes + lobes['K_netK2a [W]']
-        K_2aclosed = M_2aclosed + closed['K_netK2a [W]']
+        #K1,5 from mp
+        Ks1 = mp['K_netK1 [W]']
+        Ks5 = mp['K_netK5 [W]']
+        #K2,3,4 from lobes
+        Ks2al = lobes['K_netK2a [W]']
+        Ks2bl = lobes['K_netK2b [W]']
+        Ks3 = lobes['K_netK3 [W]']
+        Ks4 = lobes['K_netK4 [W]']
+        #K2,6,7 from closed
+        Ks2ac = closed['K_netK2a [W]']
+        Ks2bc = closed['K_netK2b [W]']
+        Ks6 = closed['K_netK6 [W]']
+        Ks7 = closed['K_netK7 [W]']
 
-        K_night = -1*central_diff(U_night,60)
-        M_night = K_night - mp['K_netK1night [W]']+mp['K_netK5night [W]']
-        M_2blobes = M_day*0
-        M_2bclosed = M_day*0
-        K_2blobes = M_2blobes + lobes['K_netK2b [W]']
-        K_2bclosed = M_2bclosed + closed['K_netK2b [W]']
-
-        M_1 = (-1*central_diff(lobes['Utot [J]'],60) -lobes['K_net [W]']
-               -M_2alobes-M_2blobes)
-        M_5 =(-1*central_diff(closed['Utot [J]'],60) -closed['K_net [W]']
-               -M_2aclosed-M_2bclosed)
-        M_1day = (-1*central_diff(mp['UtotK1day [J]'],60))
-                  #-mp['K_netK1day [W]']-lobes['K_netK2a [W]'])
-        M_5day = (-1*central_diff(mp['UtotK5day [J]'],60)
-                  -mp['K_netK5day [W]']-closed['K_netK2a [W]'])
-        M_1night = (-1*central_diff(mp['UtotK1night [J]'],60))
-                  #-mp['K_netK1night [W]']-lobes['K_netK2b [W]'])
-        M_5night = (-1*central_diff(mp['UtotK5night [J]'],60)
-                  -mp['K_netK5night [W]']-closed['K_netK2b [W]'])
-        K_1 = M_1 + mp['K_netK1 [W]']
-        K_5 = M_5 + mp['K_netK5 [W]']
+        #M1,5,total from mp
+        M1 = mp['UtotM1 [W]']
+        M5 = mp['UtotM5 [W]']
+        M = mp['UtotM [W]']
+        #M1a,1b,2b,il from lobes
+        M1a = lobes['UtotM1a [W]']
+        M1b = lobes['UtotM1b [W]']
+        M2b = lobes['UtotM2b [W]']
+        M2d = lobes['UtotM2d [W]']
+        Mil = lobes['UtotMil [W]']
+        #M5a,5b,2a,ic from closed
+        M5a = closed['UtotM5a [W]']
+        M5b = closed['UtotM5b [W]']
+        M2a = closed['UtotM2a [W]']
+        M2c = closed['UtotM2c [W]']
+        Mic = closed['UtotMic [W]']
 
         # Central difference of partial volume integrals, total change
         # Total
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
-        # Partials (spatial)
-        #K_1 = -1*central_diff(U_1,60)
-        #K_2a = -1*central_diff(U_2a,60)
-        #K_2b = -1*central_diff(U_2b,60)
-        K_3 = -1*central_diff(lobes['UtotK3 [J]'],60)
-        K_4 = -1*central_diff(lobes['UtotK4 [J]'],60)
-        #K_5 = -1*central_diff(U_5,60)
-        K_6 = -1*central_diff(closed['UtotK6 [J]'],60)
-        K_7 = -1*central_diff(closed['UtotK7 [J]'],60)
 
         ################
         #Dst index
@@ -2806,10 +2761,11 @@ if __name__ == "__main__":
                               timedelta=True)
         ################
         #Power
-        B.plot(times,(K_3+K_6)/1e12, label='InnerBound')
-        B.plot(times,K_5/1e12, label='ClosedSheath')
-        B.plot(times,K_1/1e12, label='OpenSheath')
-        B.plot(times,(K_4+K_7)/1e12, label='TailCuttoff')
+        B.plot(times,(Ks3+Ks7)/1e12, label='InnerBound')
+        B.plot(times,(M5+Ks5)/1e12, label='ClosedSheath')
+        B.plot(times,(M1+Ks1)/1e12, label='OpenSheath')
+        B.plot(times,(Ks4+Ks6)/1e12, label='TailCuttoff')
+        B.plot(times,(Ks1+Ks5+Ks3+Ks4+Ks6+Ks7+M1+M5)/1e12,label='Summed')
         B.fill_between(times,K_mp/1e12,label='Total',fc='grey')
         general_plot_settings(B,do_xlabel=False,legend=True,
                               legend_loc='upper left',
