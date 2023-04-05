@@ -199,18 +199,20 @@ def txt_to_hdf5(infile,**kwargs):
     print('Created ',outfile,'!')
     return outfile
 
-def interpolate_satellite_loc(satfile,source_files,ofilename):
-    # Create 'virtual_sat_out' file
-    outfile = pd.HDFStore(ofilename)
+def interpolate_satellite_loc(satfile,source_files,ofilepath):
+    os.makedirs(ofilepath, exist_ok=True)
     # Read satellite location file for available satellites
     locfile = pd.HDFStore(satfile)
     # glob for the available 3d files and get source_times
     source_times=[get_time(f) for f in source_files]
     i = 1
     nsat = len(locfile.keys())
+    ntimes = len(source_times)
+    total = nsat*ntimes
+    interp_dict = {}
     # For each satellite:
     for sat in locfile.keys():
-        print('{:.1%} Extracting '.format(i/nsat),sat)
+        print('{:.1%} Interpolating '.format(i/nsat),sat)
         # Initiate DataFrame for this satellite output
         vsat_df = pd.DataFrame()
         vsat_df['time'] = source_times
@@ -221,11 +223,25 @@ def interpolate_satellite_loc(satfile,source_files,ofilename):
         vsat_df['Xgsm'] = np.interp(ytimes,xtimes,locfile[sat]['Xgsm'].values)
         vsat_df['Ygsm'] = np.interp(ytimes,xtimes,locfile[sat]['Ygsm'].values)
         vsat_df['Zgsm'] = np.interp(ytimes,xtimes,locfile[sat]['Zgsm'].values)
+        interp_dict[sat] = vsat_df
         i+=1
-        outfile[sat] = vsat_df
     locfile.close()
-    outfile.close()
-    return ofilename
+    i=1
+    for sourcefile in source_files:
+        eventtime = get_time(sourcefile)
+        print('{:.1%} Packaging '.format(i/ntimes),eventtime)
+        # Create 'virtual_sat_out' file
+        datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
+                          str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
+                          str(eventtime.minute))
+        outfile = pd.HDFStore(os.path.join(ofilepath,ofilepath+
+                                           '_'+datestring+'.h5'))
+        for sat in interp_dict.keys():
+            save_df = interp_dict[sat][interp_dict[sat]['time']==eventtime]
+            outfile[sat] = save_df
+        outfile.close()
+        i+=1
+    return ofilepath
 
 def extract_satellite(sourcefile,satfile):
     """Loads source file,returns {sat:DataFrame} at corresponding vsat locs
@@ -269,18 +285,18 @@ if __name__ == "__main__":
         hdffile = txt_to_hdf5('mysatdata.txt')
     else:
         hdffile = 'obssatloc.h5'
-    if False:
+    if True:
         # Convert observed .h5 file to interpolated (event specific)
         MHDDIR = 'ccmc_2022-02-02/'
         # glob for the available 3d files and get source_times
         source_files = sorted(glob.glob(MHDDIR+'3d__var*.plt'),
                               key=time_sort)
-        ofilename = interpolate_satellite_loc(hdffile,source_files,
-                                              'star2satloc.h5')
+        ofilepath = interpolate_satellite_loc(hdffile,source_files,
+                                              'star2satloc')
     else:
-        ofilename = 'star2satloc.h5'
+        ofilepath = 'star2satloc'
 
-    results = extract_satellite(source_files[0],ofilename)
+    #results = extract_satellite(source_files[0],ofilepath)
     #timestamp
     ltime = time.time()-start_time
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
