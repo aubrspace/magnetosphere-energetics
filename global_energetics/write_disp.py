@@ -198,5 +198,8 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
 if __name__ == "__main__":
     DATA = sys.argv[1]
     OPATH = sys.argv[2]
-    combine_hdfs2(DATA, OPATH)
+    kwargs = {}
+    if '-c' in sys.argv:
+        kwargs['combo_name'] = sys.argv[sys.argv.index('-c')+1]
+    combine_hdfs2(DATA, OPATH,**kwargs)
     #merge_hdfs(DATA, OPATH)
