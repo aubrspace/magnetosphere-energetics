@@ -198,62 +198,55 @@ def txt_to_hdf5(infile,**kwargs):
     print('Created ',outfile,'!')
     return outfile
 
-def read_satellite_loc(zone,time,locdata):
-    """Reads data at specific satellite location from zone data
-    Inputs
-        zone (TecplotZone)
-        time (datetime)
-        locdata (DataFrame) - time, [xyz]GSM
-    Returns
-        outputdata (DataFrame)- time, [...] all output values
-    """
-    pass
-
-if __name__ == "__main__":
-    start_time = time.time()
-    #hdffile = txt_to_hdf5('mysatdata.txt')
-    MHDDIR = 'ccmc_2022-02-02/'
-    from global_energetics import makevideo
-    if '-c' in sys.argv:
-        tp.session.connect()
-        tp.new_layout()
+def interpolate_satellite_loc(satfile,source_files,ofilename):
     # Create 'virtual_sat_out' file
-    outfile = pd.HDFStore('virtual_sat_out.h5')
+    outfile = pd.HDFStore(ofilename)
     # Read satellite location file for available satellites
-    locfile = pd.HDFStore('star2satloc.h5')
+    locfile = pd.HDFStore(satfile)
     # glob for the available 3d files and get source_times
-    source_files = sorted(glob.glob(MHDDIR+'3d__var*.plt'),
-                          key=makevideo.time_sort)
     source_times=[makevideo.get_time(f) for f in source_files]
     i = 1
     nsat = len(locfile.keys())
-    total = len(source_times) * nsat
     # For each satellite:
     for sat in locfile.keys():
+        print('{:.1%} Extracting '.format(i/nsat),sat)
         # Initiate DataFrame for this satellite output
         vsat_df = pd.DataFrame()
+        vsat_df['time'] = source_times
         # Interpolate locations and loc_times to source_times
         loc_times = locfile[sat]['time']
         xtimes = [float(t) for t in loc_times.values]
         ytimes = [pd.Timestamp(t).value for t in source_times]
-        xlocs = np.interp(ytimes,xtimes,locfile[sat]['Xgsm'].values)
-        ylocs = np.interp(ytimes,xtimes,locfile[sat]['Ygsm'].values)
-        zlocs = np.interp(ytimes,xtimes,locfile[sat]['Zgsm'].values)
-        for sfile,stime,X,Y,Z in zip(source_files,source_times,
-                                     xlocs,ylocs,zlocs):
-            # Load tecplot source data file at the timestamp and extract
-            print('{:.1%} Extracting '.format(i/total),sat,' at ',stime)
-            tp.new_layout()
-            tp.data.load_tecplot(sfile)
-            variable_names = tp.active_frame().dataset.variable_names
-            probe = tp.data.query.probe_at_position(X,Y,Z)[0]
-            snapshot = pd.DataFrame(data=[probe],columns=variable_names)
-            snapshot['time'] = stime
-            vsat_df = pd.concat([vsat_df,snapshot])
-            i+=1
+        vsat_df['Xgsm'] = np.interp(ytimes,xtimes,locfile[sat]['Xgsm'].values)
+        vsat_df['Ygsm'] = np.interp(ytimes,xtimes,locfile[sat]['Ygsm'].values)
+        vsat_df['Zgsm'] = np.interp(ytimes,xtimes,locfile[sat]['Zgsm'].values)
+        i+=1
         outfile[sat] = vsat_df
     locfile.close()
     outfile.close()
+    return ofilename
+
+if __name__ == "__main__":
+    start_time = time.time()
+    from global_energetics import makevideo
+    if '-c' in sys.argv:
+        tp.session.connect()
+        tp.new_layout()
+    if False:
+        # Convert observed .txt file to hdf
+        hdffile = txt_to_hdf5('mysatdata.txt')
+    else:
+        hdffile = 'obssatloc.h5'
+    if False:
+        # Convert observed .h5 file to interpolated (event specific)
+        MHDDIR = 'ccmc_2022-02-02/'
+        # glob for the available 3d files and get source_times
+        source_files = sorted(glob.glob(MHDDIR+'3d__var*.plt'),
+                              key=makevideo.time_sort)
+        ofilename = interpolate_satellite_loc(hdffile,source_files,
+                                              'star2satloc.h5')
+    else:
+        ofilename = 'star2satloc.h5'
 
     #timestamp
     ltime = time.time()-start_time
