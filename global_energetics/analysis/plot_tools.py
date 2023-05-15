@@ -87,7 +87,8 @@ def general_plot_settings(ax, **kwargs):
     if kwargs.get('iscontour',False):
         ax.set_xlim(kwargs.get('xlim',None))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel(kwargs.get('xlabel',''))
+        if kwargs.get('do_xlabel',True):
+            ax.set_xlabel(kwargs.get('xlabel',''))
     if kwargs.get('timedelta',False):
         tmin,tmax = ax.get_xlim()
         def timedelta_ticks(x,pos):
@@ -114,7 +115,8 @@ def general_plot_settings(ax, **kwargs):
         ax.xaxis.set_minor_locator(AutoMinorLocator(3))
         #Get original limits
         ax.set_xlim(xlims)
-        ax.set_xlabel(
+        if kwargs.get('do_xlabel',True):
+            ax.set_xlabel(
                  kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))
     else:
         #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
