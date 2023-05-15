@@ -39,9 +39,11 @@ if True:
         outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
         herepath='/home/aubr/Code/swmf-energetics/'
     #Overwrite
-    path='/nfs/solsticedisk/tuija/amr_fte/thirdrun/GM/IO2/'
+    #path='/nfs/solsticedisk/tuija/amr_fte/thirdrun/GM/IO2/'
     #path = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
-    outpath='/nfs/solsticedisk/tuija/amr_fte/thirdrun/'
+    #outpath='/nfs/solsticedisk/tuija/amr_fte/thirdrun/'
+    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
+    outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=pv_magnetopause.time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')

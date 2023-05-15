@@ -11,10 +11,10 @@ import datetime as dt
 from paraview.simple import *
 #import global_energetics.extract.pv_magnetopause
 import pv_magnetopause
-from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
-                             display_visuals,update_rotation,read_tecplot,
-                             get_dipole_field,tec2para,update_fluxVolume,
-                             update_fluxResults)
+from pv_input_tools import (get_time, time_sort, read_aux, read_tecplot)
+from pv_equations import (get_dipole_field, tec2para)
+from pv_magnetopause import (setup_pipeline,display_visuals,update_rotation,
+                             update_fluxVolume,update_fluxResults)
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
@@ -27,18 +27,19 @@ if True:
         herepath=os.getcwd()
     elif 'aubr' in os.getcwd():
         path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
-        herepath=os.getcwd()
+        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall_egu/'
+        #herepath=os.getcwd()
+        herepath='/home/aubr/Code/swmf-energetics/'
     elif os.path.exists('/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'):
         path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
         outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
         herepath='/Users/ngpdl/Code/swmf-energetics/'
     elif os.path.exists('/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'):
         path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
+        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall_egu/'
         herepath='/home/aubr/Code/swmf-energetics/'
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
-                      key=pv_magnetopause.time_sort)
+                      key=time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     if False:
@@ -54,9 +55,9 @@ if True:
         ###
 
     nstation = 379
-    #for infile in filelist[480:481]:
+    for infile in filelist[0:1]:
     #for infile in filelist[1140:1141]:
-    for infile in filelist[-1::]:
+    #for infile in filelist[-1::]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         #tstart = localtime
@@ -66,12 +67,12 @@ if True:
                                                        doEnergyFlux=False,
                                                        doVolumeEnergy=True,
                                                        dimensionless=True,
-                                                       doFieldlines=True,
+                                                       #doFieldlines=True,
                                                        doFluxVol=True,
                                                        blanktail=False,
                                                        path=herepath,
                                                        ffj=False,
-                                                       doSat=True,
+                                                       doSat=False,
                                         satfiles=[
                                             'cl.csv',
                                             'thA.csv',
@@ -83,6 +84,14 @@ if True:
                                                        n=nstation,
                                                        localtime=localtime,
                                              tilt=float(aux['BTHETATILT']))
+        # Write results to file
+        fluxResults['time'] = localtime
+        with open(outpath+'/fluxResults.txt','w') as f:
+            f.write('\t'.join(fluxResults.keys())+'\n')
+            #f.write('\t'.join([str(v) for v in fluxResults.values()])+'\n')
+        #NOTE to read with pandas could then use
+        #       results = pd.read_csv('fluxResults.txt',sep='\s+',
+        #                             parse_dates=['time'],index_col=False)
         SetActiveView(renderView1)
         display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=True,
                         n=nstation,fontsize=60,localtime=localtime,
@@ -90,6 +99,7 @@ if True:
                         station_tag=True,show_mp=True,timestamp=True,
                         fluxResults=fluxResults)
         layout = GetLayout()
+        #layout.SetSize(5760, 3240)# Hyperwall
         layout.SetSize(3840, 2160)# 4k :-)
         #layout.SetSize(1280, 720)# Single hyperwall screen
 
@@ -126,11 +136,15 @@ if True:
             ###
         SaveScreenshot(outpath+
                        infile.split('/')[-1].split('.plt')[0]+'.png',layout,
+                       #SaveAllViews=1,ImageResolution=[5760,3240])
                        SaveAllViews=1,ImageResolution=[3840,2160])
         #SaveAllViews=1,ImageResolution=[1280,720])
     nstation_start = nstation
+    """
+    for i,infile in enumerate(filelist[1::]):
+    #for i,infile in enumerate(filelist[481:482]):
     #for i,infile in enumerate(filelist[481:1081]):
-    for i,infile in enumerate(filelist[1141:1740]):
+    #for i,infile in enumerate(filelist[1141:1740]):
     #for i,infile in enumerate(filelist[1515:1740:30]):
         nstation = np.minimum(nstation_start+i+1,379)
         print('n= ',nstation,'processing '+infile.split('/')[-1]+'...')
@@ -171,6 +185,11 @@ if True:
                 flux_int = FindSource('fluxInt')
                 total_int = FindSource('totalInt')
                 fluxResults = update_fluxResults(flux_int,total_int)
+                # Write results to file
+                fluxResults['time'] = localtime
+                with open(outpath+'/fluxResults.txt','a') as f:
+                    f.write('\t'.join([str(v) for v in fluxResults.values()])+
+                            '\n')
             if True:
                 #Annotations
                 station_num = FindSource('station_num')
@@ -197,13 +216,16 @@ if True:
             RenderAllViews()
 
             # layout/tab size in pixels
-            layout.SetSize(3840, 2160)
+            #layout.SetSize(5760, 3240)
+            layout.SetSize(3840,2160)
             #layout.SetSize(1280, 720)# Single hyperwall screen
             SaveScreenshot(outfile,layout,
-                       SaveAllViews=1,ImageResolution=[3840,2160])
+                           #SaveAllViews=1,ImageResolution=[5760,3240])
+                           SaveAllViews=1,ImageResolution=[3840,2160])
             #SaveAllViews=1,ImageResolution=[1280,720])
             # Set the current source to be replaced on next loop
             oldsource = newsource
+    """
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

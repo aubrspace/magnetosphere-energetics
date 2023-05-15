@@ -85,7 +85,7 @@ if __name__ == "__main__":
             'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt',
             'ccmc_2019-05-13/3d__var_1_e20190515-004700-018.plt')
 
-    oggridfile = 'ccmc_2022-02-02/3d__var_1_e20220202-volume.plt'
+    oggridfile = 'ccmc_2022-02-02/3d__volume_e20220202.plt'
 
     mp_surf = pd.DataFrame()
     mp_vol = pd.DataFrame()
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
     #if False:
-    for inputs in [starlink4]:
+    for inputs in [starlink2]:
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
         tp.new_layout()
         mhddatafile = inputs[0]
@@ -161,7 +161,7 @@ if __name__ == "__main__":
                                     outputpath='babyrun/')
                                     #tshift=45,
             '''
-    if True:
+    if False:
         for file in glob.glob('babyrun/energeticsdata/*.h5'):
             results = pd.HDFStore(file)
             mp_surf=pd.concat([mp_surf,results['mp_iso_betastar_surface']],
