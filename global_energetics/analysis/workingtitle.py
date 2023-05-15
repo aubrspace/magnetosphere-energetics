@@ -26,6 +26,7 @@ from global_energetics.analysis.plot_tools import (pyplotsetup,safelabel,
                                                    plot_pearson_r,
                                                    plot_stack_contrib)
 from global_energetics.analysis.proc_indices import read_indices
+from global_energetics.analysis.proc_satellites import read_satellites
 from global_energetics.analysis.proc_hdf import (load_hdf_sort,
                                                  group_subzones,
                                                  get_subzone_contrib)
@@ -323,6 +324,135 @@ def get_interfaces(sz):
                     for k in sz.keys() if 'K_net' in k]
     return interfaces
 
+def find_crossings(in_vsat,in_obssat,satname):
+    """Function creates crossing dataframe given virtual and real sat data
+    Inputs
+        vsat,obssat (DataFrame)
+    Returns
+        crossings
+    """
+    #Make copies so we don't mess up our dataframes
+    vsat = in_vsat.copy(deep=True)
+    obssat = in_obssat.copy(deep=True)
+    crossings = pd.DataFrame()
+    vsat.reset_index(inplace=True)
+    #Interpolate data from obssat into vsat times
+    obsinterp = pd.DataFrame({'time':vsat['time'].values})
+    xtime = [float(t) for t in obssat.index.to_numpy()]
+    ytime = [float(t) for t in vsat['time'].to_numpy()]
+    for key in obssat.keys():
+        obsinterp[key] = np.interp(ytime,xtime,obssat[key].values)
+    ## find crossings
+    lookahead = vsat['Status'].copy(deep=True)
+    lookahead.index -=1
+    lookahead.drop(index=[-1],inplace=True)
+    lookahead.loc[lookahead.index.max()+1] = lookahead.loc[
+                                                      lookahead.index.max()]
+    crossing_status = vsat[['Status']][(lookahead-vsat['Status'])!=0]
+    k=0
+    crossing_status['id'] = 0
+    for i, index in enumerate(crossing_status.index):
+        forward = False
+        backward = False
+        # Check for start
+        if i!=len(crossing_status)-1:
+            #update next index
+            next_index = crossing_status.index[i+1]
+            if index == (next_index-1):
+                forward = True
+        # Check for end
+        if i!=0:
+            if index == (last_index+1):
+                backward = True
+        # Check for interior
+        if forward and backward:
+            crossing_status.loc[index,'id'] = k
+        elif forward:
+            k+=1
+            crossing_status.loc[index,'id'] = k
+        elif backward:
+            crossing_status.loc[index,'id'] = k
+        # Else is lone point (id==0)
+        else:
+            k+=1
+            crossing_status.loc[index,'id'] = k
+        # update last
+        last_index = index
+    vsat['crosstype'] = 'none'
+    obssat['crosstype'] = 'none'
+    from IPython import embed; embed()
+    for interval_id in range(1,crossing_status['id'].max()+1):
+        interval_points = crossing_status[crossing_status['id']==
+                                          interval_id].index
+        start = interval_points.min()-1
+        end = interval_points.max()+1
+        tstart = vsat.loc[start,'time']
+        tend = vsat.loc[end,'time']
+        start_status = vsat.loc[start,'Status']
+        end_status = vsat.loc[end,'Status']
+        obswindow = obssat[(obsinterp.index>tstart)&(obsinterp.index<tend)].index
+        # A dip if starting and ending with the same status
+        #TODO: mark both the virtual and obssat 'crosstype'
+        #       Add a day/night to the derived values
+        #       Add day/night from virtual to obs
+        if start_status==end_status:
+            #look at the interior min and max compared with the endpoint value
+            if start_status==3 and vsat.loc[start-1:end+1,'Status'].min()<1:
+                # K5
+                vsat.loc[start-1:end+1,'crosstype'] = 'K5'
+                obsinterp.loc[obswindow,'crosstype'] = 'K5'
+            else:
+                # K2
+                vsat.loc[start-1:end+1,'crosstype'] = 'K2'
+                obsinterp.loc[obswindow,'crosstype'] = 'K2'
+            if ((start_status==2 or start_status==1)and
+                 vsat.loc[start-1:end+1,'Status'].max()>2):
+                # K2
+                vsat.loc[start-1:end+1,'crosstype'] = 'K2'
+                obsinterp.loc[obswindow,'crosstype'] = 'K2'
+            else:
+                # K1
+                vsat.loc[start-1:end+1,'crosstype'] = 'K1'
+                obsinterp.loc[obswindow,'crosstype'] = 'K1'
+        # Solar wind to closed K5
+        elif ((start_status==3 and end_status==0) or
+              (start_status==0 and end_status==3)):
+            vsat.loc[start-1:end+1,'crosstype'] = 'K5'
+            obsinterp.loc[obswindow,'crosstype'] = 'K5'
+        # Solar wind to open K1
+        elif (((start_status==1 or start_status==2) and end_status==0) or
+              (start_status==0 and (end_status==1 or end_status==2))):
+            vsat.loc[start-1:end+1,'crosstype'] = 'K1'
+            obsinterp.loc[obswindow,'crosstype'] = 'K1'
+        # Closed to open K2
+        elif ((start_status==3 and (end_status==1 or end_status==2)) or
+              ((start_status==1 or start_status==2) and end_status==3)):
+            vsat.loc[start-1:end+1,'crosstype'] = 'K2'
+            obsinterp.loc[obswindow,'crosstype'] = 'K2'
+    from IPython import embed; embed()
+    #TODO: find the full crossing window
+    #   check for continuity in the crossing index
+    #   buffer by 3 min on either side, call this all one crossing type
+    #   Look at end point Status values to determine type
+    #   If different endpoints, clearly mark
+    #   Else take min max within the interval too guess at what kind
+    # Figure out how to keep track of all these pieces of time
+    #  The only things we need to mark are (maybe?)
+    #       crossing ID
+    #       type
+    #       crossing start,end
+    # ID the points where Status changes value
+    # look for the points within (window/2-1) of two points where jump occured
+    # for each point
+    #   set the window crosstime
+    #   set the window half range
+    #   set the type based on what the status jump was
+    #   for each virtual value
+    #       get average over window
+    #   for each obs value
+    #       get average over window
+    return crossings
+
 def locate_phase(times,**kwargs):
     """Function handpicks phase times for a number of events, returns the
         relevant event markers
@@ -480,8 +610,10 @@ def parse_phase(indata,phasekey,**kwargs):
         cond = times>moments['peak1']#NOTE
     elif 'interv' in phasekey:
         #cond=(times>moments['inter_start'])&(times<moments['inter_end'])
-        cond = (times>moments['impact']) & (times<moments['peak1'])
+        #cond = (times>moments['impact']) & (times<moments['peak1'])
                                             #dt.timedelta(minutes=10))
+        cond = ((times>moments['peak1']-dt.timedelta(minutes=60)) &
+                (times<moments['peak1']+dt.timedelta(minutes=20)))
     elif 'lineup' in phasekey:
         cond = times>times[0]+moments['start']
 
@@ -1778,6 +1910,19 @@ def lobe_balance_fig(dataset,phase,path):
         mp = dataset[event]['mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
+        # for solar wind
+        sw = dataset[event]['obs']['swmf_sw'+phase]
+        swtime = dataset[event]['swmf_sw_otime'+phase]
+        swt = [float(n) for n in swtime.to_numpy()]#bad hack
+        sim = dataset[event]['obs']['swmf_log'+phase]
+        simtime = dataset[event]['swmf_log_otime'+phase]
+        simt = [float(n) for n in simtime.to_numpy()]#bad hack
+        index = dataset[event]['obs']['swmf_index'+phase]
+        indextime = dataset[event]['swmf_index_otime'+phase]
+        indext = [float(n) for n in indextime.to_numpy()]#bad hack
+        obs = dataset[event]['obs']['omni'+phase]
+        obstime = dataset[event]['omni_otime'+phase]
+        ot = [float(n) for n in obstime.to_numpy()]#bad hack
 
         #K1,5 from mp
         Ks1 = mp['K_netK1 [W]']
@@ -1819,9 +1964,12 @@ def lobe_balance_fig(dataset,phase,path):
         K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
 
+        '''
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
         else: dotimedelta=False
+        '''
+        dotimedelta=True
 
         #############
         #setup figure
@@ -1835,6 +1983,10 @@ def lobe_balance_fig(dataset,phase,path):
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
         #save
         lobes_balance_total.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -1882,12 +2034,12 @@ def lobe_balance_fig(dataset,phase,path):
         axis3.plot(times,-M2c/1e12,label='M2c')
         axis3.plot(times,M2d/1e12,label='M2d')
         #Decorations
-        general_plot_settings(axis,do_xlabel=True,legend=True,
+        general_plot_settings(axis,do_xlabel=False,legend=True,
                               legend_loc='upper left',
                               ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
-        general_plot_settings(axis2,do_xlabel=True,legend=True,
+        general_plot_settings(axis2,do_xlabel=False,legend=True,
                               legend_loc='upper left',
                               ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
@@ -1897,6 +2049,11 @@ def lobe_balance_fig(dataset,phase,path):
                               ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
+        for axis in [axis,axis2,axis3]:
+            axis.axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis.axvline(0,ls='--',color='black')
         #save
         lobes_balance_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -1919,6 +2076,10 @@ def lobe_balance_fig(dataset,phase,path):
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
         #save
         closed_balance_total.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -1966,11 +2127,11 @@ def lobe_balance_fig(dataset,phase,path):
         axis3.plot(times,M2c/1e12,label='M2c')
         axis3.plot(times,-M2d/1e12,label='M2d')
         #Decorations
-        general_plot_settings(axis,do_xlabel=True,legend=True,
+        general_plot_settings(axis,do_xlabel=False,legend=True,
                               legend_loc='upper left',
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
-        general_plot_settings(axis2,do_xlabel=True,legend=True,
+        general_plot_settings(axis2,do_xlabel=False,legend=True,
                               legend_loc='upper left',
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
@@ -1978,6 +2139,11 @@ def lobe_balance_fig(dataset,phase,path):
                               legend_loc='upper left',
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
+        for axis in [axis,axis2,axis3]:
+            axis.axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis.axvline(0,ls='--',color='black')
         #save
         closed_balance_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2004,6 +2170,10 @@ def lobe_balance_fig(dataset,phase,path):
         general_plot_settings(axis,do_xlabel=True,legend=True,
                         ylabel=r'Accumulated Power $\left[ PJ\right]$',
                               timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
         #save
         lobe_acc_total.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2031,6 +2201,10 @@ def lobe_balance_fig(dataset,phase,path):
         general_plot_settings(axis,do_xlabel=True,legend=True,
                         ylabel=r'Accumulated Power $\left[ PJ\right]$',
                               timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
         #save
         lobe_acc_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2052,6 +2226,10 @@ def lobe_balance_fig(dataset,phase,path):
         general_plot_settings(axis,do_xlabel=True,legend=True,
                      ylabel=r'(Closed Vol) Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
         #save
         inner_circulation.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2082,7 +2260,7 @@ def lobe_balance_fig(dataset,phase,path):
         axis2.plot(times,Ks6/1e12,label='K6')
         #axis2.axhline(0,color='black')
         #Decorations
-        general_plot_settings(axis,do_xlabel=True,legend=True,
+        general_plot_settings(axis,do_xlabel=False,legend=True,
                      ylabel=r'Net Power $\left[ TW\right]$',
                               legend_loc='lower left',
                               ylim=[-10,10],
@@ -2092,6 +2270,11 @@ def lobe_balance_fig(dataset,phase,path):
                               legend_loc='lower left',
                               ylim=[-10,10],
                               timedelta=dotimedelta)
+        for axis in [axis,axis2]:
+            axis.axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis.axvline(0,ls='--',color='black')
         #save
         external.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2099,6 +2282,77 @@ def lobe_balance_fig(dataset,phase,path):
         figurename = path+'/external'+phase+'_'+event+'.png'
         external.savefig(figurename)
         plt.close(external)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+
+        #############
+        #setup figure
+        comboVS,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        #Plot
+        axis.fill_between(swt,sw['B'], ec='dimgrey',fc='thistle',
+                          label=r'$|B|$')
+        axis.plot(swt,sw['bx'],label=r'$B_x$',c='maroon')
+        axis.plot(swt,sw['by'],label=r'$B_y$',c='magenta')
+        axis.plot(swt,sw['bz'],label=r'$B_z$',c='tab:blue')
+        general_plot_settings(axis,ylabel=r'$B\left[nT\right]$',
+                              do_xlabel=False, legend=True,
+                              timedelta=dotimedelta)
+        '''
+        axis.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6)/1e12,
+                           label='Total',fc='grey')
+        axis.plot(times,(M1+Ks1)/1e12,label='K1')
+        axis.plot(times,(M5+Ks5)/1e12,label='K5')
+        axis.plot(times,Ks4/1e12,label='K4')
+        axis.plot(times,Ks6/1e12,label='K6')
+        '''
+        axis2.plot(times,(Ks2ac+M2a+M2c)/1e12,label=r'Cusp $K_{2a}$',
+                   color='goldenrod')
+        axis2.plot(times,(Ks2bc-M2b-M2d)/1e12,label=r'Tail $K_{2b}$',
+                   color='tab:blue')
+        axis2.fill_between(times,(Ks2ac+Ks2bc+M2a-M2b+M2c-M2d)/1e12,
+                           label=r'Net $K_2$',fc='grey')
+        axis3.plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
+        axis3.plot(ot,obs['sym_h'],label='Obs',c='maroon')
+        rax = axis3.twinx()
+        rax.plot(times,-1*mp['Utot [J]'],c='magenta',
+                 label=r'$-\int{U_{tot}}\left[ J\right]$')
+        rax.spines['right'].set_color('magenta')
+        rax.tick_params(axis='y',colors='magenta')
+        #axis2.axhline(0,color='black')
+        #Decorations
+        general_plot_settings(axis,ylabel=r'$B\left[nT\right]$',
+                              do_xlabel=False, legend=True,
+                              timedelta=dotimedelta)
+        '''
+        general_plot_settings(axis,do_xlabel=False,legend=True,
+                     ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
+                              ylim=[-12,12],
+                              timedelta=dotimedelta)
+        '''
+        general_plot_settings(axis2,do_xlabel=False,legend=True,
+                     ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
+                              ylim=[-12,12],
+                              timedelta=dotimedelta)
+        general_plot_settings(axis3,ylabel=r'Sym-H$\left[nT\right]$',
+                              do_xlabel=True, legend=True,
+                              timedelta=dotimedelta)
+        general_plot_settings(rax,ylabel=r'-Energy $\left[ J\right]$',
+                              do_xlabel=False, legend=False,
+                              timedelta=dotimedelta)
+        for axis in [axis,axis2,axis3]:
+            axis.axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis.axvline(0,ls='--',color='black')
+        #save
+        comboVS.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        comboVS.tight_layout(pad=0.3)
+        figurename = path+'/comboVS'+phase+'_'+event+'.png'
+        comboVS.savefig(figurename)
+        plt.close(comboVS)
         print('\033[92m Created\033[00m',figurename)
         #############
 
@@ -2164,7 +2418,7 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
     else: dotimedelta=False
     for i,event in enumerate(ds.keys()):
         dst, ax = plt.subplots(4,1,sharey=False,sharex=False,
-                               figsize=[18,4*4])
+                               figsize=[18,4*6])
         #filltime = [float(n) for n in ds[event]['time'+ph].to_numpy()]
         filltime = [float(n) for n in
                     ds[event]['obs']['swmf_sw'+ph].index.to_numpy()]
@@ -2271,7 +2525,7 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         #ax[3].plot(supt,sup['SML (nT)'],label='Obs',c='maroon')
         ax[3].plot(ot,al,label='Obs',c='maroon')
         #Newell coupling function
-        ax[3].fill_between(swt, sw['Newell']/100, label=event+'Newell',
+        ax[3].fill_between(swt, sw['Newell']/100, label='Newell',
                            fc='grey')
         general_plot_settings(ax[3],ylabel=r'AL$\left[nT\right]$,'+
                             r'Newell$\left[ 10\times kWb/s\right]$',
@@ -2285,11 +2539,355 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
             axis.axvline(0,ls='--',color='black')
         #save
         dst.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
-        dst.tight_layout(pad=0.8)
+        dst.tight_layout(pad=0.3)
         figname = path+'/dst_'+event+'.png'
         dst.savefig(figname)
         plt.close(dst)
         print('\033[92m Created\033[00m',figname)
+
+def satellite_comparisons(dataset,phase,path):
+    """Time series comparison of virtual and observed satellite data
+    """
+    dotimedelta=True
+    for i,event in enumerate(dataset.keys()):
+        moments = locate_phase(dataset[event]['time'])
+        # List of satellites we want to use
+        satlist = ['cluster4','themisa','themisd','themise']
+        #############
+        #setup figure
+        b_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['B_x'],label='simBx')
+            axis[i].plot(vtime,virtual['B_y'],label='simBy')
+            axis[i].plot(vtime,virtual['B_z'],label='simBz')
+            axis[i].plot(obstime,obs['bx'],label='obsBx')
+            axis[i].plot(obstime,obs['by'],label='obsBy')
+            axis[i].plot(obstime,obs['bz'],label='obsBz')
+            #Decorations
+            general_plot_settings(axis[i],legend=(i==0),
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $B\left[ nT\right]$',
+                                  ylim=[-100,100],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                             moments['peak2']).total_seconds()*1e9,
+                             ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        b_compare_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        b_compare_detail.tight_layout()
+        figurename = path+'/b_compare_detail'+phase+'_'+event+'.png'
+        b_compare_detail.savefig(figurename)
+        plt.close(b_compare_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        u_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['U_x'],label='simUx')
+            axis[i].plot(vtime,virtual['U_y'],label='simUy')
+            axis[i].plot(vtime,virtual['U_z'],label='simUz')
+            axis[i].plot(obstime,obs['vx'],label='obsUx')
+            axis[i].plot(obstime,obs['vy'],label='obsUy')
+            axis[i].plot(obstime,obs['vz'],label='obsUz')
+            #Decorations
+            general_plot_settings(axis[i],legend=(i==0),
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat[i]+r' $U\left[ km/s\right]$',
+                                  ylim=[-200,200],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                             moments['peak2']).total_seconds()*1e9,
+                             ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        u_compare_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        u_compare_detail.tight_layout()
+        figurename = path+'/u_compare_detail'+phase+'_'+event+'.png'
+        u_compare_detail.savefig(figurename)
+        plt.close(u_compare_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        n_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['Rho'],label='simN')
+            axis[i].plot(obstime,obs['n'],label='obsN')
+            #Decorations
+            general_plot_settings(axis[i],legend=(i==0),
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $\rho\left[ amu/cm^3\right]$',
+                                  ylim=[0,20],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        n_compare_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        n_compare_detail.tight_layout()
+        figurename = path+'/n_compare_detail'+phase+'_'+event+'.png'
+        n_compare_detail.savefig(figurename)
+        plt.close(n_compare_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        status,axis = plt.subplots(len(satlist),1,figsize=[16,16])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['Status'],label='simStatus')
+            #axis[i].plot(obstime,obs['n'],label='obsN')
+            #Decorations
+            general_plot_settings(axis[i],legend=(i==0),
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' Status',
+                                  #ylim=[0,10],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                             moments['peak2']).total_seconds()*1e9,
+                             ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        status.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        status.tight_layout()
+        figurename = path+'/status'+phase+'_'+event+'.png'
+        status.savefig(figurename)
+        plt.close(status)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        p_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['P'],label='simP')
+            axis[i].plot(obstime,obs['p'],label='obsP')
+            #Decorations
+            general_plot_settings(axis[i],legend=(i==0),
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $P\left[ nPa\right]$',
+                                  ylim=[0,7],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        p_compare_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        p_compare_detail.tight_layout()
+        figurename = path+'/p_compare_detail'+phase+'_'+event+'.png'
+        p_compare_detail.savefig(figurename)
+        plt.close(p_compare_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        kx_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        hx_detail,haxis = plt.subplots(len(satlist),1,figsize=[16,32])
+        sx_detail,saxis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            # K
+            axis[i].plot(vtime,virtual['Kx'],label='simKx')
+            axis[i].plot(obstime,obs['Kx'],label='obsKx')
+            rax = axis[i].twinx()
+            rax.plot(vtime,virtual['Status'],label='simStatus',
+                     c='black',ls='--')
+            # H
+            haxis[i].plot(vtime,virtual['Hx'],label='simHx')
+            haxis[i].plot(obstime,obs['Hx'],label='obsHx')
+            rax = haxis[i].twinx()
+            rax.plot(vtime,virtual['Status'],label='simStatus',
+                     c='black',ls='--')
+            # S
+            saxis[i].plot(vtime,virtual['Sx'],label='simSx')
+            saxis[i].plot(obstime,obs['Sx'],label='obsSx')
+            rax = saxis[i].twinx()
+            rax.plot(vtime,virtual['Status'],label='simStatus',
+                     c='black',ls='--')
+            #Decorations
+            # K
+            general_plot_settings(axis[i],legend=True,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $K_x\left[ KW/Re^2\right]$',
+                                  ylim=[-1.2e11,0.2e11],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+            # H
+            general_plot_settings(haxis[i],legend=True,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $K_x\left[ KW/Re^2\right]$',
+                                  ylim=[-1.2e11,0.2e11],
+                                  timedelta=dotimedelta)
+            haxis[i].axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            haxis[i].axvline(0,ls='--',color='black')
+            # S
+            general_plot_settings(saxis[i],legend=True,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $K_x\left[ KW/Re^2\right]$',
+                                  ylim=[-1.2e11,0.2e11],
+                                  timedelta=dotimedelta)
+            saxis[i].axvline((moments['impact']-
+                          moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            saxis[i].axvline(0,ls='--',color='black')
+        #save
+        # K
+        kx_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        kx_detail.tight_layout()
+        figurename = path+'/kx_detail'+phase+'_'+event+'.png'
+        kx_detail.savefig(figurename)
+        plt.close(kx_detail)
+        print('\033[92m Created\033[00m',figurename)
+        # H
+        hx_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        hx_detail.tight_layout()
+        figurename = path+'/hx_detail'+phase+'_'+event+'.png'
+        hx_detail.savefig(figurename)
+        plt.close(hx_detail)
+        print('\033[92m Created\033[00m',figurename)
+        # S
+        sx_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        sx_detail.tight_layout()
+        figurename = path+'/sx_detail'+phase+'_'+event+'.png'
+        sx_detail.savefig(figurename)
+        plt.close(sx_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        ky_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['Ky'],label='simKy')
+            axis[i].plot(obstime,obs['Ky'],label='obsKy')
+            rax = axis[i].twinx()
+            rax.plot(vtime,virtual['Status'],label='simStatus',
+                     c='black',ls='--')
+            #Decorations
+            general_plot_settings(axis[i],legend=True,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $K_y\left[ KW/Re^2\right]$',
+                                  ylim=[-0.2e11,0.8e11],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                             moments['peak2']).total_seconds()*1e9,
+                             ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        ky_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        ky_detail.tight_layout()
+        figurename = path+'/ky_detail'+phase+'_'+event+'.png'
+        ky_detail.savefig(figurename)
+        plt.close(ky_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        kz_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            axis[i].plot(vtime,virtual['Kz'],label='simKz')
+            axis[i].plot(obstime,obs['Kz'],label='obsKz')
+            rax = axis[i].twinx()
+            rax.plot(vtime,virtual['Status'],label='simStatus',
+                     c='black',ls='--')
+            #Decorations
+            general_plot_settings(axis[i],legend=True,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat+r' $K_z\left[ KW/Re^2\right]$',
+                                  ylim=[-0.8e11,0.8e11],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                             moments['peak2']).total_seconds()*1e9,
+                             ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+        #save
+        kz_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        kz_detail.tight_layout()
+        figurename = path+'/kz_detail'+phase+'_'+event+'.png'
+        kz_detail.savefig(figurename)
+        plt.close(ky_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
 
 def diagram_summary(dataset,phase,path):
     """Function plots a summary plot for each timestamp which can be
@@ -2524,7 +3122,7 @@ def main_rec_figures(dataset):
     #for phase,path in [('_main',outMN1),('_rec',outRec)]:
     for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
+        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
@@ -2536,6 +3134,7 @@ def main_rec_figures(dataset):
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings(dataset, phase, path)
+        #satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -2562,6 +3161,7 @@ if __name__ == "__main__":
     #Need input path, then create output dir's
     inBase = sys.argv[-1]
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
+    inSats = os.path.join(sys.argv[-1],'data/sats/')
     inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
@@ -2579,7 +3179,7 @@ if __name__ == "__main__":
     #setting pyplot configurations
     plt.rcParams.update(pyplotsetup(mode='print'))
 
-    #HDF data, will be sorted and cleaned
+    ## Analysis Data
     dataset = {}
     #dataset['may'] = load_hdf_sort(inAnalysis+'may2019_results.h5')
     #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
@@ -2589,18 +3189,22 @@ if __name__ == "__main__":
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
-    #Log files and observational indices
+    ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=False,
-                    end=dataset['star']['msdict']['closed'].index[-1])
+    #dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                end=dataset['star']['msdict']['closed'].index[-1])
+    #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
     #                                     read_supermag=False)
+
+    ## Satellite Data
+    dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
     #NOTE hotfix change FD to CD for motional terms
     #       all calculations are performed as (n_1-n_0)/dt,
@@ -2666,18 +3270,27 @@ if __name__ == "__main__":
                                                  event['termdict'],phase)
     for event_key in dataset.keys():
         event = dataset[event_key]
-        obs_srcs = list(event['obs'].keys())
+        #obs_srcs = list(event['obs'].keys())
+        satlist = list([sat for sat in event['obssat'].keys()
+                        if not event['obssat'][sat].empty])
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
-            for src in obs_srcs:
-                event['obs'][src+phase],event[src+'_otime'+phase]=(
-                                parse_phase(event['obs'][src],phase))
-
+            #for src in obs_srcs:
+            #    event['obs'][src+phase],event[src+'_otime'+phase]=(
+            #                    parse_phase(event['obs'][src],phase))
+            for sat in satlist:
+                event['vsat'][sat+phase],event[sat+'_vtime'+phase] = (
+                                        parse_phase(event['vsat'][sat],phase))
+                event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
+                                      parse_phase(event['obssat'][sat],phase))
+        for sat in satlist:
+            crossings = find_crossings(event['vsat'][sat],
+                                       event['obssat'][sat],sat)
     ######################################################################
     ##Main + Recovery phase
     #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    interval_figures(dataset)
+    #interval_figures(dataset)
     ######################################################################
     #TODO
     ph = '_lineup'

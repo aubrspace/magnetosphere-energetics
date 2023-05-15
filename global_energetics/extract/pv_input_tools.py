@@ -1,0 +1,254 @@
+import paraview
+paraview.compatibility.major = 5
+paraview.compatibility.minor = 10
+
+import numpy as np
+import datetime as dt
+#### import the simple module from paraview
+from paraview.simple import *
+from pv_equations import equations, eqeval
+#from pv_magnetopause import get_magnetopause_filter
+
+def get_time(infile,**kwargs):
+    date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
+    time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+    return time_dt
+
+def time_sort(filename):
+    """Function returns absolute time in seconds for use in sorting
+    Inputs
+        filename
+    Outputs
+        total_seconds
+    """
+    time = get_time(filename)
+    relative_time = time-dt.datetime(1800, 1, 1)
+    return (relative_time.days*86400 + relative_time.seconds)
+
+def read_aux(infile):
+    """Reads in auxillary data file stripped from a .plt tecplot file
+    Inputs
+        infile (str)- full path to file location
+    Returns
+        data (dict)- dictionary of all data contained in the file
+    """
+    data = {}
+    with open(infile,'r') as f:
+        for line in f.readlines():
+            data[line.split(':')[0]]=line.split(':')[-1].replace(
+                                                 ' ','').replace('\n','')
+    return data
+
+def read_tecplot(infile):
+    """Function reads tecplot binary file
+    Inputs
+        infile (str)- full path to tecplot binary (.plt) BATSRUS output
+    Returns
+        sourcedata (pvpython object)- python object attached to theVTKobject
+                                      for the input data
+    """
+    # create a new 'VisItTecplotBinaryReader'
+    sourcedata = VisItTecplotBinaryReader(FileName=[infile],
+                                   registrationName=infile.split('/')[-1])
+    # Call Mesh
+    sourcedata.MeshStatus
+    # Call Point arrays- we want to load everything
+    status = sourcedata.GetProperty('PointArrayInfo')
+    #listed as ['thing','1','thing2','0'] where '0' and '1' are 
+    #   unloaded and loaded respectively
+    arraylist = [s for s in status if s!='0' and s!='1']
+    sourcedata.PointArrayStatus = arraylist
+    return sourcedata
+
+def prepend_names(pipeline,prepend,**kwargs):
+    names = ProgrammableFilter(registrationName='prepends', Input=pipeline)
+    names.Script = """
+        #Get upstream data
+        data = inputs[0]
+        #These are the variables names that cause issues
+        for key in data.PointData.keys():
+            values = data.PointData[key]
+            output.PointData.append(values,'"""+prepend+"""'+key)
+    """
+    pipeline = names
+    return pipeline
+
+def fix_names(pipeline,**kwargs):
+    names = ProgrammableFilter(registrationName='names', Input=pipeline)
+    names.Script = """
+        #Get upstream data
+        data = inputs[0]
+        #These are the variables names that cause issues
+        rho = data.PointData["Rho_amu_cm^3"]
+        jx = data.PointData["J_x_`mA_m^2"]
+        jy = data.PointData["J_y_`mA_m^2"]
+        jz = data.PointData["J_z_`mA_m^2"]
+        #Copy input to output so we don't lose any data
+        output.ShallowCopy(inputs[0].VTKObject)#maintaining other variables
+        #Now append the copies of the variables with better names
+        output.PointData.append(rho,'Rho_amu_cm3')
+        output.PointData.append(jx,'J_x_uA_m2')
+        output.PointData.append(jy,'J_y_uA_m2')
+        output.PointData.append(jz,'J_z_uA_m2')
+    """
+    pipeline = names
+    return pipeline
+
+def todimensional(pipeline, **kwargs):
+    """Function modifies dimensionless variables -> dimensional variables
+    Inputs
+        dataset (frame.dataset)- tecplot dataset object
+        kwargs:
+    """
+    proton_mass = 1.6605e-27
+    cMu = np.pi*4e-7
+    #SWMF sets up two conversions to go between
+    # No (nondimensional) Si (SI) and Io (input output),
+    # what we want is No2Io = No2Si_V / Io2Si_V
+    #Found these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
+    No2Si = {'X':6371*1e3,                             #planet radius
+             'Y':6371*1e3,
+             'Z':6371*1e3,
+             'Rho':1e6*proton_mass,                    #proton mass
+             'U_x':6371*1e3,                           #planet radius
+             'U_y':6371*1e3,
+             'U_z':6371*1e3,
+             'P':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
+             'B_x':6371*1e3*np.sqrt(cMu*1e6*proton_mass), #U * sqrt(M*rho)
+             'B_y':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
+             'B_z':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
+             'J_x':(np.sqrt(cMu*1e6*proton_mass)/cMu),    #B/(X*cMu)
+             'J_y':(np.sqrt(cMu*1e6*proton_mass)/cMu),
+             'J_z':(np.sqrt(cMu*1e6*proton_mass)/cMu)
+            }
+    #Found these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
+    Io2Si = {'X':6371*1e3,                  #planet radius
+             'Y':6371*1e3,                  #planet radius
+             'Z':6371*1e3,                  #planet radius
+             'Rho':1e6*proton_mass,         #Mp/cm^3
+             'U_x':1e3,                     #km/s
+             'U_y':1e3,                     #km/s
+             'U_z':1e3,                     #km/s
+             'P':1e-9,                      #nPa
+             'B_x':1e-9,                    #nT
+             'B_y':1e-9,                    #nT
+             'B_z':1e-9,                    #nT
+             'J_x':1e-6,                    #microA/m^2
+             'J_y':1e-6,                    #microA/m^2
+             'J_z':1e-6,                    #microA/m^2
+             }#'theta_1':pi/180,              #degrees
+             #'theta_2':pi/180,              #degrees
+             #'phi_1':pi/180,                #degrees
+             #'phi_2':pi/180                 #degrees
+            #}
+    units = {'X':'R','Y':'R','Z':'R',
+             'Rho':'amu_cm3',
+             'U_x':'km_s','U_y':'km_s','U_z':'km_s',
+             'P':'nPa',
+             'B_x':'nT','B_y':'nT','B_z':'nT',
+             'J_x':'uA_m2','J_y':'uA_m2','J_z':'uA_m2',
+             'theta_1':'deg',
+             'theta_2':'deg',
+             'phi_1':'deg',
+             'phi_2':'deg'
+            }
+    points = pipeline.PointData
+    var_names = points.keys()
+    for var_in in var_names:
+        if 'future_' in var_in:
+            var = var_in.split('future_')[-1]
+            prepend = 'future_'
+        else:
+            var = var_in
+            prepend = ''
+        if 'status' not in var.lower() and '[' not in var:
+            if var in units.keys():
+                unit = units[var]
+                #NOTE default is no modification
+                conversion = No2Si.get(var,1)/Io2Si.get(var,1)
+                print('Changing '+prepend+var+' by multiplying by '+
+                      str(conversion))
+                #eq('{'+var+' '+unit+'} = {'+var+'}*'+str(conversion))
+                eq = Calculator(registrationName=prepend+var+'_'+unit,
+                                Input=pipeline)
+                eq.Function = prepend+var+'*'+str(conversion)
+                eq.ResultArrayName = prepend+var+'_'+unit
+                pipeline=eq
+                #print('Removing '+prepend+var)
+                #dataset.delete_variables([dataset.variable(prepend+var).index])
+            else:
+                print('unable to convert '+prepend+var+' not in dictionary!')
+        elif 'status' in var.lower():
+            pass
+    #Reset XYZ variables so 3D plotting makes sense
+    #dataset.frame.plot().axes.x_axis.variable = dataset.variable('X *')
+    #dataset.frame.plot().axes.y_axis.variable = dataset.variable('Y *')
+    #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
+    return pipeline
+
+def merge_sources(source1,source2,*,prepend1='',prepend2=''):
+    """Function creates a filter to combine two sources
+    Inputs
+        source(1/2) - source to be combined
+    Returns
+        merged_source
+    """
+    if prepend1 != '':
+        new_source1 = prepend_names(source1,prepend1)
+    else:
+        new_source1 = source1
+    if prepend2 != '':
+        new_source2 = prepend_names(source2,prepend2)
+    else:
+        new_source2 = source2
+    merged_source = AppendAttributes(registrationName='DataMerge',
+                                     Input=[new_source1, new_source2])
+    return merged_source
+
+def interpolate_data(source,name,origin,scale):
+    """Function creates a pointVolumeInterpolator given the bounds
+    Inputs
+        source
+        name
+    Returns
+        interpolated_source
+    """
+    interpolated = PointVolumeInterpolator(registrationName='interpolated',
+                                       Input=source, Source='Bounded Volume')
+    interpolated.Kernel = 'VoronoiKernel'
+    interpolated.Locator = 'Static Point Locator'
+    interpolated.Source.Origin = origin
+    interpolated.Source.Scale = scale
+    interpolated.Source.RefinementMode = 'Use cell-size'
+    interpolated.Source.CellSize = 0.125
+    return interpolated
+
+def prepare_data(infile,**kwargs):
+    source_now = read_tecplot(infile)
+    if kwargs.get('do_motion',False) and 'futurefile' in kwargs:
+        source_future = read_tecplot(kwargs.get('futurefile'))
+        #source1 = MergeBlocks(registrationName='ExtractNow',
+        #                       Input=source_now)
+        #source2 = MergeBlocks(registrationName='ExtractFuture',
+        #                       Input=source_future)
+        pipeline = merge_sources(source_now,source_future,prepend2='future_')
+    else:
+        pipeline = MergeBlocks(registrationName='MergeBlocks',
+                               Input=source_now)
+    if 'dimensionless' in kwargs:
+        pipeline = todimensional(pipeline,**kwargs)
+    else:
+        ###Rename some tricky variables
+        pipeline = fix_names(pipeline,**kwargs)
+    '''
+    alleq = equations(**kwargs)
+    pipeline = eqeval(alleq['basic_physics'],pipeline)
+    pipeline = get_magnetopause_filter(pipeline)
+    mp_now = create_iso_surface(pipeline,'mp','quickNow',
+                                trim_regions=False,calc_normals=False)
+    mp_future = create_iso_surface(pipeline,'mp','quickFuture',
+                                   trim_regions=False,calc_normals=False)
+    '''
+    pipeline = interpolate_data(pipeline,'interpolated',[-20,-40,-40],
+                                                        [40,80,80])
+    return pipeline

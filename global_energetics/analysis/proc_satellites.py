@@ -330,6 +330,118 @@ def plot_Bmag(axis, dflist, ylabel, *,
         axis.legend(loc='upper left')
     else:
         axis.legend(loc=legend_loc)
+
+def combine_obs_sats(indict):
+    """Combines plasma and magnetic field data to a common time axis
+    Inputs
+        indict (dict{DataFrames})
+    Returns
+        combined (DataFrame)
+    """
+    #TODO
+    combined = pd.DataFrame()
+    # check for 'plasma' and 'bfield' in the dictionary
+    if indict['plasma'].empty or indict['bfield'].empty:
+        print('Cant combine, plasma or bfield is empty')
+    else:
+        # set the lead to the one that is larger
+        # set follower to smaller one
+        if len(indict['bfield'])>len(indict['plasma']):
+            leader = indict['bfield']
+            follower = indict['plasma']
+        else:
+            leader = indict['plasma']
+            follower = indict['bfield']
+        # interpolate follower -> leader
+        xtime = [t.value for t in follower.index]
+        ytime = [t.value for t in leader.index]
+        combined = leader.copy(deep=True)
+        for var in follower.keys():
+            combined[var] = np.interp(ytime,xtime,follower[var])
+    return combined
+
+def smooth_data(indf,**kwargs):
+    """Function smooths data, typically to 1min resolution
+    Inputs
+        indf (DataFrame)
+        kwargs:
+    Returns
+        df
+    """
+    df = indf.copy(deep=True) #copy so we can control what's changing
+    if df.empty:
+        print('Empty data frame, skipping derived variables')
+    else:
+        df = df.resample('1T').mean()
+    return df
+def add_derived_variables2(indf, name, datatype,**kwargs):
+    """Function returns dataframe with derived variables
+    Inputs
+        indf (DataFrame)
+        name (str)
+        datatype (str)
+        kwargs:
+    Returns
+        df
+    """
+    df = indf.copy(deep=True) #copy so we can control what's changing
+    if df.empty:
+        print('Empty data frame, skipping derived variables')
+    else:
+        if datatype == 'virtual':
+            n = df['Rho']
+            ux = df['U_x']
+            uy = df['U_y']
+            uz = df['U_z']
+            p = df['P']
+            bx = df['B_x']
+            by = df['B_y']
+            bz = df['B_z']
+        elif datatype == 'combined':
+            # Thermal Pressure
+            if 'Tpar' in df.keys() and 'Tperp' in df.keys():
+                if 'cluster' in name:
+                    Tfactor = 1e6 # from MK to K
+                T =np.sqrt(df['Tpar']**2+(2*df['Tperp'])**2)*Tfactor #K
+                df['p'] = df['n']*1e6*1.3807e-23*T*1e9 # nPa
+                p = df['p']
+            elif 'ptot' in df.keys():
+                pass
+            elif 'themis' in name and 'p' in df.keys():
+                df.rename(columns={'p':'ptot'},inplace=True)
+            n = df['n']
+            ux = df['vx']
+            uy = df['vy']
+            uz = df['vz']
+            bx = df['bx']
+            by = df['by']
+            bz = df['bz']
+        # Dynamic pressure
+        rho = n*1e6*1.6605e-27 #kg/m^3
+        df['pdyn'] = np.sqrt(ux**2+uy**2+uz**2) * rho*1e9 #nPa
+        if 'ptot' in df.keys() and 'p' not in df.keys():
+            df['p'] = df['ptot']*1.6022e-4-df['pdyn'] #nPa
+            p = df['p']
+        # Betastar
+        df['betastar'] =(p+df['pdyn'])/((bx**2+by**2+bz**2)/(2*4*pi*1e-7))
+        # H total energy transfer vector
+        df['Hx'] = 0.5*df['pdyn']+2.5*p*6371**2*ux #W/Re^2
+        df['Hy'] = 0.5*df['pdyn']+2.5*p*6371**2*uy #W/Re^2
+        df['Hz'] = 0.5*df['pdyn']+2.5*p*6371**2*uz #W/Re^2
+        # S total energy transfer vector
+        df['Sx'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
+                    ux)-bx*(bx*ux+by*uy+bz*uz)/(4*np.pi*1e-7)*1e-9*6371**2
+        df['Sy'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
+                    uy)-by*(bx*ux+by*uy+bz*uz)/(4*np.pi*1e-7)*1e-9*6371**2
+        df['Sz'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
+                    uz)-bz*(bx*ux+by*uy+bz*uz)/(4*np.pi*1e-7)*1e-9*6371**2
+        #W/Re^2
+        # K total energy transfer vector
+        df['Kx'] = df['Hx']+df['Sx'] #W/Re^2
+        df['Ky'] = df['Hy']+df['Sy'] #W/Re^2
+        df['Kz'] = df['Hz']+df['Sz'] #W/Re^2
+    return df
+
 def add_derived_variables(dflist, *, obs=False):
     """Function adds columns of data by performing simple operations
     Inputs
@@ -732,6 +844,7 @@ def interp_combine_dfs(from_df,to_df, from_xkey, to_xkey, *,
                                    from_df[key].values.astype('float'))
         to_df['name'] = name.iloc[-1].split('_')[0]+'_obs'
     return to_df
+
 def determine_satelliteIDs(pathtofiles, *,keylist=['cluster','geotail',
                                                  'goes','themis','rbspb']):
     """Function returns dict w/ sat filepaths for each type of satellite
@@ -747,6 +860,121 @@ def determine_satelliteIDs(pathtofiles, *,keylist=['cluster','geotail',
             if satfile.lower().find(satkey)!=-1:
                 satfiledict.update({satkey:satfiledict[satkey]+[satfile]})
     return satfiledict
+
+def todimensional(df):
+    """Function modifies dimensionless variables -> dimensional variables
+    Inputs
+        dataset (frame.dataset)- tecplot dataset object
+        kwargs:
+    """
+    out_df = df.copy(deep=True)
+    proton_mass = 1.6605e-27
+    cMu = pi*4e-7
+    #SWMF sets up two conversions to go between
+    # No (nondimensional) Si (SI) and Io (input output),
+    # what we want is No2Io = No2Si_V / Io2Si_V
+    #Found these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
+    No2Si = {'X':6371*1e3,                             #planet radius
+             'Y':6371*1e3,
+             'Z':6371*1e3,
+             'Rho':1e6*proton_mass,                    #proton mass
+             'U_x':6371*1e3,                           #planet radius
+             'U_y':6371*1e3,
+             'U_z':6371*1e3,
+             'P':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
+             'B_x':6371*1e3*sqrt(cMu*1e6*proton_mass), #U * sqrt(M*rho)
+             'B_y':6371*1e3*sqrt(cMu*1e6*proton_mass),
+             'B_z':6371*1e3*sqrt(cMu*1e6*proton_mass),
+             'J_x':(sqrt(cMu*1e6*proton_mass)/cMu),    #B/(X*cMu)
+             'J_y':(sqrt(cMu*1e6*proton_mass)/cMu),
+             'J_z':(sqrt(cMu*1e6*proton_mass)/cMu)
+            }
+    #Found these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
+    Io2Si = {'X':6371*1e3,                  #planet radius
+             'Y':6371*1e3,                  #planet radius
+             'Z':6371*1e3,                  #planet radius
+             'Rho':1e6*proton_mass,         #Mp/cm^3
+             'U_x':1e3,                     #km/s
+             'U_y':1e3,                     #km/s
+             'U_z':1e3,                     #km/s
+             'P':1e-9,                      #nPa
+             'B_x':1e-9,                    #nT
+             'B_y':1e-9,                    #nT
+             'B_z':1e-9,                    #nT
+             'J_x':1e-6,                    #microA/m^2
+             'J_y':1e-6,                    #microA/m^2
+             'J_z':1e-6,                    #microA/m^2
+             }#'theta_1':pi/180,              #degrees
+             #'theta_2':pi/180,              #degrees
+             #'phi_1':pi/180,                #degrees
+             #'phi_2':pi/180                 #degrees
+            #}
+    for var in out_df.keys():
+        # Default is no change
+        conversion = No2Si.get(var,1)/Io2Si.get(var,1)
+        out_df[var] *= conversion
+    return out_df
+
+def read_satellites(pathtofiles):
+    """
+    Inputs
+    Returns
+    """
+    virtualsats = {}
+    obssats = {}
+    # Glob files
+    filelist = glob.glob(os.path.join(pathtofiles,'*.h5'))
+    # Figure out which satellites we're looking for
+    virtual_filename=[f for f in filelist if 'virtual' in f.split('/')[-1]][0]
+    ###### Virtual Satellites
+    virtualfile = pd.HDFStore(virtual_filename)
+    satlist = [k.replace('/','') for k in virtualfile.keys()]
+    # See if data is in dimensionless form
+    for sat in satlist:
+        df = virtualfile[sat]
+        if 'time' in df:
+            df.index = df['time']
+            df.drop(columns=['time'],inplace=True)
+        if df['B_x'].min()>-50:
+            df = todimensional(df)
+        virtualsats[sat] = df.sort_index()
+        virtualsats[sat] = add_derived_variables2(virtualsats[sat],
+                                                  sat,'virtual')
+    virtualfile.close()
+    endtime = virtualsats[sat].index[-1]
+    ######
+    ###### Real Satellites
+    # Initialize a dict for each satellite
+    for sat in satlist:
+        obssats[sat] = {}
+    # Gather, sort and organize data from each file
+    for satfile in [f for f in filelist if 'virtual' not in f.split('/')[-1]]:
+        # Extract useful information from the filename
+        filename = satfile.split('/')[-1]
+        satset,vartype = filename.replace('.h5','').split('_')
+        print(filename,satset,vartype)
+        # Read the file
+        datafile = pd.HDFStore(filename)
+        for sat in datafile.keys():
+            print('\t',sat)
+            df = datafile[sat.replace('/','')]
+            if 'time' in df:
+                df.index = df['time']
+                df.drop(columns=['time'],inplace=True)
+                df.sort_index(inplace=True)
+            obssats[sat.replace('/','')][vartype] = df[df.index<endtime]
+        datafile.close()
+    for sat in obssats.keys():
+        if 'bfield' in obssats[sat] and 'plasma' in obssats[sat]:
+            obssats[sat]['combined'] = combine_obs_sats(obssats[sat])
+            obssats[sat] = add_derived_variables2(obssats[sat]['combined'],
+                                                  sat,'combined')
+            obssats[sat] = smooth_data(obssats[sat])
+        else:
+            obssats[sat] = pd.DataFrame()
+    ######
+    return virtualsats, obssats
+
 if __name__ == "__main__":
     datapath = sys.argv[1]
     print('processing satellite output at {}'.format(datapath))

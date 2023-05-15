@@ -11,400 +11,11 @@ import datetime as dt
 from paraview.simple import *
 import magnetometer
 from magnetometer import(get_stations_now, read_station_paraview)
-#from pv_input_tools import todimensional
-from pv_equations import (equations, eqeval, get_dipole_field,
-                          create_iso_surface)
-
-'''
-def get_time(infile,**kwargs):
-    date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
-    time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
-    return time_dt
-
-def time_sort(filename):
-    """Function returns absolute time in seconds for use in sorting
-    Inputs
-        filename
-    Outputs
-        total_seconds
-    """
-    time = get_time(filename)
-    relative_time = time-dt.datetime(1800, 1, 1)
-    return (relative_time.days*86400 + relative_time.seconds)
-
-def read_aux(infile):
-    """Reads in auxillary data file stripped from a .plt tecplot file
-    Inputs
-        infile (str)- full path to file location
-    Returns
-        data (dict)- dictionary of all data contained in the file
-    """
-    data = {}
-    with open(infile,'r') as f:
-        for line in f.readlines():
-            data[line.split(':')[0]]=line.split(':')[-1].replace(
-                                                 ' ','').replace('\n','')
-    return data
-'''
-
-'''
-def get_dipole_field(auxdata, *, B0=31000):
-    """Function calculates dipole field in given coordinate system based on
-        current time in UTC
-    Inputs
-        auxdata- tecplot object containing key data pairs
-        B0- surface magnetic field strength
-    """
-    #Determine dipole vector in given coord system
-    theta_tilt = float(auxdata['BTHETATILT'])
-    axis = [np.sin(np.deg2rad(theta_tilt)),
-            0,
-            -1*np.cos(np.deg2rad(theta_tilt))]
-    #Create dipole matrix
-    ######################################
-    #   (3x^2-r^2)      3xy         3xz
-    #B =    3yx     (3y^2-r^2)      3yz    * vec{m}
-    #       3zx         3zy     (3z^2-r^2)
-    ######################################
-    M11 = '(3*{X [R]}**2-{r [R]}**2)'
-    M12 = '3*{X [R]}*{Y [R]}'
-    M13 = '3*{X [R]}*{Z [R]}'
-    M21 = M12
-    M22 = '(3*{Y [R]}**2-{r [R]}**2)'
-    M23 = '3*{Y [R]}*{Z [R]}'
-    M31 = M13
-    M32 = M23
-    M33 = '(3*{Z [R]}**2-{r [R]}**2)'
-    #Multiply dipole matrix by dipole vector
-    d_x='{Bdx}='+str(B0)+'/{r [R]}**5*('+(M11+'*'+str(axis[0])+'+'+
-                                            M12+'*'+str(axis[1])+'+'+
-                                            M13+'*'+str(axis[2]))+')'
-    d_y='{Bdy}='+str(B0)+'/{r [R]}**5*('+(M21+'*'+str(axis[0])+'+'+
-                                            M22+'*'+str(axis[1])+'+'+
-                                            M23+'*'+str(axis[2]))+')'
-    d_z='{Bdz}='+str(B0)+'/{r [R]}**5*('+(M31+'*'+str(axis[0])+'+'+
-                                            M32+'*'+str(axis[1])+'+'+
-                                            M33+'*'+str(axis[2]))+')'
-    #Return equation strings to be evaluated
-    return d_x, d_y, d_z
-'''
-
-'''
-def equations(**kwargs):
-    """Defines equations that will be used for global variables
-    Inputs- none
-    Return
-        equations dict{dict{str(eqName):str(eqText)}}- nested dicts
-    """
-    equations = {}
-    #Testing function for verifying matching interfaces
-    equations['interface_testing'] = {'{test}':'1'}
-    #Useful spatial variables
-    equations['basic3d'] = {
-                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)'}
-                       #'{Cell Size [Re]}':'{Cell Volume}**(1/3)',
-                       #'{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
-    #2D versions of spatial variables
-    equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
-    equations['basic2d_XZ'] = {'{r [R]}':'sqrt({X [R]}**2 + {Z [R]}**2)'}
-    #Dipolar coordinate variables
-    if 'aux' in kwargs:
-        aux=kwargs.get('aux')
-        equations['dipole_coord'] = {
-         '{mXhat_x}':'sin(('+aux['BTHETATILT']+'+90)*pi/180)',
-         '{mXhat_y}':'0',
-         '{mXhat_z}':'-1*cos(('+aux['BTHETATILT']+'+90)*pi/180)',
-         '{mZhat_x}':'sin('+aux['BTHETATILT']+'*pi/180)',
-         '{mZhat_y}':'0',
-         '{mZhat_z}':'-1*cos('+aux['BTHETATILT']+'*pi/180)',
-         '{lambda}':'asin('+
-                  'floor(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]}))',
-         '{Lshell}':'{r [R]}/cos({lambda})**2',
-         '{theta [deg]}':'-180/pi*{lambda}'}
-    ######################################################################
-    #Physical quantities including:
-    #   Dynamic Pressure
-    #   Sonic speed
-    #   Plasma Beta
-    #   Plasma Beta* using total pressure
-    #   B magnitude
-    equations['basic_physics'] = {
-     '{Dp [nPa]}':'{Rho [amu/cm^3]}*1e6*1.6605e-27*'+
-              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
-     '{Cs [km/s]}':'sqrt(5/3*{P [nPa]}/{Rho [amu/cm^3]}/6.022)*10**3',
-     '{beta}':'({P [nPa]})/({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                '*(2*4*pi*1e-7)*1e9',
-     '{beta_star}':'({P [nPa]}+{Dp [nPa]})/'+
-                          '({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'+
-                '*(2*4*pi*1e-7)*1e9',
-     '{Bmag [nT]}':'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)'}
-    ######################################################################
-    #Fieldlinemaping
-    equations['fieldmapping'] = {
-        '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
-        '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
-        '{phi}':'atan2({Y [R]}, {Xd [R]})',
-        '{req}':'2.7/(cos({lambda})**2)',
-        '{lambda2}':'sqrt(acos(1/{req}))',
-        '{X_r1project}':'1*cos({phi})*sin(pi/2-{lambda2})',
-        '{Y_r1project}':'1*sin({phi})*sin(pi/2-{lambda2})',
-        '{Z_r1project}':'1*cos(pi/2-{lambda2})'}
-    ######################################################################
-    #Virial only intermediate terms, includes:
-    #   Density times velocity between now and next timestep
-    #   Advection term
-    equations['virial_intermediate'] = {
-        '{rhoUx_cc}':'{Rho [amu/cm^3]}*{U_x [km/s]}',
-        '{rhoUy_cc}':'{Rho [amu/cm^3]}*{U_y [km/s]}',
-        '{rhoUz_cc}':'{Rho [amu/cm^3]}*{U_z [km/s]}',
-        '{rhoU_r [Js/Re^3]}':'{Rho [amu/cm^3]}*1.6605e6*6.371**4*('+
-                                                 '{U_x [km/s]}*{X [R]}+'+
-                                                 '{U_y [km/s]}*{Y [R]}+'+
-                                                 '{U_z [km/s]}*{Z [R]})'}
-    ######################################################################
-    #Dipole field (requires coordsys and UT information!!!)
-    if 'aux' in kwargs:
-        aux=kwargs.get('aux')
-        Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
-        equations['dipole'] = {
-                Bdx_eq.split('=')[0]:Bdx_eq.split('=')[-1],
-                Bdy_eq.split('=')[0]:Bdy_eq.split('=')[-1],
-                Bdz_eq.split('=')[0]:Bdz_eq.split('=')[-1],
-               '{Bdmag [nT]}':'sqrt({Bdx}**2+{Bdy}**2+{Bdz}**2)'}
-        g = aux['GAMMA']
-    else:
-        g = '1.6667'
-    ######################################################################
-    #Volumetric energy terms, includes:
-    #   Total Magnetic Energy per volume
-    #   Thermal Pressure in Energy units
-    #   Kinetic energy per volume
-    #   Dipole magnetic Energy
-    #+Constructions:
-    #   Hydrodynamic Energy Density
-    #   Total Energy Density
-    equations['volume_energy'] = {
-               '{uB [J/Re^3]}':'{Bmag [nT]}**2'+
-                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-               '{Pth [J/Re^3]}':'{P [nPa]}*6371**3',
-               '{KE [J/Re^3]}':'{Dp [nPa]}/2*6371**3',
-               '{uHydro [J/Re^3]}':'({P [nPa]}*1.5+{Dp [nPa]}/2)*6371**3',
-               '{uB_dipole [J/Re^3]}':'{Bdmag [nT]}**2'+
-                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-               '{u_db [J/Re^3]}':'(({B_x [nT]}-{Bdx})**2+'+
-                                '({B_y [nT]}-{Bdy})**2+'+
-                                '({B_z [nT]}-{Bdz})**2)'+
-                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-               '{Utot [J/Re^3]}':'{uHydro [J/Re^3]}+{uB [J/Re^3]}'}
-
-    ######################################################################
-    #Virial Volumetric energy terms, includes:
-    #   Disturbance Magnetic Energy per volume
-    #   Special construction of hydrodynamic energy density for virial
-    equations['virial_volume_energy'] = {
-               '{Virial Ub [J/Re^3]}':'(({B_x [nT]}-{Bdx})**2+'+
-                                       '({B_y [nT]}-{Bdy})**2+'+
-                                       '({B_z [nT]}-{Bdz})**2)'+
-                                   '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
-               '{Virial 2x Uk [J/Re^3]}':'2*{KE [J/Re^3]}+{Pth [J/Re^3]}'}
-    ######################################################################
-    #Biot Savart terms, includes:
-    # delta B in nT
-    equations['biot_savart'] = {
-               '{dB_x [nT]}':'-({Y [R]}*{J_z [uA/m^2]}-'+
-                               '{Z [R]}*{J_y [uA/m^2]})*637.1/{r [R]}**3',
-               '{dB_y [nT]}':'-({Z [R]}*{J_x [uA/m^2]}-'+
-                               '{X [R]}*{J_z [uA/m^2]})*637.1/{r [R]}**3',
-               '{dB_z [nT]}':'-({X [R]}*{J_y [uA/m^2]}-'+
-                               '{Y [R]}*{J_x [uA/m^2]})*637.1/{r [R]}**3',
-               '{dB [nT]}':'{dB_x [nT]}*{mZhat_x}+{dB_z [nT]}*{mZhat_z}'}
-    ######################################################################
-    #Energy Flux terms including:
-    #   Magnetic field unit vectors
-    #   Field Aligned Current Magntitude
-    #   Poynting Flux
-    #   Total pressure Flux (plasma energy flux)
-    #   Total Energy Flux
-    equations['energy_flux'] = {
-        '{unitbx}':'{B_x [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
-        '{unitby}':'{B_y [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
-        '{unitbz}':'{B_z [nT]}/'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
-        '{J_par [uA/m^2]}':'{unitbx}*{J_x [uA/m^2]} + '+
-                              '{unitby}*{J_y [uA/m^2]} + '+
-                              '{unitbz}*{J_z [uA/m^2]}',
-        '{ExB_x [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
-                              '{U_x [km/s]})-{B_x [nT]}*'+
-                                            '({B_x [nT]}*{U_x [km/s]}+'+
-                                             '{B_y [nT]}*{U_y [km/s]}+'+
-                                             '{B_z [nT]}*{U_z [km/s]})'+
-                                           '/(4*pi*1e-7)*1e-9*6371**2',
-        '{ExB_y [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
-                              '{U_y [km/s]})-{B_y [nT]}*'+
-                                            '({B_x [nT]}*{U_x [km/s]}+'+
-                                             '{B_y [nT]}*{U_y [km/s]}+'+
-                                             '{B_z [nT]}*{U_z [km/s]})'+
-                                           '/(4*pi*1e-7)*1e-9*6371**2',
-        '{ExB_z [W/Re^2]}':'{Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
-                              '{U_z [km/s]})-{B_z [nT]}*'+
-                                            '({B_x [nT]}*{U_x [km/s]}+'+
-                                             '{B_y [nT]}*{U_y [km/s]}+'+
-                                             '{B_z [nT]}*{U_z [km/s]})'+
-                                           '/(4*pi*1e-7)*1e-9*6371**2',
-        '{P0_x [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
-                          '*{U_x [km/s]}',
-        '{P0_y [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
-                          '*{U_y [km/s]}',
-        '{P0_z [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
-                          '*{U_z [km/s]}',
-        '{K_x [W/Re^2]}':'{P0_x [W/Re^2]}+{ExB_x [W/Re^2]}',
-        '{K_y [W/Re^2]}':'{P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
-        '{K_z [W/Re^2]}':'{P0_z [W/Re^2]}+{ExB_z [W/Re^2]}'}
-    ######################################################################
-    #Reconnection variables: 
-    #   -u x B (electric field in mhd limit)
-    #   E (unit change)
-    #   current density magnitude
-    #   /eta magnetic field diffusivity E/J
-    #   /eta (unit change)
-    #   magnetic reynolds number (advection/magnetic diffusion)
-    equations['reconnect'] = {
-        '{minus_uxB_x}':'-({U_y [km/s]}*{B_z [nT]}-'+
-                                               '{U_z [km/s]}*{B_y [nT]})',
-        '{minus_uxB_y}':'-({U_z [km/s]}*{B_x [nT]}-'+
-                                               '{U_x [km/s]}*{B_z [nT]})',
-        '{minus_uxB_z}':'-({U_x [km/s]}*{B_y [nT]}-'+
-                                               '{U_y [km/s]}*{B_x [nT]})',
-        '{E [uV/m]}':'sqrt({minus_uxB_x}**2+'+
-                                     '{minus_uxB_y}**2+{minus_uxB_z}**2)',
-        '{J [uA/m^2]}':'sqrt({J_x [uA/m^2]}**2+'+
-                                   '{J_y [uA/m^2]}**2+{J_z [uA/m^2]}**2)',
-        '{eta [m/S]}':'IF({J [uA/m^2]}>0.002,'+
-                                      '{E [uV/m]}/({J [uA/m^2]}+1e-9),0)',
-        '{eta [Re/S]}':'{eta [m/S]}/(6371*1000)',
-        '{Reynolds_m_cell}':'4*pi*1e-4*'+
-                 'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*'+
-                                   '{Cell Size [Re]}/({eta [Re/S]}+1e-9)'}
-    ######################################################################
-    #Tracking IM GM overwrites
-    equations['trackIM'] = {
-        '{trackEth_acc [J/Re^3]}':'{dp_acc [nPa]}*6371**3',
-        '{trackDp_acc [nPa]}':'{drho_acc [amu/cm^3]}*1e6*1.6605e-27*'+
-              '({U_x [km/s]}**2+{U_y [km/s]}**2+{U_z [km/s]}**2)*1e6*1e9',
-        '{trackKE_acc [J/Re^3]}':'{trackDp_acc [nPa]}*6371**3',
-        '{trackWth [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
-                             '{trackEth_acc [J/Re^3]}/{dtime_acc [s]},0)',
-        '{trackWKE [W/Re^3]}':'IF({dtime_acc [s]}>0,'+
-                             '{trackKE_acc [J/Re^3]}/{dtime_acc [s]},0)'}
-    ######################################################################
-    #Entropy and 1D things
-    equations['entropy'] = {
-        '{s [Re^4/s^2kg^2/3]}':'{P [nPa]}/{Rho [amu/cm^3]}**('+g+')*'+
-                                    '1.67**('+g+')/6.371**4*100'}
-    ######################################################################
-    #Some extra's not normally included:
-    equations['parallel'] = {
-        '{KEpar [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
-                                    '(({U_x [km/s]}*{unitbx})**2+'+
-                                    '({U_y [km/s]}*{unitby})**2+'+
-                                    '({U_z [km/s]}*{unitbz})**2) *'+
-                                    '1e6*1.6605e-27*1e6*1e9*6371**3',
-        '{KEperp [J/Re^3]}':'{Rho [amu/cm^3]}/2 *'+
-                   '(({U_y [km/s]}*{unitbz} - {U_z [km/s]}*{unitby})**2+'+
-                    '({U_z [km/s]}*{unitbx} - {U_x [km/s]}*{unitbz})**2+'+
-                    '({U_x [km/s]}*{unitby} - {U_y [km/s]}*{unitbx})**2)'+
-                                       '*1e6*1.6605e-27*1e6*1e9*6371**3'}
-    ######################################################################
-    #Terms with derivatives (experimental) !Can take a long time!
-    #   vorticity (grad x u)
-    equations['development'] = {
-        '{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
-                              '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
-                              '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)'}
-    ######################################################################
-    return equations
-'''
-
-'''
-def tec2para(instr):
-    badchars = ['{','}','[',']']
-    replacements = {' [':'_','**':'^','1e':'10^','pi':'3.14159',#generic
-          '/Re':'_Re', 'amu/cm':'amu_cm','km/s':'km_s','/m':'_m',#specific
-                    'm^':'m','e^':'e'}#very specific, for units only
-            #'/':'_',
-    coords = {'X_R':'x','Y_R':'y','Z_R':'z'}
-    outstr = instr
-    for was_,is_ in replacements.items():
-        outstr = is_.join(outstr.split(was_))
-    for was_,is_ in coords.items():
-        outstr = is_.join(outstr.split(was_))
-        #NOTE this order to find "{var [unit]}" cases (space before [unit])
-        #TODO see .replace
-    for bc in badchars:
-        outstr = ''.join(outstr.split(bc))
-    #print('WAS: ',instr,'\tIS: ',outstr)
-    return outstr
-'''
-
-'''
-def eqeval(eqset,pipeline,**kwargs):
-    for lhs_tec,rhs_tec in eqset.items():
-        lhs = tec2para(lhs_tec)
-        rhs = tec2para(rhs_tec)
-        var = Calculator(registrationName=lhs, Input=pipeline)
-        var.Function = rhs
-        var.ResultArrayName = lhs
-        pipeline = var
-    return pipeline
-'''
-
-'''
-def read_tecplot(infile):
-    """Function reads tecplot binary file
-    Inputs
-        infile (str)- full path to tecplot binary (.plt) BATSRUS output
-    Returns
-        sourcedata (pvpython object)- python object attached to theVTKobject
-                                      for the input data
-    """
-    # create a new 'VisItTecplotBinaryReader'
-    sourcedata = VisItTecplotBinaryReader(FileName=[infile],
-                                   registrationName=infile.split('/')[-1])
-    # Call Mesh
-    sourcedata.MeshStatus
-    # Call Point arrays- we want to load everything
-    status = sourcedata.GetProperty('PointArrayInfo')
-    #listed as ['thing','1','thing2','0'] where '0' and '1' are 
-    #   unloaded and loaded respectively
-    arraylist = [s for s in status if s!='0' and s!='1']
-    sourcedata.PointArrayStatus = arraylist
-    return sourcedata
-'''
-
-'''
-def fix_names(pipeline,**kwargs):
-    names = ProgrammableFilter(registrationName='names', Input=pipeline)
-    names.Script = """
-        #Get upstream data
-        data = inputs[0]
-        #These are the variables names that cause issues
-        rho = data.PointData["Rho_amu_cm^3"]
-        jx = data.PointData["J_x_`mA_m^2"]
-        jy = data.PointData["J_y_`mA_m^2"]
-        jz = data.PointData["J_z_`mA_m^2"]
-        #Copy input to output so we don't lose any data
-        output.ShallowCopy(inputs[0].VTKObject)#maintaining other variables
-        #Now append the copies of the variables with better names
-        output.PointData.append(rho,'Rho_amu_cm3')
-        output.PointData.append(jx,'J_x_uA_m2')
-        output.PointData.append(jy,'J_y_uA_m2')
-        output.PointData.append(jz,'J_z_uA_m2')
-    """
-    pipeline = names
-    return pipeline
-'''
+import pv_input_tools
+import pv_equations
+import pv_surface_tools
+#import (equations, eqeval, get_dipole_field,
+#                          create_iso_surface)
 
 def get_vectors(pipeline,**kwargs):
     """Function sets up calculator filters to turn components into vector
@@ -660,7 +271,7 @@ def get_magnetopause_filter(pipeline,**kwargs):
     x = data.PointData['x']
 
     #Compute magnetopause as logical combination
-    mp_state = ((status!=0)&(beta_star<"""+str(betastar_max)+""")&(x>-30)
+    mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&(x>-20)
                 |
                 (status=="""+str(closed_value)+""")).astype(int)
 
@@ -690,50 +301,6 @@ def setup_outline(source,**kwargs):
     variableLUT =GetColorTransferFunction(kwargs.get('variable','betastar'))
     # Hide the scalar bar for this color map if not used.
     HideScalarBarIfNotNeeded(variableLUT, renderView)
-
-'''
-def create_iso_surface(inputsource, variable, name, **kwargs):
-    """Function creates iso surface from variable
-    Inputs
-        inputsource (filter/source)- what data is used as input
-        variable (str)- name of variable for contour
-        name (str)- registration name for new object (filter)
-        kwargs:
-            iso_value (float)- default 1
-            contourtyps (str)- default 'POINTS'
-            mergemethod (str)- default 'Uniform Binning'
-            trim_regions (bool)- default True, will keep largest connected
-    Returns
-        outputsource (filter)- filter applied so things can easily attach
-    """
-    # Create iso surface
-    iso1 = Contour(registrationName=name, Input=inputsource)
-    iso1.ContourBy = ['POINTS', variable]
-    iso1.ComputeNormals = 0#NOTE if comptuted now, seem to cause trouble
-    iso1.Isosurfaces = [kwargs.get('iso_value',1)]
-    iso1.PointMergeMethod = kwargs.get('mergemethod','Uniform Binning')
-    outputsource = iso1
-
-    #Trim any small floating regions
-    if kwargs.get('trim_regions',True):
-        #assert FindSource('MergeBlocks1')!=None
-        # Keep only the largest connected region
-        RenameSource(name+'_hits', outputsource)
-        iso2 = Connectivity(registrationName=name, Input=outputsource)
-        iso2.ExtractionMode = 'Extract Largest Region'
-        outputsource = iso2
-
-    #Generate normals now that the surface is fully constructed
-    if kwargs.get('calc_normals',True):
-        RenameSource(name+'_beforeNormals', outputsource)
-        iso3 = GenerateSurfaceNormals(registrationName=name,
-                                      Input=outputsource)
-        iso3.ComputeCellNormals = 1
-        iso3.NonManifoldTraversal = 0
-        outputsource = iso3
-
-    return outputsource
-'''
 
 def point2cell(inputsource, fluxes):
     point2cell = PointDatatoCellData(registrationName='surface_p2cc',
@@ -1024,6 +591,7 @@ def display_visuals(field,mp,renderView,**kwargs):
 
         # Properties modified on slice1Display
         mpDisplay.Opacity = 1
+        #mpDisplay.Opacity = 0.3
 
     if kwargs.get('show_fte', False):
         fteDisplay = Show(FindSource('fte'), renderView,
@@ -1079,7 +647,7 @@ def display_visuals(field,mp,renderView,**kwargs):
                                   'TextSourceRepresentation')
         stamp2Display.FontSize = kwargs.get('fontsize')
         stamp2Display.WindowLocation = 'Any Location'
-        stamp2Display.Position = [0.845, 0.17]
+        stamp2Display.Position = [0.845, 0.16]
         stamp2Display.Color = [0.652, 0.652, 0.652]
 
     if 'n' in kwargs and kwargs.get('station_tag',False):
@@ -1277,93 +845,6 @@ def display_visuals(field,mp,renderView,**kwargs):
         renderView.CameraFocalPoint = [47.90558157105895, 0.33132763449067765, 3.5946634254149736]
         renderView.CameraViewUp = [-0.05356990972544573, 0.0003538349672490677, 0.9985640387941195]
 
-'''
-def todimensional(pipeline, **kwargs):
-    """Function modifies dimensionless variables -> dimensional variables
-    Inputs
-        dataset (frame.dataset)- tecplot dataset object
-        kwargs:
-    """
-    proton_mass = 1.6605e-27
-    cMu = np.pi*4e-7
-    #SWMF sets up two conversions to go between
-    # No (nondimensional) Si (SI) and Io (input output),
-    # what we want is No2Io = No2Si_V / Io2Si_V
-    #Found these conversions by grep'ing for 'No2Si_V' in ModPhysics.f90
-    No2Si = {'X':6371*1e3,                             #planet radius
-             'Y':6371*1e3,
-             'Z':6371*1e3,
-             'Rho':1e6*proton_mass,                    #proton mass
-             'U_x':6371*1e3,                           #planet radius
-             'U_y':6371*1e3,
-             'U_z':6371*1e3,
-             'P':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
-             'B_x':6371*1e3*np.sqrt(cMu*1e6*proton_mass), #U * sqrt(M*rho)
-             'B_y':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
-             'B_z':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
-             'J_x':(np.sqrt(cMu*1e6*proton_mass)/cMu),    #B/(X*cMu)
-             'J_y':(np.sqrt(cMu*1e6*proton_mass)/cMu),
-             'J_z':(np.sqrt(cMu*1e6*proton_mass)/cMu)
-            }
-    #Found these conversions by grep'ing for 'Io2Si_V' in ModPhysics.f90
-    Io2Si = {'X':6371*1e3,                  #planet radius
-             'Y':6371*1e3,                  #planet radius
-             'Z':6371*1e3,                  #planet radius
-             'Rho':1e6*proton_mass,         #Mp/cm^3
-             'U_x':1e3,                     #km/s
-             'U_y':1e3,                     #km/s
-             'U_z':1e3,                     #km/s
-             'P':1e-9,                      #nPa
-             'B_x':1e-9,                    #nT
-             'B_y':1e-9,                    #nT
-             'B_z':1e-9,                    #nT
-             'J_x':1e-6,                    #microA/m^2
-             'J_y':1e-6,                    #microA/m^2
-             'J_z':1e-6,                    #microA/m^2
-             }#'theta_1':pi/180,              #degrees
-             #'theta_2':pi/180,              #degrees
-             #'phi_1':pi/180,                #degrees
-             #'phi_2':pi/180                 #degrees
-            #}
-    units = {'X':'R','Y':'R','Z':'R',
-             'Rho':'amu_cm3',
-             'U_x':'km_s','U_y':'km_s','U_z':'km_s',
-             'P':'nPa',
-             'B_x':'nT','B_y':'nT','B_z':'nT',
-             'J_x':'uA_m2','J_y':'uA_m2','J_z':'uA_m2',
-             'theta_1':'deg',
-             'theta_2':'deg',
-             'phi_1':'deg',
-             'phi_2':'deg'
-            }
-    points = pipeline.PointData
-    var_names = points.keys()
-    for var in var_names:
-        if 'status' not in var.lower() and '[' not in var:
-            if var in units.keys():
-                unit = units[var]
-                #NOTE default is no modification
-                conversion = No2Si.get(var,1)/Io2Si.get(var,1)
-                print('Changing '+var+' by multiplying by '+str(conversion))
-                #eq('{'+var+' '+unit+'} = {'+var+'}*'+str(conversion))
-                eq = Calculator(registrationName=var+'_'+unit,
-                                Input=pipeline)
-                eq.Function = var+'*'+str(conversion)
-                eq.ResultArrayName = var+'_'+unit
-                pipeline=eq
-                #print('Removing '+var)
-                #dataset.delete_variables([dataset.variable(var).index])
-            else:
-                print('unable to convert '+var+' not in dictionary!')
-        elif 'status' in var.lower():
-            pass
-    #Reset XYZ variables so 3D plotting makes sense
-    #dataset.frame.plot().axes.x_axis.variable = dataset.variable('X *')
-    #dataset.frame.plot().axes.y_axis.variable = dataset.variable('Y *')
-    #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
-    return pipeline
-'''
-
 def add_fluxVolume(field,**kwargs):
     """Function adds field lines to current view
     Inputs
@@ -1529,7 +1010,7 @@ def setup_pipeline(infile,**kwargs):
     #### disable automatic camera reset on 'Show'
     paraview.simple._DisableFirstRenderCameraReset()
     # Read input file
-    sourcedata = read_tecplot(infile)
+    sourcedata = pv_input_tools.read_tecplot(infile)
 
     # apply 'Merge Blocks' so 'Connectivity' can be used
     mergeBlocks1 = MergeBlocks(registrationName='MergeBlocks1',
@@ -1543,23 +1024,23 @@ def setup_pipeline(infile,**kwargs):
 
     ###Check if unitless variables are present
     if 'dimensionless' in kwargs:
-        pipeline = todimensional(pipeline,**kwargs)
+        pipeline = pv_input_tools.todimensional(pipeline,**kwargs)
 
     else:
         ###Rename some tricky variables
-        pipeline = fix_names(pipeline,**kwargs)
+        pipeline = pv_input_tools.fix_names(pipeline,**kwargs)
     ###Build functions up to betastar
-    alleq = equations(**kwargs)
-    pipeline = eqeval(alleq['basic3d'],pipeline)
-    pipeline = eqeval(alleq['basic_physics'],pipeline)
+    alleq = pv_equations.equations(**kwargs)
+    pipeline = pv_equations.eqeval(alleq['basic3d'],pipeline)
+    pipeline = pv_equations.eqeval(alleq['basic_physics'],pipeline)
     if 'aux' in kwargs:
-        pipeline = eqeval(alleq['dipole_coord'],pipeline)
+        pipeline = pv_equations.eqeval(alleq['dipole_coord'],pipeline)
     ###Energy flux variables
     if kwargs.get('doEnergyFlux',False):
-        pipeline = eqeval(alleq['energy_flux'],pipeline)
+        pipeline = pv_equations.eqeval(alleq['energy_flux'],pipeline)
     if kwargs.get('doVolumeEnergy',False):
-        pipeline = eqeval(alleq['dipole'],pipeline)
-        pipeline = eqeval(alleq['volume_energy'],pipeline)
+        pipeline = pv_equations.eqeval(alleq['dipole'],pipeline)
+        pipeline = pv_equations.eqeval(alleq['volume_energy'],pipeline)
     ###Get Vectors from field variable components
     pipeline = get_vectors(pipeline)
 
@@ -1618,10 +1099,11 @@ def setup_pipeline(infile,**kwargs):
     field = pipeline
 
     ###Contour (iso-surface) of the magnetopause
-    mp = create_iso_surface(pipeline, 'mp_state', 'mp')
+    mp = pv_surface_tools.create_iso_surface(pipeline, 'mp_state', 'mp')
 
-    ###Contour (iso-surface) of the magnetopause
-    fte = create_iso_surface(pipeline, 'fte', 'fte')
+    if kwargs.get('fte',False):
+        ###Contour (iso-surface) of the magnetopause
+        fte = pv_surface_tools.create_iso_surface(pipeline, 'fte', 'fte')
 
     ###Field line seeding or Field line projected flux volumes
     fluxResults = None
