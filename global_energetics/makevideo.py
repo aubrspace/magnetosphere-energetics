@@ -36,13 +36,18 @@ def get_time(infile,**kwargs):
                 time_dt = dt.datetime.strptime(date_string,'%y%m%d_%H%M%S')
                 time_dt = time_dt.replace(microsecond=0)
             except ValueError:
-                warnings.warn("Tried reading "+infile+
-                          " as GM3d or IE output and failed",UserWarning)
+                #warnings.warn("Tried reading "+infile+
+                #          " as GM3d or IE output and failed",UserWarning)
+                #Last ditch effort
+                #My dumb .h5 output, this should change
+                date_string = infile.split('_')[-1].split('.')[0]
+                dsplat = [int(s) for s in date_string.split('-')]
+                time_dt = dt.datetime(*dsplat)
                 #Last ditch effort to sort by any numbers in filename
-                numbervalue=int(''.join([l for l in infile.split('/')[-1]
-                                                        if l.isnumeric()]))
-                time_dt = (dt.datetime(1800,1,1)+
-                           dt.timedelta(minutes=numbervalue))
+                #numbervalue=int(''.join([l for l in infile.split('/')[-1]
+                #                                        if l.isnumeric()]))
+                #time_dt = (dt.datetime(1800,1,1)+
+                #           dt.timedelta(minutes=numbervalue))
     finally:
         return time_dt
 

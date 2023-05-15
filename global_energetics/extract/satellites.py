@@ -255,18 +255,18 @@ def extract_satellite(sourcefile,satfile):
     # Create 'vsat' dict
     vsatdict = {}
     # Read satellite location file for available satellites
-    locfile = pd.HDFStore(satfile,'r')
+    locfile = pd.HDFStore(satfile)
     sourcetime = get_time(sourcefile)
     i = 1
     nsat = len(locfile.keys())
+    tp.new_layout()
+    tp.data.load_tecplot(sourcefile)
+    variable_names = tp.active_frame().dataset.variable_names
     for sat in locfile.keys():
         X,Y,Z = locfile[sat][locfile[sat]['time']==sourcetime][[
                                               'Xgsm','Ygsm','Zgsm']].values[0]
         # Load tecplot source data file at the timestamp and extract
         print('{:.1%} Extracting '.format(i/nsat),sat,' at ',sourcetime)
-        tp.new_layout()
-        tp.data.load_tecplot(sourcefile)
-        variable_names = tp.active_frame().dataset.variable_names
         probe = tp.data.query.probe_at_position(X,Y,Z)[0]
         snapshot = pd.DataFrame(data=[probe],columns=variable_names)
         snapshot['time'] = sourcetime

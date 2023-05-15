@@ -1,0 +1,105 @@
+#!/bin/bash
+
+# Job script for Great Lakes cluster at University of Michigan.
+#
+# global_energetics does not need to be compiled but it does require a
+#   working python, tecplot, and pytecplot connection
+#
+# To load python and tecplot use
+#
+#	echo "module load python && module tecplot" >> ~/.profile
+#
+# Then to setup the tecplot alias check:
+#
+#   which tec360-env
+#
+# You should see a location come up, if it does that means it is ready for
+#   batch mode.
+#
+# Next you will want to look at requirements.txt that comes with the
+# global_energetics distribution. It lists all the python packages that are
+# needed to run the scripts successfully. In order to load all requirements:
+#
+#   ???
+#
+# Now see the main.py script for an example of what kind of processing and
+# analysis you would like to do. Once that is set you are ready to modify
+# this job script and submit to the cluster.
+#
+# It is wize to copy the ??? directory to the scratch root folder
+# associated with your Slurm account. Files tend to get large and will
+# fill your home folder fast.
+#
+# To view information about your job and possible start time run:
+# 
+# 	squeue --account=test
+# or
+# 	squeue --users=user
+# 
+# where `test` or `user` would be replaced by your Slurm account name
+# or username respectively. Add `--start` to see prospective start time.
+# 
+# To kill your job
+# 
+# 	scancel --user=user jobid
+# 
+# Where user is your username and jobid is the job ID that you want to
+# cancel.
+# 
+
+## Replace `test` with the Slurm account this job will run under.
+#SBATCH --account=tuija0
+
+## Job name
+#SBATCH --job-name=starSAT_1
+
+## Configuration
+# Number of nodes
+# min-max (helps with start times)
+#SBATCH --nodes=1
+
+# Number of processes per node
+#SBATCH --ntasks-per-node=1
+
+# Number of cores or threads per node
+# (might be needed for OpenMP)
+#SBATCH --cpus-per-task=1
+
+# Memory per cpu
+#SBATCH --mem-per-cpu=18g
+
+# Wall time HH:MM:SS (max 2 weeks)
+#SBATCH --time=00:30:00
+
+# Either debug, standard, largemem, or gpu
+#SBATCH --partition=standard
+
+# The emails you will receive about your job
+# #SBATCH --mail-type=NONE
+
+# Output file
+#SBATCH --output=runlog_%x_id%j
+#SBATCH --error=runerr_%x_id%j
+
+# Needed to forward user environment, then execute the tec360-env
+#SBATCH --get-user-env
+# tec360-env
+
+# NUMEXPR_MAX_THREADS
+
+## Run
+while getopts i:o:f:s: flag
+do
+    case "${flag}" in
+        i) input=${OPTARG};;
+        o) output=${OPTARG};;
+        f) file=${OPTARG};;
+        s) satpath=${OPTARG};;
+    esac
+done
+echo "Submitting using path:$input output:$output file:$file"
+printf "START TIME: `date +%Y%m%d`\n"
+# Run a script with global_energetics (the number of processors is already specified above)
+# env srun --export=ALL python multiproc_main.py
+# env srun python main.py
+tec360-env -- python3 gl-satextract.py -i $input -o $output -f $file -s $satpath
