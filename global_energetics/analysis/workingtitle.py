@@ -202,7 +202,9 @@ def hotfix_cdiff(mpdict,msdict):
     closed_copy = msdict['closed'].copy(deep=True)
     mp_copy = mpdict['ms_full'].copy(deep=True)
     for region in [lobes_copy,closed_copy,mp_copy]:
-        for target in [k for k in region.keys() if 'UtotM' in k]:
+        for target in [k for k in region.keys() if ('UtotM' in k) or
+                                                   ('uHydroM' in k) or
+                                                   ('uBM' in k)]:
             #TODO: change this to a higher order central difference
             # -(n-2)+8(n+1)-8(n-1)+(n-2)
             #           12h
@@ -380,7 +382,6 @@ def find_crossings(in_vsat,in_obssat,satname):
         last_index = index
     vsat['crosstype'] = 'none'
     obssat['crosstype'] = 'none'
-    from IPython import embed; embed()
     for interval_id in range(1,crossing_status['id'].max()+1):
         interval_points = crossing_status[crossing_status['id']==
                                           interval_id].index
@@ -775,7 +776,6 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                                 ElobesPercent.min()))
             print('{:<25}{:<20}'.format('****','****'))
             dEdt = central_diff(lobes['Utot [J]'],60)/1e12
-            from IPython import embed; embed()
             K1 = mp['K_netK1 [W]']/1e12
             K2a = lobes['K_netK2a [W]']/1e12
             K2b = lobes['K_netK2b [W]']/1e12
@@ -1924,6 +1924,7 @@ def lobe_balance_fig(dataset,phase,path):
         obstime = dataset[event]['omni_otime'+phase]
         ot = [float(n) for n in obstime.to_numpy()]#bad hack
 
+        ## TOTAL
         #K1,5 from mp
         Ks1 = mp['K_netK1 [W]']
         Ks5 = mp['K_netK5 [W]']
@@ -1938,6 +1939,37 @@ def lobe_balance_fig(dataset,phase,path):
         Ks6 = closed['K_netK6 [W]']
         Ks7 = closed['K_netK7 [W]']
 
+        ## HYDRO
+        #H1,5 from mp
+        Hs1 = mp['P0_netK1 [W]']
+        Hs5 = mp['P0_netK5 [W]']
+        #H2,3,4 from lobes
+        Hs2al = lobes['P0_netK2a [W]']
+        Hs2bl = lobes['P0_netK2b [W]']
+        Hs3 = lobes['P0_netK3 [W]']
+        Hs4 = lobes['P0_netK4 [W]']
+        #H2,6,7 from closed
+        Hs2ac = closed['P0_netK2a [W]']
+        Hs2bc = closed['P0_netK2b [W]']
+        Hs6 = closed['P0_netK6 [W]']
+        Hs7 = closed['P0_netK7 [W]']
+
+        ## MAG
+        #S1,5 from mp
+        Ss1 = mp['ExB_netK1 [W]']
+        Ss5 = mp['ExB_netK5 [W]']
+        #S2,3,4 from lobes
+        Ss2al = lobes['ExB_netK2a [W]']
+        Ss2bl = lobes['ExB_netK2b [W]']
+        Ss3 = lobes['ExB_netK3 [W]']
+        Ss4 = lobes['ExB_netK4 [W]']
+        #S2,6,7 from closed
+        Ss2ac = closed['ExB_netK2a [W]']
+        Ss2bc = closed['ExB_netK2b [W]']
+        Ss6 = closed['ExB_netK6 [W]']
+        Ss7 = closed['ExB_netK7 [W]']
+
+        ## TOTAL
         #M1,5,total from mp
         M1 = mp['UtotM1 [W]']
         M5 = mp['UtotM5 [W]']
@@ -1958,11 +1990,61 @@ def lobe_balance_fig(dataset,phase,path):
         M_lobes = M1a+M1b-M2a+M2b-M2c+M2d
         M_closed = M5a+M5b+M2a-M2b+M2c-M2d
 
+        ## HYDRO
+        #HM1,5,total from mp
+        HM1 = mp['uHydroM1 [W]']
+        HM5 = mp['uHydroM5 [W]']
+        HM = mp['uHydroM [W]']
+        #HM1a,1b,2b,il from lobes
+        HM1a = lobes['uHydroM1a [W]']
+        HM1b = lobes['uHydroM1b [W]']
+        HM2b = lobes['uHydroM2b [W]']
+        HM2d = lobes['uHydroM2d [W]']
+        HMil = lobes['uHydroMil [W]']
+        #HM5a,5b,2a,ic from closed
+        HM5a = closed['uHydroM5a [W]']
+        HM5b = closed['uHydroM5b [W]']
+        HM2a = closed['uHydroM2a [W]']
+        HM2c = closed['uHydroM2c [W]']
+        HMic = closed['uHydroMic [W]']
+
+        HM_lobes = HM1a+HM1b-HM2a+HM2b-HM2c+HM2d
+        HM_closed = HM5a+HM5b+HM2a-HM2b+HM2c-HM2d
+
+        ## MAG
+        #SM1,5,total from mp
+        SM1 = mp['uBM1 [W]']
+        SM5 = mp['uBM5 [W]']
+        SM = mp['uBM [W]']
+        #HM1a,1b,2b,il from lobes
+        SM1a = lobes['uBM1a [W]']
+        SM1b = lobes['uBM1b [W]']
+        SM2b = lobes['uBM2b [W]']
+        SM2d = lobes['uBM2d [W]']
+        SMil = lobes['uBMil [W]']
+        #SM5a,5b,2a,ic from closed
+        SM5a = closed['uBM5a [W]']
+        SM5b = closed['uBM5b [W]']
+        SM2a = closed['uBM2a [W]']
+        SM2c = closed['uBM2c [W]']
+        SMic = closed['uBMic [W]']
+
+        SM_lobes = SM1a+SM1b-SM2a+SM2b-SM2c+SM2d
+        SM_closed = SM5a+SM5b+SM2a-SM2b+SM2c-SM2d
+
         # Central difference of partial volume integrals, total change
         # Total
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
+        # Hydro
+        H_closed = -1*central_diff(closed['uHydro [J]'],60)
+        H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
+        H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        # Mag
+        S_closed = -1*central_diff(closed['uB [J]'],60)
+        S_lobes = -1*central_diff(lobes['uB [J]'],60)
+        S_mp = -1*central_diff(mp['uB [J]'],60)
 
         '''
         if 'lineup' in phase or 'interv' in phase:
@@ -2353,6 +2435,97 @@ def lobe_balance_fig(dataset,phase,path):
         figurename = path+'/comboVS'+phase+'_'+event+'.png'
         comboVS.savefig(figurename)
         plt.close(comboVS)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+
+        #############
+        #setup figure
+        flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        #Plot
+        axis.fill_between(times,(HM1+HM5+Hs1+Hs5+Hs4+Hs6)/1e12,
+                           label='Total',fc='grey')
+        axis.plot(times,(HM1+Hs1)/1e12,label='H1')
+        axis.plot(times,(HM5+Hs5)/1e12,label='H5')
+        axis.plot(times,Hs4/1e12,label='H4')
+        axis.plot(times,Hs6/1e12,label='H6')
+
+        axis2.fill_between(times,(SM1+SM5+Ss1+Ss5+Ss4+Ss6)/1e12,
+                           label='Total',fc='grey')
+        axis2.plot(times,(SM1+Ss1)/1e12,label='S1')
+        axis2.plot(times,(SM5+Ss5)/1e12,label='S5')
+        axis2.plot(times,Ss4/1e12,label='S4')
+        axis2.plot(times,Ss6/1e12,label='S6')
+
+        axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6)/1e12,
+                           label='Total',fc='grey')
+        axis3.plot(times,(M1+Ks1)/1e12,label='K1')
+        axis3.plot(times,(M5+Ks5)/1e12,label='K5')
+        axis3.plot(times,Ks4/1e12,label='K4')
+        axis3.plot(times,Ks6/1e12,label='K6')
+        #Decorations
+        for ax in [axis,axis2,axis3]:
+            general_plot_settings(ax,do_xlabel=False,legend=True,
+                     ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
+                              ylim=[-12,12],
+                              timedelta=dotimedelta)
+            ax.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            ax.axvline(0,ls='--',color='black')
+        #save
+        flavors_external.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        flavors_external.tight_layout(pad=1)
+        figurename = path+'/flavors_external'+phase+'_'+event+'.png'
+        flavors_external.savefig(figurename)
+        plt.close(flavors_external)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+
+        #############
+        #setup figure
+        flavors_internal,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        #Plot
+        axis.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'Cusp $H_{2a}$',
+                   color='goldenrod')
+        axis.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'Tail $H_{2b}$',
+                   color='tab:blue')
+        axis.fill_between(times,(Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
+                           label=r'Net $H_2$',fc='grey')
+
+        axis2.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
+                   color='goldenrod')
+        axis2.plot(times,(Ss2bc-SM2b-SM2d)/1e12,label=r'Tail $S_{2b}$',
+                   color='tab:blue')
+        axis2.fill_between(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d)/1e12,
+                           label=r'Net $S_2$',fc='grey')
+
+        axis3.plot(times,(Ks2ac+M2a+M2c)/1e12,label=r'Cusp $K_{2a}$',
+                   color='goldenrod')
+        axis3.plot(times,(Ks2bc-M2b-M2d)/1e12,label=r'Tail $K_{2b}$',
+                   color='tab:blue')
+        axis3.fill_between(times,(Ks2ac+Ks2bc+M2a-M2b+M2c-M2d)/1e12,
+                           label=r'Net $K_2$',fc='grey')
+
+        #Decorations
+        for ax in [axis,axis2,axis3]:
+            general_plot_settings(ax,do_xlabel=False,legend=True,
+                     ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
+                              ylim=[-12,12],
+                              timedelta=dotimedelta)
+            ax.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            ax.axvline(0,ls='--',color='black')
+        #save
+        flavors_internal.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        flavors_internal.tight_layout(pad=1)
+        figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
+        flavors_internal.savefig(figurename)
+        plt.close(flavors_internal)
         print('\033[92m Created\033[00m',figurename)
         #############
 
@@ -3095,7 +3268,6 @@ def diagram_summary(dataset,phase,path):
                     np.array([int(base_values['baseV'+str(j)]*factor)]))
                 vector['text'].set_text(base_values['basetext'+str(j)]+
                               '{:<.2}'.format(vector['data'][now]/1e12))
-            #from IPython import embed; embed()
             #save
             if now<moments['impact']:
                 labelcolor='black'
@@ -3129,7 +3301,7 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -3194,9 +3366,9 @@ if __name__ == "__main__":
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    #dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                end=dataset['star']['msdict']['closed'].index[-1])
+    dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
+                                     read_supermag=False,
+                    end=dataset['star']['msdict']['closed'].index[-1])
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
@@ -3213,6 +3385,7 @@ if __name__ == "__main__":
         event = dataset[event_key]
         event['mpdict'],event['msdict'] = hotfix_cdiff(event['mpdict'],
                                                        event['msdict'])
+        # Total
         event['msdict']['lobes']['K_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['K_netK1 [W]']
         event['mpdict']['ms_full']['UtotM1 [W]'] = (
@@ -3224,6 +3397,30 @@ if __name__ == "__main__":
         event['mpdict']['ms_full']['UtotM [W]'] = (
                                      event['mpdict']['ms_full']['UtotM1 [W]']+
                                      event['mpdict']['ms_full']['UtotM5 [W]'])
+        # Hydro
+        event['msdict']['lobes']['P0_netK1 [W]'] = event['mpdict'][
+                                                  'ms_full']['P0_netK1 [W]']
+        event['mpdict']['ms_full']['uHydroM1 [W]'] = (
+                                    event['msdict']['lobes']['uHydroM1a [W]']+
+                                    event['msdict']['lobes']['uHydroM1b [W]'])
+        event['mpdict']['ms_full']['uHydroM5 [W]'] = (
+                                    event['msdict']['closed']['uHydroM5a [W]']+
+                                    event['msdict']['closed']['uHydroM5b [W]'])
+        event['mpdict']['ms_full']['uHydroM [W]'] = (
+                                    event['mpdict']['ms_full']['uHydroM1 [W]']+
+                                    event['mpdict']['ms_full']['uHydroM5 [W]'])
+        # Mag
+        event['msdict']['lobes']['ExB_netK1 [W]'] = event['mpdict'][
+                                                  'ms_full']['ExB_netK1 [W]']
+        event['mpdict']['ms_full']['uBM1 [W]'] = (
+                                      event['msdict']['lobes']['uBM1a [W]']+
+                                      event['msdict']['lobes']['uBM1b [W]'])
+        event['mpdict']['ms_full']['uBM5 [W]'] = (
+                                     event['msdict']['closed']['uBM5a [W]']+
+                                     event['msdict']['closed']['uBM5b [W]'])
+        event['mpdict']['ms_full']['uBM [W]'] = (
+                                     event['mpdict']['ms_full']['uBM1 [W]']+
+                                     event['mpdict']['ms_full']['uBM5 [W]'])
     #NOTE hotfix for closed region tail_closed
     #for ev in ds.keys():
     #    for t in[t for t in ds[ev]['msdict']['closed'].keys()
@@ -3268,16 +3465,16 @@ if __name__ == "__main__":
             if 'termdict' in event.keys():
                 event['termdict'+phase],event['time'+phase]=parse_phase(
                                                  event['termdict'],phase)
-    '''
     for event_key in dataset.keys():
         event = dataset[event_key]
-        #obs_srcs = list(event['obs'].keys())
-        satlist = list([sat for sat in event['obssat'].keys()
-                        if not event['obssat'][sat].empty])
+        obs_srcs = list(event['obs'].keys())
+        #satlist = list([sat for sat in event['obssat'].keys()
+        #                if not event['obssat'][sat].empty])
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
-            #for src in obs_srcs:
-            #    event['obs'][src+phase],event[src+'_otime'+phase]=(
-            #                    parse_phase(event['obs'][src],phase))
+            for src in obs_srcs:
+                event['obs'][src+phase],event[src+'_otime'+phase]=(
+                                parse_phase(event['obs'][src],phase))
+        '''
             for sat in satlist:
                 event['vsat'][sat+phase],event[sat+'_vtime'+phase] = (
                                         parse_phase(event['vsat'][sat],phase))
@@ -3286,11 +3483,10 @@ if __name__ == "__main__":
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
                                        event['obssat'][sat],sat)
-    '''
-    from IPython import embed; embed()
+        '''
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(dataset)
+    main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
     #interval_figures(dataset)
