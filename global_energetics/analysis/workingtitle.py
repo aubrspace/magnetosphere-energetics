@@ -3268,6 +3268,7 @@ if __name__ == "__main__":
             if 'termdict' in event.keys():
                 event['termdict'+phase],event['time'+phase]=parse_phase(
                                                  event['termdict'],phase)
+    '''
     for event_key in dataset.keys():
         event = dataset[event_key]
         #obs_srcs = list(event['obs'].keys())
@@ -3285,6 +3286,8 @@ if __name__ == "__main__":
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
                                        event['obssat'][sat],sat)
+    '''
+    from IPython import embed; embed()
     ######################################################################
     ##Main + Recovery phase
     #main_rec_figures(dataset)
