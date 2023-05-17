@@ -205,6 +205,7 @@ def hotfix_cdiff(mpdict,msdict):
         for target in [k for k in region.keys() if ('UtotM' in k) or
                                                    ('uHydroM' in k) or
                                                    ('uBM' in k)]:
+            print(target)
             #TODO: change this to a higher order central difference
             # -(n-2)+8(n+1)-8(n-1)+(n-2)
             #           12h
@@ -2088,10 +2089,15 @@ def lobe_balance_fig(dataset,phase,path):
                           label='Total Lobes',fc='grey')
         axis.plot(times,(lobes['K_net [W]']+M_lobes)/1e12,label='Summed Lobes')
         axis.plot(times,(Ks1+M1)/1e12,label='K1')
-        axis.plot(times,(Ks2al-M2a-M2c)/1e12,label='K2a')
-        axis.plot(times,(Ks2bl+M2b+M2d)/1e12,label='K2b')
+        #axis.plot(times,(Ks2al-M2a-M2c+Ks2bl+M2b+M2d)/1e12,label='K2')
+        axis.plot(times,(Ks2ac+Ks2bc+M2a-M2b+M2c-M2d)/1e12,label='K2')
         axis.plot(times,Ks3/1e12,label='K3')
         axis.plot(times,Ks4/1e12,label='K4')
+        axis.plot(times,(Ks5+M5)/1e12,label='K5')
+        axis.plot(times,(Ks6)/1e12,label='K6')
+        axis.plot(times,(Ks7)/1e12,label='K7')
+        #axis.plot(times,(Ks2al-M2a-M2c)/1e12,label='K2a')
+        #axis.plot(times,(Ks2bl+M2b+M2d)/1e12,label='K2b')
 
         axis2.fill_between(times,lobes['K_net [W]']/1e12,
                           label='Total Static',fc='grey')
@@ -2507,6 +2513,9 @@ def lobe_balance_fig(dataset,phase,path):
                    color='tab:blue')
         axis3.fill_between(times,(Ks2ac+Ks2bc+M2a-M2b+M2c-M2d)/1e12,
                            label=r'Net $K_2$',fc='grey')
+        axis3.plot(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d+
+                          Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
+                           label=r'Summed $S_2$',color='lime')
 
         #Decorations
         for ax in [axis,axis2,axis3]:
@@ -2526,6 +2535,51 @@ def lobe_balance_fig(dataset,phase,path):
         figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
         flavors_internal.savefig(figurename)
         plt.close(flavors_internal)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+
+        #############
+        #setup figure
+        poynting_type,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        #Plot
+        axis.plot(times,(Ss2ac)/1e12,label=r'Cusp $S_{2a,S}$',
+                   color='goldenrod')
+        axis.plot(times,(Ss2bc)/1e12,label=r'Tail $S_{2b,S}$',
+                   color='tab:blue')
+        axis.fill_between(times,(Ss2ac+Ss2bc)/1e12,
+                           label=r'Net $S_2$',fc='grey')
+
+        axis2.plot(times,(SM2a+SM2c)/1e12,label=r'Cusp $S_{2a,M}$',
+                   color='goldenrod')
+        axis2.plot(times,(-SM2b-SM2d)/1e12,label=r'Tail $S_{2b,M}$',
+                   color='tab:blue')
+        axis2.fill_between(times,(SM2a-SM2b+SM2c-SM2d)/1e12,
+                           label=r'Net $S_2$',fc='grey')
+
+        axis3.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
+                   color='goldenrod')
+        axis3.plot(times,(Ss2bc-SM2b-SM2d)/1e12,label=r'Tail $S_{2b}$',
+                   color='tab:blue')
+        axis3.fill_between(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d)/1e12,
+                           label=r'Net $S_2$',fc='grey')
+        #Decorations
+        for ax in [axis,axis2,axis3]:
+            general_plot_settings(ax,do_xlabel=False,legend=True,
+                     ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
+                              ylim=[-12,12],
+                              timedelta=dotimedelta)
+            ax.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+            ax.axvline(0,ls='--',color='black')
+        #save
+        poynting_type.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        poynting_type.tight_layout(pad=1)
+        figurename = path+'/poynting_type'+phase+'_'+event+'.png'
+        poynting_type.savefig(figurename)
+        plt.close(poynting_type)
         print('\033[92m Created\033[00m',figurename)
         #############
 
