@@ -304,6 +304,98 @@ def rotate_gse_gsm(angles,gsedata):
     #time.sleep(3)
     return [matmul(m,gse) for m,gse in zip(rot_matrix,gsedata)]
 
+def collect_geotail(start, end, **kwargs):
+    """Function pulls geotail trajectory and orbit data from cdaweb
+    Inputs
+        satkey (str)- themis, cluster, geotail, etc.
+        start, end (datetime.datetime)- start and end times of collection
+    Returns
+        df (DataFrame)- collected and processed data
+    """
+    # Get tilt from somewhere else bc apparently it's not included here...
+    print('Getting dipole tilt')
+    mms_instrument = 'MMS1_MEC_SRVY_L2_EPHT89D'
+    tilt_key = 'mms1_mec_dipole_tilt'
+    status,tiltdata = cdas.get_data(mms_instrument,[tilt_key],start,end)
+    xtime = [pd.Timestamp(t).value for t in tiltdata['Epoch']]
+
+    # Position
+    print('Gathering Position Data')
+    positions = {}
+    print('\tgeotail')
+    df = pd.DataFrame()
+    pos_instrument = 'GE_OR_DEF'
+    gsm_key = 'GSM_POS'
+    epoch_key = 'Epoch'
+    status,posdata = cdas.get_data(pos_instrument,[gsm_key],start,end)
+    df[['x','y','z']] = posdata[gsm_key]/6371 # from km to Re
+    df.index = posdata[epoch_key]
+    positions['geotail'] = df
+
+    # Magnetic Field Instrument
+    print('Gathering Bfield Data')
+    bfield = {}
+    print('\tgeotail')
+    df = pd.DataFrame()
+    mag_instrument = 'GE_K0_MGF'
+    bvec_key = 'IB_vector'
+    epoch_key = 'Epoch'
+    status,magdata = cdas.get_data(mag_instrument,[bvec_key],start,end)
+    ytime = [pd.Timestamp(t).value for t in magdata[epoch_key]]
+    dipole_angles = np.interp(ytime,xtime,tiltdata[tilt_key])
+    bgsm=rotate_gse_gsm(dipole_angles,magdata[bvec_key])
+    df[['bx','by','bz']] = bgsm
+    df.index=magdata[epoch_key]
+    bfield['geotail'] = df
+
+    # Comprehensive Plasma Instrument 
+    print('Gathering Plasma Data')
+    plasma = {}
+    print('\tgeotail')
+    df = pd.DataFrame()
+    plasma_instrument = 'GE_K0_CPI'
+    sw_n_ion_key = 'SW_P_Den'  #solar wind number density
+    sw_u_ion_key = 'SW_V'      #solar wind bulk velocity
+    sw_e_ion_key = 'SW_P_AVGE' #solar wind average energy
+    #hp_n_ion_key = 'HP_P_Den' #hot plasma number density
+    #hp_u_ion_key = 'HP_V'     #hot plasma bulk velocity
+    hp_p_key = 'W'             #hot plasma plasma pressure
+    epoch_key = 'Epoch'
+    status,plasmadata = cdas.get_data(plasma_instrument,[sw_n_ion_key,
+                                                         sw_u_ion_key,
+                                                         sw_e_ion_key,
+                                                         #hp_n_ion_key,
+                                                         #hp_u_ion_key,
+                                                         hp_p_key],
+                                                            start,end)
+    df['n'] = plasmadata[sw_n_ion_key] # n/cc
+    vgsm=rotate_gse_gsm(dipole_angles,plasmadata[sw_u_ion_key])
+    df[['vx','vy','vz']] = vgsm # km/s
+    df['energy'] = plasmadata[sw_e_ion_key] # eV
+    df.index = plasmadata[epoch_key]
+    plasma['geotail'] = df
+    if kwargs.get('writeData',True):
+        ofilename = kwargs.get('ofilename','geotail')
+        # Position
+        posfile = pd.HDFStore(ofilename+'_pos.h5')
+        for key in positions.keys():
+            posfile[key] = positions[key]
+        posfile.close()
+        print('Created ',ofilename+'_pos.h5 output file')
+        # B Field
+        bfile = pd.HDFStore(ofilename+'_bfield.h5')
+        for key in bfield.keys():
+            bfile[key] = bfield[key]
+        bfile.close()
+        print('Created ',ofilename+'_bfield.h5 output file')
+        # Plasma
+        plasmafile = pd.HDFStore(ofilename+'_plasma.h5')
+        for key in plasma.keys():
+            plasmafile[key] = plasma[key]
+        plasmafile.close()
+        print('Created ',ofilename+'_plasma.h5 output file')
+    return positions, bfield, plasma
+
 def collect_themis(start, end, **kwargs):
     """Function pulls themis trajectory and orbit data from cdaweb
     Inputs
@@ -604,8 +696,9 @@ if __name__ == '__main__':
 
     #wind = collect_wind(start, end)
     #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
-    mms_pos, mms_b,mms_plasma = collect_mms(start, end)
+    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
     #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
+    geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
     #omni = swmfpy.web.get_omni_data(start,end)
 
     #Additional options
