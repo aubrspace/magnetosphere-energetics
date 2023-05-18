@@ -35,13 +35,15 @@ def energy_post_integr(results, **kwargs):
     uB = df[[k for k in df.keys() if ('uB' in k)and('uB_dipole'not in k)]]
     ub = df[[k for k in df.keys() if 'u_db' in k]]
     uH = df[[k for k in df.keys() if 'Hydro' in k]]
-    u1_values = uB.values + uH.values #including dipole field
-    u2_values = ub.values + uH.values #disturbance energy
-    u1_keys = ['Utot'.join(k.split('uB')) for k in df.keys()if('uB' in k)and
-                                                         ('uB_dipole'not in k)]
-    u2_keys=['Utot2'.join(k.split('u_db'))for k in df.keys()if'u_db'in k]
-    for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
-    for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
+    if (not uB.empty) and (not uH.empty):
+        u1_values = uB.values + uH.values #including dipole field
+        u1_keys =['Utot'.join(k.split('uB'))for k in df.keys()if('uB' in k)and
+                                                        ('uB_dipole'not in k)]
+        for k in enumerate(u1_keys):df[k[1]]=u1_values[0][k[0]]
+    if (not ub.empty) and (not uH.empty):
+        u2_values = ub.values + uH.values #disturbance energy
+        u2_keys=['Utot2'.join(k.split('u_db'))for k in df.keys()if'u_db'in k]
+        for k in enumerate(u2_keys):df[k[1]]=u2_values[0][k[0]]
     if kwargs.get('do_cms', False):
         #Combine 'acquisitions' and 'forfeitures' back into net
         acqus = df[[k for k in df.keys()if 'acqu' in k]]
@@ -159,7 +161,8 @@ def get_energy_integrands(state_var):
     #integrands = ['uB [J/Re^3]', 'KE [J/Re^3]', 'Pth [J/Re^3]']
     #integrands = ['uB [J/Re^3]','uB_dipole [J/Re^3]','u_db [J/Re^3]',
     #              'uHydro [J/Re^3]']
-    integrands = ['Utot [J/Re^3]','test']
+    #integrands = ['Utot [J/Re^3]','test']
+    integrands = ['uB [J/Re^3]','uHydro [J/Re^3]']
     for term in integrands:
         name = term.split(' ')[0]
         if 'Pth' in term:
@@ -287,7 +290,7 @@ def get_volume_trades(zone,integrands,**kwargs):
         #Mil    from  day_lobeS     ->  night_lobeS
         tradelist.append(make_trade_eq(daylobeS,nightlobeS,'Mil',tdelta))
     # Debug trades (linear combinations of above, for testing only!)
-    if kwargs.get('debug',False) and 'mp' in state_name:
+    if 'mp' in state_name:
         lobes = '({NLobe}==1 || {SLobe}==1)'
         closed = '({lcb}==1)'
         interior = '({mp_iso_betastar}==1)'

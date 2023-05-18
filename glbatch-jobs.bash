@@ -26,7 +26,8 @@ do
     #echo "-i $INPUTDIR -o $OUTPUTDIR -f ${file:${#INPUTDIR}} -s $satpath"
     sbatch batchjob_energetics.gl -i $INPUTDIR -o $OUTPUTDIR \
                                   -f ${file:${#INPUTDIR}}    \
-                                  -s $satpath
+    #                              -s $satpath
+    #exit
 
 done
 

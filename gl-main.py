@@ -69,7 +69,7 @@ def energetics_analysis(infiles,outpath):
                                       customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=True,
+                                      integrate_surface=False,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
                                       verbose=True,
