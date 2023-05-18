@@ -2779,7 +2779,7 @@ def satellite_comparisons(dataset,phase,path):
     for i,event in enumerate(dataset.keys()):
         moments = locate_phase(dataset[event]['time'])
         # List of satellites we want to use
-        satlist = ['cluster4','themisa','themisd','themise']
+        satlist = ['cluster4','themisa','themisd','themise','mms1']
         #############
         #setup figure
         b_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
@@ -2796,9 +2796,9 @@ def satellite_comparisons(dataset,phase,path):
             axis[i].plot(vtime,virtual['B_x'],label='simBx')
             axis[i].plot(vtime,virtual['B_y'],label='simBy')
             axis[i].plot(vtime,virtual['B_z'],label='simBz')
-            axis[i].plot(obstime,obs['bx'],label='obsBx')
-            axis[i].plot(obstime,obs['by'],label='obsBy')
-            axis[i].plot(obstime,obs['bz'],label='obsBz')
+            axis[i].plot(otime,obs['bx'],label='obsBx')
+            axis[i].plot(otime,obs['by'],label='obsBy')
+            axis[i].plot(otime,obs['bz'],label='obsBz')
             #Decorations
             general_plot_settings(axis[i],legend=(i==0),
                                   do_xlabel=(i==len(satlist)-1),
@@ -2833,13 +2833,13 @@ def satellite_comparisons(dataset,phase,path):
             axis[i].plot(vtime,virtual['U_x'],label='simUx')
             axis[i].plot(vtime,virtual['U_y'],label='simUy')
             axis[i].plot(vtime,virtual['U_z'],label='simUz')
-            axis[i].plot(obstime,obs['vx'],label='obsUx')
-            axis[i].plot(obstime,obs['vy'],label='obsUy')
-            axis[i].plot(obstime,obs['vz'],label='obsUz')
+            axis[i].plot(otime,obs['vx'],label='obsUx')
+            axis[i].plot(otime,obs['vy'],label='obsUy')
+            axis[i].plot(otime,obs['vz'],label='obsUz')
             #Decorations
             general_plot_settings(axis[i],legend=(i==0),
                                   do_xlabel=(i==len(satlist)-1),
-                                  ylabel=sat[i]+r' $U\left[ km/s\right]$',
+                                  ylabel=sat+r' $U\left[ km/s\right]$',
                                   ylim=[-200,200],
                                   timedelta=dotimedelta)
             axis[i].axvline((moments['impact']-
@@ -2868,7 +2868,7 @@ def satellite_comparisons(dataset,phase,path):
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
             axis[i].plot(vtime,virtual['Rho'],label='simN')
-            axis[i].plot(obstime,obs['n'],label='obsN')
+            axis[i].plot(otime,obs['n'],label='obsN')
             #Decorations
             general_plot_settings(axis[i],legend=(i==0),
                                   do_xlabel=(i==len(satlist)-1),
@@ -2901,7 +2901,7 @@ def satellite_comparisons(dataset,phase,path):
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
             axis[i].plot(vtime,virtual['Status'],label='simStatus')
-            #axis[i].plot(obstime,obs['n'],label='obsN')
+            #axis[i].plot(otime,obs['n'],label='obsN')
             #Decorations
             general_plot_settings(axis[i],legend=(i==0),
                                   do_xlabel=(i==len(satlist)-1),
@@ -2934,7 +2934,7 @@ def satellite_comparisons(dataset,phase,path):
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
             axis[i].plot(vtime,virtual['P'],label='simP')
-            axis[i].plot(obstime,obs['p'],label='obsP')
+            axis[i].plot(otime,obs['p'],label='obsP')
             #Decorations
             general_plot_settings(axis[i],legend=(i==0),
                                   do_xlabel=(i==len(satlist)-1),
@@ -2970,19 +2970,19 @@ def satellite_comparisons(dataset,phase,path):
             # Plot
             # K
             axis[i].plot(vtime,virtual['Kx'],label='simKx')
-            axis[i].plot(obstime,obs['Kx'],label='obsKx')
+            axis[i].plot(otime,obs['Kx'],label='obsKx')
             rax = axis[i].twinx()
             rax.plot(vtime,virtual['Status'],label='simStatus',
                      c='black',ls='--')
             # H
             haxis[i].plot(vtime,virtual['Hx'],label='simHx')
-            haxis[i].plot(obstime,obs['Hx'],label='obsHx')
+            haxis[i].plot(otime,obs['Hx'],label='obsHx')
             rax = haxis[i].twinx()
             rax.plot(vtime,virtual['Status'],label='simStatus',
                      c='black',ls='--')
             # S
             saxis[i].plot(vtime,virtual['Sx'],label='simSx')
-            saxis[i].plot(obstime,obs['Sx'],label='obsSx')
+            saxis[i].plot(otime,obs['Sx'],label='obsSx')
             rax = saxis[i].twinx()
             rax.plot(vtime,virtual['Status'],label='simStatus',
                      c='black',ls='--')
@@ -3056,7 +3056,7 @@ def satellite_comparisons(dataset,phase,path):
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
             axis[i].plot(vtime,virtual['Ky'],label='simKy')
-            axis[i].plot(obstime,obs['Ky'],label='obsKy')
+            axis[i].plot(otime,obs['Ky'],label='obsKy')
             rax = axis[i].twinx()
             rax.plot(vtime,virtual['Status'],label='simStatus',
                      c='black',ls='--')
@@ -3092,7 +3092,7 @@ def satellite_comparisons(dataset,phase,path):
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
             axis[i].plot(vtime,virtual['Kz'],label='simKz')
-            axis[i].plot(obstime,obs['Kz'],label='obsKz')
+            axis[i].plot(otime,obs['Kz'],label='obsKz')
             rax = axis[i].twinx()
             rax.plot(vtime,virtual['Status'],label='simStatus',
                      c='black',ls='--')
@@ -3355,12 +3355,12 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -3522,18 +3522,18 @@ if __name__ == "__main__":
     for event_key in dataset.keys():
         event = dataset[event_key]
         obs_srcs = list(event['obs'].keys())
-        #satlist = list([sat for sat in event['obssat'].keys()
-        #                if not event['obssat'][sat].empty])
+        satlist = list([sat for sat in event['obssat'].keys()
+                        if not event['obssat'][sat].empty])
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             for src in obs_srcs:
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
                                 parse_phase(event['obs'][src],phase))
-        '''
             for sat in satlist:
                 event['vsat'][sat+phase],event[sat+'_vtime'+phase] = (
                                         parse_phase(event['vsat'][sat],phase))
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
+        '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
                                        event['obssat'][sat],sat)

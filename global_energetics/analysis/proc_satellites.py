@@ -338,7 +338,6 @@ def combine_obs_sats(indict):
     Returns
         combined (DataFrame)
     """
-    #TODO
     combined = pd.DataFrame()
     # check for 'plasma' and 'bfield' in the dictionary
     if indict['plasma'].empty or indict['bfield'].empty:
@@ -399,10 +398,14 @@ def add_derived_variables2(indf, name, datatype,**kwargs):
             bz = df['B_z']
         elif datatype == 'combined':
             # Thermal Pressure
-            if 'Tpar' in df.keys() and 'Tperp' in df.keys():
+            if ('tpar' in [k.lower() for k in df.keys()] and
+                'tperp' in [k.lower() for k in df.keys()]):
                 if 'cluster' in name:
                     Tfactor = 1e6 # from MK to K
-                T =np.sqrt(df['Tpar']**2+(2*df['Tperp'])**2)*Tfactor #K
+                    T =np.sqrt(df['Tpar']**2+(2*df['Tperp'])**2)*Tfactor #K
+                elif 'mms' in name:
+                    Tfactor = 1.1604e4 # from eV to K
+                    T =np.sqrt(df['tpar']**2+(2*df['tperp'])**2)*Tfactor #K
                 df['p'] = df['n']*1e6*1.3807e-23*T*1e9 # nPa
                 p = df['p']
             elif 'ptot' in df.keys():
@@ -954,7 +957,7 @@ def read_satellites(pathtofiles):
         satset,vartype = filename.replace('.h5','').split('_')
         print(filename,satset,vartype)
         # Read the file
-        datafile = pd.HDFStore(filename)
+        datafile = pd.HDFStore(pathtofiles+filename)
         for sat in datafile.keys():
             print('\t',sat)
             df = datafile[sat.replace('/','')]
@@ -962,10 +965,14 @@ def read_satellites(pathtofiles):
                 df.index = df['time']
                 df.drop(columns=['time'],inplace=True)
                 df.sort_index(inplace=True)
-            obssats[sat.replace('/','')][vartype] = df[df.index<endtime]
+            obssats[sat.replace('/','').lower()][vartype]=df[df.index<endtime]
         datafile.close()
     for sat in obssats.keys():
+        if 'bx' in obssats[sat]['pos'].keys():
+            copy_b_comps=obssats[sat]['pos'][['bx','by','bz']].copy(deep=True)
+            obssats[sat]['bfield'] = copy_b_comps
         if 'bfield' in obssats[sat] and 'plasma' in obssats[sat]:
+            print('\t',sat)
             obssats[sat]['combined'] = combine_obs_sats(obssats[sat])
             obssats[sat] = add_derived_variables2(obssats[sat]['combined'],
                                                   sat,'combined')
