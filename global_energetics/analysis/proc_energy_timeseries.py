@@ -8,7 +8,6 @@ from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 import datetime as dt
 import pandas as pd
 import matplotlib.pyplot as plt
-from progress.bar import Bar
 
 #TODO: 
 #       -> will also want a separate energy flux term when looking for 

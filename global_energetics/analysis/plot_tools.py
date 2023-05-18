@@ -17,10 +17,10 @@ def pyplotsetup(*,mode='presentation',**kwargs):
         kwargs:
     """
     #Always
-    settings={"text.usetex": True,
+    settings={"text.usetex": False,
               "font.family": "sans-serif",
-              "font.size": 28,
-              "font.sans-serif": ["Helvetica"]}
+              "font.size": 28}
+    #         "font.sans-serif": ["Helvetica"]}
     if 'presentation' in mode:
         #increase lineweights
         settings.update({'lines.linewidth': 3})
