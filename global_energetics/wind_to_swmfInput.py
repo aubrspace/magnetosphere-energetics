@@ -1,16 +1,18 @@
 #/usr/bin/env python
 """accesses WIND data from nasa CDA and creates IMF_new.dat for SWMF input
 """
-import pandas as pd
+#import pandas as pd
 import os
 import sys
-import time
+#import time
 import datetime as dt
 import numpy as np
-from numpy import cos, sin, pi, matmul, deg2rad
-import matplotlib.pyplot as plt
+#from numpy import cos, sin, pi, matmul, deg2rad
 from cdasws import CdasWs
 cdas = CdasWs()
+from sscws.sscws import SscWs
+ssc = SscWs()
+from sscws.coordinates import CoordinateSystem as coordsys
 import swmfpy
 
 def read_MFI_SWE_WIND(filename):
@@ -181,6 +183,7 @@ def plot_comparison(ori_df, df, outpath):
         ori_df, df
         outpath
     """
+    import matplotlib.pyplot as plt
     figname = 'SolarWind'
     timekeys = ['yr', 'mn', 'dy', 'hr', 'min', 'sec', 'msec', 'Time_UTC']
     num_ax = len(ori_df.keys())-len(timekeys)
@@ -680,6 +683,14 @@ def collect_cluster(start, end, **kwargs):
         print('Created ',ofilename+'_plasma.h5 output file')
     return positions, bfield, plasma
 
+def collect_orbits(start,end,sourcelist):
+    gsm = coordsys.GSM
+    for source in sourcelist:
+        pass
+    #TODO I have no idea why it won't let me specify what I want out of the "get_locations" method, it won't accept GSM as a coordinate system is local time is requested i guess??
+    from IPython import embed; embed()
+    pass
+
 #Main program
 if __name__ == '__main__':
     #############################USER INPUTS HERE##########################
@@ -698,7 +709,16 @@ if __name__ == '__main__':
     #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
     #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
     #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
-    geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
+    #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
+
+    ## For a list of all observatories for location plots use:
+    #   observatories = ssc.get_observatories()
+    #   obslist = [o['Name'] for o in observatories['Observatory']]                          
+    sourcelist = ['cluster1','cluster2','cluster3','cluster4',
+                  'geotail',
+                  'mms1','mms2','mms3','mms4',
+                  'themisa','themisd','themise']
+    collect_orbits(start,end,sourcelist)
     #omni = swmfpy.web.get_omni_data(start,end)
 
     #Additional options
