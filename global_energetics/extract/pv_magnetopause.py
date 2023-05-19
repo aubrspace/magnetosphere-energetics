@@ -1089,8 +1089,9 @@ def setup_pipeline(infile,**kwargs):
                     'mms3':[0.9,0.9,0.9],
                     'mms4':[0.9,0.9,0.9]
                     }
-    # FTE
-    pipeline = load_fte(pipeline)
+    if kwargs.get('doFTE',False):
+        # FTE
+        pipeline = load_fte(pipeline)
 
     # Magnetopause
     pipeline = get_magnetopause_filter(pipeline)

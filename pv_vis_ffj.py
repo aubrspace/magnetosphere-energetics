@@ -41,8 +41,13 @@ if True:
     #path='/nfs/solsticedisk/tuija/amr_fte/thirdrun/GM/IO2/'
     #path = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
     #outpath='/nfs/solsticedisk/tuija/amr_fte/thirdrun/'
-    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
+
+    #path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
+    #outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
+
+    path='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
+    outpath='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
+    herepath='/Users/ngpdl/Code/swmf-energetics/'
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
@@ -120,8 +125,8 @@ if True:
         # Save screenshot
         SaveScreenshot(outpath+outfile,layout,
                        SaveAllViews=1,ImageResolution=[1280,1280])
-    for i,infile in enumerate(filelist[1::]):
-    #if False:
+    #for i,infile in enumerate(filelist[1::]):
+    if False:
         print(str(i+2)+'/'+str(len(filelist))+
               ' processing '+infile.split('/')[-1]+'...')
         outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
