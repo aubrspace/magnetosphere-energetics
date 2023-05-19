@@ -2782,7 +2782,8 @@ def satellite_comparisons(dataset,phase,path):
         satlist = ['cluster4','themisa','themisd','themise','mms1']
         #############
         #setup figure
-        b_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        b_compare_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -2819,7 +2820,8 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        u_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        u_compare_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -2856,7 +2858,8 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        n_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        n_compare_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -2889,7 +2892,8 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        status,axis = plt.subplots(len(satlist),1,figsize=[16,16])
+        status,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -2922,7 +2926,8 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        p_compare_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        p_compare_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -2955,9 +2960,12 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        kx_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
-        hx_detail,haxis = plt.subplots(len(satlist),1,figsize=[16,32])
-        sx_detail,saxis = plt.subplots(len(satlist),1,figsize=[16,32])
+        kx_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
+        hx_detail,haxis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
+        sx_detail,saxis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -3044,7 +3052,8 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        ky_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        ky_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -3080,7 +3089,8 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        kz_detail,axis = plt.subplots(len(satlist),1,figsize=[16,32])
+        kz_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
