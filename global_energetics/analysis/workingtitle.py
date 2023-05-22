@@ -2448,26 +2448,32 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
         #Plot
-        axis.fill_between(times,(HM1+HM5+Hs1+Hs5+Hs4+Hs6)/1e12,
+        axis.fill_between(times,(HM1+HM5+Hs1+Hs5+Hs4+Hs6+Hs3+Hs7)/1e12,
                            label='Total',fc='grey')
         axis.plot(times,(HM1+Hs1)/1e12,label='H1')
         axis.plot(times,(HM5+Hs5)/1e12,label='H5')
         axis.plot(times,Hs4/1e12,label='H4')
         axis.plot(times,Hs6/1e12,label='H6')
+        axis.plot(times,Hs3/1e12,label='H3')
+        axis.plot(times,Hs7/1e12,label='H7')
 
-        axis2.fill_between(times,(SM1+SM5+Ss1+Ss5+Ss4+Ss6)/1e12,
+        axis2.fill_between(times,(SM1+SM5+Ss1+Ss5+Ss4+Ss6+Ss3+Ss7)/1e12,
                            label='Total',fc='grey')
         axis2.plot(times,(SM1+Ss1)/1e12,label='S1')
         axis2.plot(times,(SM5+Ss5)/1e12,label='S5')
         axis2.plot(times,Ss4/1e12,label='S4')
         axis2.plot(times,Ss6/1e12,label='S6')
+        axis2.plot(times,Ss3/1e12,label='S3')
+        axis2.plot(times,Ss7/1e12,label='S7')
 
-        axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6)/1e12,
+        axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
                            label='Total',fc='grey')
         axis3.plot(times,(M1+Ks1)/1e12,label='K1')
         axis3.plot(times,(M5+Ks5)/1e12,label='K5')
         axis3.plot(times,Ks4/1e12,label='K4')
         axis3.plot(times,Ks6/1e12,label='K6')
+        axis3.plot(times,Ks3/1e12,label='K3')
+        axis3.plot(times,Ks7/1e12,label='K7')
         #Decorations
         for ax in [axis,axis2,axis3]:
             general_plot_settings(ax,do_xlabel=False,legend=True,
@@ -2513,9 +2519,9 @@ def lobe_balance_fig(dataset,phase,path):
                    color='tab:blue')
         axis3.fill_between(times,(Ks2ac+Ks2bc+M2a-M2b+M2c-M2d)/1e12,
                            label=r'Net $K_2$',fc='grey')
-        axis3.plot(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d+
-                          Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
-                           label=r'Summed $S_2$',color='lime')
+        #axis3.plot(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d+
+        #                  Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
+        #                   label=r'Summed $S_2$',color='lime')
 
         #Decorations
         for ax in [axis,axis2,axis3]:
@@ -2736,10 +2742,14 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         #Plasma
         ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
                                hatch=hatches[i],label=r'$P_{dyn}$')
-        ax[1].plot(swt,sw['Ma'],label=r'$M_{Alf}$',c='magenta')
         ax[1].plot(swt,sw['Beta'],label=r'$\beta$',c='tab:blue')
-        general_plot_settings(ax[1],ylabel=r'$M_{Alf},\beta$'+event,
-                              legend=True,do_xlabel=False,ylim=[0,25],
+        #ax[1].plot(swt,sw['Ma'],label=r'$M_{Alf}$',c='magenta')
+        #rax = ax[1].twinx()
+        #rax.plot(swt,sw['Beta'],label=r'$\beta$',c='tab:blue',ylim=[0,10])
+        #rax.spines['right'].set_color('tab:blue')
+        #rax.tick_params(axis='y',colors='tab:blue')
+        general_plot_settings(ax[1],ylabel=r'$P_{dyn},\beta$',
+                              legend=True,do_xlabel=False,
                               timedelta=dotimedelta)
         #Dst index
         ax[2].plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
@@ -2750,12 +2760,12 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         #AL index
         ax[3].plot(indext,index['AL'],label='Sim',c='tab:blue')
         #ax[3].plot(supt,sup['SML (nT)'],label='Obs',c='maroon')
-        ax[3].plot(ot,al,label='Obs',c='maroon')
+        #ax[3].plot(ot,al,label='Obs',c='maroon')
         #Newell coupling function
-        ax[3].fill_between(swt, sw['Newell']/100, label='Newell',
-                           fc='grey')
-        general_plot_settings(ax[3],ylabel=r'AL$\left[nT\right]$,'+
-                            r'Newell$\left[ 10\times kWb/s\right]$',
+        #ax[3].fill_between(swt, sw['Newell']/100, label='Newell',
+        #                   fc='grey')
+                            #r'Newell$\left[ 10\times kWb/s\right]$',
+        general_plot_settings(ax[3],ylabel=r'AL$\left[nT\right]$',
                               do_xlabel=True, legend=True,
                               timedelta=dotimedelta)
         ax[3].set_xlabel(r'Time $\left[hr:min\right]$')
@@ -2960,11 +2970,11 @@ def satellite_comparisons(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
-        kx_detail,axis = plt.subplots(len(satlist),1,
+        k_detail,axis = plt.subplots(len(satlist),1,
                                              figsize=[16,8*len(satlist)])
-        hx_detail,haxis = plt.subplots(len(satlist),1,
+        h_detail,haxis = plt.subplots(len(satlist),1,
                                              figsize=[16,8*len(satlist)])
-        sx_detail,saxis = plt.subplots(len(satlist),1,
+        s_detail,saxis = plt.subplots(len(satlist),1,
                                              figsize=[16,8*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
@@ -2977,78 +2987,91 @@ def satellite_comparisons(dataset,phase,path):
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
             # K
-            axis[i].plot(vtime,virtual['Kx'],label='simKx')
-            axis[i].plot(otime,obs['Kx'],label='obsKx')
-            rax = axis[i].twinx()
-            rax.plot(vtime,virtual['Status'],label='simStatus',
-                     c='black',ls='--')
+            axis[i].plot(vtime,np.sqrt(virtual['Kx']**2+
+                                       virtual['Ky']**2+
+                                       virtual['Kz']**2)
+                                       ,label='simK')
+            axis[i].plot(otime,np.sqrt(obs['Kx']**2+
+                                       obs['Ky']**2+
+                                       obs['Kz']**2)
+                                       ,label='obsK')
             # H
-            haxis[i].plot(vtime,virtual['Hx'],label='simHx')
-            haxis[i].plot(otime,obs['Hx'],label='obsHx')
-            rax = haxis[i].twinx()
-            rax.plot(vtime,virtual['Status'],label='simStatus',
-                     c='black',ls='--')
+            haxis[i].plot(vtime,np.sqrt(virtual['Hx']**2+
+                                        virtual['Hy']**2+
+                                        virtual['Hz']**2)
+                                       ,label='simHx')
+            haxis[i].plot(otime,np.sqrt(obs['Hx']**2+
+                                        obs['Hy']**2+
+                                        obs['Hz']**2)
+                                       ,label='obsHx')
             # S
-            saxis[i].plot(vtime,virtual['Sx'],label='simSx')
-            saxis[i].plot(otime,obs['Sx'],label='obsSx')
-            rax = saxis[i].twinx()
-            rax.plot(vtime,virtual['Status'],label='simStatus',
-                     c='black',ls='--')
+            saxis[i].plot(vtime,np.sqrt(virtual['Sx']**2+
+                                        virtual['Sy']**2+
+                                        virtual['Sz']**2)
+                                       ,label='simSx')
+            saxis[i].plot(otime,np.sqrt(obs['Sx']**2+
+                                        obs['Sy']**2+
+                                        obs['Sz']**2)
+                                       ,label='obsSx')
             #Decorations
             # K
             general_plot_settings(axis[i],legend=True,
                                   do_xlabel=(i==len(satlist)-1),
-                                  ylabel=sat+r' $K_x\left[ KW/Re^2\right]$',
-                                  ylim=[-1.2e11,0.2e11],
+                                  ylabel=sat+r' $|K|\left[ KW/Re^2\right]$',
+                                  ylim=[0,1e11],
                                   timedelta=dotimedelta)
-            axis[i].axvline((moments['impact']-
-                          moments['peak2']).total_seconds()*1e9,
-                         ls='--',color='black')
-            axis[i].axvline(0,ls='--',color='black')
             # H
             general_plot_settings(haxis[i],legend=True,
                                   do_xlabel=(i==len(satlist)-1),
-                                  ylabel=sat+r' $K_x\left[ KW/Re^2\right]$',
-                                  ylim=[-1.2e11,0.2e11],
+                                  ylabel=sat+r' $|H|\left[ KW/Re^2\right]$',
+                                  ylim=[0,1e11],
                                   timedelta=dotimedelta)
-            haxis[i].axvline((moments['impact']-
-                          moments['peak2']).total_seconds()*1e9,
-                         ls='--',color='black')
-            haxis[i].axvline(0,ls='--',color='black')
             # S
             general_plot_settings(saxis[i],legend=True,
                                   do_xlabel=(i==len(satlist)-1),
-                                  ylabel=sat+r' $K_x\left[ KW/Re^2\right]$',
-                                  ylim=[-1.2e11,0.2e11],
+                                  ylabel=sat+r' $|S|\left[ KW/Re^2\right]$',
+                                  ylim=[0,1e11],
                                   timedelta=dotimedelta)
-            saxis[i].axvline((moments['impact']-
-                          moments['peak2']).total_seconds()*1e9,
-                         ls='--',color='black')
-            saxis[i].axvline(0,ls='--',color='black')
+            for ax in [axis[i],haxis[i],saxis[i]]:
+                ax.axvline((moments['impact']-
+                               moments['peak2']).total_seconds()*1e9,
+                               ls='--',color='black')
+                ax.axvline(0,ls='--',color='black')
+                ax.fill_between(vtime,1e11,color='red',alpha=0.2,
+                                 where=((virtual['Status']<3)&
+                                        (virtual['Status']>2)).values)
+                ax.fill_between(vtime,1e11,color='blue',alpha=0.2,
+                                 where=((virtual['Status']<2)&
+                                        (virtual['Status']>1)).values)
+                ax.fill_between(vtime,1e11,color='cyan',alpha=0.2,
+                                 where=((virtual['Status']<1)&
+                                        (virtual['Status']>0)).values)
+                ax.fill_between(vtime,1e11,color='grey',alpha=0.2,
+                                 where=((virtual['Status']<0)).values)
         #save
         # K
-        kx_detail.suptitle('t0='+str(moments['peak1']),
+        k_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
-        kx_detail.tight_layout()
-        figurename = path+'/kx_detail'+phase+'_'+event+'.png'
-        kx_detail.savefig(figurename)
-        plt.close(kx_detail)
+        k_detail.tight_layout()
+        figurename = path+'/k_detail'+phase+'_'+event+'.png'
+        k_detail.savefig(figurename)
+        plt.close(k_detail)
         print('\033[92m Created\033[00m',figurename)
         # H
-        hx_detail.suptitle('t0='+str(moments['peak1']),
+        h_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
-        hx_detail.tight_layout()
-        figurename = path+'/hx_detail'+phase+'_'+event+'.png'
-        hx_detail.savefig(figurename)
-        plt.close(hx_detail)
+        h_detail.tight_layout()
+        figurename = path+'/h_detail'+phase+'_'+event+'.png'
+        h_detail.savefig(figurename)
+        plt.close(h_detail)
         print('\033[92m Created\033[00m',figurename)
         # S
-        sx_detail.suptitle('t0='+str(moments['peak1']),
+        s_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
-        sx_detail.tight_layout()
-        figurename = path+'/sx_detail'+phase+'_'+event+'.png'
-        sx_detail.savefig(figurename)
-        plt.close(sx_detail)
+        s_detail.tight_layout()
+        figurename = path+'/s_detail'+phase+'_'+event+'.png'
+        s_detail.savefig(figurename)
+        plt.close(s_detail)
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure
@@ -3125,6 +3148,171 @@ def satellite_comparisons(dataset,phase,path):
         plt.close(ky_detail)
         print('\033[92m Created\033[00m',figurename)
         #############
+
+def time_integrated(dataset,phase,path):
+    """Function creates a table of flux values integrated over a phase
+    Inputs
+        dataset
+        path
+        kwargs:
+    Returns
+        None
+    """
+    # Set the variables
+    for i,event in enumerate(dataset.keys()):
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        closed = dataset[event]['msdict'+phase]['closed']
+        mp = dataset[event]['mp'+phase]
+        ## TOTAL
+        #K1,5 from mp
+        Ks1 = mp['K_netK1 [W]']
+        Ks5 = mp['K_netK5 [W]']
+        #K2,3,4 from lobes
+        Ks2al = lobes['K_netK2a [W]']
+        Ks2bl = lobes['K_netK2b [W]']
+        Ks3 = lobes['K_netK3 [W]']
+        Ks4 = lobes['K_netK4 [W]']
+        #K2,6,7 from closed
+        Ks2ac = closed['K_netK2a [W]']
+        Ks2bc = closed['K_netK2b [W]']
+        Ks6 = closed['K_netK6 [W]']
+        Ks7 = closed['K_netK7 [W]']
+
+        ## HYDRO
+        #H1,5 from mp
+        Hs1 = mp['P0_netK1 [W]']
+        Hs5 = mp['P0_netK5 [W]']
+        #H2,3,4 from lobes
+        Hs2al = lobes['P0_netK2a [W]']
+        Hs2bl = lobes['P0_netK2b [W]']
+        Hs3 = lobes['P0_netK3 [W]']
+        Hs4 = lobes['P0_netK4 [W]']
+        #H2,6,7 from closed
+        Hs2ac = closed['P0_netK2a [W]']
+        Hs2bc = closed['P0_netK2b [W]']
+        Hs6 = closed['P0_netK6 [W]']
+        Hs7 = closed['P0_netK7 [W]']
+
+        ## MAG
+        #S1,5 from mp
+        Ss1 = mp['ExB_netK1 [W]']
+        Ss5 = mp['ExB_netK5 [W]']
+        #S2,3,4 from lobes
+        Ss2al = lobes['ExB_netK2a [W]']
+        Ss2bl = lobes['ExB_netK2b [W]']
+        Ss3 = lobes['ExB_netK3 [W]']
+        Ss4 = lobes['ExB_netK4 [W]']
+        #S2,6,7 from closed
+        Ss2ac = closed['ExB_netK2a [W]']
+        Ss2bc = closed['ExB_netK2b [W]']
+        Ss6 = closed['ExB_netK6 [W]']
+        Ss7 = closed['ExB_netK7 [W]']
+
+        ## TOTAL
+        #M1,5,total from mp
+        M1 = mp['UtotM1 [W]']
+        M5 = mp['UtotM5 [W]']
+        M = mp['UtotM [W]']
+        #M1a,1b,2b,il from lobes
+        M1a = lobes['UtotM1a [W]']
+        M1b = lobes['UtotM1b [W]']
+        M2b = lobes['UtotM2b [W]']
+        M2d = lobes['UtotM2d [W]']
+        Mil = lobes['UtotMil [W]']
+        #M5a,5b,2a,ic from closed
+        M5a = closed['UtotM5a [W]']
+        M5b = closed['UtotM5b [W]']
+        M2a = closed['UtotM2a [W]']
+        M2c = closed['UtotM2c [W]']
+        Mic = closed['UtotMic [W]']
+
+        M_lobes = M1a+M1b-M2a+M2b-M2c+M2d
+        M_closed = M5a+M5b+M2a-M2b+M2c-M2d
+
+        ## HYDRO
+        #HM1,5,total from mp
+        HM1 = mp['uHydroM1 [W]']
+        HM5 = mp['uHydroM5 [W]']
+        HM = mp['uHydroM [W]']
+        #HM1a,1b,2b,il from lobes
+        HM1a = lobes['uHydroM1a [W]']
+        HM1b = lobes['uHydroM1b [W]']
+        HM2b = lobes['uHydroM2b [W]']
+        HM2d = lobes['uHydroM2d [W]']
+        HMil = lobes['uHydroMil [W]']
+        #HM5a,5b,2a,ic from closed
+        HM5a = closed['uHydroM5a [W]']
+        HM5b = closed['uHydroM5b [W]']
+        HM2a = closed['uHydroM2a [W]']
+        HM2c = closed['uHydroM2c [W]']
+        HMic = closed['uHydroMic [W]']
+
+        HM_lobes = HM1a+HM1b-HM2a+HM2b-HM2c+HM2d
+        HM_closed = HM5a+HM5b+HM2a-HM2b+HM2c-HM2d
+
+        ## MAG
+        #SM1,5,total from mp
+        SM1 = mp['uBM1 [W]']
+        SM5 = mp['uBM5 [W]']
+        SM = mp['uBM [W]']
+        #HM1a,1b,2b,il from lobes
+        SM1a = lobes['uBM1a [W]']
+        SM1b = lobes['uBM1b [W]']
+        SM2b = lobes['uBM2b [W]']
+        SM2d = lobes['uBM2d [W]']
+        SMil = lobes['uBMil [W]']
+        #SM5a,5b,2a,ic from closed
+        SM5a = closed['uBM5a [W]']
+        SM5b = closed['uBM5b [W]']
+        SM2a = closed['uBM2a [W]']
+        SM2c = closed['uBM2c [W]']
+        SMic = closed['uBMic [W]']
+
+        SM_lobes = SM1a+SM1b-SM2a+SM2b-SM2c+SM2d
+        SM_closed = SM5a+SM5b+SM2a-SM2b+SM2c-SM2d
+
+        # Central difference of partial volume integrals, total change
+        # Total
+        K_closed = -1*central_diff(closed['Utot [J]'],60)
+        K_lobes = -1*central_diff(lobes['Utot [J]'],60)
+        K_mp = -1*central_diff(mp['Utot [J]'],60)
+        # Hydro
+        H_closed = -1*central_diff(closed['uHydro [J]'],60)
+        H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
+        H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        # Mag
+        S_closed = -1*central_diff(closed['uB [J]'],60)
+        S_lobes = -1*central_diff(lobes['uB [J]'],60)
+        S_mp = -1*central_diff(mp['uB [J]'],60)
+
+        # Load into a dictionary
+        flux_dict = {
+                     '1':[Hs1+HM1,Ss1+SM1,Ks1+M1],
+                     '2a (closed)':[Hs2ac+HM2a,Ss2ac+SM2a,Ks2ac+M2a],
+                     '2b (closed)':[Hs2bc-HM2b,Ss2bc-SM2b,Ks2bc-M2b],
+                     '3':[Hs3,Ss3,Ks3],
+                     '4':[Hs4,Ss4,Ks4],
+                     '5':[Hs5+HM5,Ss5+SM5,Ks5+M5],
+                     '6':[Hs6,Ss6,Ks6],
+                     '7':[Hs7,Ss7,Ks7]}
+        # Print to screen
+        print('\n{:<15}{:<20}{:<20}{:<20}'.format('ID','|H|',
+                                                     '|S|',
+                                                     '|K|'))
+        print('{:<15}{:<20}{:<20}{:<20}'.format('*******','*******',
+                                                '*******','*******'))
+        for num,[hydro,poynting,total] in flux_dict.items():
+            Hdt = integrate.trapezoid(hydro.fillna(method='ffill').values,
+                                      dx=60)
+            Sdt = integrate.trapezoid(poynting.fillna(method='ffill').values,
+                                      dx=60)
+            Kdt = integrate.trapezoid(total.fillna(method='ffill').values,
+                                      dx=60)
+            print('{:<15}{:<+20.2f}{:<+20.2f}{:<+20.2f}'.format(num,
+                                                  Hdt/1e15,Sdt/1e15,Kdt/1e15))
+        print('{:<15}{:<20}{:<20}{:<20}'.format('*******','*******',
+                                                  '*******','*******'))
+    pass
 
 def diagram_summary(dataset,phase,path):
     """Function plots a summary plot for each timestamp which can be
@@ -3370,11 +3558,12 @@ def main_rec_figures(dataset):
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings(dataset, phase, path)
-        satellite_comparisons(dataset, phase, path)
+        #satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
     #diagram_summary(dataset,'',unfiled)
+    time_integrated(dataset,'_main',unfiled)
 
 def interval_figures(dataset):
     #hatches = ['','*','x','o']
