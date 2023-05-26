@@ -1596,6 +1596,192 @@ def power_correlations2(dataset, phase, path,optimize_tshift=False):
         print('\033[92m Created\033[00m',figurename)
 
 
+def quantify_timings2(dataset, phase, path,**kwargs):
+    """Function plots timing measurements between two quantities
+    Inputs
+    Returns
+        None
+    """
+    for i,event in enumerate(dataset.keys()):
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        closed = dataset[event]['msdict'+phase]['closed']
+        if phase=='':
+            mp = dataset[event]['mpdict']['ms_full']
+        else:
+            mp = dataset[event]['mp'+phase]
+        #times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        #moments = locate_phase(dataset[event]['time'])
+        # for solar wind
+        sw = dataset[event]['obs']['swmf_sw'+phase]
+        #swtime = dataset[event]['swmf_sw_otime'+phase]
+        #swt = [float(n) for n in swtime.to_numpy()]#bad hack
+        #sim = dataset[event]['obs']['swmf_log'+phase]
+        #simtime = dataset[event]['swmf_log_otime'+phase]
+        #simt = [float(n) for n in simtime.to_numpy()]#bad hack
+        #index = dataset[event]['obs']['swmf_index'+phase]
+        #indextime = dataset[event]['swmf_index_otime'+phase]
+        #indext = [float(n) for n in indextime.to_numpy()]#bad hack
+        #obs = dataset[event]['obs']['omni'+phase]
+        #obstime = dataset[event]['omni_otime'+phase]
+        #ot = [float(n) for n in obstime.to_numpy()]#bad hack
+
+        ## TOTAL
+        #K1,5 from mp
+        Ks1 = mp['K_netK1 [W]']
+        Ks5 = mp['K_netK5 [W]']
+        #K2,3,4 from lobes
+        Ks2al = lobes['K_netK2a [W]']
+        Ks2bl = lobes['K_netK2b [W]']
+        Ks3 = lobes['K_netK3 [W]']
+        Ks4 = lobes['K_netK4 [W]']
+        #K2,6,7 from closed
+        Ks2ac = closed['K_netK2a [W]']
+        Ks2bc = closed['K_netK2b [W]']
+        Ks6 = closed['K_netK6 [W]']
+        Ks7 = closed['K_netK7 [W]']
+
+        ## HYDRO
+        #H1,5 from mp
+        Hs1 = mp['P0_netK1 [W]']
+        Hs5 = mp['P0_netK5 [W]']
+        #H2,3,4 from lobes
+        Hs2al = lobes['P0_netK2a [W]']
+        Hs2bl = lobes['P0_netK2b [W]']
+        Hs3 = lobes['P0_netK3 [W]']
+        Hs4 = lobes['P0_netK4 [W]']
+        #H2,6,7 from closed
+        Hs2ac = closed['P0_netK2a [W]']
+        Hs2bc = closed['P0_netK2b [W]']
+        Hs6 = closed['P0_netK6 [W]']
+        Hs7 = closed['P0_netK7 [W]']
+
+        ## MAG
+        #S1,5 from mp
+        Ss1 = mp['ExB_netK1 [W]']
+        Ss5 = mp['ExB_netK5 [W]']
+        #S2,3,4 from lobes
+        Ss2al = lobes['ExB_netK2a [W]']
+        Ss2bl = lobes['ExB_netK2b [W]']
+        Ss3 = lobes['ExB_netK3 [W]']
+        Ss4 = lobes['ExB_netK4 [W]']
+        #S2,6,7 from closed
+        Ss2ac = closed['ExB_netK2a [W]']
+        Ss2bc = closed['ExB_netK2b [W]']
+        Ss6 = closed['ExB_netK6 [W]']
+        Ss7 = closed['ExB_netK7 [W]']
+
+        ## TOTAL
+        #M1,5,total from mp
+        M1 = mp['UtotM1 [W]']
+        M5 = mp['UtotM5 [W]']
+        M = mp['UtotM [W]']
+        #M1a,1b,2b,il from lobes
+        M1a = lobes['UtotM1a [W]']
+        M1b = lobes['UtotM1b [W]']
+        M2b = lobes['UtotM2b [W]']
+        M2d = lobes['UtotM2d [W]']
+        Mil = lobes['UtotMil [W]']
+        #M5a,5b,2a,ic from closed
+        M5a = closed['UtotM5a [W]']
+        M5b = closed['UtotM5b [W]']
+        M2a = closed['UtotM2a [W]']
+        M2c = closed['UtotM2c [W]']
+        Mic = closed['UtotMic [W]']
+
+        M_lobes = M1a+M1b-M2a+M2b-M2c+M2d
+        M_closed = M5a+M5b+M2a-M2b+M2c-M2d
+
+        ## HYDRO
+        #HM1,5,total from mp
+        HM1 = mp['uHydroM1 [W]']
+        HM5 = mp['uHydroM5 [W]']
+        HM = mp['uHydroM [W]']
+        #HM1a,1b,2b,il from lobes
+        HM1a = lobes['uHydroM1a [W]']
+        HM1b = lobes['uHydroM1b [W]']
+        HM2b = lobes['uHydroM2b [W]']
+        HM2d = lobes['uHydroM2d [W]']
+        HMil = lobes['uHydroMil [W]']
+        #HM5a,5b,2a,ic from closed
+        HM5a = closed['uHydroM5a [W]']
+        HM5b = closed['uHydroM5b [W]']
+        HM2a = closed['uHydroM2a [W]']
+        HM2c = closed['uHydroM2c [W]']
+        HMic = closed['uHydroMic [W]']
+
+        HM_lobes = HM1a+HM1b-HM2a+HM2b-HM2c+HM2d
+        HM_closed = HM5a+HM5b+HM2a-HM2b+HM2c-HM2d
+
+        ## MAG
+        #SM1,5,total from mp
+        SM1 = mp['uBM1 [W]']
+        SM5 = mp['uBM5 [W]']
+        SM = mp['uBM [W]']
+        #HM1a,1b,2b,il from lobes
+        SM1a = lobes['uBM1a [W]']
+        SM1b = lobes['uBM1b [W]']
+        SM2b = lobes['uBM2b [W]']
+        SM2d = lobes['uBM2d [W]']
+        SMil = lobes['uBMil [W]']
+        #SM5a,5b,2a,ic from closed
+        SM5a = closed['uBM5a [W]']
+        SM5b = closed['uBM5b [W]']
+        SM2a = closed['uBM2a [W]']
+        SM2c = closed['uBM2c [W]']
+        SMic = closed['uBMic [W]']
+
+        SM_lobes = SM1a+SM1b-SM2a+SM2b-SM2c+SM2d
+        SM_closed = SM5a+SM5b+SM2a-SM2b+SM2c-SM2d
+
+        # Central difference of partial volume integrals, total change
+        # Total
+        K_closed = -1*central_diff(closed['Utot [J]'],60)
+        K_lobes = -1*central_diff(lobes['Utot [J]'],60)
+        K_mp = -1*central_diff(mp['Utot [J]'],60)
+        # Hydro
+        H_closed = -1*central_diff(closed['uHydro [J]'],60)
+        H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
+        H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        # Mag
+        S_closed = -1*central_diff(closed['uB [J]'],60)
+        S_lobes = -1*central_diff(lobes['uB [J]'],60)
+        S_mp = -1*central_diff(mp['uB [J]'],60)
+
+        r_values = pd.DataFrame()
+        from IPython import embed; embed()
+        time_shifts, r_values['Newell-S2a']=pearson_r_shifts(
+                sw['Newell'].rolling(10).mean(),(Ss2al-SM2a).rolling(10).mean())
+        time_shifts, r_values['Newell-S2b']=pearson_r_shifts(sw['Newell'],Ss2bl+SM2b)
+        time_shifts, r_values['Newell-H5']=pearson_r_shifts(sw['Newell'],Hs5+HM5)
+        time_shifts, r_values['Newell-S1']=pearson_r_shifts(sw['Newell'],Ss1+SM1)
+
+        #############
+        #setup figure
+        flux_timings,(axis1,axis2) = plt.subplots(2,1,figsize=[16,12])
+        #Plot
+        axis1.plot(time_shifts/60,r_values['Newell-S2a'],label='Newell-S2a')
+        axis1.plot(time_shifts/60,r_values['Newell-S2b'],label='Newell-S2b')
+        axis1.plot(time_shifts/60,r_values['Newell-H5'],label='Newell-H5')
+        axis1.plot(time_shifts/60,r_values['Newell-S1'],label='Newell-S1')
+        #Decorations
+        axis1.legend()
+        axis1.xaxis.set_minor_locator(AutoMinorLocator(5))
+        axis1.set_ylabel(r'Pearson R')
+        axis1.grid()
+        axis2.legend()
+        axis2.xaxis.set_minor_locator(AutoMinorLocator(5))
+        axis2.set_ylabel(r'Pearson R')
+        axis2.grid()
+        axis2.set_xlabel(r'Timeshift $\left[min\right]$')
+        #save
+        #flux_timings.tight_layout(pad=1)
+        figurename = path+'/flux_timings'+phase+'_'+event+'.png'
+        flux_timings.savefig(figurename)
+        plt.close(flux_timings)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+
+
 def quantify_timings(dataset, phase, path,**kwargs):
     """Function plots timing measurements between two quantities
     Inputs
@@ -2999,20 +3185,20 @@ def satellite_comparisons(dataset,phase,path):
             haxis[i].plot(vtime,np.sqrt(virtual['Hx']**2+
                                         virtual['Hy']**2+
                                         virtual['Hz']**2)
-                                       ,label='simHx')
+                                       ,label='simH')
             haxis[i].plot(otime,np.sqrt(obs['Hx']**2+
                                         obs['Hy']**2+
                                         obs['Hz']**2)
-                                       ,label='obsHx')
+                                       ,label='obsH')
             # S
             saxis[i].plot(vtime,np.sqrt(virtual['Sx']**2+
                                         virtual['Sy']**2+
                                         virtual['Sz']**2)
-                                       ,label='simSx')
+                                       ,label='simS')
             saxis[i].plot(otime,np.sqrt(obs['Sx']**2+
                                         obs['Sy']**2+
                                         obs['Sz']**2)
-                                       ,label='obsSx')
+                                       ,label='obsS')
             #Decorations
             # K
             general_plot_settings(axis[i],legend=True,
@@ -3038,8 +3224,7 @@ def satellite_comparisons(dataset,phase,path):
                                ls='--',color='black')
                 ax.axvline(0,ls='--',color='black')
                 ax.fill_between(vtime,1e11,color='red',alpha=0.2,
-                                 where=((virtual['Status']<3)&
-                                        (virtual['Status']>2)).values)
+                                 where=((virtual['Status']>2)).values)
                 ax.fill_between(vtime,1e11,color='blue',alpha=0.2,
                                  where=((virtual['Status']<2)&
                                         (virtual['Status']>1)).values)
@@ -3543,8 +3728,8 @@ def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
     hatches = ['','','','']
-    #for phase,path in [('_main',outMN1),('_rec',outRec)]:
-    for phase,path in [('_lineup',outLine)]:
+    for phase,path in [('_main',outMN1),('_rec',outRec)]:
+    #for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
         #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
@@ -3557,13 +3742,13 @@ def main_rec_figures(dataset):
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
-        #quantify_timings(dataset, phase, path)
+        quantify_timings2(dataset, phase, path)
         #satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
     #diagram_summary(dataset,'',unfiled)
-    time_integrated(dataset,'_main',unfiled)
+    #time_integrated(dataset,'_main',unfiled)
 
 def interval_figures(dataset):
     #hatches = ['','*','x','o']
