@@ -42,17 +42,18 @@ if True:
     #path = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
     #outpath='/nfs/solsticedisk/tuija/amr_fte/thirdrun/'
 
-    #path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    #outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
+    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
+    outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
 
-    path='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
-    outpath='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
+    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
+    #outpath='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
     herepath='/Users/ngpdl/Code/swmf-energetics/'
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     #or ('02200' in f)]
+    filelist = [f for f in filelist if ('03-070300' in f)]
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)

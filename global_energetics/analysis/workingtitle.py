@@ -3728,8 +3728,8 @@ def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
     hatches = ['','','','']
-    for phase,path in [('_main',outMN1),('_rec',outRec)]:
-    #for phase,path in [('_lineup',outLine)]:
+    #for phase,path in [('_main',outMN1),('_rec',outRec)]:
+    for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
         #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
@@ -3738,11 +3738,11 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
-        quantify_timings2(dataset, phase, path)
+        #quantify_timings2(dataset, phase, path)
         #satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event

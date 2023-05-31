@@ -11,11 +11,10 @@ import datetime as dt
 from paraview.simple import *
 #import global_energetics.extract.pv_magnetopause
 import pv_magnetopause
-from pv_magnetopause import (get_time, time_sort, read_aux, setup_pipeline,
-                             display_visuals,update_rotation,read_tecplot,
-                             get_dipole_field,tec2para,update_fluxVolume,
-                             update_fluxResults,export_datacube,
-                             update_datacube, fix_names,get_surface_flux)
+from pv_input_tools import (get_time, time_sort, read_aux, read_tecplot)
+from pv_magnetopause import (setup_pipeline,display_visuals,update_rotation,
+                             update_fluxVolume,update_fluxResults)
+import pv_surface_tools
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 
@@ -45,10 +44,11 @@ if True:
     path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
     outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
-                      key=pv_magnetopause.time_sort)
+                      key=time_sort)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    filelist = [f for f in filelist if ('020500' in f)]
+    #filelist = [f for f in filelist if ('020500' in f)]
+    filelist = [f for f in filelist if ('03-070300' in f)]
     #or ('02200' in f)]
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))

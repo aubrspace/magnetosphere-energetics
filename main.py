@@ -62,6 +62,7 @@ if __name__ == "__main__":
                 'febstorm/3d__var_1_e20140218-060400-033.plt')
     feb_asym = ('febstorm/3d__var_1_e20140219-130000-000.plt',
                 'febstorm/3d__var_1_e20140219-130100-010.plt')
+    febtest = ('febstorm/3d__var_1_e20140218-230000-000.plt')
     trackim = ('localdbug/trackim/3d__var_1_e20140219-020000-000.plt',
                'localdbug/trackim/3d__var_1_e20140219-020100-000.plt')
     paleo=('/home/aubr/Code/paleo/3d__var_4_e20100320-030000-000_40125_kya.plt')
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
     #if False:
-    for inputs in [starlink2]:
+    for inputs in [febtest]:
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
         tp.new_layout()
         mhddatafile = inputs[0]
@@ -115,18 +116,19 @@ if __name__ == "__main__":
                                     verbose=True,
                                     debug=True,
                                     do_cms=True,
-                                    analysis_type='energy',
+                                    analysis_type='energy_reconnect_ffj',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
-                                    do_interfacing=True,
-                                    integrate_surface=True,
-                                    integrate_volume=True,
+                                    do_interfacing=False,
+                                    integrate_surface=False,
+                                    integrate_volume=False,
                                     integrate_line=False,
-                                    truegridfile=oggridfile,
+                                    #truegridfile=oggridfile,
                                     outputpath='babyrun/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
-                                    customTerms={'test':'TestArea [Re^2]'})
+                                    #customTerms={'test':'TestArea [Re^2]'}
+                                    )
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=True,
