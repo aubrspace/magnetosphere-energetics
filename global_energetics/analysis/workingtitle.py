@@ -614,8 +614,8 @@ def parse_phase(indata,phasekey,**kwargs):
         #cond=(times>moments['inter_start'])&(times<moments['inter_end'])
         #cond = (times>moments['impact']) & (times<moments['peak1'])
                                             #dt.timedelta(minutes=10))
-        cond = ((times>moments['peak1']-dt.timedelta(minutes=60)) &
-                (times<moments['peak1']+dt.timedelta(minutes=20)))
+        cond = ((times>moments['peak1']-dt.timedelta(minutes=180)) &
+                (times<moments['peak1']-dt.timedelta(minutes=0)))
     elif 'lineup' in phasekey:
         cond = times>times[0]+moments['start']
 
@@ -1747,22 +1747,42 @@ def quantify_timings2(dataset, phase, path,**kwargs):
         S_lobes = -1*central_diff(lobes['uB [J]'],60)
         S_mp = -1*central_diff(mp['uB [J]'],60)
 
-        r_values = pd.DataFrame()
-        from IPython import embed; embed()
+        r_values1 = pd.DataFrame()
+        r_values2 = pd.DataFrame()
+        #from IPython import embed; embed()
+        time_shifts, r_values1['clock-S2a']=pearson_r_shifts(
+                                   sw[sw['clock']>0]['clock'],(Ss2al-SM2a))
+        time_shifts, r_values1['clock-S2b']=pearson_r_shifts(
+                                   sw[sw['clock']>0]['clock'],Ss2bl+SM2b)
+        time_shifts, r_values1['clock-H5']=pearson_r_shifts(
+                                   sw[sw['clock']>0]['clock'],Hs5+HM5)
+        time_shifts, r_values1['clock-S1']=pearson_r_shifts(
+                                   sw[sw['clock']>0]['clock'],Ss1+SM1)
+
+        time_shifts, r_values2['Bz-S2a']=pearson_r_shifts(
+                                            sw[sw['bz']<0]['bz'],(Ss2al-SM2a))
+        time_shifts, r_values2['Bz-S2b']=pearson_r_shifts(
+                                            sw[sw['bz']<0]['bz'],Ss2bl+SM2b)
+        time_shifts, r_values2['Bz-H5']=pearson_r_shifts(
+                                            sw[sw['bz']<0]['bz'],Hs5+HM5)
+        time_shifts, r_values2['Bz-S1']=pearson_r_shifts(
+                                            sw[sw['bz']<0]['bz'],Ss1+SM1)
+        '''
         time_shifts, r_values['Newell-S2a']=pearson_r_shifts(
                 sw['Newell'].rolling(10).mean(),(Ss2al-SM2a).rolling(10).mean())
         time_shifts, r_values['Newell-S2b']=pearson_r_shifts(sw['Newell'],Ss2bl+SM2b)
         time_shifts, r_values['Newell-H5']=pearson_r_shifts(sw['Newell'],Hs5+HM5)
         time_shifts, r_values['Newell-S1']=pearson_r_shifts(sw['Newell'],Ss1+SM1)
+        '''
 
         #############
         #setup figure
         flux_timings,(axis1,axis2) = plt.subplots(2,1,figsize=[16,12])
         #Plot
-        axis1.plot(time_shifts/60,r_values['Newell-S2a'],label='Newell-S2a')
-        axis1.plot(time_shifts/60,r_values['Newell-S2b'],label='Newell-S2b')
-        axis1.plot(time_shifts/60,r_values['Newell-H5'],label='Newell-H5')
-        axis1.plot(time_shifts/60,r_values['Newell-S1'],label='Newell-S1')
+        for key in r_values1.keys():
+            axis1.plot(time_shifts/60,r_values1[key],label=key)
+        for key in r_values2.keys():
+            axis2.plot(time_shifts/60,r_values2[key],label=key)
         #Decorations
         axis1.legend()
         axis1.xaxis.set_minor_locator(AutoMinorLocator(5))
@@ -2936,7 +2956,7 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         #rax.tick_params(axis='y',colors='tab:blue')
         general_plot_settings(ax[1],ylabel=r'$P_{dyn},\beta$',
                               legend=True,do_xlabel=False,
-                              timedelta=dotimedelta)
+                              ylim=[0,14],timedelta=dotimedelta)
         #Dst index
         ax[2].plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
         ax[2].plot(ot,obs['sym_h'],label='Obs',c='maroon')
@@ -3738,7 +3758,7 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -3763,7 +3783,8 @@ def interval_figures(dataset):
         #static_motional_fig(dataset,phase,path)
         #imf_figure(dataset,phase,path,hatches)
         #quantity_timings(dataset, phase, path)
-        lobe_balance_fig(dataset,phase,path)
+        quantify_timings2(dataset, phase, path)
+        #lobe_balance_fig(dataset,phase,path)
         #diagram_summary(dataset,phase,unfiled)
         #lobe_power_histograms(dataset, phase, path)
 
@@ -3814,7 +3835,7 @@ if __name__ == "__main__":
     #                                     read_supermag=False)
 
     ## Satellite Data
-    dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
+    #dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
     #NOTE hotfix change FD to CD for motional terms
     #       all calculations are performed as (n_1-n_0)/dt,
@@ -3906,17 +3927,19 @@ if __name__ == "__main__":
     for event_key in dataset.keys():
         event = dataset[event_key]
         obs_srcs = list(event['obs'].keys())
-        satlist = list([sat for sat in event['obssat'].keys()
-                        if not event['obssat'][sat].empty])
+        #satlist = list([sat for sat in event['obssat'].keys()
+        #                if not event['obssat'][sat].empty])
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             for src in obs_srcs:
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
                                 parse_phase(event['obs'][src],phase))
+            '''
             for sat in satlist:
                 event['vsat'][sat+phase],event[sat+'_vtime'+phase] = (
                                         parse_phase(event['vsat'][sat],phase))
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
+            '''
         '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
@@ -3924,10 +3947,10 @@ if __name__ == "__main__":
         '''
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(dataset)
+    #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    #interval_figures(dataset)
+    interval_figures(dataset)
     ######################################################################
     #TODO
     ph = '_lineup'
