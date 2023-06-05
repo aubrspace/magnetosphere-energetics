@@ -2857,7 +2857,7 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
     else: dotimedelta=False
     for i,event in enumerate(ds.keys()):
         dst, ax = plt.subplots(4,1,sharey=False,sharex=False,
-                               figsize=[18,4*6])
+                               figsize=[24,4*6])
         #filltime = [float(n) for n in ds[event]['time'+ph].to_numpy()]
         filltime = [float(n) for n in
                     ds[event]['obs']['swmf_sw'+ph].index.to_numpy()]
@@ -3757,7 +3757,7 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
+        solarwind_figure(dataset,phase,path,hatches,tabulate=True)
         #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
@@ -3947,10 +3947,10 @@ if __name__ == "__main__":
         '''
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(dataset)
+    main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    interval_figures(dataset)
+    #interval_figures(dataset)
     ######################################################################
     #TODO
     ph = '_lineup'
