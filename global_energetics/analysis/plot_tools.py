@@ -5,6 +5,7 @@ import numpy as np
 import datetime as dt
 import scipy
 from scipy import signal
+from matplotlib import ticker
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator,
@@ -118,6 +119,8 @@ def general_plot_settings(ax, **kwargs):
         if kwargs.get('do_xlabel',True):
             ax.set_xlabel(
                  kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))
+        if not kwargs.get('do_xlabel',True):
+            ax.xaxis.set_major_formatter(ticker.NullFormatter())
     else:
         #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
         tmin,tmax = ax.get_xlim()
