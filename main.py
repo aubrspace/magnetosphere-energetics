@@ -95,7 +95,8 @@ if __name__ == "__main__":
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
     #if False:
-    for inputs in [febtest]:
+    #for inputs in [febtest]:
+    for inputs in [starlink4]:
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
         tp.new_layout()
         mhddatafile = inputs[0]
