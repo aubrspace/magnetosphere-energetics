@@ -99,13 +99,19 @@ def general_plot_settings(ax, **kwargs):
                 hrs = x/(1e9*3600)
             hours = int(hrs)
             minutes = (int(abs(hrs*60)%60))
-            return "{:d}:{:02d}".format(hours,minutes)
+            #return "{:d}:{:02d}".format(hours,minutes)
+            return "{:d}".format(hours)
         #Get original limits
         xlims = ax.get_xlim()
         if (xlims[1]-xlims[0])*1e-9/3600 > 4.5:
             #Manually adjust the xticks
+            '''
             n = 3600*4.5/1e-9
             locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
+            '''
+            n = 3600*4/1e-9
+            locs = [i*n for i in range(-10,10)]
+            #locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
         else:
             n = 3600*0.5/1e-9
             locs = [-8*n,-7*n,-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n]
@@ -113,12 +119,14 @@ def general_plot_settings(ax, **kwargs):
         ax.xaxis.set_ticks(locs)
         formatter = FuncFormatter(timedelta_ticks)
         ax.xaxis.set_major_formatter(formatter)
-        ax.xaxis.set_minor_locator(AutoMinorLocator(3))
+        #ax.xaxis.set_minor_locator(AutoMinorLocator(3))
+        ax.xaxis.set_minor_locator(AutoMinorLocator(4))
         #Get original limits
         ax.set_xlim(xlims)
         if kwargs.get('do_xlabel',True):
             ax.set_xlabel(
-                 kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))
+                    #kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))
+                    kwargs.get('xlabel',r'Time $\left[ hr\right]$'))
         if not kwargs.get('do_xlabel',True):
             ax.xaxis.set_major_formatter(ticker.NullFormatter())
     else:

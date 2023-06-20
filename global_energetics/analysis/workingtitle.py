@@ -3039,28 +3039,69 @@ def satellite_comparisons(dataset,phase,path):
             obstime = dataset[event][sat+'_otime'+phase]
             otime = [float(t) for t in obstime.to_numpy()]
             # Plot
-            axis[i].plot(vtime,virtual['B_x'],label='simBx',c='maroon')
-            axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta')
-            axis[i].plot(vtime,virtual['B_z'],label='simBz',c='tab:blue')
-            axis[i].plot(otime,obs['bx'],label='obsBx',c='maroon',ls='--')
-            axis[i].plot(otime,obs['by'],label='obsBy',c='magenta',ls='--')
-            axis[i].plot(otime,obs['bz'],label='obsBz',c='tab:blue',ls='--')
+            # S
+            raxis = axis[i].twinx()
+            raxis.plot(otime,np.sqrt(obs['Sx']**2+
+                                        obs['Sy']**2+
+                                        obs['Sz']**2)/1e9,
+                                        label='obs|S| [MW]',c='magenta')
+            raxis.plot(vtime,np.sqrt(virtual['Sx']**2+
+                                        virtual['Sy']**2+
+                                        virtual['Sz']**2)/1e9,
+                                    label='sim|S| [MW]',ls='--',c='magenta')
+            raxis.set_ylim([0,20])
+            raxis.spines['right'].set_color('magenta')
+            raxis.spines['left'].set_color('tab:blue')
+            raxis.tick_params(axis='y',colors='magenta')
+            raxis.yaxis.set_minor_locator(AutoMinorLocator())
+            #axis[i].plot(otime,obs['bx'],label='obsBx',c='maroon')
+            #axis[i].plot(otime,obs['by'],label='obsBy',c='magenta')
+            axis[i].plot(otime,obs['bz'],label='obsBz [nT]',c='tab:blue')
+            #axis[i].plot(vtime,virtual['B_x'],label='simBx',c='maroon',
+            #              ls='--')
+            #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
+            #              ls='--')
+            axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='tab:blue',
+                         ls='--')
+            if i==0:
+                raxis.legend(loc='upper right')
+            if i==4:
+                axis[i].legend(loc='upper right')
+                #axis[i].legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),
+                #          ncol=3, fancybox=True, shadow=True)
+                #raxis.legend(loc='upper right')
             #Decorations
             general_plot_settings(axis[i],
                                   #legend=(i==0),
+                                  #legend_loc='upper right',
                                   legend=False,
                                   do_xlabel=(i==len(satlist)-1),
                                   #ylabel=sat+r' $B\left[ nT\right]$',
                                   ylabel=sat,
-                                  ylim=[-50,50],
+                                  ylim=[-60,100],
                                   timedelta=dotimedelta)
-            axis[i].axvspan((moments['impact']-
-                             moments['peak2']).total_seconds()*1e9,0,
-                                 color='grey',alpha=0.2)
+            axis[i].axvline((moments['impact']-
+                               moments['peak2']).total_seconds()*1e9,
+                               ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+            axis[i].fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
+                                 where=((virtual['Status']>2)).values)
+            axis[i].fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
+                                 where=((virtual['Status']<2)&
+                                        (virtual['Status']>1)).values)
+            axis[i].fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
+                                 where=((virtual['Status']<1)&
+                                        (virtual['Status']>0)).values)
+            axis[i].fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
+                                 where=((virtual['Status']<0)).values)
+            #axis[i].axvspan((moments['impact']-
+            #                 moments['peak2']).total_seconds()*1e9,0,
+            #                     color='grey',alpha=0.2)
+            axis[i].tick_params(axis='y',colors='tab:blue')
         #save
         b_compare_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
-        b_compare_detail.tight_layout(pad=0.04)
+        b_compare_detail.tight_layout(pad=0.1)
         figurename = path+'/b_compare_detail'+phase+'_'+event+'.png'
         b_compare_detail.savefig(figurename)
         plt.close(b_compare_detail)
@@ -3796,12 +3837,12 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -3983,10 +4024,10 @@ if __name__ == "__main__":
         '''
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(dataset)
+    main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    interval_figures(dataset)
+    #interval_figures(dataset)
     ######################################################################
     #TODO
     ph = '_lineup'
