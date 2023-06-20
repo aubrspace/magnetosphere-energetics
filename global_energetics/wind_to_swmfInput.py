@@ -7,7 +7,8 @@ import sys
 #import time
 import datetime as dt
 import numpy as np
-#from numpy import cos, sin, pi, matmul, deg2rad
+from numpy import cos, sin, pi, matmul, deg2rad
+import pandas as pd
 from cdasws import CdasWs
 cdas = CdasWs()
 from sscws.sscws import SscWs
@@ -505,12 +506,11 @@ def collect_mms(start, end, **kwargs):
                                                        tilt_key],
                                                       start,end)
         df[['x','y','z']] = posdata[gsm_key]/6371 # km->Re
-        df[['bx','by','bz','b']] = posdata[bfield_key] # nT
+        #df[['bx','by','bz','b']] = posdata[bfield_key] # nT
         df['status'] = posdata[field_status_key]
         df['tilt'] = posdata[tilt_key]
         df.index = posdata[epoch_key]
         positions['mms'+num] = df
-    '''
     # Flux Gate Magnetometer
     print('Gathering Bfield Data')
     bfield = {}
@@ -524,7 +524,6 @@ def collect_mms(start, end, **kwargs):
         df[['bx','by','bz','b']] = fgmdata[bvec_key]
         df.index=fgmdata[epoch_key]
         bfield['mms'+num] = df
-    '''
     # Dual Ion Spectrometer (distribution moments)
     print('Gathering Plasma Data')
     plasma = {}
@@ -561,14 +560,12 @@ def collect_mms(start, end, **kwargs):
             posfile[key] = positions[key]
         posfile.close()
         print('Created ',ofilename+'_pos.h5 output file')
-        '''
         # B Field
         bfile = pd.HDFStore(ofilename+'_bfield.h5')
         for key in bfield.keys():
             bfile[key] = bfield[key]
         bfile.close()
         print('Created ',ofilename+'_bfield.h5 output file')
-        '''
         # Plasma
         plasmafile = pd.HDFStore(ofilename+'_plasma.h5')
         for key in plasma.keys():
@@ -688,7 +685,7 @@ def collect_orbits(start,end,sourcelist):
     for source in sourcelist:
         pass
     #TODO I have no idea why it won't let me specify what I want out of the "get_locations" method, it won't accept GSM as a coordinate system is local time is requested i guess??
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
     pass
 
 #Main program
@@ -707,7 +704,7 @@ if __name__ == '__main__':
 
     #wind = collect_wind(start, end)
     #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
-    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
+    mms_pos, mms_b,mms_plasma = collect_mms(start, end)
     #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
     #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
 
@@ -718,7 +715,7 @@ if __name__ == '__main__':
                   'geotail',
                   'mms1','mms2','mms3','mms4',
                   'themisa','themisd','themise']
-    collect_orbits(start,end,sourcelist)
+    #collect_orbits(start,end,sourcelist)
     #omni = swmfpy.web.get_omni_data(start,end)
 
     #Additional options
