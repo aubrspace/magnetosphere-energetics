@@ -61,10 +61,16 @@ def mag2cart(lat,lon,btheta,*,r=1):
 
 def datetimeparser(datetimestring):
     #NOTE copy!! should consolidate this
-    try:
-        return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S %f')
-    except TypeError:
-        print('TypeError!')
+    if datetimestring==6:
+        try:
+            return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S %f')
+        except TypeError:
+            print('TypeError!')
+    elif datetimestring==5:
+        try:
+            return dt.datetime.strptime(datetimestring,'%Y %m %d %H %M %S')
+        except TypeError:
+            print('TypeError!')
 
 def datetimeparser2(instring):
     return dt.datetime.strptime(instring,'%Y-%m-%dT%H:%M:%S')
@@ -96,6 +102,9 @@ def read_station_paraview(nowtime,*,n=379,file_in='stations.csv',
     return pipeline, success
 
 def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
+    """This is a PARAVIEW function, string at the end populates a programmable
+        filter
+    """
     station_range = '[0:'+str(n)+']'
     #station_range = '[26:27]'
     #station_range = '[282:283]'
@@ -287,16 +296,37 @@ def read_station_values(data_path,station_df,now):
     return station_df
 #Function that calculates RSD index
 #Function that projects value from XYZ_gsm into domain
+#Function converts Station output to SML indices
+def read_SML(datafile):
+    """Function reads SML .txt file downloaded from the supermag site
+    Inputs
+        datafile (str)
+    Returns
+        data (DataFrame)
+    """
+    # Get the header info from the file #NOTE assuming its the first line!
+    with open(datafile,'r') as f:
+        header = f.readline()
+    header=header.replace('<','').replace('>','').replace('\n','').split('\t')
+    # Read data with pandas
+    data=pd.read_csv(datafile,sep='\s+',header=None,names=header,skiprows=[0])
+    # Parse a datetime entry and set to the DataFrame index
+    data.index = [dt.datetime(*t) for t in
+                        data[['year','month','day','hour','min','sec']].values]
+    return data
+
 
 
 if __name__ == "__main__":
     #Read the first station location
     #file_in = ('/home/aubr/Code/swmf-energetics/febstorm/'+
     #           'magnetometers_e20140218-060000.mag')
-    file_in = ('localdbug/febstorm/magnetometers_e20140218-060000.mag')
-    aux_data_path = 'localdbug/febstorm/station_data/'
-    test_time = get_time('localdbug/febstorm/3d__var_1_e20140218-060400-033.plt')
-    IDs, station_df = get_stations_now(file_in,test_time,tilt=20.9499)
+    file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
+    sml_file = 'localdbug/mod_supermag_starlink.txt'
+    smldata = read_SML(sml_file)
+    #aux_data_path = 'localdbug/febstorm/station_data/'
+    #test_time = get_time('localdbug/febstorm/3d__var_1_e20140218-060400-033.plt')
+    #IDs, station_df = get_stations_now(file_in,test_time,tilt=20.9499)
     #TODO use these to write a testing function
     '''
             r = np.sqrt(x**2+y**2+z**2)
