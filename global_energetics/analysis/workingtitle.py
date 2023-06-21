@@ -3064,13 +3064,10 @@ def satellite_comparisons(dataset,phase,path):
             axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='tab:blue',
                          ls='--')
             if i==0:
-                raxis.legend(loc='upper right')
-            if i==4:
-                axis[i].legend(loc='upper right')
-                #axis[i].legend(loc='upper center', bbox_to_anchor=(0.5, 1.05),
-                #          ncol=3, fancybox=True, shadow=True)
-                #raxis.legend(loc='upper right')
-            #Decorations
+                raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+                axis[i].legend(loc='lower right', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
             general_plot_settings(axis[i],
                                   #legend=(i==0),
                                   #legend_loc='upper right',
@@ -3101,10 +3098,90 @@ def satellite_comparisons(dataset,phase,path):
         #save
         b_compare_detail.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
-        b_compare_detail.tight_layout(pad=0.1)
+        b_compare_detail.tight_layout(pad=0.6)
         figurename = path+'/b_compare_detail'+phase+'_'+event+'.png'
         b_compare_detail.savefig(figurename)
         plt.close(b_compare_detail)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        p_compare_detail,axis = plt.subplots(len(satlist),1,
+                                             figsize=[16,3*len(satlist)])
+        #Plot
+        for i,sat in enumerate(satlist):
+            # Setup quickaccess and time format
+            virtual = dataset[event]['vsat'][sat+phase]
+            virtualtime = dataset[event][sat+'_vtime'+phase]
+            vtime = [float(t) for t in virtualtime.to_numpy()]
+            obs = dataset[event]['obssat'][sat+phase]
+            obstime = dataset[event][sat+'_otime'+phase]
+            otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            # H
+            raxis = axis[i].twinx()
+            raxis.plot(otime,np.sqrt(obs['Hx']**2+
+                                        obs['Hy']**2+
+                                        obs['Hz']**2)/1e9,
+                                        label='obs|H| [MW]',c='magenta')
+            raxis.plot(vtime,np.sqrt(virtual['Hx']**2+
+                                        virtual['Hy']**2+
+                                        virtual['Hz']**2)/1e9,
+                                    label='sim|H| [MW]',ls='--',c='magenta')
+            raxis.set_ylim([0,20])
+            raxis.spines['right'].set_color('magenta')
+            raxis.spines['left'].set_color('tab:blue')
+            raxis.tick_params(axis='y',colors='magenta')
+            raxis.yaxis.set_minor_locator(AutoMinorLocator())
+            #axis[i].plot(otime,obs['bx'],label='obsBx',c='maroon')
+            #axis[i].plot(otime,obs['by'],label='obsBy',c='magenta')
+            axis[i].plot(otime,obs['p']+obs['pdyn'],label='obsP [nPa]',
+                         c='tab:blue')
+            #axis[i].plot(vtime,virtual['B_x'],label='simBx',c='maroon',
+            #              ls='--')
+            #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
+            #              ls='--')
+            axis[i].plot(vtime,virtual['P']+virtual['pdyn'],label='simP [nPa]',
+                         c='tab:blue',ls='--')
+            if i==0:
+                raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+                axis[i].legend(loc='lower right', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+            #Decorations
+            general_plot_settings(axis[i],
+                                  #legend=(i==0),
+                                  #legend_loc='upper right',
+                                  legend=False,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  #ylabel=sat+r' $B\left[ nT\right]$',
+                                  ylabel=sat,
+                                  ylim=[0,5],
+                                  timedelta=dotimedelta)
+            axis[i].axvline((moments['impact']-
+                               moments['peak2']).total_seconds()*1e9,
+                               ls='--',color='black')
+            axis[i].axvline(0,ls='--',color='black')
+            axis[i].fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
+                                 where=((virtual['Status']>2)).values)
+            axis[i].fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
+                                 where=((virtual['Status']<2)&
+                                        (virtual['Status']>1)).values)
+            axis[i].fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
+                                 where=((virtual['Status']<1)&
+                                        (virtual['Status']>0)).values)
+            axis[i].fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
+                                 where=((virtual['Status']<0)).values)
+            #axis[i].axvspan((moments['impact']-
+            #                 moments['peak2']).total_seconds()*1e9,0,
+            #                     color='grey',alpha=0.2)
+            axis[i].tick_params(axis='y',colors='tab:blue')
+        #save
+        p_compare_detail.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        p_compare_detail.tight_layout(pad=0.6)
+        figurename = path+'/p_compare_detail'+phase+'_'+event+'.png'
+        p_compare_detail.savefig(figurename)
+        plt.close(p_compare_detail)
         print('\033[92m Created\033[00m',figurename)
         #############
         '''
