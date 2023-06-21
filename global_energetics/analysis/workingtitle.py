@@ -2902,9 +2902,12 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         obs = ds[event]['obs']['omni'+ph]
         obstime = ds[event]['omni_otime'+ph]
         ot = [float(n) for n in obstime.to_numpy()]#bad hack
-        #sup = ds[event]['obs']['supermag'+ph]
-        #suptime = ds[event]['supermag_otime'+ph]
-        #supt = [float(n) for n in suptime.to_numpy()]#bad hack
+        sup = ds[event]['obs']['supermag'+ph]
+        suptime = ds[event]['supermag_otime'+ph]
+        supt = [float(n) for n in suptime.to_numpy()]#bad hack
+        vsup = ds[event]['obs']['vsupermag'+ph]
+        vsuptime = ds[event]['vsupermag_otime'+ph]
+        vsupt = [float(n) for n in suptime.to_numpy()]#bad hack
         if kwargs.get('tabulate',False):
             #start,impact,peak1,peak2,inter_start,inter_end=locate_phase(
             #                                                    sw.index)
@@ -2992,23 +2995,23 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         general_plot_settings(ax[2],ylabel=r'Sym-H$\left[nT\right]$',
                               do_xlabel=False, legend=True,
                               timedelta=dotimedelta)
-        #AL index
-        ax[3].plot(indext,index['AL'],label='Sim',c='tab:blue')
-        #ax[3].plot(supt,sup['SML (nT)'],label='Obs',c='maroon')
-        #ax[3].plot(ot,al,label='Obs',c='maroon')
-        #Newell coupling function
-        #ax[3].fill_between(swt, sw['Newell']/100, label='Newell',
-        #                   fc='grey')
-                            #r'Newell$\left[ 10\times kWb/s\right]$',
-        general_plot_settings(ax[3],ylabel=r'AL$\left[nT\right]$',
+        #SML index
+        ax[3].plot(vsupt,vsup['vSML'],label='Sim',c='tab:blue')
+        ax[3].plot(supt,sup['SML'],label='Obs',c='maroon')
+        ax[3].plot(indext,index['AL'],label='AL',c='magenta',ls='--')
+        general_plot_settings(ax[3],ylabel=r'SML$\left[nT\right]$',
                               do_xlabel=True, legend=True,
                               timedelta=dotimedelta)
-        ax[3].set_xlabel(r'Time $\left[hr:min\right]$')
         for axis in ax:
+            axis.axvspan((moments['impact']-
+                               moments['peak2']).total_seconds()*1e9,0,
+                               color='grey',alpha=0.2)
+            '''
             axis.axvline((moments['impact']-
                           moments['peak2']).total_seconds()*1e9,
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
+            '''
         #save
         dst.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
         dst.tight_layout(pad=0.3)
@@ -3913,13 +3916,13 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
+        solarwind_figure(dataset,phase,path,hatches,tabulate=True)
         #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        satellite_comparisons(dataset, phase, path)
+        #satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -3983,7 +3986,8 @@ if __name__ == "__main__":
     #                                read_supermag=False, tshift=45)
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=True,
-                    end=dataset['star']['msdict']['closed'].index[-1])
+                    end=dataset['star']['msdict']['closed'].index[-1],
+          magStationFile='ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)

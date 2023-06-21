@@ -694,6 +694,12 @@ def read_indices(data_path, **kwargs):
                         t in smdata['tval'].values]
         data.update({'supermag':smdata})
 
+        # Now get the virtual equivalent by reading the '.mag' file
+        if 'magStationFile' in kwargs:
+            from global_energetics.extract.magnetometer import read_virtual_SML
+            data.update({'vsupermag':read_virtual_SML(
+                                               kwargs.get('magStationFile'))})
+
         '''
         supermag =get_supermag_data(kwargs.get('start'),kwargs.get('end'),
                                     data_path)

@@ -304,9 +304,12 @@ def read_virtual_SML(datafile):
     Returns
         vsmldata (DataFrame)
     """
-    vsmldata = pd.DataFrame(columns=['vSML'])
+    vsmldata = pd.DataFrame(columns=['vSML','station','mLat','mLon'])
     # Read in datafile
-    results = pd.read_csv(file_in,sep='\s+',skiprows=[0])
+    with open(datafile,'r') as f:
+        station_ids = f.readline()
+        station_ids = station_ids.replace('\n','').split(' ')
+    results = pd.read_csv(datafile,sep='\s+',skiprows=[0])
     # Parse a datetime entry and set to the DataFrame index
     results.index = [dt.datetime(*t) for t in
                     results[['year','mo','dy','hr','mn','sc']].values]
@@ -314,10 +317,19 @@ def read_virtual_SML(datafile):
     timelist = results.index.unique()
     # Iterate through each timestep
     for timestamp in timelist:
+        # Get station location in GSM
+        locations = where_stations_now(timestamp)
         # ID the minimum dBn
         dBn_minimum = results.loc[timestamp,'dBn'].min()
         # Update the output DataFrame
         vsmldata.loc[timestamp,'vSML'] = dBn_minimum
+        # Calculate the id, lat, and lon of the winning station
+        station_num = results.loc[timestamp,'station'][results.loc[timestamp,
+                                                'dBn']==dBn_minimum].values[0]
+        station = station_ids[station_num-1]
+        vsmldata.loc[timestamp,'station'] = station
+        vsmldata.loc[timestamp,'mLat'] = locations.loc[station,'MAGLAT']
+        vsmldata.loc[timestamp,'mLon'] = locations.loc[station,'MLTshift']
     return vsmldata
 
 def read_SML(datafile):
