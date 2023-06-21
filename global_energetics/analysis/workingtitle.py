@@ -3982,7 +3982,7 @@ if __name__ == "__main__":
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=False,
+                                     read_supermag=True,
                     end=dataset['star']['msdict']['closed'].index[-1])
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',

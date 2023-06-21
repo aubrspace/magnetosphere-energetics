@@ -296,7 +296,30 @@ def read_station_values(data_path,station_df,now):
     return station_df
 #Function that calculates RSD index
 #Function that projects value from XYZ_gsm into domain
-#Function converts Station output to SML indices
+def read_virtual_SML(datafile):
+    """Function takes 'output.mag' output from SWMF (virtual magnetometers)
+        and calculates the lowest dBn for a comparison to supermag SML
+    Inputs
+        datafile (str)
+    Returns
+        vsmldata (DataFrame)
+    """
+    vsmldata = pd.DataFrame(columns=['vSML'])
+    # Read in datafile
+    results = pd.read_csv(file_in,sep='\s+',skiprows=[0])
+    # Parse a datetime entry and set to the DataFrame index
+    results.index = [dt.datetime(*t) for t in
+                    results[['year','mo','dy','hr','mn','sc']].values]
+    # Extract unique set up of timesteps
+    timelist = results.index.unique()
+    # Iterate through each timestep
+    for timestamp in timelist:
+        # ID the minimum dBn
+        dBn_minimum = results.loc[timestamp,'dBn'].min()
+        # Update the output DataFrame
+        vsmldata.loc[timestamp,'vSML'] = dBn_minimum
+    return vsmldata
+
 def read_SML(datafile):
     """Function reads SML .txt file downloaded from the supermag site
     Inputs
@@ -323,7 +346,8 @@ if __name__ == "__main__":
     #           'magnetometers_e20140218-060000.mag')
     file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
     sml_file = 'localdbug/mod_supermag_starlink.txt'
-    smldata = read_SML(sml_file)
+    #smldata = read_SML(sml_file)
+    vsmldata = read_virtual_SML(file_in)
     #aux_data_path = 'localdbug/febstorm/station_data/'
     #test_time = get_time('localdbug/febstorm/3d__var_1_e20140218-060400-033.plt')
     #IDs, station_df = get_stations_now(file_in,test_time,tilt=20.9499)
