@@ -118,6 +118,20 @@ def get_biotsavart_integrands(state_var):
         biots_dict.update({'BioS_full'+state_var.name:'bioS_full [nT]'})
     return biots_dict
 
+def get_mass_integrands(state_var):
+    state, massdict = state_var.name, {}
+    eq = tp.data.operate.execute_equation
+    existing_variables = state_var.dataset.variable_names
+    #Integrands
+    integrands = ['M [kg/Re^3]']
+    for term in integrands:
+        name = term.split(' ')[0]
+        if name+state not in existing_variables:
+            #Create variable for integrand that only exists in isolated zone
+            eq('{'+name+state+'}=IF({'+state+'}==1, {'+term+'},0)',zones=[0,1])
+            massdict.update({name+state:name+' [kg]'})
+    return massdict
+
 def get_virial_integrands(state_var):
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
@@ -310,6 +324,8 @@ def get_volume_trades(zone,integrands,**kwargs):
             new_eq = tradestr.replace('value',varstr).replace('name',qty)
             if unit=='[J]':
                 newunit = '[W]'
+            elif unit=='[kg]':
+                newunit = '[kg/s]'
             try:
                 eq(new_eq,zones=[zone],value_location=ValueLocation.Nodal)
                 trade_integrands[qty+tradetag]=' '.join([qty+tradetag,newunit])
@@ -486,6 +502,8 @@ def volume_analysis(state_var, **kwargs):
         integrands.update(get_virial_integrands(state_var))
     if 'energy' in analysis_type:
         integrands.update(get_energy_integrands(state_var))
+    if 'mass' in analysis_type:
+        integrands.update(get_mass_integrands(state_var))
     if 'biotsavart' in analysis_type:
         integrands.update(get_biotsavart_integrands(state_var))
     if 'trackIM' in analysis_type:

@@ -3,7 +3,8 @@
 
 #define variables
 INPUTDIR=./starlink2/IO2/
-OUTPUTDIR=./star2_outputs_n1/
+#OUTPUTDIR=./star2_outputs_n1/
+OUTPUTDIR=./star2_outputs_mass/
 #INPUTDIR=./test_inputs/
 #OUTPUTDIR=./test_outputs_n1/
 #INPUTDIR=./may2019/IO2/
@@ -27,6 +28,8 @@ do
     sbatch batchjob_energetics.gl -i $INPUTDIR -o $OUTPUTDIR \
                                   -f ${file:${#INPUTDIR}}    \
     #                              -s $satpath
+
+    #if you only want to process one file use this
     #exit
 
 done

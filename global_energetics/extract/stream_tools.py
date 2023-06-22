@@ -1555,6 +1555,11 @@ def equations(**kwargs):
                                    '/(2*4*pi*1e-7)*(1e-9)**2*1e9*6371**3',
                '{Utot [J/Re^3]}':'{uHydro [J/Re^3]}+{uB [J/Re^3]}'}
     ######################################################################
+    #Volumetric mass terms, includes:
+    #   Total Mass per volume
+    equations['volume_mass'] = {
+               '{M [kg/Re^3]}':'{Rho [amu/cm^3]}*1.6605*10e-12*6371**3'}
+    ######################################################################
     #Daynightmapping terms, includes:
     # Specific mappings for lobes
     #   daymapped_nlobe
@@ -1777,6 +1782,9 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     #Volumetric energy terms
     if 'energy' in analysis_type or analysis_type=='all':
         eqeval(alleq['volume_energy'])
+    #Volumetric mass term (kg/Re^3)
+    if 'mass' in analysis_type or analysis_type=='all':
+        eqeval(alleq['volume_mass'])
     #eqeval(alleq['volume_energy'],value_location=cc)
     if kwargs.get('do_interfacing',False):
         eqeval(alleq['daynightmapping'])
