@@ -62,14 +62,15 @@ def energetics_analysis(infiles,outpath):
                                       write_data=True,
                                       disp_result=False,
                                       do_cms=True,
-                                      analysis_type='mass',
+                                      do_central_diff=True,
+                                      analysis_type='energy',
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe'],
                                       full_closed=True,
                                       #customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=True,
+                                      integrate_surface=False,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
                                       verbose=True,
@@ -123,11 +124,23 @@ if __name__ == "__main__":
         try:
             nextfile = full_list[full_list.index(nowfile)+1].split('/')[-1]
             nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
+            previousfile = full_list[full_list.index(nowfile)-1].split('/')[-1]
+            #previousfile_mirror = os.path.join(inpath,'mirror',previousfile)
         except IndexError:
             print(nowfile+' is the end of the list!')
-            nextfile_mirror = nowfile
-        energetics_analysis([nowfile,nextfile_mirror],outpath)
+            if full_list.index(nowfile)==0:
+                previousfile = nowfile
+            else:
+                previousfile = full_list[full_list.index(nowfile)-1].split('/')[-1]
+                nextfile_mirror = nowfile
+        #energetics_analysis([nowfile,nextfile_mirror],outpath)
         #energetics_analysis([nowfile],outpath)
+        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        #Test message
+        '''
+        print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
+                '\ncurrent time:\t',makevideo.get_time(nowfile))
+        '''
     else:
         # Process the whole list
         for i,nowfile in enumerate(file_list[0:2]):
