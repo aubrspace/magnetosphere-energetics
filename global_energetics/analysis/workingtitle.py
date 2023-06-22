@@ -3987,7 +3987,8 @@ if __name__ == "__main__":
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=True,
                     end=dataset['star']['msdict']['closed'].index[-1],
-          magStationFile='ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
+          #magStationFile='ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
+          magStationFile='localdbug/magnetometers_e20220202-050000.mag')
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
