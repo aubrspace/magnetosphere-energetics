@@ -2653,14 +2653,14 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
         #Plot
-        axis.plot(times,(HM1+Hs1)/1e12,label='H1')
-        axis.plot(times,(HM5+Hs5)/1e12,label='H5')
-        axis.plot(times,Hs4/1e12,label='H4')
-        axis.plot(times,Hs6/1e12,label='H6')
-        axis.plot(times,Hs3/1e12,label='H3')
-        axis.plot(times,Hs7/1e12,label='H7')
+        axis.plot(times,(HM1+Hs1)/1e12,label='1')
+        axis.plot(times,(HM5+Hs5)/1e12,label='5')
+        axis.plot(times,Hs4/1e12,label='4')
+        axis.plot(times,Hs6/1e12,label='6')
+        axis.plot(times,Hs3/1e12,label='3')
+        axis.plot(times,Hs7/1e12,label='7')
 
         axis2.plot(times,(SM1+Ss1)/1e12,label='S1')
         axis2.plot(times,(SM5+Ss5)/1e12,label='S5')
@@ -2676,9 +2676,10 @@ def lobe_balance_fig(dataset,phase,path):
         axis3.plot(times,Ks3/1e12,label='K3')
         axis3.plot(times,Ks7/1e12,label='K7')
         #Decorations
+        powerlabel=['Hydrodynamic','Poynting','Total Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
-            general_plot_settings(ax,do_xlabel=(i==2),legend=True,
-                     ylabel=r'Net Power $\left[ TW\right]$',
+            general_plot_settings(ax,do_xlabel=(i==2),legend=False,
+                     ylabel=powerlabel[i]+r' Flux $\left[ TW\right]$',
                               legend_loc='lower left',
                               ylim=[-12,12],
                               timedelta=dotimedelta)
@@ -2697,6 +2698,9 @@ def lobe_balance_fig(dataset,phase,path):
                            label='Total',fc='dimgray')
         axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
                            label='Total',fc='dimgray')
+
+        axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                    ncol=7, fancybox=True, shadow=True)
         #save
         flavors_external.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2709,11 +2713,11 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_internal,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        flavors_internal,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
         #Plot
-        axis.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'Cusp $H_{2a}$',
+        axis.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'${2a}$ Cusp',
                    color='goldenrod')
-        axis.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'Tail $H_{2b}$',
+        axis.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'${2b}$ Tail',
                    color='tab:blue')
 
         axis2.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
@@ -2745,10 +2749,11 @@ def lobe_balance_fig(dataset,phase,path):
         #                   label=r'Summed $S_2$',color='lime')
 
         #Decorations
+        powerlabel=['Hydrodynamic','Poynting','Total Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
-            general_plot_settings(ax,do_xlabel=(i==2),legend=True,
-                     ylabel=r'Net Power $\left[ TW\right]$',
-                              legend_loc='lower left',
+            general_plot_settings(ax,do_xlabel=(i==2),legend=(i==0),
+                     ylabel=powerlabel[i]+r' Flux $\left[ TW\right]$',
+                              legend_loc='upper left',
                               ylim=[-12,12],
                               timedelta=dotimedelta)
             ax.axvspan((moments['impact']-
@@ -2769,6 +2774,9 @@ def lobe_balance_fig(dataset,phase,path):
                           Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d
                           )/1e12,
                            label=r'Net $K_2$',fc='dimgray')
+
+        #axis.legend(loc='lower right', bbox_to_anchor=(1.1, 1.05),
+        #            ncol=7, fancybox=True, shadow=True)
         #save
         flavors_internal.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -3916,8 +3924,8 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -3952,6 +3960,7 @@ if __name__ == "__main__":
     inBase = sys.argv[-1]
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
     inSats = os.path.join(sys.argv[-1],'data/sats/')
+    inGround = os.path.join(sys.argv[-1],'data/ground/')
     inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
@@ -3987,8 +3996,7 @@ if __name__ == "__main__":
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=True,
                     end=dataset['star']['msdict']['closed'].index[-1],
-          #magStationFile='ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
-          magStationFile='localdbug/magnetometers_e20220202-050000.mag')
+                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
