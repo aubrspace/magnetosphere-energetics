@@ -32,7 +32,8 @@ if __name__ == "__main__":
         tp.new_layout()
 
     else:
-        os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
+        pass
+        #os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
     #pass in arguments
     #Nice condition
     #starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
@@ -48,6 +49,8 @@ if __name__ == "__main__":
     starlink3 = ('ccmc_2022-02-02/3d__var_1_e20220203-051600-024.plt',
                  'ccmc_2022-02-02/3d__var_1_e20220203-051700-004.plt')
     starlink4 = ('ccmc_2022-02-02/3d__var_1_e20220203-115400-000.plt',
+                 'ccmc_2022-02-02/3d__var_1_e20220203-115500-004.plt')
+    starlink5 = ('ccmc_2022-02-02/3d__var_1_e20220203-115300-032.plt',
                  'ccmc_2022-02-02/3d__var_1_e20220203-115500-004.plt')
     #Current fails
     #starlink = ('starlink/3d__var_1_e20220202-050300-000.plt',
@@ -96,7 +99,7 @@ if __name__ == "__main__":
     closed_vol = pd.DataFrame()
     #if False:
     #for inputs in [febtest]:
-    for inputs in [starlink4]:
+    for inputs in [starlink5]:
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
         tp.new_layout()
         mhddatafile = inputs[0]
@@ -117,14 +120,15 @@ if __name__ == "__main__":
                                     verbose=True,
                                     debug=True,
                                     do_cms=True,
-                                    analysis_type='energy_reconnect_ffj',
+                                    do_central_diff=True,
+                                    analysis_type='energy',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
-                                    do_interfacing=False,
+                                    do_interfacing=True,
                                     integrate_surface=False,
-                                    integrate_volume=False,
+                                    integrate_volume=True,
                                     integrate_line=False,
-                                    #truegridfile=oggridfile,
+                                    truegridfile=oggridfile,
                                     outputpath='babyrun/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],

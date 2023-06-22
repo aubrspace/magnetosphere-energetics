@@ -237,10 +237,13 @@ def get_volume_trades(zone,integrands,**kwargs):
         zone
         integrands
         kwargs:
+            do_central_diff
     Returns
         trade_integrands
     """
     tdelta = str(kwargs.get('tdelta',60))
+    if kwargs.get('do_central_diff',False):
+        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
     analysis_type = kwargs.get('analysis_type','')
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []

@@ -467,6 +467,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     disp_result = kwargs.get('disp_result', True)
     verbose = kwargs.get('verbose', True)
     do_cms = kwargs.get('do_cms', 'energy' in analysis_type)
+    do_central_diff = kwargs.get('do_central_diff',False)
     inner_cond = kwargs.get('inner_cond', 'sphere')
     inner_r = kwargs.get('inner_r', 3)
     do_blank = kwargs.get('do_blank', False)
@@ -605,7 +606,15 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             print('\nWorking on: '+region.name+' volume')
             energies = volume_analysis(field_data.variable(state_index),
                                        **kwargs)
-            energies['Time [UTC]'] = eventtime
+            if kwargs.get('do_central_diff',False):
+                # Drop the non-motional terms
+                motion_keys = [k for k in energies.keys() if ('[W]' in k) or
+                                                             ('[kg/s]' in k)]
+                energies = energies[motion_keys]
+                energies['Time [UTC]'] = (eventtime+dt.timedelta(seconds=
+                                                    kwargs.get('tdelta',60)))
+            else:
+                energies['Time [UTC]'] = eventtime
             data_to_write.update({region.name+'_volume':energies})
         if kwargs.get('do_interfacing',False):
             #Combine north and south lobes into single 'lobes'
