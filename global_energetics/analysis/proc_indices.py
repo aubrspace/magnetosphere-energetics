@@ -674,11 +674,39 @@ def read_indices(data_path, **kwargs):
         kwargs.update({'end':swmf_index.index[-1]})
     #get supermag and omni
     if kwargs.get('read_supermag',True):
+        import supermag
+        #Get start and duration
+        start = [kwargs.get('start').year,
+                 kwargs.get('start').month,
+                 kwargs.get('start').day,
+                 kwargs.get('start').hour,
+                 kwargs.get('start').minute,
+                 kwargs.get('start').second]
+        duration = ((kwargs.get('end')-kwargs.get('start')).days*86400+
+                    (kwargs.get('end')-kwargs.get('start')).seconds)
+        #Read supermag data from the python API call
+        (status,smdata) = supermag.SuperMAGGetIndices('aubr',start,
+                                                      duration,'all')
+        #(status,smdata) = supermag.SuperMAGGetIndices('aubr',[2022,2,2,0,0,0],
+        #                                            3600*24*3,'all')
+        #Set a timestamp as the column index
+        smdata.index = [supermag.sm_DateToYMDHMS(t) for
+                        t in smdata['tval'].values]
+        data.update({'supermag':smdata})
+
+        # Now get the virtual equivalent by reading the '.mag' file
+        if 'magStationFile' in kwargs:
+            from global_energetics.extract.magnetometer import read_virtual_SML
+            data.update({'vsupermag':read_virtual_SML(
+                                               kwargs.get('magStationFile'))})
+
+        '''
         supermag =get_supermag_data(kwargs.get('start'),kwargs.get('end'),
                                     data_path)
         supermag['Time [UTC]'] = supermag['times']
         supermag.index = supermag['times']
         data.update({'supermag':supermag})
+        '''
     if kwargs.get('read_omni',True):
         print(kwargs.get('start'),kwargs.get('end'))
         omni = pd.DataFrame(swmfpy.web.get_omni_data(
