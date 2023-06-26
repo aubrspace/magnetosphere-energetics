@@ -761,7 +761,7 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
         if kwargs.get('tabulate',False):
             Elobes = ds[ev]['msdict'+ph]['lobes']['Utot [J]']
             Eclosed = ds[ev]['msdict'+ph]['closed']['Utot [J]']
-            Erc = ds[ev]['msdict'+ph]['rc']['Utot [J]']
+            #Erc = ds[ev]['msdict'+ph]['rc']['Utot [J]']
             Etotal = Elobes+Eclosed
             ElobesPercent = (Elobes/Etotal)*100
             lobes = ds[ev]['msdict'+ph]['lobes']
@@ -823,14 +823,13 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                legend_loc='upper right', hatch=hatches[i],
                                do_xlabel=(i==len(ds.keys())-1),
                                timedelta=dotimedelta)
-        #rax.plot(times,ds[ev]['msdict'+ph]['lobes']['Utot [J]']/1e15,
-        #           color='Navy',linestyle=None)
+        #ax.plot(times,ds[ev]['msdict'+ph]['lobes']['Utot [J]']/1e15,
+        #           color='Black')
         #rax.set_ylim([0,55])
         #NOTE mark impact w vertical line here
         dtime_impact = (moments['impact']-
                         moments['peak2']).total_seconds()*1e9
-        ax.axvline(dtime_impact,color='black',ls='--')
-        ax.axvline(0,color='black',ls='--')
+        ax.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
         #general_plot_settings(rax,
         #                      do_xlabel=False, legend=False,
         #                      timedelta=dotimedelta)
@@ -3039,7 +3038,7 @@ def satellite_comparisons(dataset,phase,path):
         #############
         #setup figure
         b_compare_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
+                                             figsize=[20,3*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -3059,7 +3058,7 @@ def satellite_comparisons(dataset,phase,path):
             raxis.plot(vtime,np.sqrt(virtual['Sx']**2+
                                         virtual['Sy']**2+
                                         virtual['Sz']**2)/1e9,
-                                    label='sim|S| [MW]',ls='--',c='magenta')
+                                    label='sim|S| [MW]',c='black',lw=1)
             raxis.set_ylim([0,20])
             raxis.spines['right'].set_color('magenta')
             raxis.spines['left'].set_color('tab:blue')
@@ -3072,8 +3071,8 @@ def satellite_comparisons(dataset,phase,path):
             #              ls='--')
             #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
             #              ls='--')
-            axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='tab:blue',
-                         ls='--')
+            axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='dimgrey',
+                         lw=1)
             if i==0:
                 raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
                           ncol=2, fancybox=True, shadow=True)
@@ -3117,7 +3116,7 @@ def satellite_comparisons(dataset,phase,path):
         #############
         #setup figure
         p_compare_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
+                                             figsize=[20,3*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -3137,7 +3136,7 @@ def satellite_comparisons(dataset,phase,path):
             raxis.plot(vtime,np.sqrt(virtual['Hx']**2+
                                         virtual['Hy']**2+
                                         virtual['Hz']**2)/1e9,
-                                    label='sim|H| [MW]',ls='--',c='magenta')
+                                    label='sim|H| [MW]',lw=1,c='black')
             raxis.set_ylim([0,20])
             raxis.spines['right'].set_color('magenta')
             raxis.spines['left'].set_color('tab:blue')
@@ -3152,7 +3151,7 @@ def satellite_comparisons(dataset,phase,path):
             #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
             #              ls='--')
             axis[i].plot(vtime,virtual['P']+virtual['pdyn'],label='simP [nPa]',
-                         c='tab:blue',ls='--')
+                         c='dimgray',lw=1)
             if i==0:
                 raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
                           ncol=2, fancybox=True, shadow=True)
@@ -3925,12 +3924,12 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -3994,7 +3993,7 @@ if __name__ == "__main__":
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=True,
+                                     read_supermag=False,
                     end=dataset['star']['msdict']['closed'].index[-1],
                   magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['star']['obs'] = {}
@@ -4004,15 +4003,11 @@ if __name__ == "__main__":
     #                                     read_supermag=False)
 
     ## Satellite Data
+    dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
-    #NOTE hotfix change FD to CD for motional terms
-    #       all calculations are performed as (n_1-n_0)/dt,
-    #       this will change to  (n_1-n_-1)/2dt
     for event_key in dataset.keys():
         event = dataset[event_key]
-        #event['mpdict'],event['msdict'] = hotfix_cdiff(event['mpdict'],
-        #                                               event['msdict'])
         # Total
         event['msdict']['lobes']['K_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['K_netK1 [W]']
@@ -4049,17 +4044,12 @@ if __name__ == "__main__":
         event['mpdict']['ms_full']['uBM [W]'] = (
                                      event['mpdict']['ms_full']['uBM1 [W]']+
                                      event['mpdict']['ms_full']['uBM5 [W]'])
-    #NOTE hotfix for closed region tail_closed
-    #for ev in ds.keys():
-    #    for t in[t for t in ds[ev]['msdict']['closed'].keys()
-    #                                                if 'Tail_close'in t]:
-    #        ds[ev]['msdict']['closed'][t] = ds[ev]['mpdict']['ms_full'][t]
 
     ##Construct "grouped" set of subzones, then get %contrib for each
     for event in dataset.keys():
         if 'msdict' in dataset[event].keys():
             dataset[event]['msdict'] = {
-                'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
+                #'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
                 'closed':dataset[event]['msdict'].get(
                                               'closed',pd.DataFrame()),
                 'lobes':dataset[event]['msdict'].get(
@@ -4069,17 +4059,6 @@ if __name__ == "__main__":
                                                    'jun' not in k]:
         event = dataset[event_key]
         msdict = event['msdict']
-        '''
-        #NOTE delete this!! |
-        #                   V
-        msdict = hotfix_interfSharing(event['mpdict'],msdict,
-                                      event['inner_mp'])
-        msdict = hotfix_psb(msdict)
-        #                   ^
-        #                   |
-        combined_closed_rc = combine_closed_rc(msdict)
-        msdict['closed_rc'] = combined_closed_rc
-        '''
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             if 'mpdict' in event.keys():
                 event['mp'+phase], event['time'+phase]=parse_phase(
@@ -4223,7 +4202,7 @@ if __name__ == "__main__":
                            legend_loc='upper left',
                            do_xlabel=True,
                            timedelta=True)
-        C.axvline(dtime_impact,ls='--',color='black')
+        C.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
         C.axvline(0,ls='--',color='black')
         ################
         #Dissect
