@@ -99,7 +99,7 @@ if __name__ == "__main__":
     closed_vol = pd.DataFrame()
     #if False:
     #for inputs in [febtest]:
-    for inputs in [starlink5]:
+    for inputs in [starlink4]:
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
         tp.new_layout()
         mhddatafile = inputs[0]
@@ -120,13 +120,13 @@ if __name__ == "__main__":
                                     verbose=True,
                                     debug=True,
                                     do_cms=True,
-                                    do_central_diff=True,
+                                    do_central_diff=False,
                                     analysis_type='energy',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     do_interfacing=True,
-                                    integrate_surface=False,
-                                    integrate_volume=True,
+                                    integrate_surface=True,
+                                    integrate_volume=False,
                                     integrate_line=False,
                                     truegridfile=oggridfile,
                                     outputpath='babyrun/',
@@ -246,7 +246,7 @@ if __name__ == "__main__":
         #Display errors
         error_volume = (mp_vol['Volume [Re^3]']-lobe_vol['Volume [Re^3]']
                         - closed_vol['Volume [Re^3]'])
-        #from IPython import embed; embed()
+        from IPython import embed; embed()
     if False:
         '''
         #Display error with K_net and Utot_net
