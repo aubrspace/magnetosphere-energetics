@@ -203,8 +203,8 @@ def make_trade_eq(from_state,to_state,tagname,tstep):
         Fix to states with [2] designating the futurezone
               Reverse for opposite sign
 
-          ex. if( dayclosed[now] & ext[future]) then +M5a
-              elif( dayclosed[future] & ext[now] then -M5a
+          ex. if( dayclosed[now] & ext[future]) then +M5a[now]/dt
+              elif( dayclosed[future] & ext[now] then -M5a[future]/dt
     Inputs
         from_state,to_state (str(variablename))- denotes sign convention
         tagname (str)- tag put on variable
@@ -335,6 +335,7 @@ def get_volume_trades(zone,integrands,**kwargs):
             except TecplotLogicError as err:
                 print('Equation eval failed!\n',new_eq,'\n')
                 if kwargs.get('debug',False): print(err)
+    from IPython import embed; embed()
     return trade_integrands
 
 def get_mobile_integrands(zone,state_var,integrands,**kwargs):

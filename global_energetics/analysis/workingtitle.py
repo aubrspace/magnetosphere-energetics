@@ -614,15 +614,19 @@ def parse_phase(indata,phasekey,**kwargs):
         #cond=(times>moments['inter_start'])&(times<moments['inter_end'])
         #cond = (times>moments['impact']) & (times<moments['peak1'])
                                             #dt.timedelta(minutes=10))
-        cond = ((times>moments['peak1']-dt.timedelta(minutes=120)) &
-                (times<moments['peak1']+dt.timedelta(minutes=30)))
+        #cond = ((times>moments['peak1']-dt.timedelta(minutes=120)) &
+        #        (times<moments['peak1']+dt.timedelta(minutes=30)))
+
+        cond = ((times>moments['impact']) &
+                (times<moments['impact']+dt.timedelta(minutes=120)))
     elif 'lineup' in phasekey:
         cond = times>times[0]+moments['start']
 
     #Reload data filtered by the condition
     if (type(indata) == pd.core.series.Series or
         type(indata) == pd.core.frame.DataFrame):
-        if 'lineup' not in phasekey and 'interv' not in phasekey:
+        #if 'lineup' not in phasekey and 'interv' not in phasekey:
+        if False:
             rel_time = [dt.datetime(2000,1,1)+r for r in
                         indata[cond].index-indata[cond].index[0]]
         else:
@@ -635,7 +639,8 @@ def parse_phase(indata,phasekey,**kwargs):
         for key in [k for k in indata.keys() if not indata[k].empty]:
             df = indata[key]
             phase.update({key:df[cond]})
-            if 'lineup' not in phasekey and 'interv' not in phasekey:
+            #if 'lineup' not in phasekey and 'interv' not in phasekey:
+            if False:
                 rel_time = [dt.datetime(2000,1,1)+r for r in
                             df[cond].index-df[cond].index[0]]
             else:
@@ -761,11 +766,11 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
         if kwargs.get('tabulate',False):
             Elobes = ds[ev]['msdict'+ph]['lobes']['Utot [J]']
             Eclosed = ds[ev]['msdict'+ph]['closed']['Utot [J]']
-            Erc = ds[ev]['msdict'+ph]['rc']['Utot [J]']
+            #Erc = ds[ev]['msdict'+ph]['rc']['Utot [J]']
             Etotal = Elobes+Eclosed
             ElobesPercent = (Elobes/Etotal)*100
             lobes = ds[ev]['msdict'+ph]['lobes']
-            mp = dataset[event]['mp'+phase]
+            mp = dataset[ev]['mp'+phase]
             #Tabulate
             print('\nPhase: '+ph+'\nEvent: '+ev+'\n')
             print('{:<25}{:<20}'.format('****','****'))
@@ -817,24 +822,23 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
             #rax = ax.twinx()
             plot_stack_contrib(ax,times,ds[ev]['mp'+ph],
                                ds[ev]['msdict'+ph], legend=(i==0),
-                               value_key='Utot [J]',label=ev,ylim=[0,55],
+                               value_key='Utot [J]',label=ev,ylim=[0,45],
                                factor=1e15,
                                ylabel=r'Energy $\left[ PJ\right]$',
                                legend_loc='upper right', hatch=hatches[i],
                                do_xlabel=(i==len(ds.keys())-1),
                                timedelta=dotimedelta)
-        #rax.plot(times,ds[ev]['msdict'+ph]['lobes']['Utot [J]']/1e15,
-        #           color='Navy',linestyle=None)
+        #ax.plot(times,ds[ev]['msdict'+ph]['lobes']['Utot [J]']/1e15,
+        #           color='Black')
         #rax.set_ylim([0,55])
         #NOTE mark impact w vertical line here
         dtime_impact = (moments['impact']-
                         moments['peak2']).total_seconds()*1e9
-        ax.axvline(dtime_impact,color='black',ls='--')
-        ax.axvline(0,color='black',ls='--')
+        ax.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
         #general_plot_settings(rax,
         #                      do_xlabel=False, legend=False,
         #                      timedelta=dotimedelta)
-        ax.set_xlabel(r'Time $\left[hr:min\right]$')
+        ax.set_xlabel(r'Time $\left[hr\right]$')
         #save
         contr.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
         contr.tight_layout(pad=0.8)
@@ -2115,6 +2119,7 @@ def lobe_balance_fig(dataset,phase,path):
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed']
         mp = dataset[event]['mp'+phase]
+        inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
         # for solar wind
@@ -2253,6 +2258,21 @@ def lobe_balance_fig(dataset,phase,path):
         S_lobes = -1*central_diff(lobes['uB [J]'],60)
         S_mp = -1*central_diff(mp['uB [J]'],60)
 
+        terms = [Ks1,Ks3,Ks4,Ks5,Ks6,Ks7]
+        for i,term in enumerate(terms):
+            terms[i] = terms[i].rolling('120s').mean()
+        [Ks1roll,Ks3roll,Ks4roll,Ks5roll,Ks6roll,Ks7roll] = terms
+        from IPython import embed; embed()
+        #TODO: Try looking at the split in S vs H in the local error to
+        #       determine if the error can be attributed to a specific static
+        #       flux
+        #   What can we say about the error:
+        #       value at each time step
+        #       cummulative value
+        #       split between S and H locally and cummulatively
+        #       M versus d/dt of volume to check if its in the motional comp
+        #       Theoretical potentail sources: dV/dt, FdotdA for whole min
+
         '''
         if 'lineup' in phase or 'interv' in phase:
             dotimedelta=True
@@ -2264,12 +2284,13 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         lobes_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_lobes/1e12,label='Total Lobes')
+        axis.fill_between(times,K_lobes/1e12,label='Total Lobes',fc='grey')
         axis.plot(times,lobes['K_net [W]']/1e12,label='Static Lobes')
         axis.plot(times,M_lobes/1e12,label='Motion Lobes')
         axis.plot(times,(lobes['K_net [W]']+M_lobes)/1e12,label='Summed Lobes')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
         axis.axvline((moments['impact']-
@@ -2359,15 +2380,48 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
+        total_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.fill_between(times,K_mp/1e12,label='Total',fc='grey')
+        #axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
+        #                 Ks5roll+Ks6roll+Ks7roll)/1e12,label='Static')
+        #axis.plot(times,M/1e12,label='Motion')
+        axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
+                         Ks5roll+Ks6roll+Ks7roll+M)/1e12,label='Summed')
+        axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
+                         Ks5roll+Ks6roll+Ks7roll+M-K_mp)/1e12,label='Error')
+        axis.plot(times,((K_mp-M)/(Ks1roll+Ks3roll+Ks4roll+
+                         Ks5roll+Ks6roll+Ks7roll+M)),label='Ratio')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylim=[-10,10],
+                              ylabel=r'Net Power $\left[ TW\right]$',
+                              timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
+        #save
+        total_balance_total.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_balance_total.tight_layout(pad=1)
+        figurename = path+'/total_balance_total'+phase+'_'+event+'.png'
+        total_balance_total.savefig(figurename)
+        plt.close(total_balance_total)
+        print('\033[92m Created\033[00m',figurename)
+
+        #############
+        #setup figure
         closed_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_closed/1e12,label='Total Closed')
+        axis.fill_between(times,K_closed/1e12,label='Total Closed',fc='grey')
         axis.plot(times,closed['K_net [W]']/1e12,label='Static Closed')
         axis.plot(times,M_closed/1e12,label='Motion Closed')
         axis.plot(times,(closed['K_net [W]']+M_closed)/1e12,
                   label='Summed Closed')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
         axis.axvline((moments['impact']-
@@ -2445,6 +2499,44 @@ def lobe_balance_fig(dataset,phase,path):
         figurename = path+'/closed_balance_detail'+phase+'_'+event+'.png'
         closed_balance_detail.savefig(figurename)
         plt.close(closed_balance_detail)
+        print('\033[92m Created\033[00m',figurename)
+
+        #############
+        #setup figure
+        total_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.plot(times,K_mp.cumsum()*60/1e15,label='Total')
+        axis.plot(times,(M+Ks1roll+Ks3roll+Ks4roll+
+                         Ks5roll+Ks6roll+Ks7roll).cumsum()*60/1e15,
+                         label='OG')
+        axis.plot(times,(M+0.5*(Ks1roll+Ks3roll+Ks4roll+
+                         Ks5roll+Ks6roll+Ks7roll)).cumsum()*60/1e15,
+                         label='halfKs')
+        axis.plot(times,(M+(Ks1roll+0*Ks3roll+Ks4roll+
+                         Ks5roll+Ks6roll+Ks7roll)).cumsum()*60/1e15,
+                         label='noKs3')
+        #axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
+        #                 Ks5roll+Ks6roll+Ks7roll).cumsum()*60/1e15,
+        #          label='Static')
+        #axis.plot(times,M.cumsum()*60/1e15,label='Motion')
+        axis.fill_between(times,
+                         -1*(mp['Utot [J]']-mp['Utot [J]'][0])/1e15,
+                          label='-1*Energy',fc='grey')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                        ylabel=r'Accumulated Power $\left[ PJ\right]$',
+                              timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
+        #save
+        total_acc_total.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_acc_total.tight_layout(pad=1)
+        figurename = path+'/total_acc_total'+phase+'_'+event+'.png'
+        total_acc_total.savefig(figurename)
+        plt.close(total_acc_total)
         print('\033[92m Created\033[00m',figurename)
 
         #############
@@ -2653,14 +2745,14 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
         #Plot
-        axis.plot(times,(HM1+Hs1)/1e12,label='H1')
-        axis.plot(times,(HM5+Hs5)/1e12,label='H5')
-        axis.plot(times,Hs4/1e12,label='H4')
-        axis.plot(times,Hs6/1e12,label='H6')
-        axis.plot(times,Hs3/1e12,label='H3')
-        axis.plot(times,Hs7/1e12,label='H7')
+        axis.plot(times,(HM1+Hs1)/1e12,label='1')
+        axis.plot(times,(HM5+Hs5)/1e12,label='5')
+        axis.plot(times,Hs4/1e12,label='4')
+        axis.plot(times,Hs6/1e12,label='6')
+        axis.plot(times,Hs3/1e12,label='3')
+        axis.plot(times,Hs7/1e12,label='7')
 
         axis2.plot(times,(SM1+Ss1)/1e12,label='S1')
         axis2.plot(times,(SM5+Ss5)/1e12,label='S5')
@@ -2676,9 +2768,10 @@ def lobe_balance_fig(dataset,phase,path):
         axis3.plot(times,Ks3/1e12,label='K3')
         axis3.plot(times,Ks7/1e12,label='K7')
         #Decorations
+        powerlabel=['Hydrodynamic','Poynting','Total Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
-            general_plot_settings(ax,do_xlabel=(i==2),legend=True,
-                     ylabel=r'Net Power $\left[ TW\right]$',
+            general_plot_settings(ax,do_xlabel=(i==2),legend=False,
+                     ylabel=powerlabel[i]+r' Flux $\left[ TW\right]$',
                               legend_loc='lower left',
                               ylim=[-12,12],
                               timedelta=dotimedelta)
@@ -2697,6 +2790,9 @@ def lobe_balance_fig(dataset,phase,path):
                            label='Total',fc='dimgray')
         axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
                            label='Total',fc='dimgray')
+
+        axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                    ncol=7, fancybox=True, shadow=True)
         #save
         flavors_external.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -2709,11 +2805,11 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_internal,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
+        flavors_internal,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
         #Plot
-        axis.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'Cusp $H_{2a}$',
+        axis.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'${2a}$ Cusp',
                    color='goldenrod')
-        axis.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'Tail $H_{2b}$',
+        axis.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'${2b}$ Tail',
                    color='tab:blue')
 
         axis2.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
@@ -2745,10 +2841,11 @@ def lobe_balance_fig(dataset,phase,path):
         #                   label=r'Summed $S_2$',color='lime')
 
         #Decorations
+        powerlabel=['Hydrodynamic','Poynting','Total Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
-            general_plot_settings(ax,do_xlabel=(i==2),legend=True,
-                     ylabel=r'Net Power $\left[ TW\right]$',
-                              legend_loc='lower left',
+            general_plot_settings(ax,do_xlabel=(i==2),legend=(i==0),
+                     ylabel=powerlabel[i]+r' Flux $\left[ TW\right]$',
+                              legend_loc='upper left',
                               ylim=[-12,12],
                               timedelta=dotimedelta)
             ax.axvspan((moments['impact']-
@@ -2769,6 +2866,9 @@ def lobe_balance_fig(dataset,phase,path):
                           Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d
                           )/1e12,
                            label=r'Net $K_2$',fc='dimgray')
+
+        #axis.legend(loc='lower right', bbox_to_anchor=(1.1, 1.05),
+        #            ncol=7, fancybox=True, shadow=True)
         #save
         flavors_internal.suptitle('t0='+str(moments['peak1']),
                                       ha='left',x=0.01,y=0.99)
@@ -3031,7 +3131,7 @@ def satellite_comparisons(dataset,phase,path):
         #############
         #setup figure
         b_compare_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
+                                             figsize=[20,3*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -3051,7 +3151,7 @@ def satellite_comparisons(dataset,phase,path):
             raxis.plot(vtime,np.sqrt(virtual['Sx']**2+
                                         virtual['Sy']**2+
                                         virtual['Sz']**2)/1e9,
-                                    label='sim|S| [MW]',ls='--',c='magenta')
+                                    label='sim|S| [MW]',c='black',lw=1)
             raxis.set_ylim([0,20])
             raxis.spines['right'].set_color('magenta')
             raxis.spines['left'].set_color('tab:blue')
@@ -3064,8 +3164,8 @@ def satellite_comparisons(dataset,phase,path):
             #              ls='--')
             #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
             #              ls='--')
-            axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='tab:blue',
-                         ls='--')
+            axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='dimgrey',
+                         lw=1)
             if i==0:
                 raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
                           ncol=2, fancybox=True, shadow=True)
@@ -3109,7 +3209,7 @@ def satellite_comparisons(dataset,phase,path):
         #############
         #setup figure
         p_compare_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
+                                             figsize=[20,3*len(satlist)])
         #Plot
         for i,sat in enumerate(satlist):
             # Setup quickaccess and time format
@@ -3129,7 +3229,7 @@ def satellite_comparisons(dataset,phase,path):
             raxis.plot(vtime,np.sqrt(virtual['Hx']**2+
                                         virtual['Hy']**2+
                                         virtual['Hz']**2)/1e9,
-                                    label='sim|H| [MW]',ls='--',c='magenta')
+                                    label='sim|H| [MW]',lw=1,c='black')
             raxis.set_ylim([0,20])
             raxis.spines['right'].set_color('magenta')
             raxis.spines['left'].set_color('tab:blue')
@@ -3144,7 +3244,7 @@ def satellite_comparisons(dataset,phase,path):
             #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
             #              ls='--')
             axis[i].plot(vtime,virtual['P']+virtual['pdyn'],label='simP [nPa]',
-                         c='tab:blue',ls='--')
+                         c='dimgray',lw=1)
             if i==0:
                 raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
                           ncol=2, fancybox=True, shadow=True)
@@ -3640,14 +3740,17 @@ def time_integrated(dataset,phase,path):
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
+        K_mp.iloc[0] = 0
         # Hydro
         H_closed = -1*central_diff(closed['uHydro [J]'],60)
         H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
         H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        H_mp.iloc[0] = 0
         # Mag
         S_closed = -1*central_diff(closed['uB [J]'],60)
         S_lobes = -1*central_diff(lobes['uB [J]'],60)
         S_mp = -1*central_diff(mp['uB [J]'],60)
+        S_mp.iloc[0] = 0
 
         # Load into a dictionary
         flux_dict = {
@@ -3658,7 +3761,12 @@ def time_integrated(dataset,phase,path):
                      '4':[Hs4,Ss4,Ks4],
                      '5':[Hs5+HM5,Ss5+SM5,Ks5+M5],
                      '6':[Hs6,Ss6,Ks6],
-                     '7':[Hs7,Ss7,Ks7]}
+                     '7':[Hs7,Ss7,Ks7],
+                     'Summed':[
+                         Hs1+Hs5+Hs3+Hs4+Hs6+Hs7+HM,
+                         Ss1+Ss5+Ss3+Ss4+Ss6+Ss7+SM,
+                         Ks1+Ks5+Ks3+Ks4+Ks6+Ks7+M],
+                     'Check_mp':[H_mp,S_mp,K_mp]}
         # Print to screen
         print('\n{:<15}{:<20}{:<20}{:<20}'.format('ID','|H|',
                                                      '|S|',
@@ -3672,10 +3780,28 @@ def time_integrated(dataset,phase,path):
                                       dx=60)
             Kdt = integrate.trapezoid(total.fillna(method='ffill').values,
                                       dx=60)
+            if num=='Summed' or num=='Check_mp':
+                ls='--'
+            else:
+                ls=None
+            plt.plot(total*60/1e12,label=num,ls=ls)
+            #plt.plot(poynting.cumsum()*60/1e15,label=num,ls=ls)
+            plt.legend()
             print('{:<15}{:<+20.2f}{:<+20.2f}{:<+20.2f}'.format(num,
                                                   Hdt/1e15,Sdt/1e15,Kdt/1e15))
         print('{:<15}{:<20}{:<20}{:<20}'.format('*******','*******',
                                                   '*******','*******'))
+        #TODO: look at plot of error and see if it has spikes
+        #       Check error between cdiff and summed for lobes
+        #       Check error between cdiff and summed for closed
+        #       Errors with everything combined
+        #       If it IS there at every timestep then maybe doing some kind
+        #           of error correction?
+        #       Look at an M case and see if maybe using average quantities
+        #           vs split quantities is better
+        #       *Or even ONLY using magnetosphere quantities*
+
+        from IPython import embed; embed()
     pass
 
 def diagram_summary(dataset,phase,path):
@@ -3907,8 +4033,8 @@ def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
     hatches = ['','','','']
-    #for phase,path in [('_main',outMN1),('_rec',outRec)]:
-    for phase,path in [('_lineup',outLine)]:
+    for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
+    #for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
         #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
@@ -3916,8 +4042,8 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -3952,6 +4078,7 @@ if __name__ == "__main__":
     inBase = sys.argv[-1]
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
     inSats = os.path.join(sys.argv[-1],'data/sats/')
+    inGround = os.path.join(sys.argv[-1],'data/ground/')
     inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
@@ -3985,9 +4112,9 @@ if __name__ == "__main__":
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=True,
+                                     read_supermag=False,
                     end=dataset['star']['msdict']['closed'].index[-1],
-          magStationFile='ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
+                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
@@ -3995,15 +4122,11 @@ if __name__ == "__main__":
     #                                     read_supermag=False)
 
     ## Satellite Data
+    dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
-    #NOTE hotfix change FD to CD for motional terms
-    #       all calculations are performed as (n_1-n_0)/dt,
-    #       this will change to  (n_1-n_-1)/2dt
     for event_key in dataset.keys():
         event = dataset[event_key]
-        event['mpdict'],event['msdict'] = hotfix_cdiff(event['mpdict'],
-                                                       event['msdict'])
         # Total
         event['msdict']['lobes']['K_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['K_netK1 [W]']
@@ -4040,17 +4163,12 @@ if __name__ == "__main__":
         event['mpdict']['ms_full']['uBM [W]'] = (
                                      event['mpdict']['ms_full']['uBM1 [W]']+
                                      event['mpdict']['ms_full']['uBM5 [W]'])
-    #NOTE hotfix for closed region tail_closed
-    #for ev in ds.keys():
-    #    for t in[t for t in ds[ev]['msdict']['closed'].keys()
-    #                                                if 'Tail_close'in t]:
-    #        ds[ev]['msdict']['closed'][t] = ds[ev]['mpdict']['ms_full'][t]
 
     ##Construct "grouped" set of subzones, then get %contrib for each
     for event in dataset.keys():
         if 'msdict' in dataset[event].keys():
             dataset[event]['msdict'] = {
-                'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
+                #'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
                 'closed':dataset[event]['msdict'].get(
                                               'closed',pd.DataFrame()),
                 'lobes':dataset[event]['msdict'].get(
@@ -4060,17 +4178,6 @@ if __name__ == "__main__":
                                                    'jun' not in k]:
         event = dataset[event_key]
         msdict = event['msdict']
-        '''
-        #NOTE delete this!! |
-        #                   V
-        msdict = hotfix_interfSharing(event['mpdict'],msdict,
-                                      event['inner_mp'])
-        msdict = hotfix_psb(msdict)
-        #                   ^
-        #                   |
-        combined_closed_rc = combine_closed_rc(msdict)
-        msdict['closed_rc'] = combined_closed_rc
-        '''
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             if 'mpdict' in event.keys():
                 event['mp'+phase], event['time'+phase]=parse_phase(
@@ -4214,7 +4321,7 @@ if __name__ == "__main__":
                            legend_loc='upper left',
                            do_xlabel=True,
                            timedelta=True)
-        C.axvline(dtime_impact,ls='--',color='black')
+        C.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
         C.axvline(0,ls='--',color='black')
         ################
         #Dissect

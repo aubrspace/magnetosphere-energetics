@@ -399,11 +399,13 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
     #Plot stacks
     for i,(szlabel,sz) in enumerate([(l,z) for l,z in msdict.items()
                                      if 'closed_rc' not in l]):
+        print(szlabel)
         szval = sz[value_key]
         #NOTE changed just for this work
         #colorwheel = ['magenta', 'magenta', 'tab:blue']
-        colorwheel = ['maroon', 'magenta', 'tab:blue']
-        labelwheel = ['ClosedInner', 'Closed', 'Lobes']
+        #colorwheel = ['maroon', 'magenta', 'tab:blue']
+        colorwheel = ['magenta', 'tab:blue']
+        labelwheel = ['Closed', 'Lobes']
         if szlabel=='rc':
             #kwargs['hatch'] ='x'
             #kwargs['edgecolor'] ='grey'
