@@ -4,7 +4,7 @@
 #define variables
 INPUTDIR=./starlink2/IO2/
 #OUTPUTDIR=./star2_outputs_n1/
-OUTPUTDIR=./star2_outputs_mass/
+OUTPUTDIR=./star2_outputs_cdiff/
 #INPUTDIR=./test_inputs/
 #OUTPUTDIR=./test_outputs_n1/
 #INPUTDIR=./may2019/IO2/

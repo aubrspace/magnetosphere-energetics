@@ -63,7 +63,7 @@ def energetics_analysis(infiles,outpath):
                                       disp_result=False,
                                       do_cms=True,
                                       do_central_diff=True,
-                                      analysis_type='energy',
+                                      analysis_type='energy_mass',
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe'],
                                       full_closed=True,
@@ -124,18 +124,20 @@ if __name__ == "__main__":
         try:
             nextfile = full_list[full_list.index(nowfile)+1].split('/')[-1]
             nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
-            previousfile = full_list[full_list.index(nowfile)-1].split('/')[-1]
+            previousfile = os.path.join(inpath,
+                              full_list[full_list.index(nowfile)-1].split('/')[-1])
             #previousfile_mirror = os.path.join(inpath,'mirror',previousfile)
         except IndexError:
             print(nowfile+' is the end of the list!')
             if full_list.index(nowfile)==0:
                 previousfile = nowfile
             else:
-                previousfile = full_list[full_list.index(nowfile)-1].split('/')[-1]
+                previousfile = os.path.join(inpath,
+                               full_list[full_list.index(nowfile)-1].split('/')[-1])
                 nextfile_mirror = nowfile
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
         #energetics_analysis([nowfile],outpath)
-        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
