@@ -292,7 +292,7 @@ def prep_field_data(field_data, **kwargs):
             aux['x_subsolar'] = 0
             aux['x_nexl'] = 0
             aux['inner_l'] = 0
-            return aux, None, None
+            return aux, None
         else:
             tp.data.operate.execute_equation('{Status_cc}={Status}',
                                     value_location=ValueLocation.CellCentered)
@@ -393,6 +393,11 @@ def generate_3Dobj(sourcezone, **kwargs):
                     get_surf_geom_variables(inner_zone,**kwargs)
                 if 'modes' in kwargs:
                     get_surf_geom_variables(zone,**kwargs)
+                    if inner_zone is not None:
+                        copy_kwargs = kwargs.copy()
+                        copy_kwargs.update({'innerbound':True})
+                        get_surf_geom_variables(inner_zone,**copy_kwargs)
+                        zonelist.append(inner_zone)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
@@ -529,7 +534,6 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     state_indices = kwargs.get('state_indices')
 
     #perform integration for surface and volume quantities
-    mp_powers, innerbound_powers = pd.DataFrame(), pd.DataFrame()
     mp_mesh = {}
     data_to_write={}
     savemeshvars = {}

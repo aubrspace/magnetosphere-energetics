@@ -772,7 +772,8 @@ def get_surf_geom_variables(zone,**kwargs):
     df = pd.DataFrame({'x_cc':x_ccvalues,'normal':xnormals})
     #Check that surface normals are pointing outward from surface
     #Spherical inner boundary surface case (want them to point inwards)
-    if 'innerbound' in zone.name:
+    if kwargs.get('innerbound',False):
+    #if 'innerbound' in zone.name:
         if df[df['x_cc']==df['x_cc'].min()]['normal'].mean() < 0:
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
                zones=[zone.index], value_location=CC)
@@ -1875,7 +1876,8 @@ def setup_solidvolume(source, blankindex, state_variable,zonename,**kwargs):
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, global_key='global_field',
                                             blankvar='',blankvalue=3,
-                                              blankop=RelOp.LessThan):
+                                              blankop=RelOp.LessThan,
+                                              keep_zones='largest'):
     """Function creates an isosurface and then extracts and names the zone
     Inputs
         iso_value
@@ -1916,7 +1918,8 @@ def setup_isosurface(iso_value, varindex, zonename, *,
         macro = tp.macro.execute_command
         macro_cmd='$!ExtractIsoSurfaces Group = {:d} '.format(isoindex+1)
         #if zonename!='ms_lobes':
-        macro_cmd+='ExtractMode = OneZonePerConnectedRegion'
+        if keep_zones=='largest' or keep_zones=='all':
+            macro_cmd+='ExtractMode = OneZonePerConnectedRegion'
         macro(macro_cmd)
     except TecplotMacroError:
         print('Unable to create '+zonename+'!')
@@ -1925,20 +1928,26 @@ def setup_isosurface(iso_value, varindex, zonename, *,
     #Turn off blanking
     if blankvar != '':
         plt.value_blanking.active = False
-    #only keep zone with the highest number of elements
-    zsizes=pd.DataFrame([(z, z.num_elements)for z in ds.zones('*region*')],
-                                                  columns=['zone','size'])
-    newzone=zsizes[zsizes['size']==zsizes['size'].max()]['zone'].values[0]
-    if newzone.num_elements>200:
-        newzone.name = zonename
-        if len(zsizes) != 1:
-            for i in reversed([z.index for z in ds.zones('*region*')]):
-                ds.delete_zones([i])
-        return ds.zone(-1)#NOTE we return this way bc the index may change!
-                          #     so the 'newzone' reference is no longer safe
+    if keep_zones=='largest':
+        #only keep zone with the highest number of elements
+        zsizes=pd.DataFrame([(z, z.num_elements)for z in
+                              ds.zones('*region*')],columns=['zone','size'])
+        newzone=zsizes[zsizes['size']==zsizes['size'].max()]['zone'].values[0]
+        if newzone.num_elements>200:
+            newzone.name = zonename
+            if len(zsizes) != 1:
+                for i in reversed([z.index for z in ds.zones('*region*')]):
+                    ds.delete_zones([i])
+            return ds.zone(-1)#NOTE we return this way bc the index may
+                              # change! so the 'newzone' reference is no
+                              # longer safe
+        else:
+            ds.delete_zones([z.index for z in ds.zones('*region*')])
+            return None
+    elif keep_zones=='all':
+        return [z for z in ds.zones('*region*')]
     else:
-        ds.delete_zones([z.index for z in ds.zones('*region*')])
-        return None
+        return ds.zone(-1)
 
 def calc_state(mode, zones, **kwargs):
     """Function selects which state calculation method to use
@@ -1966,7 +1975,12 @@ def calc_state(mode, zones, **kwargs):
 
     elif mode == 'sphere':
         zonename = mode+str(kwargs.get('sp_rmax',3))
-        state_index = zones[0].dataset.variable('r *').index
+        state_index = calc_sphere_state(mode, kwargs.get('xc',0),
+                                kwargs.get('yc',0),
+                                kwargs.get('zc',0),
+                                kwargs.get('sp_rmax',3), zones,
+                                rmin=kwargs.get('sp_rmin',0))
+        #state_index = zones[0].dataset.variable('r *').index
         iso_value = kwargs.get('sp_rmax',3)
     elif mode == 'terminator':
         zonename = mode+str(kwargs.get('sp_rmax',3))
@@ -2160,10 +2174,37 @@ def calc_state(mode, zones, **kwargs):
             print('x_subsolar updated to {}'.format(new_subsolar))
             zones[0].aux_data['x_subsolar'] = new_subsolar
     elif kwargs.get('create_zone',True):
-        if 'sphere' not in mode:
-            iso_value = 1
-        zone = setup_isosurface(iso_value, state_index, zonename,blankvar='')
-        innerzone = None
+        #if 'sphere' not in mode:
+        #    iso_value = 1
+        iso_value = 1
+        if kwargs.get('keep_zones')=='all':
+            newzones = setup_isosurface(iso_value, state_index,
+                                    zonename,
+                                    blankvar=kwargs.get('blankvar',''),
+                                    blankvalue=kwargs.get('blankvalue',3),
+                              keep_zones=kwargs.get('keep_zones','largest'))
+            if 'sphere' in mode and kwargs.get('sp_rmin',0)>0:
+                # Should have an outer an inner shell as top two largest
+                sizes = [z.num_points for z in newzones]
+                i_biggest = sizes.index(max(sizes))
+                sizes.remove(max(sizes))
+                zone = newzones.pop(i_biggest)
+                i_next_biggest = sizes.index(max(sizes))
+                innerzone = newzones.pop(i_next_biggest)
+                innerzone.name = zonename+'_inner'
+                # Delete the rest
+                zones[0].dataset.delete_zones(newzones)
+                #NOTE need to refresh variable for innerzone to fix index
+                innerzone = zones[0].dataset.zone(zonename+'_inner')
+
+                # Name the zones
+                zone.name = zonename
+        else:
+            zone = setup_isosurface(iso_value, state_index, zonename,
+                                    blankvar=kwargs.get('blankvar',''),
+                                    blankvalue=kwargs.get('blankvalue',3),
+                              keep_zones=kwargs.get('keep_zones','largest'))
+            innerzone = None
     else:
         zone = None
         innerzone = None
@@ -2731,7 +2772,7 @@ def calc_shue_state(field_data, mode, x_subsolar,xtail,zones,*, dx=10):
                             '({X [R]} > '+str(xtail)+'), 1, 0)',zones=[source])
     return field_data.variable(mode).index
 
-def calc_sphere_state(mode, xc, yc, zc, rmax, sourcezone,*, rmin=0):
+def calc_sphere_state(mode, xc, yc, zc, rmax, zones,*, rmin=0):
     """Function creates state variable for a simple box
     Inputs
         mode
@@ -2745,7 +2786,7 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, sourcezone,*, rmin=0):
     if 'future' in sourcezone.name: state = 'future_'+mode
     else: state = mode
     '''
-    state = mode
+    state = mode+str(rmax)
     eq('{'+state+'} = IF(sqrt(({X [R]} -'+str(xc)+')**2 +'+
                             '({Y [R]} -'+str(yc)+')**2 +'+
                             '({Z [R]} -'+str(zc)+')**2) <'+
@@ -2753,8 +2794,8 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, sourcezone,*, rmin=0):
                         'sqrt(({X [R]} -'+str(xc)+')**2 +'+
                             '({Y [R]} -'+str(yc)+')**2 +'+
                             '({Z [R]} -'+str(zc)+')**2) >'+
-                            str(rmin)+',1, 0)')
-    return sourcezone.dataset.variable(mode).index
+                            str(rmin)+',1, 0)',zones=zones)
+    return zones[0].dataset.variable(state).index
 
 def calc_closed_state(statename, status_key,status_val,xmin,source,core_r):
     """Function creates state variable for the closed fieldline region
