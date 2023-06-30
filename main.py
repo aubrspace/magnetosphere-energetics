@@ -24,6 +24,7 @@ from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
 from global_energetics.write_disp import write_to_hdf
+from global_energetics import makevideo
 
 if __name__ == "__main__":
     start_time = time.time()
@@ -34,6 +35,7 @@ if __name__ == "__main__":
     else:
         pass
         #os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
+        #os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2022r2/bin/llvm:/usr/local/tecplot/360ex_2022r2/bin/osmesa:/usr/local/tecplot/360ex_2022r2/bin:/usr/local/tecplot/360ex_2022r2/bin/sys-util:/usr/local/tecplot/360ex_2022r2/bin/Qt'
     #pass in arguments
     #Nice condition
     #starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
@@ -88,6 +90,12 @@ if __name__ == "__main__":
             'ccmc_2019-05-13/3d__var_1_e20190514-071500-000.plt',
             'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt',
             'ccmc_2019-05-13/3d__var_1_e20190515-004700-018.plt')
+    all_main_phase = glob.glob('ccmc_2022-02-02/3d*')
+    all_times = sorted(glob.glob('ccmc_2022-02-02/3d__var*.plt'),
+                                key=makevideo.time_sort)[0::]
+    starlink_impact = (dt.datetime(2022,2,2,23,58)+
+                       dt.timedelta(hours=3,minutes=55))
+    starlink_endMain1 = dt.datetime(2022,2,3,11,54)
 
     oggridfile = 'ccmc_2022-02-02/3d__volume_e20220202.plt'
 
@@ -98,24 +106,30 @@ if __name__ == "__main__":
     closed_surf = pd.DataFrame()
     closed_vol = pd.DataFrame()
     #if False:
-    #for inputs in [febtest]:
-    for inputs in [starlink4]:
-    #for inputs in [starlink,starlink2,starlink3,starlink4]:
-        tp.new_layout()
-        mhddatafile = inputs[0]
-        OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
-        #python objects
-        field_data = tp.data.load_tecplot(inputs)
-        field_data.zone(0).name = 'global_field'
-        if len(field_data.zone_names)>1:
-            field_data.zone(1).name = 'future'
-        main = tp.active_frame()
-        main.name = 'main'
 
-        #Perform data extraction
-        with tp.session.suspend():
-            #Caclulate surfaces
-            _,results = magnetosphere.get_magnetosphere(field_data,
+    #for inputs in [febtest]:
+    #for inputs in [starlink,starlink2,starlink3,starlink4]:
+    for f in all_times:
+        filetime = makevideo.get_time(f)
+        if filetime>starlink_impact and filetime<starlink_endMain1:
+            print(filetime)
+            tp.new_layout()
+            #mhddatafile = inputs[0]
+            mhddatafile = f
+            OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
+            #python objects
+            #field_data = tp.data.load_tecplot(inputs)
+            field_data = tp.data.load_tecplot(mhddatafile)
+            field_data.zone(0).name = 'global_field'
+            if len(field_data.zone_names)>1:
+                field_data.zone(1).name = 'future'
+            main = tp.active_frame()
+            main.name = 'main'
+
+            #Perform data extraction
+            with tp.session.suspend():
+                #Caclulate surfaces
+                _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                     verbose=True,
                                     debug=True,
@@ -133,7 +147,7 @@ if __name__ == "__main__":
                                     integrate_volume=True,
                                     integrate_line=False,
                                     truegridfile=oggridfile,
-                                    outputpath='babyrun/',
+                                    outputpath='static_test/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'test':'TestArea [Re^2]'}

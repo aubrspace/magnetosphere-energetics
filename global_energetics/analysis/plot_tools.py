@@ -131,6 +131,7 @@ def general_plot_settings(ax, **kwargs):
             ax.xaxis.set_major_formatter(ticker.NullFormatter())
     else:
         #ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
+        ax.set_xlim(kwargs.get('xlim',None))
         tmin,tmax = ax.get_xlim()
         time_range = mdates.num2timedelta(tmax-tmin)
         if time_range>dt.timedelta(hours=6):

@@ -596,6 +596,7 @@ def parse_phase(indata,phasekey,**kwargs):
             times = indata.index
     elif type(indata) == dict:
         times = [df for df in indata.values() if not df.empty][0].index
+    #from IPython import embed; embed()
 
     #Find the phase marks based on the event itself
     moments = locate_phase(times, **kwargs)
@@ -2262,6 +2263,14 @@ def lobe_balance_fig(dataset,phase,path):
         for i,term in enumerate(terms):
             terms[i] = terms[i].rolling('120s').mean()
         [Ks1roll,Ks3roll,Ks4roll,Ks5roll,Ks6roll,Ks7roll] = terms
+        Ksum = Ks1+Ks3+Ks4+Ks5+Ks6+Ks7
+        #correction = 1.744e8*(mp['Area [Re^2]']+lobes['TestAreaK3 [Re^2]']+
+        #                      closed['TestAreaK7 [Re^2]'])
+        total_area = (mp['Area [Re^2]']+lobes['TestAreaK3 [Re^2]']+
+                                        closed['TestAreaK7 [Re^2]'])
+        #correction = 4.580e-4*total_area
+        mcorrection = 2.0e-4*total_area
+        bcorrection = 2.5e11
         from IPython import embed; embed()
         #TODO: Try looking at the split in S vs H in the local error to
         #       determine if the error can be attributed to a specific static
@@ -2386,12 +2395,10 @@ def lobe_balance_fig(dataset,phase,path):
         #axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
         #                 Ks5roll+Ks6roll+Ks7roll)/1e12,label='Static')
         #axis.plot(times,M/1e12,label='Motion')
-        axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
-                         Ks5roll+Ks6roll+Ks7roll+M)/1e12,label='Summed')
-        axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
-                         Ks5roll+Ks6roll+Ks7roll+M-K_mp)/1e12,label='Error')
-        axis.plot(times,((K_mp-M)/(Ks1roll+Ks3roll+Ks4roll+
-                         Ks5roll+Ks6roll+Ks7roll+M)),label='Ratio')
+        axis.plot(times,(Ksum/mcorrection+bcorrection+M)/1e12,label='Summed*')
+        axis.plot(times,((Ksum/mcorrection+bcorrection+M)-K_mp)/1e12,label='Error')
+        #axis.plot(times,((K_mp-M)/(Ks1roll+Ks3roll+Ks4roll+
+        #                 Ks5roll+Ks6roll+Ks7roll+M)),label='Ratio')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylim=[-10,10],
@@ -2505,16 +2512,11 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         total_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_mp.cumsum()*60/1e15,label='Total')
-        axis.plot(times,(M+Ks1roll+Ks3roll+Ks4roll+
-                         Ks5roll+Ks6roll+Ks7roll).cumsum()*60/1e15,
-                         label='OG')
-        axis.plot(times,(M+0.5*(Ks1roll+Ks3roll+Ks4roll+
-                         Ks5roll+Ks6roll+Ks7roll)).cumsum()*60/1e15,
-                         label='halfKs')
-        axis.plot(times,(M+(Ks1roll+0*Ks3roll+Ks4roll+
-                         Ks5roll+Ks6roll+Ks7roll)).cumsum()*60/1e15,
-                         label='noKs3')
+        axis.plot(times,K_mp.cumsum()*60/1e15,label='CentralDiff')
+        axis.plot(times,(Ksum+M).cumsum()*60/1e15,
+                         label='Summed')
+        axis.plot(times,(Ksum/mcorrection+bcorrection+M).cumsum()*60/1e15,
+                         label='Summed*')
         #axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
         #                 Ks5roll+Ks6roll+Ks7roll).cumsum()*60/1e15,
         #          label='Static')
@@ -4103,6 +4105,11 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
+    #dataset['star'] = {}
+    store = pd.HDFStore('static_test/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key] = store[key]
+    store.close()
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
@@ -4113,8 +4120,8 @@ if __name__ == "__main__":
     #                                read_supermag=False, tshift=45)
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=False,
-                    end=dataset['star']['msdict']['closed'].index[-1],
-                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+                                     end=dataset['star']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['star']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
@@ -4122,7 +4129,7 @@ if __name__ == "__main__":
     #                                     read_supermag=False)
 
     ## Satellite Data
-    dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
+    #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
     for event_key in dataset.keys():
@@ -4177,20 +4184,31 @@ if __name__ == "__main__":
     for event_key in [k for k in dataset.keys() if 'aug' not in k and
                                                    'jun' not in k]:
         event = dataset[event_key]
-        msdict = event['msdict']
+        keys = event.copy().keys()
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
-            if 'mpdict' in event.keys():
-                event['mp'+phase], event['time'+phase]=parse_phase(
+            for key in keys:
+                if key == 'mpdict':
+                    event['mp'+phase], event['time'+phase]=parse_phase(
                                          event['mpdict']['ms_full'],phase)
-            if 'inner_mp' in event.keys():
-                event['inner_mp'+phase], event['time'+phase]=parse_phase(
+                elif key == 'inner_mp':
+                    event['inner_mp'+phase], event['time'+phase]=parse_phase(
                                                   event['inner_mp'],phase)
-            if 'msdict' in event.keys():
-                event['msdict'+phase], event['time'+phase] = parse_phase(
+                elif key == 'msdict':
+                    event['msdict'+phase], event['time'+phase] = parse_phase(
                                                     event['msdict'],phase)
-            if 'termdict' in event.keys():
-                event['termdict'+phase],event['time'+phase]=parse_phase(
+                elif key == 'termdict':
+                    event['termdict'+phase],event['time'+phase]=parse_phase(
                                                  event['termdict'],phase)
+                else:
+                    pass
+                    #event[key+phase],event['time'+phase] = parse_phase(
+                    #                                         event[key],phase)
+                    #try:
+                    #    event[key+phase],event['time'+phase] = parse_phase(
+                    #                                         event[key],phase)
+                    #except:
+                    #    print('WORK ON THIS')
+                    #    from IPython import embed; embed()
     for event_key in dataset.keys():
         event = dataset[event_key]
         obs_srcs = list(event['obs'].keys())
@@ -4205,7 +4223,7 @@ if __name__ == "__main__":
                                         parse_phase(event['vsat'][sat],phase))
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
-        '''
+    '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
                                        event['obssat'][sat],sat)
@@ -4220,6 +4238,78 @@ if __name__ == "__main__":
     #TODO
     ph = '_lineup'
     phase = '_interv'
+    if True:
+        event = 'star'
+        exterior = dataset[event]['/sphere10_surface']
+        # Initialize the quantities of interest and time
+        for key,value in dataset[event]['/sphere10_volume'].items():
+            exterior[key] = value
+        interior = dataset[event]['/sphere10_inner_surface']
+        times = interior.index
+        moments = locate_phase(interior.index)
+        # Short hand for fluxes
+        interv = times[times>moments['impact']]
+        Ks1 = exterior.loc[interv,'K_net [W]']
+        Ks3 = interior.loc[interv,'K_net [W]']
+        Hs1 = exterior.loc[interv,'P0_net [W]']
+        Hs3 = interior.loc[interv,'P0_net [W]']
+        Ss1 = exterior.loc[interv,'ExB_net [W]']
+        Ss3 = interior.loc[interv,'ExB_net [W]']
+        U = exterior.loc[interv,'Utot [J]']
+        uB = exterior.loc[interv,'uB [J]']
+        uH = exterior.loc[interv,'uHydro [J]']
+        K_sp = -1*central_diff(U,60)
+        K_sp_fwd = -1*central_diff(U,60,forward=True)
+        H_sp = -1*central_diff(uH,60)
+        S_sp = -1*central_diff(uB,60)
+        # balance figure
+        #############
+        #setup figure
+        total_balance_test,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.fill_between(interv,K_sp/1e12,label='CentralDiff_sp10-3',
+                          fc='grey')
+        axis.plot(interv,(Ks1+Ks3+0.7e12)/1e12,label='SummedFlux_sp10-3')
+        axis.plot(interv,(Ks1+Ks3-K_sp)/1e12,label='Error')
+        axis.plot(interv,K_sp_fwd/1e12,label='ForwardDiff_sp10-3')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              xlim=[moments['impact'],moments['peak2']],
+                              ylim=[-10,10],
+                              ylabel=r'Net Power $\left[ TW\right]$',
+                              timedelta=False)
+        #axis.axvspan(moments['impact'],moments['peak2'],alpha=0.2,fc='grey')
+        #save
+        total_balance_test.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_balance_test.tight_layout(pad=1)
+        figurename = path+'/total_balance_test_'+event+'.png'
+        total_balance_test.savefig(figurename)
+        plt.close(total_balance_test)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        total_acc_test,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.plot(interv,K_sp.cumsum()*60/1e15,label='CentralDiff_sp10-3')
+        axis.plot(interv,(Ks1+Ks3+0.7e12).cumsum()*60/1e15,label='SummedFlux_sp10-3')
+        axis.plot(interv,K_sp_fwd.cumsum()*60/1e15,label='ForwardDiff_sp10-3')
+        axis.fill_between(interv,-1*(U-U[0])/1e15,
+                          label='-1*Energy',fc='grey')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              xlim=[moments['impact'],moments['peak2']],
+                              ylabel=r'Accumulated Power $\left[ PJ\right]$',
+                              timedelta=False)
+        #save
+        total_acc_test.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_acc_test.tight_layout(pad=1)
+        figurename = path+'/total_acc_test_'+event+'.png'
+        total_acc_test.savefig(figurename)
+        plt.close(total_acc_test)
+        print('\033[92m Created\033[00m',figurename)
+        from IPython import embed; embed()
     if False:
     #for event in dataset.keys():
         #Figure setup
