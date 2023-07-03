@@ -48,7 +48,7 @@
 # 
 
 ## Replace `test` with the Slurm account this job will run under.
-#SBATCH --account=tuija98
+#SBATCH --account=tuija0
 
 ## Job name
 #SBATCH --job-name=starSAT_1
