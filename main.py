@@ -138,13 +138,13 @@ if __name__ == "__main__":
                                     analysis_type='energy',
                                     #modes=['iso_betastar','closed',
                                     #       'nlobe','slobe'],
-                                    modes=['sphere'],
+                                    modes=['perfectsphere'],
                                     sp_rmax=10,
                                     sp_rmin=3,
-                                    keep_zones='all',
+                                    #keep_zones='all',
                                     do_interfacing=False,
                                     integrate_surface=True,
-                                    integrate_volume=True,
+                                    integrate_volume=False,
                                     integrate_line=False,
                                     truegridfile=oggridfile,
                                     outputpath='static_test/',
@@ -152,6 +152,7 @@ if __name__ == "__main__":
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'test':'TestArea [Re^2]'}
                                     )
+            break
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=True,

@@ -1973,6 +1973,10 @@ def calc_state(mode, zones, **kwargs):
         zonename = 'mp_'+mode
         state_index = calc_betastar_state(zonename,zones,**kwargs)
 
+    elif mode == 'perfectsphere':
+        zonename = mode+str(kwargs.get('sp_rmax',3))
+        state_index = zones[0].dataset.variable('r *').index
+        iso_value = kwargs.get('sp_rmax',3)
     elif mode == 'sphere':
         zonename = mode+str(kwargs.get('sp_rmax',3))
         state_index = calc_sphere_state(mode, kwargs.get('xc',0),
@@ -1980,8 +1984,7 @@ def calc_state(mode, zones, **kwargs):
                                 kwargs.get('zc',0),
                                 kwargs.get('sp_rmax',3), zones,
                                 rmin=kwargs.get('sp_rmin',0))
-        #state_index = zones[0].dataset.variable('r *').index
-        iso_value = kwargs.get('sp_rmax',3)
+        #iso_value = kwargs.get('sp_rmax',3)
     elif mode == 'terminator':
         zonename = mode+str(kwargs.get('sp_rmax',3))
         assert zones[0].dataset.zone('sphere*') is not None, (
@@ -2174,9 +2177,8 @@ def calc_state(mode, zones, **kwargs):
             print('x_subsolar updated to {}'.format(new_subsolar))
             zones[0].aux_data['x_subsolar'] = new_subsolar
     elif kwargs.get('create_zone',True):
-        #if 'sphere' not in mode:
-        #    iso_value = 1
-        iso_value = 1
+        if 'perfectsphere' not in mode:
+            iso_value = 1
         if kwargs.get('keep_zones')=='all':
             newzones = setup_isosurface(iso_value, state_index,
                                     zonename,
@@ -2204,7 +2206,14 @@ def calc_state(mode, zones, **kwargs):
                                     blankvar=kwargs.get('blankvar',''),
                                     blankvalue=kwargs.get('blankvalue',3),
                               keep_zones=kwargs.get('keep_zones','largest'))
-            innerzone = None
+            if 'sphere' in mode and kwargs.get('sp_rmin',0)>0:
+                innerzone = setup_isosurface(kwargs.get('sp_rmin',0), state_index,
+                                    zonename+'_inner',
+                                    blankvar=kwargs.get('blankvar',''),
+                                    blankvalue=kwargs.get('blankvalue',3),
+                              keep_zones=kwargs.get('keep_zones','largest'))
+            else:
+                innerzone = None
     else:
         zone = None
         innerzone = None
