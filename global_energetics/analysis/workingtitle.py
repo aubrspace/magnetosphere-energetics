@@ -2187,18 +2187,32 @@ def lobe_balance_fig(dataset,phase,path):
         M1 = mp['UtotM1 [W]']
         M5 = mp['UtotM5 [W]']
         M = mp['UtotM [W]']
+        MM = mp['MM [kg/s]']
         #M1a,1b,2b,il from lobes
         M1a = lobes['UtotM1a [W]']
         M1b = lobes['UtotM1b [W]']
         M2b = lobes['UtotM2b [W]']
         M2d = lobes['UtotM2d [W]']
         Mil = lobes['UtotMil [W]']
+        #from IPython import embed; embed()
+        MM_lobes = (lobes['MM1a [kg/s]']+
+                    lobes['MM1b [kg/s]']-
+                    closed['MM2a [kg/s]']+
+                    lobes['MM2b [kg/s]']-
+                    closed['MM2c [kg/s]']+
+                    lobes['MM2d [kg/s]'])
         #M5a,5b,2a,ic from closed
         M5a = closed['UtotM5a [W]']
         M5b = closed['UtotM5b [W]']
         M2a = closed['UtotM2a [W]']
         M2c = closed['UtotM2c [W]']
         Mic = closed['UtotMic [W]']
+        MM_closed = (closed['MM5a [kg/s]']+
+                     closed['MM5b [kg/s]']+
+                     closed['MM2a [kg/s]']-
+                     lobes['MM2b [kg/s]']+
+                     closed['MM2c [kg/s]']-
+                     lobes['MM2d [kg/s]'])
 
         M_lobes = M1a+M1b-M2a+M2b-M2c+M2d
         M_closed = M5a+M5b+M2a-M2b+M2c-M2d
@@ -2258,12 +2272,25 @@ def lobe_balance_fig(dataset,phase,path):
         S_closed = -1*central_diff(closed['uB [J]'],60)
         S_lobes = -1*central_diff(lobes['uB [J]'],60)
         S_mp = -1*central_diff(mp['uB [J]'],60)
+        # Mass
+        Mass_closed = -1*central_diff(closed['M [kg]'],60)
+        Mass_lobes = -1*central_diff(lobes['M [kg]'],60)
+        Mass_mp = -1*central_diff(mp['M [kg]'],60)
 
         terms = [Ks1,Ks3,Ks4,Ks5,Ks6,Ks7]
         for i,term in enumerate(terms):
             terms[i] = terms[i].rolling('120s').mean()
         [Ks1roll,Ks3roll,Ks4roll,Ks5roll,Ks6roll,Ks7roll] = terms
+        #from IPython import embed; embed()
         Ksum = Ks1+Ks3+Ks4+Ks5+Ks6+Ks7
+        Masssum_mp = (mp['M_net [kg/s]']+lobes['M_netK3 [kg/s]']+
+                      closed['M_netK7 [kg/s]'])
+        Masssum_lobes = (mp['M_netK1 [kg/s]']+lobes['M_netK2a [kg/s]']+
+                         lobes['M_netK2b [kg/s]']+lobes['M_netK3 [kg/s]']+
+                         lobes['M_netK4 [kg/s]'])
+        Masssum_closed = (mp['M_netK5 [kg/s]']+closed['M_netK2a [kg/s]']+
+                          closed['M_netK2b [kg/s]']+closed['M_netK6 [kg/s]']+
+                          closed['M_netK7 [kg/s]'])
         #correction = 1.744e8*(mp['Area [Re^2]']+lobes['TestAreaK3 [Re^2]']+
         #                      closed['TestAreaK7 [Re^2]'])
         total_area = (mp['Area [Re^2]']+lobes['TestAreaK3 [Re^2]']+
@@ -2271,7 +2298,6 @@ def lobe_balance_fig(dataset,phase,path):
         #correction = 4.580e-4*total_area
         mcorrection = 2.0e-4*total_area
         bcorrection = 2.5e11
-        from IPython import embed; embed()
         #TODO: Try looking at the split in S vs H in the local error to
         #       determine if the error can be attributed to a specific static
         #       flux
@@ -2389,19 +2415,51 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
+        mass_balance_regions,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.plot(times,Mass_mp,label='Cdiff-MS',c='maroon',ls='--')
+        axis.plot(times,(Masssum_mp+MM),label='Summed-MS',c='maroon')
+        axis.plot(times,Mass_lobes,label='Cdiff-Lobes',c='tab:blue',ls='--')
+        axis.plot(times,(Masssum_lobes+MM_lobes),label='Summed-Lobes',
+                  c='tab:blue')
+        axis.plot(times,Mass_closed,label='Cdiff-Lobes',c='magenta',ls='--')
+        axis.plot(times,(Masssum_closed+MM_closed),label='Summed-Closed',
+                  c='magenta')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylim=[-40,100],
+                              ylabel=r'MassFlux $\left[ kg/s\right]$',
+                              legend_loc='upper left',
+                              timedelta=dotimedelta)
+        axis.axvline((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,
+                         ls='--',color='black')
+        axis.axvline(0,ls='--',color='black')
+        #save
+        mass_balance_regions.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        mass_balance_regions.tight_layout(pad=1)
+        figurename = path+'/mass_balance_regions'+phase+'_'+event+'.png'
+        mass_balance_regions.savefig(figurename)
+        plt.close(mass_balance_regions)
+        print('\033[92m Created\033[00m',figurename)
+
+        #############
+        #setup figure
         total_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.fill_between(times,K_mp/1e12,label='Total',fc='grey')
+        axis.fill_between(times,Mass_mp,label='Total',fc='grey')
         #axis.plot(times,(Ks1roll+Ks3roll+Ks4roll+
         #                 Ks5roll+Ks6roll+Ks7roll)/1e12,label='Static')
         #axis.plot(times,M/1e12,label='Motion')
-        axis.plot(times,(Ksum/mcorrection+bcorrection+M)/1e12,label='Summed*')
-        axis.plot(times,((Ksum/mcorrection+bcorrection+M)-K_mp)/1e12,label='Error')
+        #axis.plot(times,(Ksum/mcorrection+bcorrection+M)/1e12,label='Summed*')
+        axis.plot(times,(Masssum_mp+MM),label='Summed')
+        #axis.plot(times,((Ksum/mcorrection+bcorrection+M)-K_mp)/1e12,label='Error')
         #axis.plot(times,((K_mp-M)/(Ks1roll+Ks3roll+Ks4roll+
         #                 Ks5roll+Ks6roll+Ks7roll+M)),label='Ratio')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              ylim=[-10,10],
+                              #ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=dotimedelta)
         axis.axvline((moments['impact']-
@@ -4110,6 +4168,10 @@ if __name__ == "__main__":
     for key in store.keys():
         dataset['star'][key] = store[key]
     store.close()
+    store = pd.HDFStore('static_test/perfect.h5')
+    for key in store.keys():
+        dataset['star'][key] = store[key]
+    store.close()
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
@@ -4241,20 +4303,43 @@ if __name__ == "__main__":
     if True:
         event = 'star'
         exterior = dataset[event]['/sphere10_surface']
+        perfect_exterior = dataset[event]['/perfectsphere10_surface']
         # Initialize the quantities of interest and time
         for key,value in dataset[event]['/sphere10_volume'].items():
             exterior[key] = value
         interior = dataset[event]['/sphere10_inner_surface']
+        perfect_interior = dataset[event]['/perfectsphere10_inner_surface']
         times = interior.index
         moments = locate_phase(interior.index)
         # Short hand for fluxes
         interv = times[times>moments['impact']]
+        #interv = times
+        '''
+        Hs1 = 2.5/1.5*exterior.loc[interv,'P0_net [W]']
+        Hs3 = 2.5/1.5*interior.loc[interv,'P0_net [W]']
+        pHs1 = 2.5/1.5*perfect_exterior.loc[interv,'P0_net [W]']
+        pHs3 = 2.5/1.5*perfect_interior.loc[interv,'P0_net [W]']
+        Ss1 = exterior.loc[interv,'ExB_net [W]']
+        Ss3 = interior.loc[interv,'ExB_net [W]']
+        pSs1 = perfect_exterior.loc[interv,'ExB_net [W]']
+        pSs3 = perfect_interior.loc[interv,'ExB_net [W]']
+        Ks1 = Hs1+Ss1
+        Ks3 = Hs3+Ss3
+        pKs1 = pHs1+pSs1
+        pKs3 = pHs3+pSs3
+        '''
         Ks1 = exterior.loc[interv,'K_net [W]']
         Ks3 = interior.loc[interv,'K_net [W]']
         Hs1 = exterior.loc[interv,'P0_net [W]']
         Hs3 = interior.loc[interv,'P0_net [W]']
         Ss1 = exterior.loc[interv,'ExB_net [W]']
         Ss3 = interior.loc[interv,'ExB_net [W]']
+        pKs1 = perfect_exterior.loc[interv,'K_net [W]']
+        pKs3 = perfect_interior.loc[interv,'K_net [W]']
+        pHs1 = perfect_exterior.loc[interv,'P0_net [W]']
+        pHs3 = perfect_interior.loc[interv,'P0_net [W]']
+        pSs1 = perfect_exterior.loc[interv,'ExB_net [W]']
+        pSs3 = perfect_interior.loc[interv,'ExB_net [W]']
         U = exterior.loc[interv,'Utot [J]']
         uB = exterior.loc[interv,'uB [J]']
         uH = exterior.loc[interv,'uHydro [J]']
@@ -4269,12 +4354,15 @@ if __name__ == "__main__":
         #Plot
         axis.fill_between(interv,K_sp/1e12,label='CentralDiff_sp10-3',
                           fc='grey')
-        axis.plot(interv,(Ks1+Ks3+0.7e12)/1e12,label='SummedFlux_sp10-3')
-        axis.plot(interv,(Ks1+Ks3-K_sp)/1e12,label='Error')
-        axis.plot(interv,K_sp_fwd/1e12,label='ForwardDiff_sp10-3')
+        axis.plot(interv,(Ks1+Ks3)/1e12,label='SummedFlux_sp10-3')
+        axis.plot(interv,(pKs1+pKs3)/1e12,label='SummedFlux_perfect')
+        axis.plot(interv,(pKs1)/1e12,label='ExteriorFlux_perfect')
+        #axis.plot(interv,(Ks1+Ks3+0.7e12)/1e12,label='SummedFlux_sp10-3')
+        #axis.plot(interv,(Ks1+Ks3-K_sp)/1e12,label='Error')
+        #axis.plot(interv,K_sp_fwd/1e12,label='ForwardDiff_sp10-3')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              xlim=[moments['impact'],moments['peak2']],
+                              #xlim=[moments['impact'],moments['peak2']],
                               ylim=[-10,10],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               timedelta=False)
@@ -4292,13 +4380,15 @@ if __name__ == "__main__":
         total_acc_test,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
         axis.plot(interv,K_sp.cumsum()*60/1e15,label='CentralDiff_sp10-3')
-        axis.plot(interv,(Ks1+Ks3+0.7e12).cumsum()*60/1e15,label='SummedFlux_sp10-3')
-        axis.plot(interv,K_sp_fwd.cumsum()*60/1e15,label='ForwardDiff_sp10-3')
+        #axis.plot(interv,(Ks1+Ks3+0.7e12).cumsum()*60/1e15,label='SummedFlux_sp10-3')
+        axis.plot(interv,(Ks1+Ks3).cumsum()*60/1e15,label='SummedFlux_sp10-3')
+        axis.plot(interv,(pKs1+pKs3).cumsum()*60/1e15,label='SummedFlux_smooth')
+        #axis.plot(interv,K_sp_fwd.cumsum()*60/1e15,label='ForwardDiff_sp10-3')
         axis.fill_between(interv,-1*(U-U[0])/1e15,
                           label='-1*Energy',fc='grey')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              xlim=[moments['impact'],moments['peak2']],
+                              #xlim=[moments['impact'],moments['peak2']],
                               ylabel=r'Accumulated Power $\left[ PJ\right]$',
                               timedelta=False)
         #save
@@ -4309,7 +4399,7 @@ if __name__ == "__main__":
         total_acc_test.savefig(figurename)
         plt.close(total_acc_test)
         print('\033[92m Created\033[00m',figurename)
-        from IPython import embed; embed()
+        #from IPython import embed; embed()
     if False:
     #for event in dataset.keys():
         #Figure setup

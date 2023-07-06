@@ -335,7 +335,7 @@ def get_volume_trades(zone,integrands,**kwargs):
             except TecplotLogicError as err:
                 print('Equation eval failed!\n',new_eq,'\n')
                 if kwargs.get('debug',False): print(err)
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
     return trade_integrands
 
 def get_mobile_integrands(zone,state_var,integrands,**kwargs):
