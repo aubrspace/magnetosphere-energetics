@@ -31,7 +31,7 @@ do
     #                              -s $satpath
 
     #if you only want to process one file use this
-    #exit
+    exit
 
 done
 

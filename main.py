@@ -141,6 +141,8 @@ if __name__ == "__main__":
                                     analysis_type='energy_mass',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
+                                    inner_r=4,
+                                    blankvalue=4,
                                     #modes=['sphere'],
                                     #sp_rmax=10,
                                     #sp_rmin=4,
