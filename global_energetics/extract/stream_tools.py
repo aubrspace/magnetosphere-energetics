@@ -2195,7 +2195,8 @@ def calc_state(mode, zones, **kwargs):
                 innerzone = newzones.pop(i_next_biggest)
                 innerzone.name = zonename+'_inner'
                 # Delete the rest
-                zones[0].dataset.delete_zones(newzones)
+                if newzones != []:
+                    zones[0].dataset.delete_zones(newzones)
                 #NOTE need to refresh variable for innerzone to fix index
                 innerzone = zones[0].dataset.zone(zonename+'_inner')
 

@@ -525,9 +525,7 @@ def volume_analysis(state_var, **kwargs):
                                              integrands,
                                              **kwargs)
         '''
-    if kwargs.get('do_interfacing',False):
-        interface_terms = get_volume_trades(global_zone,integrands,
-                                            **kwargs,state_var=state_var)
+    if kwargs.get('do_interfacing',False) and kwargs.get('do_cms',False):
         '''
         interface_terms = get_interface_integrands(global_zone,
                                                        #mobile_terms,**kwargs,
@@ -535,6 +533,8 @@ def volume_analysis(state_var, **kwargs):
                                                        state_var=state_var)
         #mobile_terms.update(interface_terms)
         '''
+        interface_terms = get_volume_trades(global_zone,integrands,
+                                            **kwargs,state_var=state_var)
         integrands.update(interface_terms)
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,

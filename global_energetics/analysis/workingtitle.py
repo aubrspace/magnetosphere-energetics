@@ -4162,15 +4162,43 @@ if __name__ == "__main__":
     #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
-    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
-    #dataset['star'] = {}
-    store = pd.HDFStore('static_test/energetics.h5')
+    #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
+    dataset['star'] = {}
+    store = pd.HDFStore('static_test/sphere.h5')
     for key in store.keys():
-        dataset['star'][key] = store[key]
+        dataset['star'][key.replace('/','')] = store[key]
     store.close()
     store = pd.HDFStore('static_test/perfect.h5')
     for key in store.keys():
-        dataset['star'][key] = store[key]
+        dataset['star'][key.replace('/','')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/solarwind/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','solarwind')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/centered3-5Re/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','centered35-')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/centered3-75Re/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','centered375-')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/centered3-875Re/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','centered3875-')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/centered4Re/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','centered4-')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/centered4-5Re/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','centered45-')] = store[key]
+    store.close()
+    store = pd.HDFStore('static_test/centered5Re/energetics.h5')
+    for key in store.keys():
+        dataset['star'][key.replace('/sphere','centered5-')] = store[key]
     store.close()
     #dataset['aug'] = {}
     #dataset['jun'] = {}
@@ -4180,6 +4208,7 @@ if __name__ == "__main__":
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
+    '''
     dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=False,
                                      end=dataset['star']['msdict']['closed'].index[-1],
@@ -4286,13 +4315,14 @@ if __name__ == "__main__":
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
     '''
+    '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
                                        event['obssat'][sat],sat)
         '''
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(dataset)
+    #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
     #interval_figures(dataset)
@@ -4302,15 +4332,43 @@ if __name__ == "__main__":
     phase = '_interv'
     if True:
         event = 'star'
-        exterior = dataset[event]['/sphere10_surface']
-        perfect_exterior = dataset[event]['/perfectsphere10_surface']
+        exterior = dataset[event]['sphere10_surface']
+        perfect_exterior = dataset[event]['perfectsphere10_surface']
+        sw_exterior = dataset[event]['solarwind10_surface']
+        c35_exterior = dataset[event]['centered35-10_surface']
+        c375_exterior = dataset[event]['centered375-10_surface']
+        c3875_exterior = dataset[event]['centered3875-10_surface']
+        c4_exterior = dataset[event]['centered4-10_surface']
+        c45_exterior = dataset[event]['centered45-10_surface']
+        c5_exterior = dataset[event]['centered5-10_surface']
         # Initialize the quantities of interest and time
-        for key,value in dataset[event]['/sphere10_volume'].items():
+        for key,value in dataset[event]['sphere10_volume'].items():
             exterior[key] = value
-        interior = dataset[event]['/sphere10_inner_surface']
-        perfect_interior = dataset[event]['/perfectsphere10_inner_surface']
-        times = interior.index
-        moments = locate_phase(interior.index)
+        for key,value in dataset[event]['solarwind10_volume'].items():
+            sw_exterior[key] = value
+        for key,value in dataset[event]['centered35-10_volume'].items():
+            c35_exterior[key] = value
+        for key,value in dataset[event]['centered375-10_volume'].items():
+            c375_exterior[key] = value
+        for key,value in dataset[event]['centered3875-10_volume'].items():
+            c3875_exterior[key] = value
+        for key,value in dataset[event]['centered4-10_volume'].items():
+            c4_exterior[key] = value
+        for key,value in dataset[event]['centered45-10_volume'].items():
+            c45_exterior[key] = value
+        for key,value in dataset[event]['centered5-10_volume'].items():
+            c5_exterior[key] = value
+        interior = dataset[event]['sphere10_inner_surface']
+        perfect_interior = dataset[event]['perfectsphere10_inner_surface']
+        sw_interior = dataset[event]['solarwind10_inner_surface']
+        c35_interior = dataset[event]['centered35-10_inner_surface']
+        c375_interior = dataset[event]['centered375-10_inner_surface']
+        c3875_interior = dataset[event]['centered3875-10_inner_surface']
+        c4_interior = dataset[event]['centered4-10_inner_surface']
+        c45_interior = dataset[event]['centered45-10_inner_surface']
+        c5_interior = dataset[event]['centered5-10_inner_surface']
+        times = c4_interior.index
+        moments = locate_phase(c4_interior.index)
         # Short hand for fluxes
         interv = times[times>moments['impact']]
         #interv = times
@@ -4328,18 +4386,72 @@ if __name__ == "__main__":
         pKs1 = pHs1+pSs1
         pKs3 = pHs3+pSs3
         '''
+        # Fluxes
+        # Regular sphere
         Ks1 = exterior.loc[interv,'K_net [W]']
         Ks3 = interior.loc[interv,'K_net [W]']
         Hs1 = exterior.loc[interv,'P0_net [W]']
         Hs3 = interior.loc[interv,'P0_net [W]']
         Ss1 = exterior.loc[interv,'ExB_net [W]']
         Ss3 = interior.loc[interv,'ExB_net [W]']
+        # Continuous sphere
         pKs1 = perfect_exterior.loc[interv,'K_net [W]']
         pKs3 = perfect_interior.loc[interv,'K_net [W]']
         pHs1 = perfect_exterior.loc[interv,'P0_net [W]']
         pHs3 = perfect_interior.loc[interv,'P0_net [W]']
         pSs1 = perfect_exterior.loc[interv,'ExB_net [W]']
         pSs3 = perfect_interior.loc[interv,'ExB_net [W]']
+        # Solar wind sphere
+        swKs1 = sw_exterior.loc[interv,'K_net [W]']
+        swKs3 = sw_interior.loc[interv,'K_net [W]']
+        swHs1 = sw_exterior.loc[interv,'P0_net [W]']
+        swHs3 = sw_interior.loc[interv,'P0_net [W]']
+        swSs1 = sw_exterior.loc[interv,'ExB_net [W]']
+        swSs3 = sw_interior.loc[interv,'ExB_net [W]']
+        # Innerboundary shifted -> 3.5Re sphere
+        c35Ks1 = c35_exterior.loc[interv,'K_net [W]']
+        c35Ks3 = c35_interior.loc[interv,'K_net [W]']
+        c35Hs1 = c35_exterior.loc[interv,'P0_net [W]']
+        c35Hs3 = c35_interior.loc[interv,'P0_net [W]']
+        c35Ss1 = c35_exterior.loc[interv,'ExB_net [W]']
+        c35Ss3 = c35_interior.loc[interv,'ExB_net [W]']
+        # Innerboundary shifted -> 3.5Re sphere
+        c375Ks1 = c375_exterior.loc[interv,'K_net [W]']
+        c375Ks3 = c375_interior.loc[interv,'K_net [W]']
+        c375Hs1 = c375_exterior.loc[interv,'P0_net [W]']
+        c375Hs3 = c375_interior.loc[interv,'P0_net [W]']
+        c375Ss1 = c375_exterior.loc[interv,'ExB_net [W]']
+        c375Ss3 = c375_interior.loc[interv,'ExB_net [W]']
+        # Innerboundary shifted -> 3.5Re sphere
+        c3875Ks1 = c3875_exterior.loc[interv,'K_net [W]']
+        c3875Ks3 = c3875_interior.loc[interv,'K_net [W]']
+        c3875Hs1 = c3875_exterior.loc[interv,'P0_net [W]']
+        c3875Hs3 = c3875_interior.loc[interv,'P0_net [W]']
+        c3875Ss1 = c3875_exterior.loc[interv,'ExB_net [W]']
+        c3875Ss3 = c3875_interior.loc[interv,'ExB_net [W]']
+        # Innerboundary shifted -> 4Re sphere
+        c4Ks1 = c4_exterior.loc[interv,'K_net [W]']
+        c4Ks3 = c4_interior.loc[interv,'K_net [W]']
+        c4Hs1 = c4_exterior.loc[interv,'P0_net [W]']
+        c4Hs3 = c4_interior.loc[interv,'P0_net [W]']
+        c4Ss1 = c4_exterior.loc[interv,'ExB_net [W]']
+        c4Ss3 = c4_interior.loc[interv,'ExB_net [W]']
+        # Innerboundary shifted -> 4.5Re sphere
+        c45Ks1 = c45_exterior.loc[interv,'K_net [W]']
+        c45Ks3 = c45_interior.loc[interv,'K_net [W]']
+        c45Hs1 = c45_exterior.loc[interv,'P0_net [W]']
+        c45Hs3 = c45_interior.loc[interv,'P0_net [W]']
+        c45Ss1 = c45_exterior.loc[interv,'ExB_net [W]']
+        c45Ss3 = c45_interior.loc[interv,'ExB_net [W]']
+        # Innerboundary shifted -> 5Re sphere
+        c5Ks1 = c5_exterior.loc[interv,'K_net [W]']
+        c5Ks3 = c5_interior.loc[interv,'K_net [W]']
+        c5Hs1 = c5_exterior.loc[interv,'P0_net [W]']
+        c5Hs3 = c5_interior.loc[interv,'P0_net [W]']
+        c5Ss1 = c5_exterior.loc[interv,'ExB_net [W]']
+        c5Ss3 = c5_interior.loc[interv,'ExB_net [W]']
+        # Volume integrated derivatives
+        # Regular
         U = exterior.loc[interv,'Utot [J]']
         uB = exterior.loc[interv,'uB [J]']
         uH = exterior.loc[interv,'uHydro [J]']
@@ -4347,19 +4459,91 @@ if __name__ == "__main__":
         K_sp_fwd = -1*central_diff(U,60,forward=True)
         H_sp = -1*central_diff(uH,60)
         S_sp = -1*central_diff(uB,60)
+        # Solar wind
+        swU = sw_exterior.loc[interv,'Utot [J]']
+        swuB = sw_exterior.loc[interv,'uB [J]']
+        swuH = sw_exterior.loc[interv,'uHydro [J]']
+        swK_sp = -1*central_diff(swU,60)
+        swK_sp_fwd = -1*central_diff(swU,60,forward=True)
+        swH_sp = -1*central_diff(swuH,60)
+        swS_sp = -1*central_diff(swuB,60)
+        # Shifted 3.5Re
+        c35U = c35_exterior.loc[interv,'Utot [J]']
+        c35uB = c35_exterior.loc[interv,'uB [J]']
+        c35uH = c35_exterior.loc[interv,'uHydro [J]']
+        c35K_sp = -1*central_diff(c35U,60)
+        c35K_sp_fwd = -1*central_diff(c35U,60,forward=True)
+        c35H_sp = -1*central_diff(c35uH,60)
+        c35S_sp = -1*central_diff(c35uB,60)
+        # Shifted 3.5Re
+        c375U = c375_exterior.loc[interv,'Utot [J]']
+        c375uB = c375_exterior.loc[interv,'uB [J]']
+        c375uH = c375_exterior.loc[interv,'uHydro [J]']
+        c375K_sp = -1*central_diff(c375U,60)
+        c375K_sp_fwd = -1*central_diff(c375U,60,forward=True)
+        c375H_sp = -1*central_diff(c375uH,60)
+        c375S_sp = -1*central_diff(c375uB,60)
+        # Shifted 3.5Re
+        c3875U = c3875_exterior.loc[interv,'Utot [J]']
+        c3875uB = c3875_exterior.loc[interv,'uB [J]']
+        c3875uH = c3875_exterior.loc[interv,'uHydro [J]']
+        c3875K_sp = -1*central_diff(c3875U,60)
+        c3875K_sp_fwd = -1*central_diff(c3875U,60,forward=True)
+        c3875H_sp = -1*central_diff(c3875uH,60)
+        c3875S_sp = -1*central_diff(c3875uB,60)
+        # Shifted 4Re
+        c4U = c4_exterior.loc[interv,'Utot [J]']
+        c4uB = c4_exterior.loc[interv,'uB [J]']
+        c4uH = c4_exterior.loc[interv,'uHydro [J]']
+        c4K_sp = -1*central_diff(c4U,60)
+        c4K_sp_fwd = -1*central_diff(c4U,60,forward=True)
+        c4H_sp = -1*central_diff(c4uH,60)
+        c4S_sp = -1*central_diff(c4uB,60)
+        # Shifted 3.5Re
+        c45U = c45_exterior.loc[interv,'Utot [J]']
+        c45uB = c45_exterior.loc[interv,'uB [J]']
+        c45uH = c45_exterior.loc[interv,'uHydro [J]']
+        c45K_sp = -1*central_diff(c45U,60)
+        c45K_sp_fwd = -1*central_diff(c45U,60,forward=True)
+        c45H_sp = -1*central_diff(c45uH,60)
+        c45S_sp = -1*central_diff(c45uB,60)
+        # Shifted 5Re
+        c5U = c5_exterior.loc[interv,'Utot [J]']
+        c5uB = c5_exterior.loc[interv,'uB [J]']
+        c5uH = c5_exterior.loc[interv,'uHydro [J]']
+        c5K_sp = -1*central_diff(c5U,60)
+        c5K_sp_fwd = -1*central_diff(c5U,60,forward=True)
+        c5H_sp = -1*central_diff(c5uH,60)
+        c5S_sp = -1*central_diff(c5uB,60)
         # balance figure
         #############
         #setup figure
         total_balance_test,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.fill_between(interv,K_sp/1e12,label='CentralDiff_sp10-3',
+        axis.fill_between(interv,swK_sp/1e12,label='CentralDiff_sw10-3',
                           fc='grey')
+        axis.plot(interv,(swKs1+swKs3)/1e12,label='SummedFlux_sw10-3')
         axis.plot(interv,(Ks1+Ks3)/1e12,label='SummedFlux_sp10-3')
-        axis.plot(interv,(pKs1+pKs3)/1e12,label='SummedFlux_perfect')
-        axis.plot(interv,(pKs1)/1e12,label='ExteriorFlux_perfect')
-        #axis.plot(interv,(Ks1+Ks3+0.7e12)/1e12,label='SummedFlux_sp10-3')
-        #axis.plot(interv,(Ks1+Ks3-K_sp)/1e12,label='Error')
-        #axis.plot(interv,K_sp_fwd/1e12,label='ForwardDiff_sp10-3')
+        axis.plot(interv,(K_sp)/1e12,ls='--',label='CentralDiff_sp10-3',
+                  c='grey')
+        axis.plot(interv,(c35Ks1+c35Ks3)/1e12,label='SummedFlux_sp10-35')
+        axis.plot(interv,(c35K_sp)/1e12,ls='--',label='CentralDiff_sp10-35',
+                  c='grey')
+        axis.plot(interv,(c375Ks1+c375Ks3)/1e12,label='SummedFlux_sp10-375')
+        axis.plot(interv,(c375K_sp)/1e12,ls='--',label='CentralDiff_sp10-375',
+                  c='grey')
+        axis.plot(interv,(c3875Ks1+c3875Ks3)/1e12,label='SummedFlux_sp10-3875')
+        axis.plot(interv,(c3875K_sp)/1e12,ls='--',label='CentralDiff_sp10-3875',
+                  c='grey')
+        axis.plot(interv,(c4Ks1+c4Ks3)/1e12,label='SummedFlux_sp10-4')
+        axis.plot(interv,(c4K_sp)/1e12,ls='--',label='CentralDiff_sp10-4',
+                  c='grey')
+        axis.plot(interv,(c45Ks1+c45Ks3)/1e12,label='SummedFlux_sp10-45')
+        axis.plot(interv,(c45K_sp)/1e12,ls='--',label='CentralDiff_sp10-45',
+                  c='grey')
+        axis.plot(interv,(c5Ks1+c5Ks3)/1e12,label='SummedFlux_sp10-5')
+        axis.plot(interv,(c5K_sp)/1e12,ls='--',label='CentralDiff_sp10-5',
+                  c='grey')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               #xlim=[moments['impact'],moments['peak2']],
@@ -4374,6 +4558,33 @@ if __name__ == "__main__":
         figurename = path+'/total_balance_test_'+event+'.png'
         total_balance_test.savefig(figurename)
         plt.close(total_balance_test)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        #setup figure
+        total_error_innerbound,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.plot(interv,(Ks1+Ks3-K_sp)/1e12,label='Error_10-3')
+        axis.plot(interv,(c35Ks1+c35Ks3-c35K_sp)/1e12,label='Error_10-35')
+        axis.plot(interv,(c375Ks1+c375Ks3-c375K_sp)/1e12,label='Error_10-375')
+        axis.plot(interv,(c3875Ks1+c3875Ks3-c3875K_sp)/1e12,label='Error_10-3875')
+        axis.plot(interv,(c4Ks1+c4Ks3-c4K_sp)/1e12,label='Error_10-4')
+        axis.plot(interv,(c45Ks1+c45Ks3-c45K_sp)/1e12,label='Error_10-45')
+        axis.plot(interv,(c5Ks1+c5Ks3-c5K_sp)/1e12,label='Error_10-5')
+        axis.plot(interv,(swKs1+swKs3-swK_sp)/1e12,label='Error_sw10-3')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              #xlim=[moments['impact'],moments['peak2']],
+                              #ylim=[-10,10],
+                              ylabel=r'Net Power $\left[ TW\right]$',
+                              timedelta=False)
+        #axis.axvspan(moments['impact'],moments['peak2'],alpha=0.2,fc='grey')
+        #save
+        total_error_innerbound.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        total_error_innerbound.tight_layout(pad=1)
+        figurename = path+'/total_error_innerbound_'+event+'.png'
+        total_error_innerbound.savefig(figurename)
+        plt.close(total_error_innerbound)
         print('\033[92m Created\033[00m',figurename)
         #############
         #setup figure

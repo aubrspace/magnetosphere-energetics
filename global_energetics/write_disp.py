@@ -155,7 +155,13 @@ def combine_hdfs2(datapath, outputpath, *, combo_name='energetics.h5',
                     output_data[key] = input_dataframe
     with pd.HDFStore(outputpath+'/'+combo_name) as output:
        for key in output_data.keys():
-            output[key] = output_data[key]
+           if 'Time [UTC]' in output_data[key].keys():
+               load_df = output_data[key].sort_values(by='Time [UTC]')
+               load_df.index = load_df['Time [UTC]']
+               load_df.drop(columns=['Time [UTC]'],inplace=True)
+           else:
+               load_df = output_data[key]
+           output[key] = load_df
 
 def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                                           progress=True):

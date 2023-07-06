@@ -109,10 +109,13 @@ if __name__ == "__main__":
 
     #for inputs in [febtest]:
     #for inputs in [starlink,starlink2,starlink3,starlink4]:
-    for f in all_times:
+    i=0
+    for k,f in enumerate(all_times):
         filetime = makevideo.get_time(f)
-        if filetime>starlink_impact and filetime<starlink_endMain1:
-            print(filetime)
+        #if filetime>starlink_impact and filetime<starlink_endMain1:
+        if filetime>dt.datetime(2022,2,3,9,0) and filetime<dt.datetime(2022,2,3,10,0):
+            print('('+str(i)+') ',filetime)
+            i+=1
             tp.new_layout()
             #mhddatafile = inputs[0]
             mhddatafile = f
@@ -135,24 +138,26 @@ if __name__ == "__main__":
                                     debug=True,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy',
-                                    #modes=['iso_betastar','closed',
-                                    #       'nlobe','slobe'],
-                                    modes=['perfectsphere'],
-                                    sp_rmax=10,
-                                    sp_rmin=3,
+                                    analysis_type='energy_mass',
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe'],
+                                    #modes=['sphere'],
+                                    #sp_rmax=10,
+                                    #sp_rmin=4,
+                                    #xc=10,yc=40,zc=40,
                                     #keep_zones='all',
-                                    do_interfacing=False,
+                                    do_interfacing=True,
                                     integrate_surface=True,
-                                    integrate_volume=False,
+                                    integrate_volume=True,
                                     integrate_line=False,
                                     truegridfile=oggridfile,
-                                    outputpath='static_test/',
+                                    outputpath='dynamic_test/r4ReInnerBound/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'test':'TestArea [Re^2]'}
                                     )
-            break
+            if i>30:
+                break
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=True,
