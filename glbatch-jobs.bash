@@ -5,7 +5,7 @@
 INPUTDIR=./starlink2/IO2/
 #OUTPUTDIR=./star2_outputs_n1/
 #OUTPUTDIR=./star2_outputs_cdiff/
-OUTPUTDIR=./star2_outputs_perfectsphere/
+OUTPUTDIR=./star2_outputs_4Re/
 #INPUTDIR=./test_inputs/
 #OUTPUTDIR=./test_outputs_n1/
 #INPUTDIR=./may2019/IO2/

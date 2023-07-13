@@ -122,6 +122,7 @@ if __name__ == "__main__":
         if nowfile not in file_list:
             print(nowfile+' already done....')
             exit()
+
         try:
             nextfile = full_list[full_list.index(nowfile)+1].split('/')[-1]
             nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
