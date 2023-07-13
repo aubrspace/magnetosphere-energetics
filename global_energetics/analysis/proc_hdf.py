@@ -30,12 +30,15 @@ def load_hdf_sort(hdf, **kwargs):
     gmdict, iedict, uadict, bsdict, crossdict,termdict = {},{},{},{},{},{}
     for key in store.keys():
         if ('mp' in key) or ('ms' in key):
-            gmdict[key] = store[key].sort_values(by='Time [UTC]')
-            if 'tshift' in kwargs:
-                gmdict[key]['Time [UTC]'] += dt.timedelta(minutes=
+            if 'Time [UTC]' in store[key].keys():
+                gmdict[key] = store[key].sort_values(by='Time [UTC]')
+                if 'tshift' in kwargs:
+                    gmdict[key]['Time [UTC]'] += dt.timedelta(minutes=
                                                     kwargs.get('tshift',0))
-            gmdict[key].index=gmdict[key]['Time [UTC]']
-            gmdict[key].drop(columns=['Time [UTC]'],inplace=True)
+                gmdict[key].index=gmdict[key]['Time [UTC]']
+                gmdict[key].drop(columns=['Time [UTC]'],inplace=True)
+            else:
+                gmdict[key] = store[key]
         if 'ie' in key:
             iedict[key] = store[key]
         if 'ua' in key:
