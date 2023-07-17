@@ -244,7 +244,9 @@ def post_proc(results,**kwargs):
                 n[southkey] = 0
             t = n['Time [UTC]']
         elif 'ms_slobe_surface' in results.keys():
-            n = pd.DataFrame(columns=results['ms_slobe_surface'].keys())
+            num_columns = len(results['ms_slobe_surface'].keys())
+            n = pd.DataFrame(columns=results['ms_slobe_surface'].keys(),
+                             data=[np.zeros(num_columns)])
             t = results['ms_slobe_surface']['Time [UTC]']
         else:
             results = post_proc_interface2(results)
@@ -258,7 +260,9 @@ def post_proc(results,**kwargs):
                 s[northkey] = 0
                 s[southkey] = s[k]
         else:
-            s = pd.DataFrame(columns=n.keys())
+            num_columns = len(results['ms_nlobe_surface'].keys())
+            s = pd.DataFrame(columns=n.keys(),
+                             data=[np.zeros(num_columns)])
         lobes=n.drop(columns=['Time [UTC]'])+s.drop(columns=['Time [UTC]'])
         nkey = 'TestAreaPolesN [Re^2]'
         skey = 'TestAreaPolesS [Re^2]'

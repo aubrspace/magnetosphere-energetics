@@ -397,7 +397,7 @@ def generate_3Dobj(sourcezone, **kwargs):
                         copy_kwargs = kwargs.copy()
                         copy_kwargs.update({'innerbound':True})
                         get_surf_geom_variables(inner_zone,**copy_kwargs)
-                        zonelist.append(inner_zone)
+                        #zonelist.append(inner_zone)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
@@ -627,7 +627,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 n = data_to_write.pop('ms_nlobe_volume')
                 t = n['Time [UTC]']
             elif 'ms_slobe_volume' in data_to_write.keys():
-                n = pd.DataFrame(columns=data_to_write['ms_slobe_volume'].keys())
+                num_columns = len(data_to_write['ms_slobe_volume'].keys())
+                n = pd.DataFrame(columns=data_to_write['ms_slobe_volume'].keys(),
+                                 data=[np.zeros(num_columns)])
                 t = data_to_write['ms_slobe_volume']['Time [UTC]']
                 if 'log' in kwargs:
                     kwargs.get('logger').debug('North lobe not found!!')
@@ -635,7 +637,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             if 'ms_slobe_volume' in data_to_write.keys():
                 s = data_to_write.pop('ms_slobe_volume')
             else:
-                s = pd.DataFrame(columns=n.keys())
+                num_columns = len(data_to_write['ms_nlobe_volume'].keys())
+                s = pd.DataFrame(columns=n.keys(),
+                                 data=[np.zeros(num_columns)])
                 if 'log' in kwargs:
                     kwargs.get('logger').debug('South lobe not found!!')
             lobes=[n.drop(columns=['Time [UTC]'])+

@@ -60,21 +60,21 @@ def energetics_analysis(infiles,outpath):
     mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       save_mesh=False,
                                       write_data=True,
-                                      disp_result=False,
-                                      do_cms=False,
-                                      do_central_diff=False,
+                                      disp_result=True,
+                                      do_cms=True,
+                                      do_central_diff=True,
                                       analysis_type='energy_mass',
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe'],
                                       inner_r=4,
                                       blankvalue=4,
-                                      customTerms={'test':'TestArea [Re^2]'},
+                                      #customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=True,
+                                      integrate_surface=False,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
-                                      verbose=True,
+                                      verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
     outputname = infiles[0].split('e')[-1].split('.plt')[0]+'.png'
@@ -138,8 +138,8 @@ if __name__ == "__main__":
                                full_list[full_list.index(nowfile)-1].split('/')[-1])
                 nextfile_mirror = nowfile
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        energetics_analysis([nowfile],outpath)
-        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        #energetics_analysis([nowfile],outpath)
+        energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
