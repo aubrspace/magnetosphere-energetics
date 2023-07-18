@@ -60,21 +60,21 @@ def energetics_analysis(infiles,outpath):
     mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       save_mesh=False,
                                       write_data=True,
-                                      disp_result=False,
-                                      do_cms=False,
-                                      do_central_diff=False,
+                                      disp_result=True,
+                                      do_cms=True,
+                                      do_central_diff=True,
                                       analysis_type='energy_mass',
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe'],
                                       inner_r=4,
                                       blankvalue=4,
-                                      customTerms={'test':'TestArea [Re^2]'},
+                                      #customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=True,
+                                      integrate_surface=False,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
-                                      verbose=True,
+                                      verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
     outputname = infiles[0].split('e')[-1].split('.plt')[0]+'.png'
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     # Get the whole file list remaining
     file_list, full_list = parse_infiles(inpath,outpath)
-    [print(str(f)+'\n') for f in file_list]
+    #[print(str(f)+'\n') for f in file_list]
     # If just a single file is requested
     if '-f' in sys.argv or '--file' in sys.argv:
         if '-f' in sys.argv:
@@ -122,6 +122,7 @@ if __name__ == "__main__":
         if nowfile not in file_list:
             print(nowfile+' already done....')
             exit()
+
         try:
             nextfile = full_list[full_list.index(nowfile)+1].split('/')[-1]
             nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
@@ -136,9 +137,12 @@ if __name__ == "__main__":
                 previousfile = os.path.join(inpath,
                                full_list[full_list.index(nowfile)-1].split('/')[-1])
                 nextfile_mirror = nowfile
+        print('previous: ',previousfile)
+        print('now: ',nowfile)
+        print('next: ',nextfile)
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        energetics_analysis([nowfile],outpath)
-        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        #energetics_analysis([nowfile],outpath)
+        energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
