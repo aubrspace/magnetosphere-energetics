@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     # Get the whole file list remaining
     file_list, full_list = parse_infiles(inpath,outpath)
-    [print(str(f)+'\n') for f in file_list]
+    #[print(str(f)+'\n') for f in file_list]
     # If just a single file is requested
     if '-f' in sys.argv or '--file' in sys.argv:
         if '-f' in sys.argv:
@@ -137,6 +137,9 @@ if __name__ == "__main__":
                 previousfile = os.path.join(inpath,
                                full_list[full_list.index(nowfile)-1].split('/')[-1])
                 nextfile_mirror = nowfile
+        print('previous: ',previousfile)
+        print('now: ',nowfile)
+        print('next: ',nextfile)
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
         #energetics_analysis([nowfile],outpath)
         energetics_analysis([previousfile,nextfile_mirror],outpath)

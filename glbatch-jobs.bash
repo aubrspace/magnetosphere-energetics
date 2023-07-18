@@ -32,10 +32,10 @@ do
     #                              -s $satpath
 
     #if you only want to process one file use this
-    i=$((i+1))
-    if [ $i == 1 ]
-    then
-        exit
-    fi
+    #i=$((i+1))
+    #if [ $i == 5 ]
+    #then
+    #    exit
+    #fi
 done
 
