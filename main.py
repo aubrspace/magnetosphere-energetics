@@ -138,27 +138,27 @@ if __name__ == "__main__":
                                     debug=True,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy_mass',
-                                    modes=['iso_betastar','closed',
-                                           'nlobe','slobe'],
-                                    inner_r=4,
-                                    blankvalue=4,
+                                    analysis_type='energy',
+                                    modes=['iso_betastar','sphere'],
+                                    #inner_r=4,
+                                    #blankvalue=4,
                                     #modes=['sphere'],
-                                    #sp_rmax=10,
-                                    #sp_rmin=4,
-                                    #xc=10,yc=40,zc=40,
-                                    #keep_zones='all',
-                                    do_interfacing=True,
-                                    integrate_surface=True,
-                                    integrate_volume=True,
+                                    sp_rmax=10,
+                                    sp_rmin=3,
+                                    xc=0,yc=0,zc=0,
+                                    keep_zones='all',
+                                    do_interfacing=False,
+                                    integrate_surface=False,
+                                    integrate_volume=False,
                                     integrate_line=False,
                                     truegridfile=oggridfile,
-                                    outputpath='dynamic_test/r4ReInnerBound/',
+                                    outputpath='static_test/lobe/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'test':'TestArea [Re^2]'}
                                     )
-            if i>30:
+            #if i>30:
+            if True:
                 break
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,

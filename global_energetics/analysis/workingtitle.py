@@ -2116,12 +2116,19 @@ def lobe_balance_fig(dataset,phase,path):
 #           We should see the peak energy flux into the closed region
 #           during these times
     #plot
-    for i,event in enumerate(dataset.keys()):
+    event='star'
+    #for i,event in enumerate(dataset.keys()):
+    if True:
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed']
         mp = dataset[event]['mp'+phase]
         inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        lobes4 = dataset['star4']['msdict'+phase]['lobes']
+        closed4 = dataset['star4']['msdict'+phase]['closed']
+        mp4 = dataset['star4']['mp'+phase]
+        inner4 = dataset['star4']['inner_mp'+phase]
+        times4=[float(n) for n in dataset['star4']['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
         # for solar wind
         '''
@@ -2269,6 +2276,7 @@ def lobe_balance_fig(dataset,phase,path):
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         #K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
+        K_mp4 = -1*central_diff(mp4['Utot [J]'],60)
         # Hydro
         H_closed = -1*central_diff(closed['uHydro [J]'],60)
         #H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
@@ -2287,13 +2295,18 @@ def lobe_balance_fig(dataset,phase,path):
             terms[i] = terms[i].rolling('120s').mean()
         [Ks1roll,Ks3roll,Ks4roll,Ks5roll,Ks6roll,Ks7roll] = terms
         Ksum = Ks1+Ks3+Ks4+Ks5+Ks6+Ks7
+        Ksum4Re = (mp4['K_netK1 [W]']+
+                   mp4['K_netK5 [W]']+
+                   lobes4['K_netK3 [W]']+
+                   lobes4['K_netK4 [W]']+
+                   closed4['K_netK6 [W]']+
+                   closed4['K_netK7 [W]'])
         predicted = mp['Utot [J]'].copy(deep=True)
         predicted.reset_index(drop=True,inplace=True)
         predicted.index+=1
         predicted -= (Ksum*60).values
         predicted.iloc[0] = 0
         #predicted.drop(index=predicted.index[-1],inplace=True)
-        #from IPython import embed; embed()
         '''
         Masssum_mp = (mp['M_net [kg/s]']+lobes['M_netK3 [kg/s]']+
                       closed['M_netK7 [kg/s]'])
@@ -2465,13 +2478,17 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         total_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.fill_between(times,(K_mp)/1e12,label='Cdiff4Re',fc='grey')
-        axis.plot(times,(Ksum+M)/1e12,label='Summed4Re')
-        axis.plot(times,(Ksum+M-K_mp)/1e12,label='Error4Re')
+        axis.fill_between(times,(K_mp)/1e12,label='Cdiff3Re',fc='grey')
+        axis.fill_between(times4,(K_mp4)/1e12,label='Cdiff4Re',fc='tab:blue',
+                          alpha=0.2)
+        axis.plot(times,(Ksum+M)/1e12,label='Summed3Re')
+        axis.plot(times4,(Ksum4Re+M)[Ksum4Re.index]/1e12,label='Summed4Re')
+        #axis.plot(times,(Ksum+M-K_mp)/1e12,label='Error3Re')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              ylim=[-10,10],
+                              ylim=[-20,5],
                               ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
                               timedelta=dotimedelta)
         axis.axvline((moments['impact']-
                       moments['peak2']).total_seconds()*1e9,
@@ -2583,16 +2600,17 @@ def lobe_balance_fig(dataset,phase,path):
         #setup figure
         total_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_mp.cumsum()*60/1e15,label='CentralDiff4Re')
+        axis.plot(times,K_mp.cumsum()*60/1e15,label='CentralDiff3Re')
         axis.plot(times,(Ksum+M).cumsum()*60/1e15,
+                         label='Summed3Re')
+        axis.plot(times4,K_mp4.cumsum()*60/1e15,label='CentralDiff4Re')
+        axis.plot(times4,(Ksum4Re+M)[Ksum4Re.index].cumsum()*60/1e15,
                          label='Summed4Re')
-        axis.plot(times,(Ksum+M-K_mp).cumsum()*60/1e15,
-                         label='Error4Re')
-        #axis.plot(times,-1*(predicted-mp['Utot [J]'][0])/1e15,
-        #          label='1minPrediction')
+        axis.plot(times,-1*(predicted-mp['Utot [J]'][0])/1e15,
+                  label='1minPrediction3Re')
         axis.fill_between(times,
                          -1*(mp['Utot [J]']-mp['Utot [J]'][0])/1e15,
-                          label='-1*Energy4Re',fc='grey')
+                          label='-1*Energy3Re',fc='grey')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
                               ylim=[-40,2],
@@ -4177,47 +4195,8 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
+    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
-    store = pd.HDFStore('static_test/sphere.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/','')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/perfect.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/','')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/solarwind/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','solarwind')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/centered3-5Re/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','centered35-')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/centered3-75Re/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','centered375-')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/centered3-875Re/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','centered3875-')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/centered4Re/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','centered4-')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/centered4-5Re/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','centered45-')] = store[key]
-    store.close()
-    store = pd.HDFStore('static_test/centered5Re/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/sphere','centered5-')] = store[key]
-    store.close()
-    store = pd.HDFStore('dynamic_test/r4ReInnerBound/energetics.h5')
-    for key in store.keys():
-        dataset['star'][key.replace('/m','r4m')] = store[key]
-    store.close()
     #dataset['aug'] = {}
     #dataset['jun'] = {}
 
@@ -4231,6 +4210,7 @@ if __name__ == "__main__":
     #                                 end=dataset['star']['msdict']['closed'].index[-1],
     #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     dataset['star']['obs'] = {}
+    dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
@@ -4238,6 +4218,7 @@ if __name__ == "__main__":
 
     ## Satellite Data
     dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
     #dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
     for event_key in dataset.keys():
@@ -4346,7 +4327,7 @@ if __name__ == "__main__":
     #TODO
     ph = '_lineup'
     phase = '_interv'
-    if True:
+    if False:
         event = 'star'
         exterior = dataset[event]['sphere10_surface']
         perfect_exterior = dataset[event]['perfectsphere10_surface']
