@@ -823,7 +823,7 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
             #rax = ax.twinx()
             plot_stack_contrib(ax,times,ds[ev]['mp'+ph],
                                ds[ev]['msdict'+ph], legend=(i==0),
-                               value_key='Utot [J]',label=ev,ylim=[0,45],
+                               value_key='Utot [J]',label=ev,ylim=[0,30],
                                factor=1e15,
                                ylabel=r'Energy $\left[ PJ\right]$',
                                legend_loc='upper right', hatch=hatches[i],
@@ -2124,11 +2124,11 @@ def lobe_balance_fig(dataset,phase,path):
         mp = dataset[event]['mp'+phase]
         inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
-        lobes4 = dataset['star4']['msdict'+phase]['lobes']
-        closed4 = dataset['star4']['msdict'+phase]['closed']
-        mp4 = dataset['star4']['mp'+phase]
-        inner4 = dataset['star4']['inner_mp'+phase]
-        times4=[float(n) for n in dataset['star4']['time'+phase].to_numpy()]
+        #lobes4 = dataset['star4']['msdict'+phase]['lobes']
+        #closed4 = dataset['star4']['msdict'+phase]['closed']
+        #mp4 = dataset['star4']['mp'+phase]
+        #inner4 = dataset['star4']['inner_mp'+phase]
+        #times4=[float(n) for n in dataset['star4']['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
         # for solar wind
         '''
@@ -2276,7 +2276,7 @@ def lobe_balance_fig(dataset,phase,path):
         K_closed = -1*central_diff(closed['Utot [J]'],60)
         #K_lobes = -1*central_diff(lobes['Utot [J]'],60)
         K_mp = -1*central_diff(mp['Utot [J]'],60)
-        K_mp4 = -1*central_diff(mp4['Utot [J]'],60)
+        #K_mp4 = -1*central_diff(mp4['Utot [J]'],60)
         # Hydro
         H_closed = -1*central_diff(closed['uHydro [J]'],60)
         #H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
@@ -2290,23 +2290,22 @@ def lobe_balance_fig(dataset,phase,path):
         #Mass_lobes = -1*central_diff(lobes['M [kg]'],60)
         #Mass_mp = -1*central_diff(mp['M [kg]'],60)
 
-        terms = [Ks1,Ks3,Ks4,Ks5,Ks6,Ks7]
-        for i,term in enumerate(terms):
-            terms[i] = terms[i].rolling('120s').mean()
-        [Ks1roll,Ks3roll,Ks4roll,Ks5roll,Ks6roll,Ks7roll] = terms
         Ksum = Ks1+Ks3+Ks4+Ks5+Ks6+Ks7
+        '''
         Ksum4Re = (mp4['K_netK1 [W]']+
                    mp4['K_netK5 [W]']+
                    lobes4['K_netK3 [W]']+
                    lobes4['K_netK4 [W]']+
                    closed4['K_netK6 [W]']+
                    closed4['K_netK7 [W]'])
+        M4Re = mp4['UtotM [W]']
         predicted = mp['Utot [J]'].copy(deep=True)
         predicted.reset_index(drop=True,inplace=True)
         predicted.index+=1
         predicted -= (Ksum*60).values
         predicted.iloc[0] = 0
         #predicted.drop(index=predicted.index[-1],inplace=True)
+        '''
         '''
         Masssum_mp = (mp['M_net [kg/s]']+lobes['M_netK3 [kg/s]']+
                       closed['M_netK7 [kg/s]'])
@@ -2472,7 +2471,6 @@ def lobe_balance_fig(dataset,phase,path):
         mass_balance_regions.savefig(figurename)
         plt.close(mass_balance_regions)
         print('\033[92m Created\033[00m',figurename)
-        '''
 
         #############
         #setup figure
@@ -2482,7 +2480,7 @@ def lobe_balance_fig(dataset,phase,path):
         axis.fill_between(times4,(K_mp4)/1e12,label='Cdiff4Re',fc='tab:blue',
                           alpha=0.2)
         axis.plot(times,(Ksum+M)/1e12,label='Summed3Re')
-        axis.plot(times4,(Ksum4Re+M)[Ksum4Re.index]/1e12,label='Summed4Re')
+        axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index]/1e12,label='Summed4Re')
         #axis.plot(times,(Ksum+M-K_mp)/1e12,label='Error3Re')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
@@ -2502,6 +2500,7 @@ def lobe_balance_fig(dataset,phase,path):
         total_balance_total.savefig(figurename)
         plt.close(total_balance_total)
         print('\033[92m Created\033[00m',figurename)
+        '''
 
         """
         #############
@@ -2595,7 +2594,6 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(closed_balance_detail)
         print('\033[92m Created\033[00m',figurename)
 
-        """
         #############
         #setup figure
         total_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
@@ -2604,7 +2602,7 @@ def lobe_balance_fig(dataset,phase,path):
         axis.plot(times,(Ksum+M).cumsum()*60/1e15,
                          label='Summed3Re')
         axis.plot(times4,K_mp4.cumsum()*60/1e15,label='CentralDiff4Re')
-        axis.plot(times4,(Ksum4Re+M)[Ksum4Re.index].cumsum()*60/1e15,
+        axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index].cumsum()*60/1e15,
                          label='Summed4Re')
         axis.plot(times,-1*(predicted-mp['Utot [J]'][0])/1e15,
                   label='1minPrediction3Re')
@@ -2629,7 +2627,6 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(total_acc_total)
         print('\033[92m Created\033[00m',figurename)
 
-        """
         #############
         #setup figure
         lobe_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
@@ -2834,6 +2831,7 @@ def lobe_balance_fig(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
 
+        """
         #############
         #setup figure
         flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
@@ -2862,10 +2860,11 @@ def lobe_balance_fig(dataset,phase,path):
         powerlabel=['Hydrodynamic','Poynting','Total Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
             general_plot_settings(ax,do_xlabel=(i==2),legend=False,
-                     ylabel=powerlabel[i]+r' Flux $\left[ TW\right]$',
-                              legend_loc='lower left',
-                              ylim=[-12,12],
-                              timedelta=dotimedelta)
+                                  ylabel='Integrated '+powerlabel[i]+
+                                        r' Flux $\left[ TW\right]$',
+                                  legend_loc='lower left',
+                                  ylim=[-12,7],
+                                  timedelta=dotimedelta)
             ax.axvspan((moments['impact']-
                       moments['peak2']).total_seconds()*1e9,0,
                        fc='lightgrey')
@@ -2923,8 +2922,8 @@ def lobe_balance_fig(dataset,phase,path):
                           )/1e12,
                            label=r'Cusp $K_{2a}$',color='goldenrod')
         axis3.plot(times,(
-                          Hs2bc+HM2b+HM2d+
-                          Ss2bc+SM2b+SM2d
+                          Hs2bc-HM2b-HM2d+
+                          Ss2bc-SM2b-SM2d
                           )/1e12,
                            label=r'Tail $K_{2b}$',color='tab:blue')
         #axis3.plot(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d+
@@ -2935,10 +2934,11 @@ def lobe_balance_fig(dataset,phase,path):
         powerlabel=['Hydrodynamic','Poynting','Total Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
             general_plot_settings(ax,do_xlabel=(i==2),legend=(i==0),
-                     ylabel=powerlabel[i]+r' Flux $\left[ TW\right]$',
-                              legend_loc='upper left',
-                              ylim=[-12,12],
-                              timedelta=dotimedelta)
+                                  ylabel='Integrated '+powerlabel[i]+
+                                        r' Flux $\left[ TW\right]$',
+                                  legend_loc='upper left',
+                                  ylim=[-12,12],
+                                  timedelta=dotimedelta)
             ax.axvspan((moments['impact']-
                       moments['peak2']).total_seconds()*1e9,0,
                        fc='lightgrey')
@@ -2970,6 +2970,7 @@ def lobe_balance_fig(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
 
+        """
         #############
         #setup figure
         poynting_type,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
@@ -4125,10 +4126,10 @@ def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
     hatches = ['','','','']
-    for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
-    #for phase,path in [('_lineup',outLine)]:
+    #for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
+    for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
+        stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
@@ -4145,7 +4146,7 @@ def main_rec_figures(dataset):
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
     #diagram_summary(dataset,'',unfiled)
-    #time_integrated(dataset,'_main',unfiled)
+    time_integrated(dataset,'_main',unfiled)
 
 def interval_figures(dataset):
     #hatches = ['','*','x','o']
@@ -4194,8 +4195,8 @@ if __name__ == "__main__":
     #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
-    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results.h5')
-    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
@@ -4210,7 +4211,7 @@ if __name__ == "__main__":
     #                                 end=dataset['star']['msdict']['closed'].index[-1],
     #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     dataset['star']['obs'] = {}
-    dataset['star4']['obs'] = {}
+    #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
@@ -4218,7 +4219,7 @@ if __name__ == "__main__":
 
     ## Satellite Data
     dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
-    dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
+    #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
     #dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
 
     for event_key in dataset.keys():
