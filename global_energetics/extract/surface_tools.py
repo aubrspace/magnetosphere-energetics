@@ -843,7 +843,7 @@ def surface_analysis(zone, **kwargs):
     else:
         if 'innerbound' not in zone.name and kwargs.get('doDFT',False):
             integrands.update(get_dft_integrands(zone, integrands))
-        if 'innerbound' in zone.name:
+        if 'innerbound' in zone.name and kwargs.get('doLowLat',False):
             integrands.update(get_low_lat_integrands(zone, integrands,
                                                      **kwargs))
         #integrands.update(get_open_close_integrands(zone, integrands))
