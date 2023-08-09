@@ -1467,10 +1467,10 @@ def equations(**kwargs):
                    'trunc(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})'+
                         ')',
          '{Lshell}':'{r [R]}/cos({lambda})**2',
-         '{theta [deg]}':'-180/pi*{lambda}',
+         '{theta_SM}':'-180/pi*{lambda}',
          '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
          '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
-         '{phi}':'atan2({Y [R]}, {Xd [R]})',
+         '{phi_SM}':'atan2({Y [R]}, {Xd [R]})',
          '{U_xd [km/s]}':'{mXhat_x}*'+
                         '({U_x [km/s]}*{mXhat_x}+{U_z [km/s]}*{mXhat_z})',
          '{U_zd [km/s]}':'{mZhat_z}*'+
