@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 import swmfpy
 from global_energetics.analysis.plot_tools import get_omni_cdas
 from global_energetics.extract.shue import r0_alpha_1998
-#from global_energetics.analysis.proc_virial import (pyplotsetup,
-#                                                    general_plot_settings)
+from global_energetics.analysis.plot_tools import (pyplotsetup,
+                                                    general_plot_settings)
 
 def datetimeparser(datetimestring):
     #maybe move this somewhere to call a diff parser depending on file
@@ -210,37 +210,155 @@ def plot_newell(axis, dflist, timekey, ylabel, *,
     axis.set_ylabel(ylabel)
     axis.legend(loc=legend_loc)
 
-def plot_swdensity(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
+def plot_swdensity(axis, df, timekey, label, **kwargs):
     """Function plots solar wind density with given data frames
     Inputs
         axis- object plotted on
-        dflist- datasets
-        timekey- used to located column with time and the qt to plot
-        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+        dfdict (dict{str:DataFrame}- datasets
+        kwargs:
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
-    legend_loc = 'lower right'
-    for data in dflist:
-        name = data['name'].iloc[-1]
-        if name == 'supermag':
-            qtkey = 'Density (#/cm^3)'
-        elif name == 'swmf_sw':
-            qtkey = 'dens'
-        elif name == 'omni':
-            qtkey = 'density'
-        else:
-            qtkey = None
-        if qtkey != None:
-            axis.plot(data[timekey],data[qtkey],
-                      label=qtkey+'_'+name,
-                      linewidth=Size, linestyle=ls)
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(timekey)
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+    if 'density' in df.keys():
+        densitykey = 'density'
+    elif 'rho' in df.keys():
+        densitykey = 'rho'
+    else:
+        print('Cant find density in ',label,df.keys())
+        return
+    axis.plot(df[timekey],df[densitykey],label=label)
+    return
+
+def plot_swIMF(axis, df, timekey, label, **kwargs):
+    """Function plots solar wind density with given data frames
+    Inputs
+        axis- object plotted on
+        dfdict (dict{str:DataFrame}- datasets
+        kwargs:
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    plotBx,plotBy,plotBz = True, True, True
+    # Find the right keys for Bx, By, Bz if they exist
+    # X
+    if 'bx' in df.keys():
+        bxkey = 'bx'
+    else:
+        print('Cant find bx in ',label,df.keys())
+        plotBx = False
+    # Y
+    if 'by' in df.keys():
+        bykey = 'by'
+    else:
+        print('Cant find by in ',label,df.keys())
+        plotBy = False
+    # Z
+    if 'bz' in df.keys():
+        bzkey = 'bz'
+    else:
+        print('Cant find bz in ',label,df.keys())
+        plotBz = False
+    # Plot
+    if plotBx:
+        axis.plot(df[timekey],df[bxkey],label=label+'_bx')
+    if plotBy:
+        axis.plot(df[timekey],df[bykey],label=label+'_by')
+    if plotBz:
+        axis.plot(df[timekey],df[bzkey],label=label+'_bz')
+    return
+
+def plot_swV(axis, df, timekey, label, **kwargs):
+    """Function plots solar wind density with given data frames
+    Inputs
+        axis- object plotted on
+        dfdict (dict{str:DataFrame}- datasets
+        kwargs:
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    plotVx,plotVy,plotVz = True, True, True
+    # Find the right keys for Vx, Vy, Vz if they exist
+    # X
+    if 'vx' in df.keys():
+        vxkey = 'vx'
+    else:
+        print('Cant find vx in ',label,df.keys())
+        plotVx = False
+    # Y
+    if 'vy' in df.keys():
+        vykey = 'vy'
+    else:
+        print('Cant find by in ',label,df.keys())
+        plotVy = False
+    # Z
+    if 'vz' in df.keys():
+        vzkey = 'vz'
+    else:
+        print('Cant find vz in ',label,df.keys())
+        plotVz = False
+    # Plot
+    if plotVx:
+        axis.plot(df[timekey],df[vxkey],label=label+'_vx')
+    if plotVy:
+        axis.plot(df[timekey],df[vykey],label=label+'_vy')
+    if plotVz:
+        axis.plot(df[timekey],df[vzkey],label=label+'_vz')
+    return
+
+def plot_swpressure(axis, df, timekey, label, **kwargs):
+    """Function plots solar wind density with given data frames
+    Inputs
+        axis- object plotted on
+        dfdict (dict{str:DataFrame}- datasets
+        kwargs:
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    if 'pressure' in df.keys():
+        pressurekey = 'pressure'
+    elif 'p' in df.keys():
+        pressurekey = 'p'
+    elif 'P' in df.keys():
+        pressurekey = 'P'
+    else:
+        print('Cant find pressure in ',label,df.keys())
+        return
+    axis.plot(df[timekey],df[pressurekey],label=label)
+    return
+
+def plot_symh(axis, df, timekey, label, **kwargs):
+    """Function plots solar wind density with given data frames
+    Inputs
+        axis- object plotted on
+        dfdict (dict{str:DataFrame}- datasets
+        kwargs:
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    if 'sym_h' in df.keys():
+        symhkey = 'sym_h'
+    elif 'dst_sm' in df.keys():
+        symhkey = 'dst_sm'
+    elif 'dstflx_R=3.0' in df.keys():
+        symhkey = 'dstflx_R=3.0'
+    else:
+        print('Cant find Sym-H in ',label,df.keys())
+        return
+    axis.plot(df[timekey],df[symhkey],label=label)
+    return
+
+def plot_al(axis, df, timekey, label, **kwargs):
+    """Function plots solar wind density with given data frames
+    Inputs
+        axis- object plotted on
+        dfdict (dict{str:DataFrame}- datasets
+        kwargs:
+            ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
+    """
+    if 'al' in df.keys():
+        alkey = 'al'
+    elif 'AL' in df.keys():
+        alkey = 'AL'
+    else:
+        print('Cant find AL in ',label,df.keys())
+        return
+    axis.plot(df[timekey],df[alkey],label=label)
+    return
 
 def plot_swclock(axis, dflist, timekey, ylabel, *,
              xlim=None, ylim=None, Color=None, Size=4, ls=None):
@@ -272,47 +390,6 @@ def plot_swclock(axis, dflist, timekey, ylabel, *,
             axis.plot(data[timekey],data[qtkey],
                       label=qtkey+'_'+name,
                       linewidth=Size, linestyle=ls)
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(timekey)
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
-
-def plot_swbybz(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
-    """Function plots solar wind clock angle with given data frames
-    Inputs
-        axis- object plotted on
-        dflist- datasets
-        timekey- used to located column with time and the qt to plot
-        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
-    """
-    legend_loc = 'lower right'
-    for data in dflist:
-        name = data['name'].iloc[-1]
-        if name == 'supermag':
-            qtkey1 = 'ByGSM (nT)'
-            qtkey2 = 'BzGSM (nT)'
-        elif name == 'swmf_sw':
-            #data = df_coord_transform(data, 'times', ['bx','by','bz'],
-            #                          ('GSE','car'), ('GSM','car'))
-            qtkey1 = 'by'
-            qtkey2 = 'bz'
-        elif name == 'omni':
-            qtkey1 = 'by'
-            qtkey2 = 'bz'
-        else:
-            qtkey1 = None
-            qtkey2 = None
-        if qtkey1 != None or qtkey2 !=None:
-            axis.plot(data[timekey],data[qtkey1],
-                      label=qtkey1+'_'+name,
-                      linewidth=Size, linestyle=ls)
-            axis.plot(data[timekey],data[qtkey2],
-                      label=qtkey2+'_'+name,
-                      linewidth=Size, linestyle='--')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -364,55 +441,6 @@ def plot_swpdyn(axis, dflist, timekey, ylabel, *,
             axis.plot(data[timekey],data[qtkey_alt],
                       label=qtkey_alt+'_'+name,
                       linewidth=Size, linestyle=ls)
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(timekey)
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
-
-def plot_swvxvyvz(axis, dflist, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=4, ls=None):
-    """Function plots solarwind dynamic pressure w given data frames
-    Inputs
-        axis- object plotted on
-        dflist- datasets
-        timekey- used to located column with time and the qt to plot
-        ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
-    """
-    legend_loc = 'upper left'
-    for data in dflist:
-        qtkey1 = None
-        qtkey2 = None
-        qtkey3 = None
-        name = data['name'].iloc[-1]
-        if name == 'supermag':
-            qtkey1 = 'VxGSE (nT)'
-            qtkey2 = 'VyGSE (nT)'
-            qtkey3 = 'VzGSM (nT)'
-        elif name == 'swmf_sw':
-            qtkey1 = 'vx'
-            qtkey2 = 'vy'
-            #data = df_coord_transform(data, 'times', ['vx','vy','vz'],
-            #                          ('GSE','car'), ('GSM','car'))
-            qtkey3 = 'vz'
-        elif name == 'omni':
-            qtkey1 = 'vx_gse'
-            qtkey2 = 'vy_gse'
-            qtkey3 = 'vz_gse'
-        if False:
-            axis.plot(data[timekey],data[qtkey1],
-                      label=qtkey1+'_'+name,
-                      linewidth=Size, linestyle=ls)
-        if qtkey2 != None:
-            axis.plot(data[timekey],data[qtkey2],
-                      label=qtkey2+'_'+name,
-                      linewidth=Size, linestyle='-')
-        if False:
-            axis.plot(data[timekey],data[qtkey3],
-                      label=qtkey3+'_'+name,
-                      linewidth=Size, linestyle='-.')
     if xlim!=None:
         axis.set_xlim(xlim)
     if ylim!=None:
@@ -560,78 +588,89 @@ def get_swmf_data(datapath,**kwargs):
 
     return geoindexdata, swmflogdata, swdata
 
-def prepare_figures(swmf_index, swmf_log, swmf_sw, supermag, omni,
-                    outputpath):
+def prepare_figures(data, path, **kwargs):
     """Function creates figure and axis objects to fill with plots and
         saves them
     Inputs
-        swmf_index, swmf_log, supermag- DataFrame objects to pull from
-        outputpath
+        data (dict{str:DataFrame})- data available to plot
+        outputpath (str)-
+        kwargs:
+            doSave (bool)- default True
     """
     #make list of all data and print keys in available datasets
-    print('Data available:')
-    dflist = []
-    for df in enumerate([swmf_index, swmf_log, swmf_sw, supermag, omni]):
-        if not df[1].empty:
-            dflist.append(df[1])
-            print(df[1]['name'].iloc[-1]+':\n{}'.format(df[1].keys()))
+    print('Data available:',data.keys())
+    timekeys = {'omni':'times',
+                'swmf_index':'times',
+                'swmf_log':'times',
+                'swmf_sw':'times'}
     ######################################################################
-    #SMR and SML index comparison
+    # Sym-H, AL
     if True:
-        figname = 'SMR_SML'
-        smr, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True,
+        figname = 'symh_al'
+        symh, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True,
                                                           figsize=[18,8])
-        #Time
-        timekey = 'times'
-        ylabel = 'SMR [nT]'
-        plot_dst(ax1, dflist, timekey, ylabel)
-        ylabel = 'SML [nT]'
-        plot_AL(ax2, dflist, timekey, ylabel)
-        smr.savefig(outputpath+'{}.png'.format(figname))
-    ######################################################################
-    #CPCP
-    if False:
-        figname = 'CPCP'
-        cpcp, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, sharex=True,
-                                                          figsize=[18,8])
-        #Time
-        timekey = 'times'
-        ylabel = 'CPCP [V]'
-        plot_cpcp(ax1, dflist, timekey, ylabel)
-        plot_cpcp(ax2, dflist, timekey, ylabel, south=True)
-        cpcp.savefig(outputpath+'{}.png'.format(figname))
-    ######################################################################
-    #Newell
-    if True:
-        figname = 'Newell'
-        newell, (ax1) = plt.subplots(nrows=1, ncols=1, sharex=True,
-                                                          figsize=[18,8])
-        #Time
-        timekey = 'times'
-        ylabel = 'Newell [Wb/s]'
-        plot_newell(ax1, dflist, timekey, ylabel)
-        newell.savefig(outputpath+'{}.png'.format(figname))
+        # Sym-H
+        if 'swmf_log' in data.keys():
+            plot_symh(ax1, data['swmf_log'], timekeys['swmf_log'],'swmf')
+        if 'omni' in data.keys():
+            plot_symh(ax1, data['omni'], timekeys['omni'],'omni')
+        # AL
+        if 'swmf_sw' in data.keys():
+            plot_al(ax2, data['swmf_index'], timekeys['swmf_sw'],'swmf')
+        if 'omni' in data.keys():
+            plot_al(ax2, data['omni'], timekeys['omni'],'omni')
+        # Panel decorations
+        general_plot_settings(ax1,do_xlabel=False,legend=True,
+                              ylabel=r'$Sym-H \left[nT\right]$',
+                              legend_loc='lower left')
+        general_plot_settings(ax2,do_xlabel=False,legend=True,
+                              ylabel=r'$AL \left[nT\right]$',
+                              legend_loc='lower left')
+        #save
+        symh.tight_layout(pad=1)
+        figurename = path+'/Symh_AL.png'
+        symh.savefig(figurename)
+        plt.close(symh)
+        print('\033[92m Created\033[00m',figurename)
     ######################################################################
     #SolarWind
     if True:
         figname = 'SolarWind'
-        sw, (ax1, ax2, ax3, ax4,ax5) = plt.subplots(nrows=5, ncols=1, sharex=True,
-                                                          figsize=[18,20])
-        #Time
-        timekey = 'times'
-        ylabel = 'SW Density [#/cm^3]'
-        plot_swdensity(ax1, dflist, timekey, ylabel)
-        ylabel = 'SW By,Bz [nT]'
-        plot_swbybz(ax2, dflist, timekey, ylabel)
-        ylabel = 'SW Clock Angle [deg]'
-        plot_swclock(ax3, dflist, timekey, ylabel)
-        ylabel = 'SW Dynamic Pressure [nPa]'
-        plot_swpdyn(ax4, dflist, timekey, ylabel)
-        ylabel = 'SW Velocity [km/s]'
-        plot_swvxvyvz(ax5, dflist, timekey, ylabel)
-        sw.savefig(outputpath+'{}.png'.format(figname))
+        sw, (ax1,ax2,ax3,ax4) = plt.subplots(nrows=4,ncols=1,sharex=True,
+                                                              figsize=[18,20])
+        # IMF
+        if 'swmf_sw' in data.keys():
+            plot_swIMF(ax1, data['swmf_sw'], timekeys['swmf_sw'],'swmf')
+        # Density
+        if 'swmf_sw' in data.keys():
+            plot_swdensity(ax2, data['swmf_sw'], timekeys['swmf_sw'],'swmf')
+        # Velocity
+        if 'swmf_sw' in data.keys():
+            plot_swV(ax3, data['swmf_sw'], timekeys['swmf_sw'],'swmf')
+        # Pressure
+        if 'swmf_sw' in data.keys():
+            plot_swpressure(ax4, data['swmf_sw'], timekeys['swmf_sw'],'swmf')
+
+        # Panel decorations
+        general_plot_settings(ax1,do_xlabel=False,legend=True,
+                              ylabel=r'$B \left[nT\right]$',
+                              legend_loc='lower left')
+        general_plot_settings(ax2,do_xlabel=False,legend=True,
+                              ylabel=r'$n \left[\#/cm^3\right]$',
+                              legend_loc='lower left')
+        general_plot_settings(ax3,do_xlabel=False,legend=True,
+                              ylabel=r'$V \left[km/s\right]$',
+                              legend_loc='lower left')
+        general_plot_settings(ax4,do_xlabel=True,legend=True,
+                              ylabel=r'$P \left[nPa\right]$',
+                              legend_loc='lower left')
+        #save
+        sw.tight_layout(pad=1)
+        figurename = path+'/SolarWind.png'
+        sw.savefig(figurename)
+        plt.close(sw)
+        print('\033[92m Created\033[00m',figurename)
     ######################################################################
-#def add_calculated_terms(dflist, 
 
 def get_expanded_sw(start, end, data_path):
     """Function gets only supermag and omni solar wind data for period
@@ -723,43 +762,17 @@ def read_indices(data_path, **kwargs):
     return data
 
 if __name__ == "__main__":
-    #Interpackage imports
-    '''
-    if os.path.exists('../supermag-data'):
-        os.system('ln -s ../supermag-data/supermag.py')
-        print('soft link to supermag.py created')
-        SUPERMAGDATAPATH = '../supermag-data/data'
-    else:
-        try:
-            import supermag
-        except ModuleNotFoundError:
-            print('Cant find supermag.py!')
-    try:
-        import supermag
-    except ModuleNotFoundError:
-        print('supermag.py module not linked!')
-        EXIT=True
-    else:
-        EXIT=False
-    if not EXIT:
-        pass
-    '''
-    #Setup data paths
+    # Setup data paths
     datapath = sys.argv[1]
-    figureout = data
-    figureout = datapath+'figures/'
 
-    #Set default parameters
+    # Set default parameters
     plt.rcParams.update(pyplotsetup(mode='digital_presentation'))
 
-    #Read files for data
-    [swmf_index, swmf_log, swmf_sw,_,omni]= read_indices(datapath,
-                                                    read_supermag=False,
-                                    start=dt.datetime(2022,2,2,6),
-                                    end=dt.datetime(2022,2,5,6))
-    #prepare_figures(value[0],value[1],value[2],valu[3],value[4],'./output/starlink/')
-    cuttoffstart=dt.datetime(2022,2,2,6,0)
-    cuttoffend=dt.datetime(2022,2,5,6,0)
-    simdata = [swmf_index, swmf_log, swmf_sw]
-    [swmf_index,swmf_log,swmf_sw] = chopends_time(simdata, cuttoffstart,
-                                      cuttoffend, 'Time [UTC]', shift=False)
+    # Read files for data
+    data = {}
+    data = read_indices(datapath,read_supermag=False,
+                        start=dt.datetime(2000,6,24,4),
+                        end=dt.datetime(2000,6,24,6))
+
+    # Plot some figures
+    prepare_figures(data,os.path.join(datapath,'figures'))

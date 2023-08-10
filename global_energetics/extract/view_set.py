@@ -13,7 +13,7 @@ from global_energetics.makevideo import get_time
 from global_energetics.extract.swmf_access import swmf_read_time
 from global_energetics.extract import stream_tools
 from global_energetics.extract.stream_tools import (abs_to_timestamp,
-                                                    mag2cart)
+                                                    mag2gsm)
 from global_energetics.extract.magnetometer import(get_stations_now)
 
 def add_IMF_clock(frame, clockangle, coordsys, bmag, pdyn, position, size,
@@ -157,7 +157,7 @@ def add_fieldlines(frame, filename, *,showleg=False, mode='not_supermag',
         lats = np.zeros(len(lons))+80
         latlons = [l for l in zip(lats,lons)]
     #for lat,lon in latlons:
-    #    plot.streamtraces.add(mag2cart(lat,lon,btilt),Streamtrace.VolumeLine)
+    #    plot.streamtraces.add(mag2gsm(lat,lon,btilt),Streamtrace.VolumeLine)
     """
     plot.streamtraces.add_rake([20,0,40],[20,0,-40],Streamtrace.VolumeLine)
     plot.streamtraces.add_rake([10,0,40],[10,0,-40],Streamtrace.VolumeLine)

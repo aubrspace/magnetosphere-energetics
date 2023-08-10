@@ -198,6 +198,7 @@ def sph_to_cart(radius, lat, lon):
     y_pos = (radius * cos(deg2rad(lat)) * sin(deg2rad(lon)))
     z_pos = (radius * sin(deg2rad(lat)))
     return [x_pos, y_pos, z_pos]
+'''
 def mag2gsm(x1, x2, x3, time, *, inputtype='sph'):
     """Function converts magnetic spherical coordinates to cartesian
         coordinates in GSM
@@ -215,7 +216,6 @@ def mag2gsm(x1, x2, x3, time, *, inputtype='sph'):
     coordinates.ticks = time
     return coordinates.convert('GSM', 'car').data[0][0:3]
 
-'''
 def sm2gsm_temp(radius, latitude, longitude, time):
     """Function converts solar magnetic spherical coordinates to cartesian
         coordinates in GSM
@@ -1425,11 +1425,14 @@ def get_dipole_field(auxdata, *, B0=31000):
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
-def mag2cart(lat,lon,btheta,*,r=1):
+def mag2gsm(lat,lon,btheta,*,r=1,**kwargs):
     """
     """
-    #find xyz_mag
-    x_mag, y_mag, z_mag = sph_to_cart(r,lat,lon)
+    if kwargs.get('cartIN',False) and 'z_mag' in kwargs:
+        x_mag, y_mag, z_mag = lat,lon,kwargs.get('z_mag')
+    else:
+        #find xyz_mag
+        x_mag, y_mag, z_mag = sph_to_cart(r,lat,lon)
     #get rotation matrix
     rot = rotation(-btheta*pi/180,axis='y')
     #find new points by rotation

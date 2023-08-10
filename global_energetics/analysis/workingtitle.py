@@ -301,6 +301,7 @@ def central_diff(dataframe,dt,**kwargs):
     Returns
         cdiff (DataFrame)
     """
+    times = dataframe.copy(deep=True).index
     df = dataframe.copy(deep=True)
     df = df.reset_index(drop=True).fillna(method='ffill')
     df_fwd = df.copy(deep=True)
@@ -308,11 +309,19 @@ def central_diff(dataframe,dt,**kwargs):
     df_fwd.index -= 1
     df_bck.index += 1
     if kwargs.get('forward',False):
-        cdiff = (df_fwd-df)/dt
+        # Calculate dt at each time interval
+        dt = times[1::]-times[0:-1]
+        cdiff = (df_fwd-df)/(dt.seconds+dt.microseconds/1e6)
         cdiff.drop(index=[-1],inplace=True)
     else:
-        cdiff = (df_fwd-df_bck)/(2*dt)
-        cdiff.drop(index=[-1,cdiff.index[-1]],inplace=True)
+        # Calculate dt at each time interval
+        dt = times[2::]-times[0:-2]
+        diff = (df_fwd-df_bck).drop(index=[-1,0,df_bck.index[-1],
+                                                df_bck.index[-2]])
+        cdiff = diff/(dt.seconds+dt.microseconds/1e6)
+        cdiff.loc[0] = 0
+        cdiff.loc[len(cdiff)]=0
+        cdiff.sort_index(inplace=True)
     cdiff.index = dataframe.index
     return cdiff
 
@@ -2124,6 +2133,12 @@ def lobe_balance_fig(dataset,phase,path):
         mp = dataset[event]['mp'+phase]
         inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        sim = dataset[event]['obs']['swmf_log'+phase]
+        simtime = dataset[event]['swmf_log_otime'+phase]
+        simt = [float(n) for n in simtime.to_numpy()]#bad hack
+        obs = dataset[event]['obs']['omni'+phase]
+        obstime = dataset[event]['omni_otime'+phase]
+        ot = [float(n) for n in obstime.to_numpy()]#bad hack
         #lobes4 = dataset['star4']['msdict'+phase]['lobes']
         #closed4 = dataset['star4']['msdict'+phase]['closed']
         #mp4 = dataset['star4']['mp'+phase]
@@ -2285,6 +2300,8 @@ def lobe_balance_fig(dataset,phase,path):
         S_closed = -1*central_diff(closed['uB [J]'],60)
         #S_lobes = -1*central_diff(lobes['uB [J]'],60)
         S_mp = -1*central_diff(mp['uB [J]'],60)
+        dDstdt_sim = -1*central_diff(sim['dst_sm'],60)
+        dDstdt_obs = -1*central_diff(obs['sym_h'],60)
         # Mass
         #Mass_closed = -1*central_diff(closed['M [kg]'],60)
         #Mass_lobes = -1*central_diff(lobes['M [kg]'],60)
@@ -2830,8 +2847,41 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(comboVS)
         print('\033[92m Created\033[00m',figurename)
         #############
+        dDstdt_sim = -1*central_diff(sim['dst_sm'],60)
+        dDstdt_obs = -1*central_diff(obs['sym_h'],60)
 
+        #############
+        #setup figure
+        dst_comp,(axis) = plt.subplots(1,1,figsize=[20,8])
+        '''
+        # Interpolate from times and obs to simt
+        dDstdt_obsINT = np.interp(simt,ot,dDstdt_obs)
+        K_mp_INT = np.interp(simt,times,K_mp/8e13)
+        # Scatter plot
+        axis.scatter(K_mp_INT,dDstdt_sim,label='sim',alpha=0.7,marker='s')
+        axis.scatter(K_mp_INT,dDstdt_obsINT,label='obs',alpha=0.7)
+        '''
+        axis.plot(ot,dDstdt_obs,label='obs')
+        axis.plot(simt,dDstdt_sim,label='sim')
+        axis.plot(times,K_mp/8e13,label='-dEdt')
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                                  ylabel='d{Dst}/dt [nT/s]',
+                                  legend_loc='lower left',
+                                  timedelta=dotimedelta)
+        axis.axvspan((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,0,
+                       fc='lightgrey')
+        #save
+        dst_comp.suptitle('t0='+str(moments['peak1']),
+                                      ha='left',x=0.01,y=0.99)
+        dst_comp.tight_layout(pad=1)
+        figurename = path+'/dst_comp'+phase+'_'+event+'.png'
+        dst_comp.savefig(figurename)
+        plt.close(dst_comp)
+        print('\033[92m Created\033[00m',figurename)
+        #############
         """
+
         #############
         #setup figure
         flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
@@ -4126,10 +4176,10 @@ def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
     hatches = ['','','','']
-    #for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
-    for phase,path in [('_lineup',outLine)]:
+    for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
+    #for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
+        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
@@ -4206,11 +4256,11 @@ if __name__ == "__main__":
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    #dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                                 end=dataset['star']['msdict']['closed'].index[-1],
-    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
-    dataset['star']['obs'] = {}
+    dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
+                                     read_supermag=False,
+                                     end=dataset['star']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
