@@ -2348,15 +2348,35 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
     Returns
         north,south (Zone)- tecplot zones of 1D objects in 3D
     """
-    ## Create a signed radius
-    tp.data.operate.execute_equation('{rSigned}=sign({Zd [R]})*{r [R]}')
-    ## Change XYZ -> Xd,Y,r
-    plot = sp_zone.dataset.frame.plot()
-    plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
-    # No change in Y
-    plot.axes.z_axis.variable = sp_zone.dataset.variable('rSigned')
+    if kwargs.get('ionosphere',False):
+        ## Change to 2D -> Xd,Y coordinates
+        tp.active_frame().plot_type = PlotType.Cartesian2D
+        plot = tp.active_frame().plot()
+        plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
+    else:
+        ## Create a signed radius
+        tp.data.operate.execute_equation('{rSigned}=sign({Zd [R]})*{r [R]}')
+        ## Change XYZ -> Xd,Y,r
+        plot = sp_zone.dataset.frame.plot()
+        plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
+        # No change in Y
+        plot.axes.z_axis.variable = sp_zone.dataset.variable('rSigned')
+    # Hide all zones that aren't the one passed here
+    for fieldmap in plot.fieldmaps():
+        if [z for z in fieldmap.zones][0] != sp_zone:
+            fieldmap.show = False
+        else:
+            fieldmap.show = True
 
-    for hemi,stat in [('north',2),('south',1)]:
+    if 'hemi' in kwargs:
+        if kwargs.get('hemi')=='North':
+            hemis = [('north',2)]
+        else:
+            hemis = [('south',1)]
+    else:
+        hemis = [('north',2),('south',1)]
+    north,south = None,None
+    for hemi,stat in hemis:
         ## Get Y+- limits
         status = sp_zone.values('Status').as_numpy_array()
         y = sp_zone.values('Y *').as_numpy_array()
@@ -2375,20 +2395,33 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
             xx = np.zeros(npoints)
             yy = np.linspace(ymin,ymax,npoints)
             if hemi=='north':
-                zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
-                north = tp.data.extract.extract_line(zip(xx,yy,zz))
+                if tp.active_frame().plot_type == PlotType.Cartesian2D:
+                    points = zip(xx,yy)
+                else:
+                    zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
+                    points = zip(xx,yy,zz)
+                north = tp.data.extract.extract_line(points)
                 north.name = name+hemi
                 #open_contour(sp_zone,north,status_key=stat)
                 #forced_polarcap(sp_zone,north,status_key=stat)
             else:
-                zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
-                south = tp.data.extract.extract_line(zip(xx,yy,zz))
+                if tp.active_frame().plot_type == PlotType.Cartesian2D:
+                    points = zip(xx,yy)
+                else:
+                    zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
+                    points = zip(xx,yy,zz)
+                south = tp.data.extract.extract_line(points)
                 south.name = name+hemi
                 #open_contour(sp_zone,south,status_key=stat)
     ## Change XYZ back -> XYZ
+    tp.active_frame().plot_type = PlotType.Cartesian3D
+    plot = tp.active_frame().plot()
     plot.axes.x_axis.variable = sp_zone.dataset.variable('X *')
     # No change in Y
     plot.axes.z_axis.variable = sp_zone.dataset.variable('Z *')
+    # Unhide all the fieldmaps
+    for fieldmap in plot.fieldmaps():
+        fieldmap.show = True
     return north, south
 
 def calc_Jpar_state(mode, zones,  **kwargs):

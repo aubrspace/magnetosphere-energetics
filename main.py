@@ -136,15 +136,15 @@ if __name__ == "__main__":
             #Perform data extraction
             with tp.session.suspend():
                 #Caclulate surfaces
-                '''
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
-                                    verbose=True,
-                                    debug=True,
+                                                        write_data=True,
+                                    verbose=False,
+                                    debug=False,
                                     do_cms=False,
                                     do_central_diff=False,
                                     analysis_type='',
-                                    modes=['iso_betastar'],
+                                    modes=['perfectsphere'],
                                     do_interfacing=False,
                                     integrate_surface=False,
                                     integrate_volume=False,
@@ -155,12 +155,19 @@ if __name__ == "__main__":
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'test':'TestArea [Re^2]'}
                                     )
-                '''
                 tp.data.load_tecplot(iedatafile,
-                                     read_data_option=ReadDataOption.Append)
+                                 read_data_option=ReadDataOption.Append)
                 field_data.zone(-2).name = 'ionosphere_north'
                 field_data.zone(-1).name = 'ionosphere_south'
-                ionosphere.get_ionosphere(field_data, hasGM=True)
+                ionosphere.get_ionosphere(field_data,
+                                          verbose=True,
+                                          hasGM=True,
+                                          eventtime=filetime,
+                                          analysis_type='mag',
+                                          integrate_surface=True,
+                                          integrate_line=True,
+                                          do_interfacing=True,
+                                          outputpath='fte_test/')
             #if i>30:
             if True:
                 break

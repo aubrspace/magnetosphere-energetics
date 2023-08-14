@@ -80,6 +80,7 @@ def line_analysis(zone, **kwargs):
         results- integrated flux across the 1D line/curve/path
     """
     if'analysis_type' in kwargs: analysis_type = kwargs.pop('analysis_type')
+    else: analysis_type==''
     #initialize empty dictionary that will make up the results of calc
     integrands, results = {}, {}
     ###################################################################

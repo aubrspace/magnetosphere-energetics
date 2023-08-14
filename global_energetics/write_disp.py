@@ -60,7 +60,10 @@ def display_progress(meshfile, integralfile, zonename):
     for lvl in integralfile.split('/')[0:-1]:
         integralpath = integralpath+lvl+'/'
     #Display result from this step
-    result = ('Result\n'+
+    if meshfile=='NoMesh':
+        result = ''
+    else:
+        result = ('Result\n'+
                '\tmeshdatafile: {}\n'.format(meshfile)+
                '\tmeshfilecount: {}\n'.format(
                                         len(glob.glob(meshpath+'*.h5'))))
