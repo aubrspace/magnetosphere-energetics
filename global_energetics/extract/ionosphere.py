@@ -16,7 +16,14 @@ from tecplot.exception import *
 import pandas as pd
 #interpackage modules
 from global_energetics.makevideo import get_time, time_sort
-from global_energetics.extract.stream_tools import integrate_tecplot
+from global_energetics.write_disp import write_to_hdf, display_progress
+from global_energetics.extract.stream_tools import (integrate_tecplot,mag2gsm,
+                                                    create_stream_zone,
+                                                    calc_terminator_zone,
+                                                    get_global_variables,
+                                                    get_dipole_field)
+from global_energetics.extract import line_tools
+from global_energetics.extract import surface_tools
 
 def isfloat(num):
     try:
@@ -118,6 +125,7 @@ def get_ionosphere_zone(eventdt, datapath):
         print('no ionosphere data found!')
         return None, None
 
+'''
 def get_ionosphere(field_data, *, show=False,
                    comp1=True, comp2=True, comp3=True,
                    local_integrate=False):
@@ -153,6 +161,7 @@ def get_ionosphere(field_data, *, show=False,
     else:
         #pass data to tecplot
         load_ionosphere_tecplot(northdf, southdf)
+'''
 
 def save_tofile(infile,timestamp,filetype='hdf',outputdir='localdbug/ie',
                 hdfkey='ie',**values):
@@ -174,6 +183,299 @@ def save_tofile(infile,timestamp,filetype='hdf',outputdir='localdbug/ie',
     if 'ascii' in filetype:
         df.to_csv(outputdir+outfile+'.dat',sep=' ',index=False)
 
+def rotate_xyz(zones,angle,**kwargs):
+    """Function rotates IE xyz variables according to rotation matrix
+    Inputs
+        zone
+        angle
+        kwargs:
+            sm2gsm
+    Returns
+    """
+    eq =  tp.data.operate.execute_equation
+    # Get rotation matrix
+    mXhat_x = str(sin((-angle+90)*pi/180))
+    mXhat_y = str(0)
+    mXhat_z = str(-1*cos((-angle+90)*pi/180))
+    mZhat_x = str(sin(-angle*pi/180))
+    mZhat_y = str(0)
+    mZhat_z = str(-1*cos(-angle*pi/180))
+    # Save old values
+    eq('{Xd [R]} = {X [R]}',zones=zones)
+    eq('{Zd [R]} = {Z [R]}',zones=zones)
+    # Update xyz
+    eq('{X [R]} = '+mXhat_x+'*({Xd [R]}*'+mXhat_x+'+{Zd [R]}*'+mXhat_z+')',
+                                                                 zones=zones)
+    eq('{Z [R]} = '+mZhat_z+'*({Xd [R]}*'+mZhat_x+'+{Zd [R]}*'+mZhat_z+')',
+                                                                 zones=zones)
+    # Update dirctions of other vectors
+    for base in ['E','J','U']:
+        if zones[0].dataset.variable(base+'x*') is not None:
+            Xname = zones[0].dataset.variable(base+'x*').name
+            Zname = zones[0].dataset.variable(base+'z*').name
+            eq('{'+base+'xd} = {'+Xname+'}',zones=zones)
+            eq('{'+base+'zd} = {'+Zname+'}',zones=zones)
+            eq('{'+Xname+'} = '+mXhat_x+'*({'+base+'xd}*'+mXhat_x+
+                              '+{'+base+'zd}*'+mXhat_z+')',zones=zones)
+            eq('{'+Zname+'} = '+mZhat_z+'*({'+base+'xd}*'+mZhat_x+
+                              '+{'+base+'zd}*'+mZhat_z+')',zones=zones)
+    # Calculate the dipole field at the new locations
+    Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field({'BTHETATILT':str(angle)})
+    eq('{r [R]} = sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',zones=zones)
+    eq(Bdx_eq,zones=zones)
+    eq(Bdy_eq,zones=zones)
+    eq(Bdz_eq,zones=zones)
+
+def trace_status(zone,hemi,**kwargs):
+    """Function traces all the points in a zone to detrmine if each point is
+        open or closed
+    Inputs
+        zone
+        kwargs:
+    Returns
+    """
+    eq =  tp.data.operate.execute_equation
+    # set vector settings
+    tp.active_frame().plot().vector.u_variable = zone.dataset.variable('B_x *')
+    tp.active_frame().plot().vector.v_variable = zone.dataset.variable('B_y *')
+    tp.active_frame().plot().vector.w_variable = zone.dataset.variable('B_z *')
+    field_line = tp.active_frame().plot().streamtraces
+    field_line.min_step_size=0.25
+    field_line.max_steps=3000
+    # Use value blanking
+    '''
+    blank = tp.active_frame().plot().value_blanking
+    blank.active = True
+    blank.cell_mode = ValueBlankCellMode.PrimaryValue
+    # Blank all closed field
+    closed_blank = blank.constraint(1)
+    closed_blank.variable = zone.dataset.variable('Status')
+    closed_blank.comparison_operator = RelOp.EqualTo
+    closed_blank.comparison_value = 3
+    closed_blank.active=True
+    '''
+    # pull xyz
+    x = zone.values('X *').as_numpy_array()
+    y = zone.values('Y *').as_numpy_array()
+    z = zone.values('Z *').as_numpy_array()
+    theta = zone.values('Theta *').as_numpy_array()
+    if 'r [R]' not in zone.dataset.variable_names:
+        eq('{r [R]} = sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)')
+    north_theta_limit = 40
+    south_theta_limit = 140
+    points = zip(x,y,z)
+    # trace lines
+    if hemi=='North':
+        direction=StreamDir.Reverse
+    if hemi=='South':
+        direction=StreamDir.Forward
+    for i,p in enumerate([p for p in points][0:10000]):
+        if (hemi=='North' and theta[i]<north_theta_limit or
+                hemi=='South' and theta[i]>north_theta_limit):
+            field_line.add(seed_point=p, direction=direction,
+                           stream_type=Streamtrace.VolumeLine)
+            field_line.extract()
+            field_line.delete_all()
+            if hemi=='North':
+                if zone.dataset.zone(-1).values('r *')[0:1]<2.75:
+                    zone.values('Status')[i] = 3
+                else:
+                    zone.values('Status')[i] = 2
+            elif hemi=='South':
+                if zone.dataset.zone(-1).values('r *')[-2:-1]<2.75:
+                    zone.values('Status')[i] = 3
+                else:
+                    zone.values('Status')[i] = 1
+        else:
+            zone.values('Status')[i] = 3
+        if i%100==0:
+            print(i)
+    # Delete traced zones
+    delete_zones = [z for z in zone.dataset.zones('Streamtrace*')]
+    zone.dataset.delete_zones(delete_zones)
+    # Turn off value blanking
+    #closed_blank.active=False
+    #blank.active = False
+
+def nearest_neighbor_map(iezone,source,hemi):
+    """
+    """
+    # pull ie coordinates
+    iex = iezone.values('X *').as_numpy_array()
+    iey = iezone.values('Y *').as_numpy_array()
+    iez = iezone.values('Z *').as_numpy_array()
+    ietheta = iezone.values('Theta *').as_numpy_array()
+    iephi = iezone.values('Psi *').as_numpy_array()
+    # pull souce coodinates and status
+    source_status = source.values('Status').as_numpy_array()
+    if hemi=='North':
+        source_theta = source.values('theta_1 *').as_numpy_array()
+        source_phi = source.values('phi_1 *').as_numpy_array()
+        # Take only the top
+        source_phi = source_phi[source_theta>0]
+        source_status = source_status[source_theta>0]
+        source_theta = source_theta[source_theta>0]
+        #ietheta_match = -ietheta+90
+        source_thmatch = -source_theta+90
+    else:
+        source_theta = source.values('theta_2 *').as_numpy_array()
+        source_phi = source.values('phi_2 *').as_numpy_array()
+        # Take only the bottom
+        source_phi = source_phi[(source_theta<0)&(source_theta)>-90]
+        source_status = source_status[(source_theta<0)&(source_theta)>-90]
+        source_theta = source_theta[(source_theta<0)&(source_theta)>-90]
+        #ietheta_match = ietheta-90
+        source_match = -source_theta+90
+    for i,(th_in,phi_in) in enumerate(zip(ietheta[0:10000],
+                                          iephi[0:10000])):
+        th1 = source_thmatch*pi/180
+        phi1 = source_phi*pi/180
+        th2 = th_in*pi/180
+        phi2 = phi_in*pi/180
+        d = np.sqrt(2*(1-sin(th1)*sin(th2)*cos(phi1-phi2)+cos(th1)*cos(th2)))
+        status_value = source_status[np.where(d==d.min())[0][0]]
+        if hemi=='North' and status_value<3:
+            iezone.values('Status')[i] = 2
+            print(i, 2)
+        elif hemi=='South' and status_value<3:
+            iezone.values('Status')[i] = 1
+            print(i, 1)
+        else:
+            iezone.values('Status')[i] = 3
+            print(i, 3)
+    #from IPython import embed; embed()
+
+def sphere2cart_map(spzone,**kwargs):
+    eq = tp.data.operate.execute_equation
+    # Calculate Theta from theta_1/2
+    eq('{Theta [deg]}=IF({Zd [R]}>0,-{theta_1 [deg]}+90,-{theta_2 [deg]}+90)',
+                                                               zones=[spzone])
+    eq('{Psi [deg]}=IF({Zd [R]}>0,{phi_1 [deg]},{phi_2 [deg]})',
+                                                               zones=[spzone])
+    # Calculate XYZ @ r=1 given Theta and Psi (IE convention)
+    eq('{X [R]} = 1*sin({Theta [deg]}*pi/180)*cos({Psi [deg]}*pi/180)',
+                                                               zones=[spzone])
+    eq('{Y [R]} = 1*sin({Theta [deg]}*pi/180)*sin({Psi [deg]}*pi/180)',
+                                                               zones=[spzone])
+    eq('{Z [R]} = 1*cos({Theta [deg]}*pi/180)', zones=[spzone])
+
+def blank_and_interpolate(source,target,hemi):
+    eq = tp.data.operate.execute_equation
+    # Blank section of the sphere
+    blank = tp.active_frame().plot().value_blanking
+    blank.active = True
+    blank.cell_mode = ValueBlankCellMode.PrimaryValue
+    # Blank all Z_sm for one hemisphere
+    zblank = blank.constraint(1)
+    zblank.variable = source.dataset.variable('Z *')
+    if hemi=='North':
+        zblank.comparison_operator = RelOp.LessThan
+    elif hemi=='South':
+        zblank.comparison_operator = RelOp.GreaterThan
+    zblank.comparison_value = 0
+    zblank.active=True
+    # Interpolate from source to target
+    tp.data.operate.interpolate_inverse_distance(
+                                target,
+                                source_zones=[source],
+                                variables=[source.dataset.variable('Status')])
+    # Boost the Status signal post interpolation for firm discrete states
+    if hemi=='North':
+        eq('{Status} = if({Status}<2.8,2,3)',zones=[target])
+    elif hemi=='South':
+        eq('{Status} = if({Status}<2.8,1,3)',zones=[target])
+    # Turn off blanking
+    blank.active = False
+    zblank.active = False
+
+def match_variable_names(zones):
+    """Function ports over the variable names from IE so they match GM
+    Inputs
+        zones
+    Returns
+        None
+    """
+    eq = tp.data.operate.execute_equation
+    eq('{Rho [amu/cm^3]} = 56',zones=zones)
+    eq('{U_x [km/s]} = {Ux [km/s]}',zones=zones)
+    eq('{U_y [km/s]} = {Uy [km/s]}',zones=zones)
+    eq('{U_z [km/s]} = {Uz [km/s]}',zones=zones)
+    eq('{B_x [nT]} = {Bdx}',zones=zones)
+    eq('{B_y [nT]} = {Bdy}',zones=zones)
+    eq('{B_z [nT]} = {Bdz}',zones=zones)
+    eq('{P [nPa]} = 0.5',zones=zones)
+    eq('{J_x [uA/m^2]} = {Jx [`mA/m^2]}',zones=zones)
+    eq('{J_y [uA/m^2]} = {Jy [`mA/m^2]}',zones=zones)
+    eq('{J_z [uA/m^2]} = {Jz [`mA/m^2]}',zones=zones)
+    eq('{theta_1 [deg]} = -{Theta [deg]}+90',zones=zones)
+    eq('{theta_2 [deg]} = {Theta [deg]}-90',zones=zones)
+    eq('{phi_1 [deg]} = {Psi [deg]}',zones=zones)
+    eq('{phi_2 [deg]} = {Psi [deg]}',zones=zones)
+
+def get_ionosphere(dataset,**kwargs):
+    """Function routes to various extraction and analysis options for IE data
+        based on kwargs given
+    Inputs
+        dataset (tecplot dataset)
+        kwargs:
+            hasGM (bool) - default False
+    Returns
+    """
+    zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
+    zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    data_to_write={}
+    if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
+        zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
+        zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
+        aux = zoneGM.aux_data
+        if 'eventtime' in kwargs:
+            eventtime = kwargs.get('eventtime')
+        # TODO check that XYZ are given in IE data
+        # Map sphere onto Z aligned IE data
+        sphere2cart_map(zoneSphere)
+        blank_and_interpolate(zoneSphere,zoneNorth,'North')
+        blank_and_interpolate(zoneSphere,zoneSouth,'South')
+        # Rotate IE_xyz(SM) to GM_xyz(GSM)
+        rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
+        match_variable_names([zoneNorth,zoneSouth])
+        get_global_variables(dataset,'',aux=aux)
+        if kwargs.get('integrate_line',False):
+            # Create a dipole terminator zone
+            north_term,_ = calc_terminator_zone('terminator',zoneNorth,
+                                                hemi='North',
+                                                sp_rmax=1,ionosphere=True)
+            _,south_term = calc_terminator_zone('terminator',zoneSouth,
+                                                hemi='South',
+                                                sp_rmax=1,ionosphere=True)
+    if kwargs.get('integrate_surface',False):
+        for zone in [zoneNorth,zoneSouth]:
+            #integrate power on created surface
+            print('\nWorking on: '+zone.name+' surface')
+            surf_results = surface_tools.surface_analysis(zone,surfGeom=True,
+                                                          **kwargs)
+            surf_results['Time [UTC]'] = eventtime
+            data_to_write.update({zone.name+'_surface':surf_results})
+        data_to_write = surface_tools.post_proc(data_to_write,
+                         do_interfacing=kwargs.get('do_interfacing',False))
+    if kwargs.get('integrate_line',False):
+        for zone in [north_term,south_term]:
+            #integrate fluxes across the 1D curve or line
+            print('\nWorking on: '+zone.name+' line')
+            line_results = line_tools.line_analysis(zone,**kwargs)
+            line_results['Time [UTC]'] = eventtime
+            data_to_write.update({zone.name:line_results})
+    if kwargs.get('write_data',True):
+        datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
+                      str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
+                      str(eventtime.minute))
+        write_to_hdf(kwargs.get('outputpath')+'/energeticsdata/ie_output_'+
+                        datestring+'.h5', data_to_write)
+    if kwargs.get('disp_result',True):
+        display_progress('NoMesh',
+                    kwargs.get('outputpath')+'/energeticsdata/ie_output_'+
+                         datestring+'.h5',
+                         data_to_write.keys())
+    return data_to_write
 
 
 # Must list .plt that script is applied for proper execution

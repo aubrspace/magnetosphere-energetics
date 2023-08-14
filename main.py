@@ -17,6 +17,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 #import global_energetics
 from global_energetics.extract import magnetosphere
+from global_energetics.extract import ionosphere
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import satellites
 from global_energetics.extract import stream_tools
@@ -112,13 +113,16 @@ if __name__ == "__main__":
     i=0
     for k,f in enumerate(all_times):
         filetime = makevideo.get_time(f)
-        #if filetime>starlink_impact and filetime<starlink_endMain1:
-        if filetime>dt.datetime(2022,2,3,9,0) and filetime<dt.datetime(2022,2,3,10,0):
+        if filetime>starlink_impact and filetime<starlink_endMain1:
+        #if filetime>dt.datetime(2022,2,3,9,0) and filetime<dt.datetime(2022,2,3,10,0):
+        #if True:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
             #mhddatafile = inputs[0]
-            mhddatafile = f
+            #mhddatafile = f
+            mhddatafile = 'localdbug/polarcap2000/3d__var_1_e20000624-023700-006.plt'
+            iedatafile = 'localdbug/polarcap2000/it000624_023700_000.tec'
             OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
             #python objects
             #field_data = tp.data.load_tecplot(inputs)
@@ -134,29 +138,36 @@ if __name__ == "__main__":
                 #Caclulate surfaces
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
-                                    verbose=True,
-                                    debug=True,
+                                                        write_data=True,
+                                    verbose=False,
+                                    debug=False,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='mag',
-                                    modes=['iso_betastar'],
-                                    #inner_r=4,
-                                    #blankvalue=4,
-                                    #modes=['sphere'],
-                                    #sp_rmax=10,
-                                    #sp_rmin=3,
-                                    #xc=0,yc=0,zc=0,
-                                    #keep_zones='all',
-                                    #do_interfacing=False,
-                                    integrate_surface=True,
-                                    #integrate_volume=False,
+                                    analysis_type='',
+                                    modes=['perfectsphere'],
+                                    do_interfacing=False,
+                                    integrate_surface=False,
+                                    integrate_volume=False,
                                     integrate_line=False,
-                                    truegridfile=oggridfile,
-                                    outputpath='static_test/',
+                                    #truegridfile=oggridfile,
+                                    outputpath='fte_test/',
                                     #surface_unevaluated_type='energy',
                                     #add_eqset=['energy_flux','volume_energy'],
                                     #customTerms={'test':'TestArea [Re^2]'}
                                     )
+                tp.data.load_tecplot(iedatafile,
+                                 read_data_option=ReadDataOption.Append)
+                field_data.zone(-2).name = 'ionosphere_north'
+                field_data.zone(-1).name = 'ionosphere_south'
+                ionosphere.get_ionosphere(field_data,
+                                          verbose=True,
+                                          hasGM=True,
+                                          eventtime=filetime,
+                                          analysis_type='mag',
+                                          integrate_surface=True,
+                                          integrate_line=True,
+                                          do_interfacing=True,
+                                          outputpath='fte_test/')
             #if i>30:
             if True:
                 break

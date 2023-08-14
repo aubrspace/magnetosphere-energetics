@@ -231,7 +231,8 @@ def post_proc(results,**kwargs):
         K_keys = ['K'.join(k.split('P0')) for k in df.keys()if 'P0' in k]
         for k in enumerate(K_keys):df[k[1]]=K_values[0][k[0]]
 
-    if kwargs.get('do_interfacing',False):
+    if (kwargs.get('do_interfacing',False) and
+        'mp_iso_betastar_surface' in results.keys()):
         #Combine north and south lobes into single 'lobes'
         #North
         if 'ms_nlobe_surface' in results.keys():
@@ -565,14 +566,28 @@ def get_interface_integrands(zone,integrands,**kwargs):
         #Poles
         #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
         #Poles dayside only
-        interfaces.update(conditional_mod(zone,integrands,
-                                     ['openN','day'],'PolesDayN',**kwargs))
-        interfaces.update(conditional_mod(zone,integrands,
-                                     ['openS','day'],'PolesDayS',**kwargs))
+        if 'north' in target:
+            interfaces.update(conditional_mod(zone,integrands,
+                                        ['openN','day'],'PolesDayN',**kwargs))
+        elif 'south' in target:
+            interfaces.update(conditional_mod(zone,integrands,
+                                        ['openS','day'],'PolesDayS',**kwargs))
+        else:
+            interfaces.update(conditional_mod(zone,integrands,
+                                        ['openN','day'],'PolesDayN',**kwargs))
+            interfaces.update(conditional_mod(zone,integrands,
+                                        ['openS','day'],'PolesDayS',**kwargs))
         #Poles nightside only
-        interfaces.update(conditional_mod(zone,integrands,
+        if 'north' in target:
+            interfaces.update(conditional_mod(zone,integrands,
                                  ['openN','night'],'PolesNightN',**kwargs))
-        interfaces.update(conditional_mod(zone,integrands,
+        elif 'south' in target:
+            interfaces.update(conditional_mod(zone,integrands,
+                                 ['openS','night'],'PolesNightS',**kwargs))
+        else:
+            interfaces.update(conditional_mod(zone,integrands,
+                                 ['openN','night'],'PolesNightN',**kwargs))
+            interfaces.update(conditional_mod(zone,integrands,
                                  ['openS','night'],'PolesNightS',**kwargs))
     ##Lobes
     if 'lobe' in target:
@@ -817,8 +832,10 @@ def surface_analysis(zone, **kwargs):
     ###################################################################
     """
     if'analysis_type' in kwargs: analysis_type = kwargs.pop('analysis_type')
+    else: analysis_type==''
     #Find needed surface variables for integrations
-    if ('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0):
+    if (('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0) or
+        kwargs.get('surfGeom',False)):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
     get_daymapped_nightmapped(zone)
@@ -846,7 +863,8 @@ def surface_analysis(zone, **kwargs):
         if 'innerbound' in zone.name and kwargs.get('doLowLat',False):
             integrands.update(get_low_lat_integrands(zone, integrands,
                                                      **kwargs))
-        #integrands.update(get_open_close_integrands(zone, integrands))
+        if 'ionosphere' in zone.name and kwargs.get('doOpenClose',True):
+            integrands.update(get_open_close_integrands(zone, integrands))
     ###################################################################
     #Evaluate integrals
     if kwargs.get('verbose',False):

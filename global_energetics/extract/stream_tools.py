@@ -198,6 +198,7 @@ def sph_to_cart(radius, lat, lon):
     y_pos = (radius * cos(deg2rad(lat)) * sin(deg2rad(lon)))
     z_pos = (radius * sin(deg2rad(lat)))
     return [x_pos, y_pos, z_pos]
+'''
 def mag2gsm(x1, x2, x3, time, *, inputtype='sph'):
     """Function converts magnetic spherical coordinates to cartesian
         coordinates in GSM
@@ -215,7 +216,6 @@ def mag2gsm(x1, x2, x3, time, *, inputtype='sph'):
     coordinates.ticks = time
     return coordinates.convert('GSM', 'car').data[0][0:3]
 
-'''
 def sm2gsm_temp(radius, latitude, longitude, time):
     """Function converts solar magnetic spherical coordinates to cartesian
         coordinates in GSM
@@ -1425,11 +1425,14 @@ def get_dipole_field(auxdata, *, B0=31000):
     #Return equation strings to be evaluated
     return d_x, d_y, d_z
 
-def mag2cart(lat,lon,btheta,*,r=1):
+def mag2gsm(lat,lon,btheta,*,r=1,**kwargs):
     """
     """
-    #find xyz_mag
-    x_mag, y_mag, z_mag = sph_to_cart(r,lat,lon)
+    if kwargs.get('cartIN',False) and 'z_mag' in kwargs:
+        x_mag, y_mag, z_mag = lat,lon,kwargs.get('z_mag')
+    else:
+        #find xyz_mag
+        x_mag, y_mag, z_mag = sph_to_cart(r,lat,lon)
     #get rotation matrix
     rot = rotation(-btheta*pi/180,axis='y')
     #find new points by rotation
@@ -1467,10 +1470,10 @@ def equations(**kwargs):
                    'trunc(({mZhat_x}*{X [R]}+{mZhat_z}*{Z [R]})/{r [R]})'+
                         ')',
          '{Lshell}':'{r [R]}/cos({lambda})**2',
-         '{theta [deg]}':'-180/pi*{lambda}',
+         '{theta_SM}':'-180/pi*{lambda}',
          '{Xd [R]}':'{mXhat_x}*({X [R]}*{mXhat_x}+{Z [R]}*{mXhat_z})',
          '{Zd [R]}':'{mZhat_z}*({X [R]}*{mZhat_x}+{Z [R]}*{mZhat_z})',
-         '{phi}':'atan2({Y [R]}, {Xd [R]})',
+         '{phi_SM}':'atan2({Y [R]}, {Xd [R]})',
          '{U_xd [km/s]}':'{mXhat_x}*'+
                         '({U_x [km/s]}*{mXhat_x}+{U_z [km/s]}*{mXhat_z})',
          '{U_zd [km/s]}':'{mZhat_z}*'+
@@ -2345,15 +2348,35 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
     Returns
         north,south (Zone)- tecplot zones of 1D objects in 3D
     """
-    ## Create a signed radius
-    tp.data.operate.execute_equation('{rSigned}=sign({Zd [R]})*{r [R]}')
-    ## Change XYZ -> Xd,Y,r
-    plot = sp_zone.dataset.frame.plot()
-    plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
-    # No change in Y
-    plot.axes.z_axis.variable = sp_zone.dataset.variable('rSigned')
+    if kwargs.get('ionosphere',False):
+        ## Change to 2D -> Xd,Y coordinates
+        tp.active_frame().plot_type = PlotType.Cartesian2D
+        plot = tp.active_frame().plot()
+        plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
+    else:
+        ## Create a signed radius
+        tp.data.operate.execute_equation('{rSigned}=sign({Zd [R]})*{r [R]}')
+        ## Change XYZ -> Xd,Y,r
+        plot = sp_zone.dataset.frame.plot()
+        plot.axes.x_axis.variable = sp_zone.dataset.variable('Xd *')
+        # No change in Y
+        plot.axes.z_axis.variable = sp_zone.dataset.variable('rSigned')
+    # Hide all zones that aren't the one passed here
+    for fieldmap in plot.fieldmaps():
+        if [z for z in fieldmap.zones][0] != sp_zone:
+            fieldmap.show = False
+        else:
+            fieldmap.show = True
 
-    for hemi,stat in [('north',2),('south',1)]:
+    if 'hemi' in kwargs:
+        if kwargs.get('hemi')=='North':
+            hemis = [('north',2)]
+        else:
+            hemis = [('south',1)]
+    else:
+        hemis = [('north',2),('south',1)]
+    north,south = None,None
+    for hemi,stat in hemis:
         ## Get Y+- limits
         status = sp_zone.values('Status').as_numpy_array()
         y = sp_zone.values('Y *').as_numpy_array()
@@ -2372,20 +2395,33 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
             xx = np.zeros(npoints)
             yy = np.linspace(ymin,ymax,npoints)
             if hemi=='north':
-                zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
-                north = tp.data.extract.extract_line(zip(xx,yy,zz))
+                if tp.active_frame().plot_type == PlotType.Cartesian2D:
+                    points = zip(xx,yy)
+                else:
+                    zz = np.zeros(npoints)+kwargs.get('sp_rmax',3)
+                    points = zip(xx,yy,zz)
+                north = tp.data.extract.extract_line(points)
                 north.name = name+hemi
                 #open_contour(sp_zone,north,status_key=stat)
                 #forced_polarcap(sp_zone,north,status_key=stat)
             else:
-                zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
-                south = tp.data.extract.extract_line(zip(xx,yy,zz))
+                if tp.active_frame().plot_type == PlotType.Cartesian2D:
+                    points = zip(xx,yy)
+                else:
+                    zz = np.zeros(npoints)-kwargs.get('sp_rmax',3)
+                    points = zip(xx,yy,zz)
+                south = tp.data.extract.extract_line(points)
                 south.name = name+hemi
                 #open_contour(sp_zone,south,status_key=stat)
     ## Change XYZ back -> XYZ
+    tp.active_frame().plot_type = PlotType.Cartesian3D
+    plot = tp.active_frame().plot()
     plot.axes.x_axis.variable = sp_zone.dataset.variable('X *')
     # No change in Y
     plot.axes.z_axis.variable = sp_zone.dataset.variable('Z *')
+    # Unhide all the fieldmaps
+    for fieldmap in plot.fieldmaps():
+        fieldmap.show = True
     return north, south
 
 def calc_Jpar_state(mode, zones,  **kwargs):
