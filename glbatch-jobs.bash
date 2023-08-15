@@ -2,9 +2,11 @@
 #'parallel' script for spawning lots of jobs
 
 #define variables
-INPUTDIR=./starlink2/IO2/
+#INPUTDIR=./starlink2/IO2/
+INPUTDIR=./run_2000_polarcap/GM/IO2/
+OUTPUTDIR=./polarcap_2000_outputs/
 #OUTPUTDIR=./star2_outputs_n1/
-OUTPUTDIR=./star2_outputs_mp_webers/
+#OUTPUTDIR=./star2_outputs_mp_webers/
 #OUTPUTDIR=./star2_outputs_4Re/
 #INPUTDIR=./test_inputs/
 #OUTPUTDIR=./test_outputs_n1/
@@ -13,7 +15,8 @@ OUTPUTDIR=./star2_outputs_mp_webers/
 filecount=0
 workercount=0
 
-head=3d__var_1_e202202
+head=3d__var_1_e200006
+#head=3d__var_1_e202202
 #head=3d__var_1_e201905
 
 satpath=star2satloc
@@ -33,7 +36,7 @@ do
 
     #if you only want to process one file use this
     #i=$((i+1))
-    #if [ $i == 5 ]
+    #if [ $i == 2 ]
     #then
     #    exit
     #fi

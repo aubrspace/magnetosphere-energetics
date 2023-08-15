@@ -15,6 +15,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 #import global_energetics
 from global_energetics.extract import magnetosphere
+from global_energetics.extract import ionosphere
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import satellites
 from global_energetics.extract import stream_tools
@@ -26,7 +27,7 @@ from global_energetics import makevideo
 
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(inpath+'/3d__var*.plt'),
+    all_solution_times = sorted(glob.glob(inpath+'/3d__var_1*.plt'),
                                 key=makevideo.time_sort)[0::]
     #Pick up only the files that haven't been processed
     if os.path.exists(os.path.join(outpath,'energeticsdata')):
@@ -50,6 +51,21 @@ def energetics_analysis(infiles,outpath):
     #python objects
     oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
     field_data = tp.data.load_tecplot(infiles)
+    filetime = makevideo.get_time(infiles[0])
+    outputname = infiles[0].split('e')[-1].split('.plt')[0]+'.png'
+    iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
+                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
+    if not os.path.exists(iedatafile):
+        print(iedatafile,'does not exist!')
+        with open(os.path.join(outpath,'png',outputname),'wb') as png:
+            png.close()
+        exit
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
         field_data.zone(1).name = 'future'
@@ -63,8 +79,8 @@ def energetics_analysis(infiles,outpath):
                                       disp_result=True,
                                       do_cms=False,
                                       do_central_diff=False,
-                                      analysis_type='mag',
-                                      modes=['iso_betastar'],
+                                      analysis_type='',
+                                      modes=['perfectsphere'],
                                       #modes=['iso_betastar','closed',
                                       #       'nlobe','slobe'],
                                       #inner_r=4,
@@ -72,13 +88,24 @@ def energetics_analysis(infiles,outpath):
                                       #customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=False,
                                       integrate_line=False,
-                                      integrate_surface=True,
+                                      integrate_surface=False,
                                       integrate_volume=False,
-                                      truegridfile=oggridfile,
+                                      #truegridfile=oggridfile,
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
-    outputname = infiles[0].split('e')[-1].split('.plt')[0]+'.png'
+    tp.data.load_tecplot(iedatafile,read_data_option=ReadDataOption.Append)
+    field_data.zone(-2).name = 'ionosphere_north'
+    field_data.zone(-1).name = 'ionosphere_south'
+    ionosphere.get_ionosphere(field_data,
+                                          verbose=True,
+                                          hasGM=True,
+                                          eventtime=filetime,
+                                          analysis_type='mag',
+                                          integrate_surface=True,
+                                          integrate_line=True,
+                                          do_interfacing=True,
+                                          outputpath=outpath)
     with open(os.path.join(outpath,'png',outputname),'wb') as png:
         png.close()
 
