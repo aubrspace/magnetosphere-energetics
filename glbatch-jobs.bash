@@ -36,7 +36,7 @@ do
 
     #if you only want to process one file use this
     #i=$((i+1))
-    #if [ $i == 2 ]
+    #if [ $i == 4 ]
     #then
     #    exit
     #fi

@@ -465,14 +465,15 @@ def get_ionosphere(dataset,**kwargs):
             line_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name:line_results})
     if kwargs.get('write_data',True):
-        datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
-                      str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
-                      str(eventtime.minute))
-        write_to_hdf(kwargs.get('outputpath')+'/energeticsdata/ie_output_'+
+        datestring = ('{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}'.format(
+                                            eventtime.year,eventtime.month,
+                                            eventtime.day,eventtime.hour,
+                                            eventtime.minute,eventtime.second))
+        write_to_hdf(kwargs.get('outputpath')+'/energeticsdata/IE/ie_output_'+
                         datestring+'.h5', data_to_write)
     if kwargs.get('disp_result',True):
         display_progress('NoMesh',
-                    kwargs.get('outputpath')+'/energeticsdata/ie_output_'+
+                    kwargs.get('outputpath')+'/energeticsdata/IE/ie_output_'+
                          datestring+'.h5',
                          data_to_write.keys())
     return data_to_write

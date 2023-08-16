@@ -207,31 +207,36 @@ def prep_field_data(field_data, **kwargs):
             tp.data.load_tecplot(kwargs.get('truegridfile'),reset_style=False)
             truegrid = field_data.zone(-1)
             truegrid.name = 'truegrid'
-            ## Extract the dual and true grid info and sort using pandas
-            field_data.add_variable('trueCellVolume')
-            # Create a cellcentered XYZ for the true grid
-            eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
-            eq('{Xcc}={X [R]}',value_location=cc,zones=[truegrid.index])
-            eq('{Ycc}={Y [R]}',value_location=cc,zones=[truegrid.index])
-            eq('{Zcc}={Z [R]}',value_location=cc,zones=[truegrid.index])
-            # Set numpy objects
-            x = field_data.zone(0).values('X *').as_numpy_array()
-            y = field_data.zone(0).values('Y *').as_numpy_array()
-            z = field_data.zone(0).values('Z *').as_numpy_array()
-            xCell = truegrid.values('Xcc').as_numpy_array()
-            yCell = truegrid.values('Ycc').as_numpy_array()
-            zCell = truegrid.values('Zcc').as_numpy_array()
-            trueCellVols = truegrid.values('Cell Volume').as_numpy_array()
-            # Combine into data frames
-            target = pd.DataFrame({'X':x,'Y':y,'Z':z})
-            source = pd.DataFrame({'X':xCell,'Y':yCell,'Z':zCell,
-                                   'trueVolume':trueCellVols})
-            # Sort and load back into the main zone
-            target.sort_values(by=['X','Y','Z'],inplace=True)
-            source.sort_values(by=['X','Y','Z'],inplace=True)
-            target['trueVolume'] = source['trueVolume'].values
-            field_data.zone(0).values('trueCellVolume')[::] = target[
-                                             'trueVolume'].sort_index().values
+            if 'dvol [R]^3' in field_data.variable_names:
+                field_data.add_variable('trueCellVolume')
+                field_data.zone(0).values('trueCellVolume')[:]=truegrid.values(
+                                                     'dvol *').as_numpy_array()
+            else:
+                ## Extract the dual and true grid info and sort using pandas
+                field_data.add_variable('trueCellVolume')
+                # Create a cellcentered XYZ for the true grid
+                eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
+                eq('{Xcc}={X [R]}',value_location=cc,zones=[truegrid.index])
+                eq('{Ycc}={Y [R]}',value_location=cc,zones=[truegrid.index])
+                eq('{Zcc}={Z [R]}',value_location=cc,zones=[truegrid.index])
+                # Set numpy objects
+                x = field_data.zone(0).values('X *').as_numpy_array()
+                y = field_data.zone(0).values('Y *').as_numpy_array()
+                z = field_data.zone(0).values('Z *').as_numpy_array()
+                xCell = truegrid.values('Xcc').as_numpy_array()
+                yCell = truegrid.values('Ycc').as_numpy_array()
+                zCell = truegrid.values('Zcc').as_numpy_array()
+                trueCellVols = truegrid.values('Cell Volume').as_numpy_array()
+                # Combine into data frames
+                target = pd.DataFrame({'X':x,'Y':y,'Z':z})
+                source = pd.DataFrame({'X':xCell,'Y':yCell,'Z':zCell,
+                                    'trueVolume':trueCellVols})
+                # Sort and load back into the main zone
+                target.sort_values(by=['X','Y','Z'],inplace=True)
+                source.sort_values(by=['X','Y','Z'],inplace=True)
+                target['trueVolume'] = source['trueVolume'].values
+                field_data.zone(0).values('trueCellVolume')[::] = target[
+                                                'trueVolume'].sort_index().values
     #set frame name and calculate global variables
     if field_data.variable_names.count('r [R]') ==0:
         main_frame = tp.active_frame()
@@ -696,16 +701,17 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
             mp_mesh.update({region.name:meshvalues})
     ################################################################
     if write_data:
-        datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
-                      str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
-                      str(eventtime.minute))
-        write_to_hdf(outputpath+'/energeticsdata/energetics_'+
+        datestring = ('{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}'.format(
+                                            eventtime.year,eventtime.month,
+                                            eventtime.day,eventtime.hour,
+                                            eventtime.minute,eventtime.second))
+        write_to_hdf(outputpath+'/energeticsdata/GM/energetics_'+
                         datestring+'.h5', data_to_write)
     if save_mesh:
         write_to_hdf(outputpath+'/meshdata/mesh_'+datestring+'.h5',mp_mesh)
     if disp_result:
         display_progress(outputpath+'/meshdata/mesh_'+datestring+'.h5',
-                            outputpath+'/energeticsdata/energetics_'+
+                            outputpath+'/energeticsdata/GM/energetics_'+
                             datestring+'.h5',
                             data_to_write.keys())
     return mp_mesh, data_to_write

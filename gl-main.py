@@ -49,7 +49,8 @@ def energetics_analysis(infiles,outpath):
     #Reset session
     tp.new_layout()
     #python objects
-    oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
+    #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
+    oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]+'.png'
@@ -77,23 +78,23 @@ def energetics_analysis(infiles,outpath):
                                       save_mesh=False,
                                       write_data=True,
                                       disp_result=True,
-                                      do_cms=False,
-                                      do_central_diff=False,
-                                      analysis_type='',
-                                      modes=['perfectsphere'],
-                                      #modes=['iso_betastar','closed',
-                                      #       'nlobe','slobe'],
-                                      #inner_r=4,
-                                      #blankvalue=4,
-                                      #customTerms={'test':'TestArea [Re^2]'},
-                                      do_interfacing=False,
+                                      do_cms=True,
+                                      do_central_diff=True,
+                                      analysis_type='energy_mass_mag',
+                                      modes=['iso_betastar','closed',
+                                             'nlobe','slobe'],
+                                      inner_r=4,
+                                      blankvalue=4,
+                                      customTerms={'test':'TestArea [Re^2]'},
+                                      do_interfacing=True,
                                       integrate_line=False,
                                       integrate_surface=False,
-                                      integrate_volume=False,
-                                      #truegridfile=oggridfile,
+                                      integrate_volume=True,
+                                      truegridfile=oggridfile,
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
+    '''
     tp.data.load_tecplot(iedatafile,read_data_option=ReadDataOption.Append)
     field_data.zone(-2).name = 'ionosphere_north'
     field_data.zone(-1).name = 'ionosphere_south'
@@ -106,6 +107,7 @@ def energetics_analysis(infiles,outpath):
                                           integrate_line=True,
                                           do_interfacing=True,
                                           outputpath=outpath)
+    '''
     with open(os.path.join(outpath,'png',outputname),'wb') as png:
         png.close()
 
@@ -153,7 +155,8 @@ if __name__ == "__main__":
 
         try:
             nextfile = full_list[full_list.index(nowfile)+1].split('/')[-1]
-            nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
+            nextfile_mirror = os.path.join(inpath,nextfile)
+            #nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
             previousfile = os.path.join(inpath,
                               full_list[full_list.index(nowfile)-1].split('/')[-1])
             #previousfile_mirror = os.path.join(inpath,'mirror',previousfile)
@@ -169,8 +172,8 @@ if __name__ == "__main__":
         print('now: ',nowfile)
         print('next: ',nextfile)
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        energetics_analysis([nowfile],outpath)
-        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        #energetics_analysis([nowfile],outpath)
+        energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
