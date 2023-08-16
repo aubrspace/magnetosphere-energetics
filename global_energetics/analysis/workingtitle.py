@@ -90,10 +90,10 @@ def compile_polar_cap(sphere_input,terminator_input_n,
     #make a copy
     polar_caps = sphere_input.copy(deep=True)
     #Calculate new terms
-    day_dphidt_N=central_diff(abs(polar_caps['Bf_netPolesDayN [Wb]']),120)
-    day_dphidt_S=central_diff(abs(polar_caps['Bf_netPolesDayS [Wb]']),120)
-    night_dphidt_N=central_diff(abs(polar_caps['Bf_netPolesNightN [Wb]']),120)
-    night_dphidt_S=central_diff(abs(polar_caps['Bf_netPolesNightS [Wb]']),120)
+    day_dphidt_N=central_diff(abs(polar_caps['Bf_netPolesDayN [Wb]']))
+    day_dphidt_S=central_diff(abs(polar_caps['Bf_netPolesDayS [Wb]']))
+    night_dphidt_N=central_diff(abs(polar_caps['Bf_netPolesNightN [Wb]']))
+    night_dphidt_S=central_diff(abs(polar_caps['Bf_netPolesNightS [Wb]']))
     Terminator_N = terminator_input_n['dPhidt_net [Wb/s]']
     Terminator_S = terminator_input_s['dPhidt_net [Wb/s]']
     DayRxn_N = -day_dphidt_N + Terminator_N
@@ -146,7 +146,7 @@ def prep_for_correlations(data_input, solarwind_input,**kwargs):
     #Analysis
     #Make a deepcopy of dataframe
     data_output = data_input.copy(deep=True)
-    dEdt = central_diff(data_output['Utot [J]'],60)
+    dEdt = central_diff(data_output['Utot [J]'])
     K_motional = (-1*dEdt-data_output['K_net [W]'])/1e12
     K_static = data_output['K_net [W]']/1e12
     ytime = [float(n) for n in data_output.index.to_numpy()]
@@ -291,7 +291,7 @@ def hotfix_psb(msdict):
     #msdict['closed'] = closed
     return msdict
 
-def central_diff(dataframe,dt,**kwargs):
+def central_diff(dataframe,**kwargs):
     """Takes central difference of the columns of a dataframe
     Inputs
         df (DataFrame)- data
@@ -791,7 +791,7 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                                 Elobes.min()/1e15,
                                                 ElobesPercent.min()))
             print('{:<25}{:<20}'.format('****','****'))
-            dEdt = central_diff(lobes['Utot [J]'],60)/1e12
+            dEdt = central_diff(lobes['Utot [J]'])/1e12
             K1 = mp['K_netK1 [W]']/1e12
             K2a = lobes['K_netK2a [W]']/1e12
             K2b = lobes['K_netK2b [W]']/1e12
@@ -1749,17 +1749,17 @@ def quantify_timings2(dataset, phase, path,**kwargs):
 
         # Central difference of partial volume integrals, total change
         # Total
-        K_closed = -1*central_diff(closed['Utot [J]'],60)
-        K_lobes = -1*central_diff(lobes['Utot [J]'],60)
-        K_mp = -1*central_diff(mp['Utot [J]'],60)
+        K_closed = -1*central_diff(closed['Utot [J]'])
+        K_lobes = -1*central_diff(lobes['Utot [J]'])
+        K_mp = -1*central_diff(mp['Utot [J]'])
         # Hydro
-        H_closed = -1*central_diff(closed['uHydro [J]'],60)
-        H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
-        H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        H_closed = -1*central_diff(closed['uHydro [J]'])
+        H_lobes = -1*central_diff(lobes['uHydro [J]'])
+        H_mp = -1*central_diff(mp['uHydro [J]'])
         # Mag
-        S_closed = -1*central_diff(closed['uB [J]'],60)
-        S_lobes = -1*central_diff(lobes['uB [J]'],60)
-        S_mp = -1*central_diff(mp['uB [J]'],60)
+        S_closed = -1*central_diff(closed['uB [J]'])
+        S_lobes = -1*central_diff(lobes['uB [J]'])
+        S_mp = -1*central_diff(mp['uB [J]'])
 
         r_values1 = pd.DataFrame()
         r_values2 = pd.DataFrame()
@@ -1997,7 +1997,7 @@ def power_correlations(dataset, phase, path,optimize_tshift=False):
         ##Gather data
         #Analysis
         lobes = dataset[event]['msdict'+phase]['lobes']
-        dEdt = central_diff(lobes['Utot [J]'],60)
+        dEdt = central_diff(lobes['Utot [J]'])
         K_motional = -1*dEdt-lobes['K_net [W]']
         K_static = lobes['K_net [W]']
         ytime = [float(n) for n in lobes.index.to_numpy()]
@@ -2063,7 +2063,7 @@ def lobe_power_histograms(dataset, phase, path,doratios=False):
     for i,event in enumerate(dataset.keys()):
         #Gather data
         lobes = dataset[event]['msdict'+phase]['lobes']
-        dEdt = central_diff(lobes['Utot [J]'],60)
+        dEdt = central_diff(lobes['Utot [J]'])
         K_motional = -1*dEdt-lobes['K_net [W]']
         K_static = lobes['K_net [W]']
         if doratios:
@@ -2288,24 +2288,24 @@ def lobe_balance_fig(dataset,phase,path):
 
         # Central difference of partial volume integrals, total change
         # Total
-        K_closed = -1*central_diff(closed['Utot [J]'],60)
-        #K_lobes = -1*central_diff(lobes['Utot [J]'],60)
-        K_mp = -1*central_diff(mp['Utot [J]'],60)
-        #K_mp4 = -1*central_diff(mp4['Utot [J]'],60)
+        K_closed = -1*central_diff(closed['Utot [J]'])
+        #K_lobes = -1*central_diff(lobes['Utot [J]'])
+        K_mp = -1*central_diff(mp['Utot [J]'])
+        #K_mp4 = -1*central_diff(mp4['Utot [J]'])
         # Hydro
-        H_closed = -1*central_diff(closed['uHydro [J]'],60)
-        #H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
-        H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        H_closed = -1*central_diff(closed['uHydro [J]'])
+        #H_lobes = -1*central_diff(lobes['uHydro [J]'])
+        H_mp = -1*central_diff(mp['uHydro [J]'])
         # Mag
-        S_closed = -1*central_diff(closed['uB [J]'],60)
-        #S_lobes = -1*central_diff(lobes['uB [J]'],60)
-        S_mp = -1*central_diff(mp['uB [J]'],60)
-        dDstdt_sim = -1*central_diff(sim['dst_sm'],60)
-        dDstdt_obs = -1*central_diff(obs['sym_h'],60)
+        S_closed = -1*central_diff(closed['uB [J]'])
+        #S_lobes = -1*central_diff(lobes['uB [J]'])
+        S_mp = -1*central_diff(mp['uB [J]'])
+        dDstdt_sim = -1*central_diff(sim['dst_sm'])
+        dDstdt_obs = -1*central_diff(obs['sym_h'])
         # Mass
-        #Mass_closed = -1*central_diff(closed['M [kg]'],60)
-        #Mass_lobes = -1*central_diff(lobes['M [kg]'],60)
-        #Mass_mp = -1*central_diff(mp['M [kg]'],60)
+        #Mass_closed = -1*central_diff(closed['M [kg]'])
+        #Mass_lobes = -1*central_diff(lobes['M [kg]'])
+        #Mass_mp = -1*central_diff(mp['M [kg]'])
 
         Ksum = Ks1+Ks3+Ks4+Ks5+Ks6+Ks7
         '''
@@ -2847,8 +2847,8 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(comboVS)
         print('\033[92m Created\033[00m',figurename)
         #############
-        dDstdt_sim = -1*central_diff(sim['dst_sm'],60)
-        dDstdt_obs = -1*central_diff(obs['sym_h'],60)
+        dDstdt_sim = -1*central_diff(sim['dst_sm'])
+        dDstdt_obs = -1*central_diff(obs['sym_h'])
 
         #############
         #setup figure
@@ -3880,19 +3880,19 @@ def time_integrated(dataset,phase,path):
 
         # Central difference of partial volume integrals, total change
         # Total
-        K_closed = -1*central_diff(closed['Utot [J]'],60)
-        K_lobes = -1*central_diff(lobes['Utot [J]'],60)
-        K_mp = -1*central_diff(mp['Utot [J]'],60)
+        K_closed = -1*central_diff(closed['Utot [J]'])
+        K_lobes = -1*central_diff(lobes['Utot [J]'])
+        K_mp = -1*central_diff(mp['Utot [J]'])
         K_mp.iloc[0] = 0
         # Hydro
-        H_closed = -1*central_diff(closed['uHydro [J]'],60)
-        H_lobes = -1*central_diff(lobes['uHydro [J]'],60)
-        H_mp = -1*central_diff(mp['uHydro [J]'],60)
+        H_closed = -1*central_diff(closed['uHydro [J]'])
+        H_lobes = -1*central_diff(lobes['uHydro [J]'])
+        H_mp = -1*central_diff(mp['uHydro [J]'])
         H_mp.iloc[0] = 0
         # Mag
-        S_closed = -1*central_diff(closed['uB [J]'],60)
-        S_lobes = -1*central_diff(lobes['uB [J]'],60)
-        S_mp = -1*central_diff(mp['uB [J]'],60)
+        S_closed = -1*central_diff(closed['uB [J]'])
+        S_lobes = -1*central_diff(lobes['uB [J]'])
+        S_mp = -1*central_diff(mp['uB [J]'])
         S_mp.iloc[0] = 0
 
         # Load into a dictionary
@@ -3968,49 +3968,49 @@ def diagram_summary(dataset,phase,path):
         closed = dataset[event]['msdict'+phase]['closed']
         U_day = mp['UtotK1day [J]']+mp['UtotK5day [J]']
         U_night = mp['UtotK1night [J]']+mp['UtotK5night [J]']
-        K_day = -1*central_diff(U_day,60)
+        K_day = -1*central_diff(U_day)
         M_day = K_day - mp['K_netK1day [W]']+mp['K_netK5day [W]']
         M_2alobes = M_day*0
         M_2aclosed = M_day*0
         K_2alobes = M_2alobes + lobes['K_netK2a [W]']
         K_2aclosed = M_2aclosed + closed['K_netK2a [W]']
 
-        K_night = -1*central_diff(U_night,60)
+        K_night = -1*central_diff(U_night)
         M_night = K_night - mp['K_netK1night [W]']+mp['K_netK5night [W]']
         M_2blobes = M_day*0
         M_2bclosed = M_day*0
         K_2blobes = M_2blobes + lobes['K_netK2b [W]']
         K_2bclosed = M_2bclosed + closed['K_netK2b [W]']
 
-        M_1 = (-1*central_diff(lobes['Utot [J]'],60) -lobes['K_net [W]']
+        M_1 = (-1*central_diff(lobes['Utot [J]']) -lobes['K_net [W]']
                -M_2alobes-M_2blobes)
-        M_5 =(-1*central_diff(closed['Utot [J]'],60) -closed['K_net [W]']
+        M_5 =(-1*central_diff(closed['Utot [J]']) -closed['K_net [W]']
                -M_2aclosed-M_2bclosed)
-        M_1day = (-1*central_diff(mp['UtotK1day [J]'],60))
+        M_1day = (-1*central_diff(mp['UtotK1day [J]']))
                   #-mp['K_netK1day [W]']-lobes['K_netK2a [W]'])
-        M_5day = (-1*central_diff(mp['UtotK5day [J]'],60)
+        M_5day = (-1*central_diff(mp['UtotK5day [J]'])
                   -mp['K_netK5day [W]']-closed['K_netK2a [W]'])
-        M_1night = (-1*central_diff(mp['UtotK1night [J]'],60))
+        M_1night = (-1*central_diff(mp['UtotK1night [J]']))
                   #-mp['K_netK1night [W]']-lobes['K_netK2b [W]'])
-        M_5night = (-1*central_diff(mp['UtotK5night [J]'],60)
+        M_5night = (-1*central_diff(mp['UtotK5night [J]'])
                   -mp['K_netK5night [W]']-closed['K_netK2b [W]'])
         K_1 = M_1 + mp['K_netK1 [W]']
         K_5 = M_5 + mp['K_netK5 [W]']
 
         # Central difference of partial volume integrals, total change
         # Total
-        K_closed = -1*central_diff(closed['Utot [J]'],60)
-        K_lobes = -1*central_diff(lobes['Utot [J]'],60)
-        K_mp = -1*central_diff(mp['Utot [J]'],60)
+        K_closed = -1*central_diff(closed['Utot [J]'])
+        K_lobes = -1*central_diff(lobes['Utot [J]'])
+        K_mp = -1*central_diff(mp['Utot [J]'])
         # Partials (spatial)
-        #K_1 = -1*central_diff(U_1,60)
-        #K_2a = -1*central_diff(U_2a,60)
-        #K_2b = -1*central_diff(U_2b,60)
-        K_3 = -1*central_diff(lobes['UtotK3 [J]'],60)
-        K_4 = -1*central_diff(lobes['UtotK4 [J]'],60)
-        #K_5 = -1*central_diff(U_5,60)
-        K_6 = -1*central_diff(closed['UtotK6 [J]'],60)
-        K_7 = -1*central_diff(closed['UtotK7 [J]'],60)
+        #K_1 = -1*central_diff(U_1)
+        #K_2a = -1*central_diff(U_2a)
+        #K_2b = -1*central_diff(U_2b)
+        K_3 = -1*central_diff(lobes['UtotK3 [J]'])
+        K_4 = -1*central_diff(lobes['UtotK4 [J]'])
+        #K_5 = -1*central_diff(U_5)
+        K_6 = -1*central_diff(closed['UtotK6 [J]'])
+        K_7 = -1*central_diff(closed['UtotK7 [J]'])
 
         # Motional components derived from total - static
         # Total
@@ -4503,66 +4503,66 @@ if __name__ == "__main__":
         U = exterior.loc[interv,'Utot [J]']
         uB = exterior.loc[interv,'uB [J]']
         uH = exterior.loc[interv,'uHydro [J]']
-        K_sp = -1*central_diff(U,60)
-        K_sp_fwd = -1*central_diff(U,60,forward=True)
-        H_sp = -1*central_diff(uH,60)
-        S_sp = -1*central_diff(uB,60)
+        K_sp = -1*central_diff(U)
+        K_sp_fwd = -1*central_diff(U,forward=True)
+        H_sp = -1*central_diff(uH)
+        S_sp = -1*central_diff(uB)
         # Solar wind
         swU = sw_exterior.loc[interv,'Utot [J]']
         swuB = sw_exterior.loc[interv,'uB [J]']
         swuH = sw_exterior.loc[interv,'uHydro [J]']
-        swK_sp = -1*central_diff(swU,60)
-        swK_sp_fwd = -1*central_diff(swU,60,forward=True)
-        swH_sp = -1*central_diff(swuH,60)
-        swS_sp = -1*central_diff(swuB,60)
+        swK_sp = -1*central_diff(swU)
+        swK_sp_fwd = -1*central_diff(swU,forward=True)
+        swH_sp = -1*central_diff(swuH)
+        swS_sp = -1*central_diff(swuB)
         # Shifted 3.5Re
         c35U = c35_exterior.loc[interv,'Utot [J]']
         c35uB = c35_exterior.loc[interv,'uB [J]']
         c35uH = c35_exterior.loc[interv,'uHydro [J]']
-        c35K_sp = -1*central_diff(c35U,60)
-        c35K_sp_fwd = -1*central_diff(c35U,60,forward=True)
-        c35H_sp = -1*central_diff(c35uH,60)
-        c35S_sp = -1*central_diff(c35uB,60)
+        c35K_sp = -1*central_diff(c35U)
+        c35K_sp_fwd = -1*central_diff(c35U,forward=True)
+        c35H_sp = -1*central_diff(c35uH)
+        c35S_sp = -1*central_diff(c35uB)
         # Shifted 3.5Re
         c375U = c375_exterior.loc[interv,'Utot [J]']
         c375uB = c375_exterior.loc[interv,'uB [J]']
         c375uH = c375_exterior.loc[interv,'uHydro [J]']
-        c375K_sp = -1*central_diff(c375U,60)
-        c375K_sp_fwd = -1*central_diff(c375U,60,forward=True)
-        c375H_sp = -1*central_diff(c375uH,60)
-        c375S_sp = -1*central_diff(c375uB,60)
+        c375K_sp = -1*central_diff(c375U)
+        c375K_sp_fwd = -1*central_diff(c375U,forward=True)
+        c375H_sp = -1*central_diff(c375uH)
+        c375S_sp = -1*central_diff(c375uB)
         # Shifted 3.5Re
         c3875U = c3875_exterior.loc[interv,'Utot [J]']
         c3875uB = c3875_exterior.loc[interv,'uB [J]']
         c3875uH = c3875_exterior.loc[interv,'uHydro [J]']
-        c3875K_sp = -1*central_diff(c3875U,60)
-        c3875K_sp_fwd = -1*central_diff(c3875U,60,forward=True)
-        c3875H_sp = -1*central_diff(c3875uH,60)
-        c3875S_sp = -1*central_diff(c3875uB,60)
+        c3875K_sp = -1*central_diff(c3875U)
+        c3875K_sp_fwd = -1*central_diff(c3875U,forward=True)
+        c3875H_sp = -1*central_diff(c3875uH)
+        c3875S_sp = -1*central_diff(c3875uB)
         # Shifted 4Re
         c4U = c4_exterior.loc[interv,'Utot [J]']
         c4uB = c4_exterior.loc[interv,'uB [J]']
         c4uH = c4_exterior.loc[interv,'uHydro [J]']
-        c4K_sp = -1*central_diff(c4U,60)
-        c4K_sp_fwd = -1*central_diff(c4U,60,forward=True)
-        c4H_sp = -1*central_diff(c4uH,60)
-        c4S_sp = -1*central_diff(c4uB,60)
+        c4K_sp = -1*central_diff(c4U)
+        c4K_sp_fwd = -1*central_diff(c4U,forward=True)
+        c4H_sp = -1*central_diff(c4uH)
+        c4S_sp = -1*central_diff(c4uB)
         # Shifted 3.5Re
         c45U = c45_exterior.loc[interv,'Utot [J]']
         c45uB = c45_exterior.loc[interv,'uB [J]']
         c45uH = c45_exterior.loc[interv,'uHydro [J]']
-        c45K_sp = -1*central_diff(c45U,60)
-        c45K_sp_fwd = -1*central_diff(c45U,60,forward=True)
-        c45H_sp = -1*central_diff(c45uH,60)
-        c45S_sp = -1*central_diff(c45uB,60)
+        c45K_sp = -1*central_diff(c45U)
+        c45K_sp_fwd = -1*central_diff(c45U,forward=True)
+        c45H_sp = -1*central_diff(c45uH)
+        c45S_sp = -1*central_diff(c45uB)
         # Shifted 5Re
         c5U = c5_exterior.loc[interv,'Utot [J]']
         c5uB = c5_exterior.loc[interv,'uB [J]']
         c5uH = c5_exterior.loc[interv,'uHydro [J]']
-        c5K_sp = -1*central_diff(c5U,60)
-        c5K_sp_fwd = -1*central_diff(c5U,60,forward=True)
-        c5H_sp = -1*central_diff(c5uH,60)
-        c5S_sp = -1*central_diff(c5uB,60)
+        c5K_sp = -1*central_diff(c5U)
+        c5K_sp_fwd = -1*central_diff(c5U,forward=True)
+        c5H_sp = -1*central_diff(c5uH)
+        c5S_sp = -1*central_diff(c5uB)
         # balance figure
         #############
         #setup figure
@@ -4721,9 +4721,9 @@ if __name__ == "__main__":
 
         # Central difference of partial volume integrals, total change
         # Total
-        K_closed = -1*central_diff(closed['Utot [J]'],60)
-        K_lobes = -1*central_diff(lobes['Utot [J]'],60)
-        K_mp = -1*central_diff(mp['Utot [J]'],60)
+        K_closed = -1*central_diff(closed['Utot [J]'])
+        K_lobes = -1*central_diff(lobes['Utot [J]'])
+        K_mp = -1*central_diff(mp['Utot [J]'])
 
         ################
         #Dst index
