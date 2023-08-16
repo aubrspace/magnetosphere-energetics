@@ -50,10 +50,10 @@ def energetics_analysis(infiles,outpath):
     tp.new_layout()
     #python objects
     #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
-    oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
+    #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
-    outputname = infiles[0].split('e')[-1].split('.plt')[0]+'.png'
+    outputname = infiles[0].split('e')[-1].split('.plt')[0]
     iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
                   'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
                       filetime.year-2000,
@@ -74,30 +74,34 @@ def energetics_analysis(infiles,outpath):
     main.name = 'main'
 
     #Perform data extraction
+    # GM
     mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       save_mesh=False,
                                       write_data=True,
-                                      disp_result=True,
-                                      do_cms=True,
-                                      do_central_diff=True,
-                                      analysis_type='energy_mass_mag',
-                                      modes=['iso_betastar','closed',
-                                             'nlobe','slobe'],
-                                      inner_r=4,
-                                      blankvalue=4,
-                                      customTerms={'test':'TestArea [Re^2]'},
-                                      do_interfacing=True,
+                                      disp_result=False,
+                                      do_cms=False,
+                                      do_central_diff=False,
+                                      analysis_type='',
+                                      modes=['perfectsphere'],
+                                      #inner_r=4,
+                                      #blankvalue=4,
+                                      #customTerms={'test':'TestArea [Re^2]'},
+                                      do_interfacing=False,
                                       integrate_line=False,
                                       integrate_surface=False,
-                                      integrate_volume=True,
-                                      truegridfile=oggridfile,
+                                      integrate_volume=False,
+                                      #truegridfile=oggridfile,
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
-    '''
+    # IE
     tp.data.load_tecplot(iedatafile,read_data_option=ReadDataOption.Append)
     field_data.zone(-2).name = 'ionosphere_north'
     field_data.zone(-1).name = 'ionosphere_south'
+
+    # Create and save an image
+    mainsheet = '/home/aubr/pytecplot/swmf-energetics/north_south_pc.sty'
+    mainlayout = '/home/aubr/pytecplot/swmf-energetics/north_south_pc.lay'
     ionosphere.get_ionosphere(field_data,
                                           verbose=True,
                                           hasGM=True,
@@ -107,7 +111,14 @@ def energetics_analysis(infiles,outpath):
                                           integrate_line=True,
                                           do_interfacing=True,
                                           outputpath=outpath)
-    '''
+    tempfile = '/home/aub/pytecplot/swmf-energetics/tempfile'+outputname+'.plt'
+    tp.data.save_tecplot_plt(tempfile)
+    tp.load_layout(mainlayout)
+    tp.data.load_tecplot(tempfile,read_data_option=ReadDataOption.Replace,
+                         reset_style=False)
+    #tp.active_frame().load_stylesheet(mainsheet)
+    tp.save_png(os.path.join(outpath,'figures',outputname+'.png'),width=1600)
+    os.remove(tempfile)
     with open(os.path.join(outpath,'png',outputname),'wb') as png:
         png.close()
 
