@@ -121,8 +121,9 @@ if __name__ == "__main__":
             tp.new_layout()
             #mhddatafile = inputs[0]
             #mhddatafile = f
-            mhddatafile = 'localdbug/polarcap2000/3d__var_1_e20000624-023700-006.plt'
-            iedatafile = 'localdbug/polarcap2000/it000624_023700_000.tec'
+            mhddatafile='pc2000_run/GM/IO2/3d__var_1_e20000624-065250-008.plt'
+            filetime = makevideo.get_time(mhddatafile)
+            iedatafile='pc2000_run/IE/ionosphere/it000624_065250_000.tec'
             OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
             #python objects
             #field_data = tp.data.load_tecplot(inputs)
@@ -168,6 +169,20 @@ if __name__ == "__main__":
                                           integrate_line=True,
                                           do_interfacing=True,
                                           outputpath='fte_test/')
+            # Create and save an image
+            mainlayout = ('/home/aubr/Code/swmf-energetics/'+
+                          'north_south_pc.lay')
+            #tempfile = ('/home/aubr/Code/swmf-energetics/tempfile'+
+            #            OUTPUTNAME+'.plt')
+            #tp.data.save_tecplot_plt(tempfile)
+            #tp.load_layout(mainlayout)
+            #tp.data.load_tecplot(tempfile,read_data_option=ReadDataOption.Replace,
+            #             reset_style=False)
+            mainsheet = ('/home/aubr/Code/swmf-energetics/'+
+                         'north_south_pc.sty')
+            tp.active_frame().load_stylesheet(mainsheet)
+            #tp.save_png(os.path.join('fte_test','figures',OUTPUTNAME+'.png'),width=1600)
+            #os.remove(tempfile)
             #if i>30:
             if True:
                 break

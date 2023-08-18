@@ -226,7 +226,7 @@ def rotate_xyz(zones,angle,**kwargs):
     eq(Bdy_eq,zones=zones)
     eq(Bdz_eq,zones=zones)
 
-def trace_status(zone,hemi,**kwargs):
+def trace_status(points,zone,hemi,**kwargs):
     """Function traces all the points in a zone to detrmine if each point is
         open or closed
     Inputs
@@ -240,59 +240,80 @@ def trace_status(zone,hemi,**kwargs):
     tp.active_frame().plot().vector.v_variable = zone.dataset.variable('B_y *')
     tp.active_frame().plot().vector.w_variable = zone.dataset.variable('B_z *')
     field_line = tp.active_frame().plot().streamtraces
-    field_line.min_step_size=0.25
-    field_line.max_steps=3000
+    stat_var = kwargs.get('stat_var','Status')
+    if '_cc' in stat_var:
+        x = zone.values('x_cc2').as_numpy_array()
+        y = zone.values('y_cc2').as_numpy_array()
+        z = zone.values('z_cc2').as_numpy_array()
+    else:
+        x = zone.values('X *').as_numpy_array()
+        y = zone.values('Y *').as_numpy_array()
+        z = zone.values('Z *').as_numpy_array()
+    #field_line.min_step_size=0.25
+    #field_line.max_steps=3000
     # Use value blanking
-    '''
-    blank = tp.active_frame().plot().value_blanking
-    blank.active = True
-    blank.cell_mode = ValueBlankCellMode.PrimaryValue
-    # Blank all closed field
-    closed_blank = blank.constraint(1)
-    closed_blank.variable = zone.dataset.variable('Status')
-    closed_blank.comparison_operator = RelOp.EqualTo
-    closed_blank.comparison_value = 3
-    closed_blank.active=True
-    '''
-    # pull xyz
-    x = zone.values('X *').as_numpy_array()
-    y = zone.values('Y *').as_numpy_array()
-    z = zone.values('Z *').as_numpy_array()
-    theta = zone.values('Theta *').as_numpy_array()
-    if 'r [R]' not in zone.dataset.variable_names:
-        eq('{r [R]} = sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)')
-    north_theta_limit = 40
-    south_theta_limit = 140
-    points = zip(x,y,z)
     # trace lines
     if hemi=='North':
         direction=StreamDir.Reverse
     if hemi=='South':
         direction=StreamDir.Forward
-    for i,p in enumerate([p for p in points][0:10000]):
-        if (hemi=='North' and theta[i]<north_theta_limit or
-                hemi=='South' and theta[i]>north_theta_limit):
+    for i,p in enumerate([p for p in points]):
+        if True:
+            # Find the location in the target_zone
+            index = int(np.where((x==p[0])&(y==p[1])&(z==p[2]))[0][0])
             field_line.add(seed_point=p, direction=direction,
                            stream_type=Streamtrace.VolumeLine)
             field_line.extract()
             field_line.delete_all()
             if hemi=='North':
                 if zone.dataset.zone(-1).values('r *')[0:1]<2.75:
-                    zone.values('Status')[i] = 3
+                    zone.values(stat_var)[index] = 3
                 else:
-                    zone.values('Status')[i] = 2
+                    zone.values(stat_var)[index] = 2
             elif hemi=='South':
                 if zone.dataset.zone(-1).values('r *')[-2:-1]<2.75:
-                    zone.values('Status')[i] = 3
+                    zone.values(stat_var)[index] = 3
                 else:
-                    zone.values('Status')[i] = 1
+                    zone.values(stat_var)[index] = 1
         else:
-            zone.values('Status')[i] = 3
+            zone.values(stat_var)[index] = 3
+        delete_zones = zone.dataset.zone(-1)
+        zone.dataset.delete_zones([delete_zones])
+        #if '_cc' in stat_var:
+        #    from IPython import embed; embed()
+        #    time.sleep(3)
         if i%100==0:
             print(i)
+    '''
+    #TODO implement this to double check all islands
+    for i,value in enumerate(zone.values(stat_var).as_numpy_array()):
+        if i<181:
+            behind_loop = len(zone.values(stat_var))-181+i
+        else:
+            behind_loop = i-181
+        if i>(len(zone.values(stat_var))-181):
+            forward_loop = i+181-len(zone.values(stat_var))
+        else:
+            forward_loop = i+181
+        if i==0:
+            previous = len(zone.values(stat_var))
+        else:
+            previous = i-1
+        if i==len(zone.values(stat_var)):
+            next = 0
+        else:
+            next = i+1
+        check_array = [value-zone.values(stat_var)[behind_loop],
+                       value-zone.values(stat_var)[forward_loop],
+                       value-zone.values(stat_var)[previous],
+                       value-zone.values(stat_var)[next]]
+        if check_array.count(0) == 0:
+            pass
+    '''
     # Delete traced zones
-    delete_zones = [z for z in zone.dataset.zones('Streamtrace*')]
-    zone.dataset.delete_zones(delete_zones)
+    #if 'cc' not in stat_var:
+    #    delete_zones = [z for z in zone.dataset.zones('Streamtrace*')]
+    #    zone.dataset.delete_zones(delete_zones)
     # Turn off value blanking
     #closed_blank.active=False
     #blank.active = False
@@ -359,6 +380,46 @@ def sphere2cart_map(spzone,**kwargs):
                                                                zones=[spzone])
     eq('{Z [R]} = 1*cos({Theta [deg]}*pi/180)', zones=[spzone])
 
+def blank_and_trace(zone,hemi,**kwargs):
+    """Function blanks out the closed field points and traces the rest to
+    verify the connectivity
+    Inputs
+    Returns
+    """
+    eq = tp.data.operate.execute_equation
+    # Blank according to hemisphere
+    blank = tp.active_frame().plot().value_blanking
+    blank.active = True
+    blank.cell_mode = ValueBlankCellMode.PrimaryValue
+    # Blank all Z_sm for one hemisphere
+    zblank = blank.constraint(1)
+    zblank.variable = zone.dataset.variable('Z *')
+    if hemi=='North':
+        zblank.comparison_operator = RelOp.LessThan
+    elif hemi=='South':
+        zblank.comparison_operator = RelOp.GreaterThan
+    zblank.comparison_value = 0
+    zblank.active = kwargs.get('blankZ',True)
+    # Blank Status==3
+    closedblank = blank.constraint(2)
+    closedblank.variable = zone.dataset.variable('Status')
+    closedblank.comparison_operator = RelOp.EqualTo
+    closedblank.comparison_value = 3
+    closedblank.active=True
+    blank.cell_mode = ValueBlankCellMode.AllCorners
+    # Extract the blanked region
+    [capZone] = tp.data.extract.extract_blanked_zones(zone)
+    eq('{originalStatus} = {Status}',zones=[zone,capZone])
+    zblank.active=False
+    closedblank.active=False
+    blank.active = False
+    # Trace remaining points and update Status as necessary
+    points = list(zip(capZone.values('X *').as_numpy_array(),
+                      capZone.values('Y *').as_numpy_array(),
+                      capZone.values('Z *').as_numpy_array()))
+    zone.dataset.delete_zones([capZone])
+    trace_status(points, zone, hemi)
+
 def blank_and_interpolate(source,target,hemi):
     eq = tp.data.operate.execute_equation
     # Blank section of the sphere
@@ -375,15 +436,24 @@ def blank_and_interpolate(source,target,hemi):
     zblank.comparison_value = 0
     zblank.active=True
     # Interpolate from source to target
-    tp.data.operate.interpolate_inverse_distance(
+    #from IPython import embed; embed()
+    #tp.data.operate.interpolate_inverse_distance(
+    tp.data.operate.interpolate_kriging(
                                 target,
                                 source_zones=[source],
                                 variables=[source.dataset.variable('Status')])
     # Boost the Status signal post interpolation for firm discrete states
     if hemi=='North':
-        eq('{Status} = if({Status}<2.8,2,3)',zones=[target])
+        #eq('{Status} = if({Status}<2.9,2,3)',zones=[target])
+        pass
     elif hemi=='South':
-        eq('{Status} = if({Status}<2.8,1,3)',zones=[target])
+        #eq('{Status} = if({Status}<2.9,1,3)',zones=[target])
+        pass
+    eq('{Status_old} = {Status}',zones=[target])
+    eq('{Status_cc}={Status}',value_location=ValueLocation.CellCentered,
+                                   zones=[target])
+    eq('{Status_old_cc}={Status}',value_location=ValueLocation.CellCentered,
+                                  zones=[target])
     # Turn off blanking
     blank.active = False
     zblank.active = False
@@ -412,6 +482,37 @@ def match_variable_names(zones):
     eq('{phi_1 [deg]} = {Psi [deg]}',zones=zones)
     eq('{phi_2 [deg]} = {Psi [deg]}',zones=zones)
 
+def check_edges(zone,hemi,**kwargs):
+    """
+    """
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    stat_var = kwargs.get('stat_var','Status_cc')
+    status = zone.values(stat_var).as_numpy_array()
+    if hemi=='North':
+        check_indices = np.where((status>2.01)&(status<2.99))[0]
+    elif hemi=='South':
+        check_indices = np.where((status>1.01)&(status<2.99))[0]
+    if 'cc' in stat_var:
+        eq('{x_cc2}={X [R]}',value_location=CC,zones=[zone])
+        eq('{y_cc2}={Y [R]}',value_location=CC,zones=[zone])
+        eq('{z_cc2}={Z [R]}',value_location=CC,zones=[zone])
+        x = zone.values('x_cc2').as_numpy_array()[check_indices]
+        y = zone.values('y_cc2').as_numpy_array()[check_indices]
+        z = zone.values('z_cc2').as_numpy_array()[check_indices]
+    else:
+        x = zone.values('X *').as_numpy_array()[check_indices]
+        y = zone.values('Y *').as_numpy_array()[check_indices]
+        z = zone.values('Z *').as_numpy_array()[check_indices]
+    points = list(zip(x,y,z))
+    trace_status(points,zone,hemi,stat_var=kwargs.get('stat_var','Status_cc'))
+    # Boost the Status signal post interpolation for firm discrete states
+    if hemi=='North':
+        eq('{'+stat_var+'old2} = {'+stat_var+'}',zones=[zone])
+        eq('{'+stat_var+'} = if({'+stat_var+'}<2.9,2,3)',zones=[zone])
+    elif hemi=='South':
+        eq('{'+stat_var+'_old2} = {'+stat_var+'}',zones=[zone])
+        eq('{'+stat_var+'} = if({'+stat_var+'}<2.9,1,3)',zones=[zone])
+
 def get_ionosphere(dataset,**kwargs):
     """Function routes to various extraction and analysis options for IE data
         based on kwargs given
@@ -422,7 +523,7 @@ def get_ionosphere(dataset,**kwargs):
     Returns
     """
     zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
-    zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    #zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
@@ -432,12 +533,23 @@ def get_ionosphere(dataset,**kwargs):
             eventtime = kwargs.get('eventtime')
         # TODO check that XYZ are given in IE data
         # Map sphere onto Z aligned IE data
+        blank_and_trace(zoneSphere,'North')
+        blank_and_trace(zoneSphere,'South')
         sphere2cart_map(zoneSphere)
         blank_and_interpolate(zoneSphere,zoneNorth,'North')
         blank_and_interpolate(zoneSphere,zoneSouth,'South')
         # Rotate IE_xyz(SM) to GM_xyz(GSM)
-        rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
+        rotate_xyz([zoneNorth,zoneSouth,zoneSphere],float(aux['BTHETATILT']))
         match_variable_names([zoneNorth,zoneSouth])
+        #rotate_xyz([zoneNorth,zoneSphere],float(aux['BTHETATILT']))
+        #match_variable_names([zoneNorth])
+        check_edges(zoneNorth,'North')
+        check_edges(zoneSouth,'South')
+        #TODO check how this edge check compares to simply calling all >1% in
+        #TODO Visually investigate the pinch point in north and island in south
+        #       Then, pick out some worst cases from the first cut video
+        #       Run this new method for those cases and do a side by side
+        #from IPython import embed; embed()
         get_global_variables(dataset,'',aux=aux)
         if kwargs.get('integrate_line',False):
             # Create a dipole terminator zone

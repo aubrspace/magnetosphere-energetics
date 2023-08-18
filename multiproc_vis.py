@@ -29,7 +29,9 @@ if __name__ == '__main__':
     master = '/home/aubr/Desktop/convection_movies/north_convection.lay'
     mainsheet = '/home/aubr/Desktop/convection_movies/north_pc_flow_term.sty'
     #TODO: use tecplot 'stylesheet' instead of loading the source data eachtime
-    for infile in glob.glob('ccmc_2019-05-13/*.plt')[9*60+45:9*60+90:4]:
+    #for infile in glob.glob('ccmc_2019-05-13/*.plt')[9*60+45:9*60+90:4]:
+    for infile in glob.glob(
+                         '/nfs/solsticedisk/tuija/polarcap2000/run/GM/IO2/*'):
         intime = get_time(infile)
         if True:
             marktime = time.time()

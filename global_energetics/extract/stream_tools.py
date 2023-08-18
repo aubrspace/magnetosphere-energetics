@@ -999,8 +999,9 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              zones=[zone])
     eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered,
                              zones=[zone])
-    eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered,
-                               zones=[zone])
+    if zone.values('Status_cc').minmax()==(0.0,0.0):
+        eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered,
+                                   zones=[zone])
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
     #eq('{W_cc}=0', value_location=ValueLocation.CellCentered,
     #               zones=[zone.index])
