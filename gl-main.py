@@ -64,7 +64,7 @@ def energetics_analysis(infiles,outpath):
                       filetime.second))
     if not os.path.exists(iedatafile):
         print(iedatafile,'does not exist!')
-        with open(os.path.join(outpath,'png',outputname),'wb') as png:
+        with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
             png.close()
         exit
     field_data.zone(0).name = 'global_field'
@@ -111,7 +111,7 @@ def energetics_analysis(infiles,outpath):
                                           integrate_line=True,
                                           do_interfacing=True,
                                           outputpath=outpath)
-    tempfile = '/home/aub/pytecplot/swmf-energetics/tempfile'+outputname+'.plt'
+    tempfile = '/home/aubr/pytecplot/swmf-energetics/staging/tempfile'+outputname+'.plt'
     tp.data.save_tecplot_plt(tempfile)
     tp.load_layout(mainlayout)
     tp.data.load_tecplot(tempfile,read_data_option=ReadDataOption.Replace,
@@ -119,7 +119,7 @@ def energetics_analysis(infiles,outpath):
     #tp.active_frame().load_stylesheet(mainsheet)
     tp.save_png(os.path.join(outpath,'figures',outputname+'.png'),width=1600)
     os.remove(tempfile)
-    with open(os.path.join(outpath,'png',outputname),'wb') as png:
+    with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
         png.close()
 
 if __name__ == "__main__":
@@ -183,8 +183,8 @@ if __name__ == "__main__":
         print('now: ',nowfile)
         print('next: ',nextfile)
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        #energetics_analysis([nowfile],outpath)
-        energetics_analysis([previousfile,nextfile_mirror],outpath)
+        energetics_analysis([nowfile],outpath)
+        #energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
