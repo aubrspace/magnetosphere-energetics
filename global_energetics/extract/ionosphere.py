@@ -440,6 +440,7 @@ def blank_and_interpolate(source,target,hemi):
     #tp.data.operate.interpolate_inverse_distance(
     tp.data.operate.interpolate_kriging(
                                 target,
+                                zero_value=0.05,
                                 source_zones=[source],
                                 variables=[source.dataset.variable('Status')])
     # Boost the Status signal post interpolation for firm discrete states
@@ -523,7 +524,7 @@ def get_ionosphere(dataset,**kwargs):
     Returns
     """
     zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
-    #zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
@@ -555,9 +556,11 @@ def get_ionosphere(dataset,**kwargs):
             # Create a dipole terminator zone
             north_term,_ = calc_terminator_zone('terminator',zoneNorth,
                                                 hemi='North',
+                                                stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
             _,south_term = calc_terminator_zone('terminator',zoneSouth,
                                                 hemi='South',
+                                                stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:

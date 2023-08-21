@@ -170,18 +170,32 @@ if __name__ == "__main__":
                                           do_interfacing=True,
                                           outputpath='fte_test/')
             # Create and save an image
-            mainlayout = ('/home/aubr/Code/swmf-energetics/'+
-                          'north_south_pc.lay')
+            northsheet = '/home/aubr/Code/swmf-energetics/north_pc.sty'
+            southsheet = '/home/aubr/Code/swmf-energetics/south_pc.sty'
+            tp.macro.execute_extended_command(
+                            command_processor_id='Multi Frame Manager',
+                            command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
+            for i,frame in enumerate(tp.frames()):
+                if i==0:
+                    frame.load_stylesheet(northsheet)
+                elif i==1:
+                    frame.load_stylesheet(southsheet)
+                elif i>1:
+                    tp.layout.active_page().delete_frame(frame)
+            tp.layout.active_page().tile_frames(mode=TileMode.Rows)
+            #mainlayout = ('/home/aubr/Code/swmf-energetics/'+
+            #              'north_south_pc.lay')
             #tempfile = ('/home/aubr/Code/swmf-energetics/tempfile'+
             #            OUTPUTNAME+'.plt')
             #tp.data.save_tecplot_plt(tempfile)
             #tp.load_layout(mainlayout)
             #tp.data.load_tecplot(tempfile,read_data_option=ReadDataOption.Replace,
             #             reset_style=False)
-            mainsheet = ('/home/aubr/Code/swmf-energetics/'+
-                         'north_south_pc.sty')
-            tp.active_frame().load_stylesheet(mainsheet)
-            #tp.save_png(os.path.join('fte_test','figures',OUTPUTNAME+'.png'),width=1600)
+            #mainsheet = ('/home/aubr/Code/swmf-energetics/'+
+            #             'north_south_pc.sty')
+            #tp.active_frame().load_stylesheet(mainsheet)
+            tp.save_png(os.path.join('fte_test','figures',OUTPUTNAME+'.png'),
+                        width=1600)
             #os.remove(tempfile)
             #if i>30:
             if True:

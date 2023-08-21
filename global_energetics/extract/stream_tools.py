@@ -2349,6 +2349,7 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
     Returns
         north,south (Zone)- tecplot zones of 1D objects in 3D
     """
+    stat_var = kwargs.get('stat_var','Status')
     if kwargs.get('ionosphere',False):
         ## Change to 2D -> Xd,Y coordinates
         tp.active_frame().plot_type = PlotType.Cartesian2D
@@ -2379,7 +2380,7 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
     north,south = None,None
     for hemi,stat in hemis:
         ## Get Y+- limits
-        status = sp_zone.values('Status').as_numpy_array()
+        status = sp_zone.values(stat_var).as_numpy_array()
         y = sp_zone.values('Y *').as_numpy_array()
         try:
             ymin = y[status==stat].min()
