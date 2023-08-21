@@ -2381,7 +2381,10 @@ def calc_terminator_zone(name, sp_zone, **kwargs):
     for hemi,stat in hemis:
         ## Get Y+- limits
         status = sp_zone.values(stat_var).as_numpy_array()
-        y = sp_zone.values('Y *').as_numpy_array()
+        if '_cc' in stat_var:
+            y = sp_zone.values('y_cc2').as_numpy_array()
+        else:
+            y = sp_zone.values('Y *').as_numpy_array()
         try:
             ymin = y[status==stat].min()
             ymax = y[status==stat].max()
