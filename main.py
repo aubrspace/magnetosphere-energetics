@@ -35,9 +35,6 @@ if __name__ == "__main__":
 
     else:
         pass
-        #os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2018r2/bin:/usr/local/tecplot/360ex_2018r2/bin/sys:/usr/local/tecplot/360ex_2018r2/bin/sys-util'
-        #os.environ["LD_LIBRARY_PATH"]='/usr/local/tecplot/360ex_2022r2/bin/llvm:/usr/local/tecplot/360ex_2022r2/bin/osmesa:/usr/local/tecplot/360ex_2022r2/bin:/usr/local/tecplot/360ex_2022r2/bin/sys-util:/usr/local/tecplot/360ex_2022r2/bin/Qt'
-    #pass in arguments
     #Nice condition
     #starlink = ('localdbug/starlink/3d__var_1_e20220203-114000-000.plt',
     #            'localdbug/starlink/3d__var_1_e20220203-115000-000.plt')
@@ -92,41 +89,36 @@ if __name__ == "__main__":
             'ccmc_2019-05-13/3d__var_1_e20190514-072300-017.plt',
             'ccmc_2019-05-13/3d__var_1_e20190515-004700-018.plt')
     all_main_phase = glob.glob('ccmc_2022-02-02/3d*')
-    all_times = sorted(glob.glob('ccmc_2022-02-02/3d__var*.plt'),
+    all_times = sorted(glob.glob('pc2000_run/GM/IO2/3d__var_1_*.plt'),
                                 key=makevideo.time_sort)[0::]
-    starlink_impact = (dt.datetime(2022,2,2,23,58)+
-                       dt.timedelta(hours=3,minutes=55))
-    starlink_endMain1 = dt.datetime(2022,2,3,11,54)
+    #starlink_impact = (dt.datetime(2022,2,2,23,58)+
+    #                   dt.timedelta(hours=3,minutes=55))
+    #starlink_endMain1 = dt.datetime(2022,2,3,11,54)
 
     oggridfile = 'ccmc_2022-02-02/3d__volume_e20220202.plt'
 
-    mp_surf = pd.DataFrame()
-    mp_vol = pd.DataFrame()
-    lobe_surf = pd.DataFrame()
-    lobe_vol = pd.DataFrame()
-    closed_surf = pd.DataFrame()
-    closed_vol = pd.DataFrame()
-    #if False:
 
-    #for inputs in [febtest]:
-    #for inputs in [starlink,starlink2,starlink3,starlink4]:
     i=0
     for k,f in enumerate(all_times):
         filetime = makevideo.get_time(f)
-        if filetime>starlink_impact and filetime<starlink_endMain1:
-        #if filetime>dt.datetime(2022,2,3,9,0) and filetime<dt.datetime(2022,2,3,10,0):
-        #if True:
+        OUTPUTNAME = f.split('e')[-1].split('.')[0]
+        if os.path.exists(os.path.join('polarcap2000','figures','vis',
+                          OUTPUTNAME+'.png')):
+            pass
+        else:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            #mhddatafile = inputs[0]
-            #mhddatafile = f
-            mhddatafile='pc2000_run/GM/IO2/3d__var_1_e20000624-065250-008.plt'
-            filetime = makevideo.get_time(mhddatafile)
-            iedatafile='pc2000_run/IE/ionosphere/it000624_065250_000.tec'
-            OUTPUTNAME = mhddatafile.split('e')[-1].split('.')[0]
+            mhddatafile = f
+            iedatafile=('pc2000_run/IE/ionosphere/'+
+                    'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
             #python objects
-            #field_data = tp.data.load_tecplot(inputs)
             field_data = tp.data.load_tecplot(mhddatafile)
             field_data.zone(0).name = 'global_field'
             if len(field_data.zone_names)>1:
@@ -168,7 +160,7 @@ if __name__ == "__main__":
                                           integrate_surface=True,
                                           integrate_line=True,
                                           do_interfacing=True,
-                                          outputpath='fte_test/')
+                                          outputpath='polarcap2000/analysis/')
             # Create and save an image
             northsheet = '/home/aubr/Code/swmf-energetics/north_pc.sty'
             southsheet = '/home/aubr/Code/swmf-energetics/south_pc.sty'
@@ -183,23 +175,8 @@ if __name__ == "__main__":
                 elif i>1:
                     tp.layout.active_page().delete_frame(frame)
             tp.layout.active_page().tile_frames(mode=TileMode.Rows)
-            #mainlayout = ('/home/aubr/Code/swmf-energetics/'+
-            #              'north_south_pc.lay')
-            #tempfile = ('/home/aubr/Code/swmf-energetics/tempfile'+
-            #            OUTPUTNAME+'.plt')
-            #tp.data.save_tecplot_plt(tempfile)
-            #tp.load_layout(mainlayout)
-            #tp.data.load_tecplot(tempfile,read_data_option=ReadDataOption.Replace,
-            #             reset_style=False)
-            #mainsheet = ('/home/aubr/Code/swmf-energetics/'+
-            #             'north_south_pc.sty')
-            #tp.active_frame().load_stylesheet(mainsheet)
-            tp.save_png(os.path.join('fte_test','figures',OUTPUTNAME+'.png'),
-                        width=1600)
-            #os.remove(tempfile)
-            #if i>30:
-            if True:
-                break
+            tp.save_png(os.path.join('polarcap2000','figures','vis',
+                                     OUTPUTNAME+'.png'),width=1600)
             '''
             mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       write_data=True,
