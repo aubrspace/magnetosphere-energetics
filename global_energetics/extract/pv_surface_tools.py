@@ -5,6 +5,24 @@ import numpy as np
 #### import the simple module from paraview
 from paraview.simple import *
 
+def get_surface_flux(source,variable,name,**kwargs):
+    #First find out if our variable lives on points or cell centers
+    #NOTE if on both lists (bad practice) we'll use the cell centered one
+    cc = variable in source.CellData.keys()
+    if not cc:
+        assert variable in source.PointData.keys(), "Bad variable name!"
+        vartype = 'Point Data'
+    else:
+        vartype = 'Cell Data'
+    #Create calculator filter that is flux
+    flux = Calculator(registrationName=name,Input=source)
+    flux.AttributeType = vartype
+    flux.Function = 'dot('+variable+',Normals)'
+    flux.ResultArrayName = name
+    # create a new 'Integrate Variables'
+    result=IntegrateVariables(registrationName=name+'_integrated',Input=flux)
+    return result
+
 def create_iso_surface(inputsource, variable, name, **kwargs):
     """Function creates iso surface from variable
     Inputs

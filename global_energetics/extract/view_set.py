@@ -11,8 +11,8 @@ import datetime as dt
 #from global_energetics.makevideo import get_time
 from global_energetics.makevideo import get_time
 from global_energetics.extract.swmf_access import swmf_read_time
-from global_energetics.extract import stream_tools
-from global_energetics.extract.stream_tools import (abs_to_timestamp,
+from global_energetics.extract import tec_tools
+from global_energetics.extract.tec_tools import (abs_to_timestamp,
                                                     mag2gsm)
 from global_energetics.extract.magnetometer import(get_stations_now)
 

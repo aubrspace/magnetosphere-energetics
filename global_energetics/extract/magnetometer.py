@@ -10,7 +10,7 @@ import pandas as pd
 #import spacepy
 #from spacepy import coordinates as coord
 #from spacepy import time as spt
-#from global_energetics.extract.stream_tools import(mag2gsm,mag2cart)
+#from global_energetics.extract.tec_tools import(mag2gsm,mag2cart)
 #from global_energetics.makevideo import(get_time)
 
 def sph_to_cart(radius, lat, lon):

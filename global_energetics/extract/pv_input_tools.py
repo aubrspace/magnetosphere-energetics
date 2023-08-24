@@ -6,24 +6,6 @@ import numpy as np
 import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
-from pv_equations import equations, eqeval
-#from pv_magnetopause import get_magnetopause_filter
-
-def get_time(infile,**kwargs):
-    date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
-    time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
-    return time_dt
-
-def time_sort(filename):
-    """Function returns absolute time in seconds for use in sorting
-    Inputs
-        filename
-    Outputs
-        total_seconds
-    """
-    time = get_time(filename)
-    relative_time = time-dt.datetime(1800, 1, 1)
-    return (relative_time.days*86400 + relative_time.seconds)
 
 def read_aux(infile):
     """Reads in auxillary data file stripped from a .plt tecplot file
@@ -39,7 +21,7 @@ def read_aux(infile):
                                                  ' ','').replace('\n','')
     return data
 
-def read_tecplot(infile):
+def read_tecplot(infile,**kwargs):
     """Function reads tecplot binary file
     Inputs
         infile (str)- full path to tecplot binary (.plt) BATSRUS output
@@ -47,17 +29,22 @@ def read_tecplot(infile):
         sourcedata (pvpython object)- python object attached to theVTKobject
                                       for the input data
     """
-    # create a new 'VisItTecplotBinaryReader'
-    sourcedata = VisItTecplotBinaryReader(FileName=[infile],
+    if kwargs.get('binary',True):
+        # create a new 'VisItTecplotBinaryReader'
+        sourcedata = VisItTecplotBinaryReader(FileName=[infile],
                                    registrationName=infile.split('/')[-1])
-    # Call Mesh
-    sourcedata.MeshStatus
-    # Call Point arrays- we want to load everything
-    status = sourcedata.GetProperty('PointArrayInfo')
-    #listed as ['thing','1','thing2','0'] where '0' and '1' are 
-    #   unloaded and loaded respectively
-    arraylist = [s for s in status if s!='0' and s!='1']
-    sourcedata.PointArrayStatus = arraylist
+        # Call Mesh
+        sourcedata.MeshStatus
+        # Call Point arrays- we want to load everything
+        status = sourcedata.GetProperty('PointArrayInfo')
+        #listed as ['thing','1','thing2','0'] where '0' and '1' are 
+        #   unloaded and loaded respectively
+        arraylist = [s for s in status if s!='0' and s!='1']
+        sourcedata.PointArrayStatus = arraylist
+    else:
+        # create a new 'TecplotReader'
+        sourcedata = TecplotReader(registrationName=infile.split('/')[-1],
+                                   FileNames=[infile])
     return sourcedata
 
 def prepend_names(pipeline,prepend,**kwargs):
@@ -69,6 +56,59 @@ def prepend_names(pipeline,prepend,**kwargs):
         for key in data.PointData.keys():
             values = data.PointData[key]
             output.PointData.append(values,'"""+prepend+"""'+key)
+    """
+    pipeline = names
+    return pipeline
+
+def fix_ie_names(pipeline,**kwargs):
+    names = ProgrammableFilter(registrationName='names', Input=pipeline)
+    names.Script = """
+        #Get upstream data
+        data = inputs[0]
+        #These are the variables names that cause issues
+        new_name = {"Ave-E [keV]":'Ave-E_keV',
+                    "conjugate dLat [deg]":"conjugate_dLat_deg",
+                    "conjugate dLon [deg]":"conjugate_dLon_deg",
+                    "E-Flux [W_m^2]":"E-Flux_W_m^2",
+                    "Ex [mV_m]":"E_x_mV_m",
+                    "Ey [mV_m]":"E_y_mV_m",
+                    "Ez [mV_m]":"E_z_mV_m",
+                    "IonNumFlux [_cm^2_s]":"IonNumFlux__cm^2_s",
+                    "JouleHeat [mW_m^2]":"JouleHeat_mW_m^2",
+                    "JR [`mA_m^2]":"J_R_uA_m^2",
+                    "Jx [`mA_m^2]":"J_x_uA_m^2",
+                    "Jy [`mA_m^2]":"J_y_uA_m^2",
+                    "Jz [`mA_m^2]":"J_z_uA_m^2",
+                    "PHI [kV]":"PHI_kV",
+                    "Psi [deg]":"Psi_deg",
+                    "RT 1_B [1_T]":"RT_1_B_1_T",
+                    "RT P [Pa]":"RT_P_Pa",
+                    "RT Rho [kg_m^3]":"RT_Rho_kg_m^3",
+                    "SigmaH [S]":"SigmaH_S",
+                    "SigmaP [S]":"SigmaP_S",
+                    "Theta [deg]":"Theta_deg",
+                    "Ux [km_s]":"U_x_km_s",
+                    "Uy [km_s]":"U_y_km_s",
+                    "Uz [km_s]":"U_z_km_s",
+                    "X [R]":"x",
+                    "Y [R]":"y",
+                    "Z [R]":"z"}
+        #for var in varlist:
+        #    if var in data.PointData.keys():
+        #        print(var)
+        for var in data.PointData.keys():
+            output.PointData.append(data.PointData[var],new_name[var])
+        #rho = data.PointData["Rho_amu_cm^3"]
+        #jx = data.PointData["J_x_`mA_m^2"]
+        #jy = data.PointData["J_y_`mA_m^2"]
+        #jz = data.PointData["J_z_`mA_m^2"]
+        #Copy input to output so we don't lose any data
+        #output.ShallowCopy(inputs[0].VTKObject)#maintaining other variables
+        #Now append the copies of the variables with better names
+        #output.PointData.append(rho,'Rho_amu_cm3')
+        #output.PointData.append(jx,'J_x_uA_m2')
+        #output.PointData.append(jy,'J_y_uA_m2')
+        #output.PointData.append(jz,'J_z_uA_m2')
     """
     pipeline = names
     return pipeline
@@ -240,15 +280,6 @@ def prepare_data(infile,**kwargs):
     else:
         ###Rename some tricky variables
         pipeline = fix_names(pipeline,**kwargs)
-    '''
-    alleq = equations(**kwargs)
-    pipeline = eqeval(alleq['basic_physics'],pipeline)
-    pipeline = get_magnetopause_filter(pipeline)
-    mp_now = create_iso_surface(pipeline,'mp','quickNow',
-                                trim_regions=False,calc_normals=False)
-    mp_future = create_iso_surface(pipeline,'mp','quickFuture',
-                                   trim_regions=False,calc_normals=False)
-    '''
     pipeline = interpolate_data(pipeline,'interpolated',[-20,-40,-40],
                                                         [40,80,80])
     return pipeline

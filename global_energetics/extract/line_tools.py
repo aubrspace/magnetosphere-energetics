@@ -8,7 +8,7 @@ from tecplot.exception import *
 import pandas as pd
 from scipy.integrate import trapezoid as trap
 #interpackage modules, different path if running as main to test
-#from global_energetics.extract.stream_tools import (get_surface_variables)
+#from global_energetics.extract.tec_tools import (get_surface_variables)
 
 def get_mag_dict():
     """Function returns dictionary in the form {(str)Input:(str)Output}

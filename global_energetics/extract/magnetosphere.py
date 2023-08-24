@@ -16,7 +16,7 @@ from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import post_proc_interface2
 from global_energetics.extract.volume_tools import volume_analysis
-from global_energetics.extract.stream_tools import (streamfind_bisection,
+from global_energetics.extract.tec_tools import (streamfind_bisection,
                                                     get_global_variables,
                                                     calc_state,
                                                     get_surf_geom_variables,

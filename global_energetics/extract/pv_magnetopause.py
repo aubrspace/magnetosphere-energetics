@@ -11,8 +11,9 @@ import datetime as dt
 from paraview.simple import *
 import magnetometer
 from magnetometer import(get_stations_now, read_station_paraview)
+import equations
+import pv_tools
 import pv_input_tools
-import pv_equations
 import pv_surface_tools
 #import (equations, eqeval, get_dipole_field,
 #                          create_iso_surface)
@@ -273,7 +274,7 @@ def get_magnetopause_filter(pipeline,**kwargs):
     #Compute magnetopause as logical combination
     mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&(x>-20)
                 |
-                (status=="""+str(closed_value)+""")).astype(int)
+                (status=="""+str(closed_value)+""")&(x>-20)).astype(int)
 
     #Assign to output
     output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
@@ -310,24 +311,6 @@ def point2cell(inputsource, fluxes):
     convert_list.append('Normals')
     point2cell.PointDataArraytoprocess = convert_list
     return point2cell
-
-def get_surface_flux(source,variable,name,**kwargs):
-    #First find out if our variable lives on points or cell centers
-    #NOTE if on both lists (bad practice) we'll use the cell centered one
-    cc = variable in source.CellData.keys()
-    if not cc:
-        assert variable in source.PointData.keys(), "Bad variable name!"
-        vartype = 'Point Data'
-    else:
-        vartype = 'Cell Data'
-    #Create calculator filter that is flux
-    flux = Calculator(registrationName=name,Input=source)
-    flux.AttributeType = vartype
-    flux.Function = 'dot('+variable+',Normals)'
-    flux.ResultArrayName = name
-    # create a new 'Integrate Variables'
-    result=IntegrateVariables(registrationName=name+'_integrated',Input=flux)
-    return result
 
 def setup_table(**kwargs):
     """Function sets up a table (spreadsheet view) so data can be exported
@@ -1023,24 +1006,24 @@ def setup_pipeline(infile,**kwargs):
     #pipeline = sourcedata
 
     ###Check if unitless variables are present
-    if 'dimensionless' in kwargs:
+    if kwargs.get('dimensionless',False):
         pipeline = pv_input_tools.todimensional(pipeline,**kwargs)
 
     else:
         ###Rename some tricky variables
         pipeline = pv_input_tools.fix_names(pipeline,**kwargs)
     ###Build functions up to betastar
-    alleq = pv_equations.equations(**kwargs)
-    pipeline = pv_equations.eqeval(alleq['basic3d'],pipeline)
-    pipeline = pv_equations.eqeval(alleq['basic_physics'],pipeline)
+    alleq = equations.equations(**kwargs)
+    pipeline = pv_tools.eqeval(alleq['basic3d'],pipeline)
+    pipeline = pv_tools.eqeval(alleq['basic_physics'],pipeline)
     if 'aux' in kwargs:
-        pipeline = pv_equations.eqeval(alleq['dipole_coord'],pipeline)
+        pipeline = pv_tools.eqeval(alleq['dipole_coord'],pipeline)
     ###Energy flux variables
     if kwargs.get('doEnergyFlux',False):
-        pipeline = pv_equations.eqeval(alleq['energy_flux'],pipeline)
+        pipeline = pv_tools.eqeval(alleq['energy_flux'],pipeline)
     if kwargs.get('doVolumeEnergy',False):
-        pipeline = pv_equations.eqeval(alleq['dipole'],pipeline)
-        pipeline = pv_equations.eqeval(alleq['volume_energy'],pipeline)
+        pipeline = pv_tools.eqeval(alleq['dipole'],pipeline)
+        pipeline = pv_tools.eqeval(alleq['volume_energy'],pipeline)
     ###Get Vectors from field variable components
     pipeline = get_vectors(pipeline)
 
