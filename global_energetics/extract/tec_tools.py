@@ -15,7 +15,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #Interpackage modules
-from global_energetics.extract.equations import (equations)
+from global_energetics.extract.equations import (equations,rotation)
 from global_energetics.extract import shue
 from global_energetics.extract.shue import (r_shue, r0_alpha_1997,
                                                     r0_alpha_1998)
@@ -273,28 +273,6 @@ def getTmat(time):
     mu = np.arctan2(-xe,np.sqrt(ye**2+ze**2))
     T4_t = np.transpose(rotation(-mu[0], 'y'))
     return T4_t
-
-def rotation(angle, axis):
-    """Function returns rotation matrix given axis and angle
-    Inputs
-        angle
-        axis
-    Outputs
-        matrix
-    """
-    if axis == 'x' or axis == 'X':
-        matrix = [[1,           0,          0],
-                  [0,  cos(angle), sin(angle)],
-                  [0, -sin(angle), cos(angle)]]
-    elif axis == 'y' or axis == 'Y':
-        matrix = [[ cos(angle), 0, sin(angle)],
-                  [0,           1,          0],
-                  [-sin(angle), 0, cos(angle)]]
-    elif axis == 'z' or axis == 'Z':
-        matrix = [[ cos(angle), sin(angle), 0],
-                  [-sin(angle), cos(angle), 0],
-                  [0,           0,          1]]
-    return matrix
 
 def get_lateral_arc(zone, last_angle, last_r, method, *, dx=1):
     '''Function to calculate lateral angle, used to ensure coverage in the

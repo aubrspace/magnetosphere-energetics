@@ -20,6 +20,7 @@ import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 import pv_ionosphere
 import pv_tools
+import equations
 
 #if __name__ == "__main__":
 if True:
@@ -36,6 +37,7 @@ if True:
     tstart = get_time(filelist[0])
 
     for infile in filelist[-1::]:
+        # Setup file specific quantities
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         simtime = localtime-tstart
@@ -53,6 +55,7 @@ if True:
                       localtime.hour,
                       localtime.minute,
                       localtime.second))
+        # Setup pipeline for Magnetosphere
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
                                                        dimensionless=False,
@@ -60,6 +63,7 @@ if True:
                                                        path=herepath,
                                                        ffj=True,
                                                        doEnergyFlux=False)
+        # Extract a discretized isosurface at R=3
         r3 = pv_tools.get_sphere_filter(field)
         sphere3 = pv_surface_tools.create_iso_surface(r3,'r_state','sphere3',
                                             calc_normals=False)
@@ -67,11 +71,33 @@ if True:
         #       Call it here to check and update all sphere3 points
         #TODO: Map sphere3 -> mapped_sphere3 according to th_1,ph_1
         #TODO: Look into interpolation functions
-        #TODO: Rotate ie to it's proper position
-        #TODO: Calculate dipole to set B and check names
+        # Load ionosphere data
+        ie = pv_ionosphere.load_ie(iepath+iefile)
+        # Rotate all the vectors from SM -> GSM
+        pipeline = ie
+        for i,xbase in enumerate(['x','U_x_km_s','J_x_uA_m^2','E_x_mV_m']):
+            pipeline = pv_tools.rotate_vectors(pipeline,
+                                               float(aux['BTHETATILT']),
+                                               xbase=xbase,
+                                               coordinates=(i==0))
+        # Calculate the dipole field at the new locations
+        alleq = equations.equations(aux=aux)
+        pipeline = pv_tools.eqeval(alleq['dipole'],pipeline)
+        #TODO: make Bdipole the actual B components
+        # Calculate the rest of the variables
+        pipeline = pv_tools.eqeval(alleq['basic3d'],pipeline)
+        pipeline = pv_tools.eqeval(alleq['basic_physics'],pipeline)
+        ###Energy flux variables
+        '''
+        if kwargs.get('doEnergyFlux',False):
+            pipeline = pv_tools.eqeval(alleq['energy_flux'],pipeline)
+        if kwargs.get('doVolumeEnergy',False):
+            pipeline = pv_tools.eqeval(alleq['volume_energy'],pipeline)
+        '''
+        ###Get Vectors from field variable components
+        pipeline = get_vectors(pipeline)
         #TODO: Put 'finalized' zone through the same tracing to check edges
         #TODO: Call get_global variables to get all derived quantities
-        ie = pv_ionosphere.load_ie(iepath+iefile)
     """
         # Split and display another
         layout = GetLayout()

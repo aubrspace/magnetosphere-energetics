@@ -2,8 +2,10 @@ import paraview
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
 import numpy as np
+from numpy import sin,cos,pi
 #### import the simple module from paraview
 from paraview.simple import *
+#from equations import rotation
 
 def tec2para(instr):
     badchars = ['{','}','[',']']
@@ -63,3 +65,55 @@ def get_sphere_filter(pipeline,**kwargs):
     """
     pipeline = r_state
     return pipeline
+
+def rotate_vectors(pipeline,angle,**kwargs):
+    """Rotates the coordinate variables by multiplying by a rotation matrix
+    Inputs
+        pipeline
+        angle
+        kwargs:
+            xbase- (default 'x')
+            coordinates- (default False)
+    Returns
+        new_position
+    """
+    # Contruct the rotation matrix
+    mXhat_x = str(sin((-angle+90)*pi/180))
+    mXhat_y = str(0)
+    mXhat_z = str(-1*cos((-angle+90)*pi/180))
+    mZhat_x = str(sin(-angle*pi/180))
+    mZhat_y = str(0)
+    mZhat_z = str(-1*cos(-angle*pi/180))
+    # Save old values
+    xbase = kwargs.get('xbase','x')
+    Xd = xbase.replace('x','xd')
+    Y = xbase.replace('x','y')
+    Zd = xbase.replace('x','zd')
+    pipeline = Calculator(registrationName=Xd, Input=pipeline)
+    pipeline.ResultArrayName = Xd
+    pipeline.Function = xbase
+    pipeline = Calculator(registrationName=Zd, Input=pipeline)
+    pipeline.ResultArrayName = Zd
+    pipeline.Function = xbase.replace('x','z')
+    # Create the paraview calculator filter 
+    Xd = 'xd'
+    Zd = 'zd'
+    if kwargs.get('coordinates',False):
+        new_position = Calculator(registrationName='rotation', Input=pipeline)
+        new_position.ResultArrayName = 'rotatedPosition'
+        new_position.Function = (
+                    mXhat_x+'*('+Xd+'*'+mXhat_x+'+'+Zd+'*'+mXhat_z+')*iHat+'+
+                    Y+'*jHat+'+
+                    mZhat_z+'*('+Xd+'*'+mZhat_x+'+'+Zd+'*'+mZhat_z+')*kHat')
+        new_position.CoordinateResults = 1
+        pipeline = new_position
+    # X
+    new_x = Calculator(registrationName=xbase, Input=pipeline)
+    new_x.ResultArrayName = xbase
+    new_x.Function = mXhat_x+'*('+Xd+'*'+mXhat_x+'+'+Zd+'*'+mXhat_z+')'
+    pipeline = new_x
+    # Z
+    new_z = Calculator(registrationName=xbase.replace('x','z'),Input=pipeline)
+    new_z.ResultArrayName = xbase.replace('x','z')
+    new_z.Function = mZhat_x+'*('+Xd+'*'+mZhat_x+'+'+Zd+'*'+mZhat_z+')'
+    return new_z

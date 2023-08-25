@@ -1,6 +1,29 @@
 #!/usr/bin/env python3
 """Equations for use in tecplot, see conversion tools for use in paraview
 """
+from numpy import sin,cos,pi,deg2rad
+
+def rotation(angle, axis):
+    """Function returns rotation matrix given axis and angle
+    Inputs
+        angle
+        axis
+    Outputs
+        matrix
+    """
+    if axis == 'x' or axis == 'X':
+        matrix = [[1,           0,          0],
+                  [0,  cos(angle), sin(angle)],
+                  [0, -sin(angle), cos(angle)]]
+    elif axis == 'y' or axis == 'Y':
+        matrix = [[ cos(angle), 0, sin(angle)],
+                  [0,           1,          0],
+                  [-sin(angle), 0, cos(angle)]]
+    elif axis == 'z' or axis == 'Z':
+        matrix = [[ cos(angle), sin(angle), 0],
+                  [-sin(angle), cos(angle), 0],
+                  [0,           0,          1]]
+    return matrix
 
 def get_dipole_field(auxdata, *, B0=31000):
     """Function calculates dipole field in given coordinate system based on
