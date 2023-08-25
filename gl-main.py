@@ -50,7 +50,7 @@ def energetics_analysis(infiles,outpath):
     tp.new_layout()
     #python objects
     #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
-    #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
+    oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
@@ -81,27 +81,26 @@ def energetics_analysis(infiles,outpath):
                                       disp_result=False,
                                       do_cms=False,
                                       do_central_diff=False,
-                                      analysis_type='',
-                                      modes=['perfectsphere'],
-                                      #inner_r=4,
-                                      #blankvalue=4,
-                                      #customTerms={'test':'TestArea [Re^2]'},
-                                      do_interfacing=False,
+                                      analysis_type='energy_mass_mag',
+                                      modes=['iso_betastar','closed',
+                                             'nlobe','slobe'],
+                                      inner_r=4,
+                                      blankvalue=4,
+                                      customTerms={'test':'TestArea [Re^2]'},
+                                      do_interfacing=True,
                                       integrate_line=False,
                                       integrate_surface=False,
-                                      integrate_volume=False,
-                                      #truegridfile=oggridfile,
+                                      integrate_volume=True,
+                                      truegridfile=oggridfile,
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
+    '''
     # IE
     tp.data.load_tecplot(iedatafile,read_data_option=ReadDataOption.Append)
     field_data.zone(-2).name = 'ionosphere_north'
     field_data.zone(-1).name = 'ionosphere_south'
 
-    # Create and save an image
-    mainsheet = '/home/aubr/pytecplot/swmf-energetics/north_south_pc.sty'
-    mainlayout = '/home/aubr/pytecplot/swmf-energetics/north_south_pc.lay'
     ionosphere.get_ionosphere(field_data,
                                           verbose=True,
                                           hasGM=True,
@@ -111,14 +110,23 @@ def energetics_analysis(infiles,outpath):
                                           integrate_line=True,
                                           do_interfacing=True,
                                           outputpath=outpath)
-    tempfile = '/home/aubr/pytecplot/swmf-energetics/staging/tempfile'+outputname+'.plt'
-    tp.data.save_tecplot_plt(tempfile)
-    tp.load_layout(mainlayout)
-    tp.data.load_tecplot(tempfile,read_data_option=ReadDataOption.Replace,
-                         reset_style=False)
-    #tp.active_frame().load_stylesheet(mainsheet)
-    tp.save_png(os.path.join(outpath,'figures',outputname+'.png'),width=1600)
-    os.remove(tempfile)
+    # Create and save an image
+    northsheet = 'north_pc.sty'
+    southsheet = 'south_pc.sty'
+    tp.macro.execute_extended_command(
+                            command_processor_id='Multi Frame Manager',
+                            command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
+    for i,frame in enumerate(tp.frames()):
+        if i==0:
+            frame.load_stylesheet(northsheet)
+        elif i==1:
+            frame.load_stylesheet(southsheet)
+        elif i>1:
+            tp.layout.active_page().delete_frame(frame)
+    tp.layout.active_page().tile_frames(mode=TileMode.Rows)
+    tp.save_png(os.path.join(outpath,'figures',
+                                     OUTPUTNAME+'.png'),width=1600)
+    '''
     with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
         png.close()
 
