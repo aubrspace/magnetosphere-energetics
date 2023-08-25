@@ -20,8 +20,8 @@ from global_energetics.write_disp import write_to_hdf, display_progress
 from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     create_stream_zone,
                                                     calc_terminator_zone,
-                                                    get_global_variables,
-                                                    get_dipole_field)
+                                                    get_global_variables)
+from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 

@@ -17,7 +17,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 import global_energetics
 from global_energetics.preplot import load_hdf5_data, IDL_to_hdf5
-from global_energetics.extract.stream_tools import standardize_vars
+from global_energetics.extract.tec_tools import standardize_vars
 from global_energetics.extract import magnetosphere2D as mp2d
 from global_energetics.extract import view_set
 from global_energetics import write_disp, makevideo

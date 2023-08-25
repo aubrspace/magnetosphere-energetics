@@ -15,8 +15,6 @@ import equations
 import pv_tools
 import pv_input_tools
 import pv_surface_tools
-#import (equations, eqeval, get_dipole_field,
-#                          create_iso_surface)
 
 def get_vectors(pipeline,**kwargs):
     """Function sets up calculator filters to turn components into vector

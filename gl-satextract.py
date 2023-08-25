@@ -18,7 +18,7 @@ from tecplot.exception import *
 from global_energetics.extract import magnetosphere
 from global_energetics.extract import plasmasheet
 from global_energetics.extract import satellites
-from global_energetics.extract import stream_tools
+from global_energetics.extract import tec_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract import volume_tools
 from global_energetics.extract import view_set
