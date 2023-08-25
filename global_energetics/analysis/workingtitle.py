@@ -2125,9 +2125,9 @@ def lobe_balance_fig(dataset,phase,path):
 #           We should see the peak energy flux into the closed region
 #           during these times
     #plot
-    event='star'
-    #for i,event in enumerate(dataset.keys()):
-    if True:
+    #event='star'
+    #if True:
+    for i,event in enumerate(dataset.keys()):
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed']
         mp = dataset[event]['mp'+phase]
@@ -4176,8 +4176,8 @@ def main_rec_figures(dataset):
     ##Main + Recovery phase
     #hatches = ['','*','x','o']
     hatches = ['','','','']
-    for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
-    #for phase,path in [('_lineup',outLine)]:
+    #for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
+    for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
         #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
@@ -4222,7 +4222,8 @@ if __name__ == "__main__":
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
     inSats = os.path.join(sys.argv[-1],'data/sats/')
     inGround = os.path.join(sys.argv[-1],'data/ground/')
-    inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
+    #inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
+    inAnalysis = os.path.join(sys.argv[-1],'data/analysis/GM/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
     outSSC = os.path.join(outPath,'shockImpact')
@@ -4245,21 +4246,23 @@ if __name__ == "__main__":
     #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
-    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
+    dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=False,
-                                     end=dataset['star']['msdict']['closed'].index[-1],
-                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    #dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                                 end=dataset['star']['msdict']['closed'].index[-1],
+    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
@@ -4268,9 +4271,10 @@ if __name__ == "__main__":
     #                                     read_supermag=False)
 
     ## Satellite Data
-    dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
+    #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
     #dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
+    dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]

@@ -12,7 +12,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
-from global_energetics.extract.stream_tools import (integrate_tecplot,
+from global_energetics.extract.tec_tools import (integrate_tecplot,
                                                     get_surface_variables,
                                                     get_day_flank_tail,
                                                   get_surf_geom_variables,

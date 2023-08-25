@@ -20,9 +20,9 @@ from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import surface_analysis
 from global_energetics.extract import volume_tools
 from global_energetics.extract.volume_tools import volume_analysis
-from global_energetics.extract import stream_tools
+from global_energetics.extract import tec_tools
 #from global_energetics.extract.view_set import display_magnetopause
-from global_energetics.extract.stream_tools import (streamfind_bisection,
+from global_energetics.extract.tec_tools import (streamfind_bisection,
                                                     dump_to_pandas,
                                                     abs_to_timestamp,
                                                     write_to_timelog)

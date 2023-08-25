@@ -17,9 +17,9 @@ from tecplot.constant import *
 from global_energetics.makevideo import get_time
 from global_energetics.preplot import load_hdf5_data, IDL_to_hdf5
 from global_energetics.extract import shue
-from global_energetics.extract.stream_tools import standardize_vars
-from global_energetics.extract.stream_tools import get_global_variables
-from global_energetics.extract.stream_tools import streamfind_bisection
+from global_energetics.extract.tec_tools import standardize_vars
+from global_energetics.extract.tec_tools import get_global_variables
+from global_energetics.extract.tec_tools import streamfind_bisection
 from global_energetics.extract.view_set import display_2D_contours
 
 def set_yaxis(mode='Z'):

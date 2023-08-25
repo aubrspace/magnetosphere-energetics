@@ -12,7 +12,7 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
-from global_energetics.extract.stream_tools import get_daymapped_nightmapped
+from global_energetics.extract.tec_tools import get_daymapped_nightmapped
 from global_energetics.extract.surface_tools import (energy_to_dB,
                                         get_open_close_integrands,
                                          get_interface_integrands,
