@@ -440,7 +440,6 @@ def find_crossings(in_vsat,in_obssat,satname):
               ((start_status==1 or start_status==2) and end_status==3)):
             vsat.loc[start-1:end+1,'crosstype'] = 'K2'
             obsinterp.loc[obswindow,'crosstype'] = 'K2'
-    from IPython import embed; embed()
     #TODO: find the full crossing window
     #   check for continuity in the crossing index
     #   buffer by 3 min on either side, call this all one crossing type
@@ -605,7 +604,6 @@ def parse_phase(indata,phasekey,**kwargs):
             times = indata.index
     elif type(indata) == dict:
         times = [df for df in indata.values() if not df.empty][0].index
-    #from IPython import embed; embed()
 
     #Find the phase marks based on the event itself
     moments = locate_phase(times, **kwargs)
@@ -697,8 +695,6 @@ def plot_contour(fig,ax,df,lower,upper,xkey,ykey,zkey,**kwargs):
         tab.interpolate(axis=1)
         #Isolate values that have a certain threshold
     '''
-    from IPython import embed; embed()
-    time.sleep(3)
     conplot = ax.contourf(X,Y,Z, cmap=kwargs.get('cmap','RdBu_r'),
                           levels=levs,extend='both',**contour_kw)
     cbarconplot = fig.colorbar(conplot,ax=ax,label=safelabel(zkey),
@@ -749,8 +745,6 @@ def plot_quiver(ax,df,lower,upper,xkey,ykey,ukey,vkey,**kwargs):
         print(key,B.shape)
         #TODO: solved before but currently lost,
         #       why do d/dt derivatives have the wrong shape?!
-    from IPython import embed; embed()
-    time.sleep(3)
     norm = np.linalg.norm(np.array((U, V)), axis=0)
     quiver = ax.quiver(X,Y,U/norm,V/norm,angles='xy',scale=None)
             #cmap=kwargs.get('cmap','RdBu_r'),
@@ -1763,7 +1757,6 @@ def quantify_timings2(dataset, phase, path,**kwargs):
 
         r_values1 = pd.DataFrame()
         r_values2 = pd.DataFrame()
-        #from IPython import embed; embed()
         time_shifts, r_values1['clock-S2a']=pearson_r_shifts(
                                    sw[sw['clock']>0]['clock'],(Ss2al-SM2a))
         time_shifts, r_values1['clock-S2b']=pearson_r_shifts(
@@ -2448,7 +2441,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
         #save
-        lobes_balance_detail.suptitle('t0='+str(moments['peak1']),
+        lobes_balance_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         lobes_balance_detail.tight_layout(pad=0.3)
         figurename = path+'/lobe_balance_detail'+phase+'_'+event+'.png'
@@ -2481,7 +2475,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        mass_balance_regions.suptitle('t0='+str(moments['peak1']),
+        mass_balance_regions.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         mass_balance_regions.tight_layout(pad=1)
         figurename = path+'/mass_balance_regions'+phase+'_'+event+'.png'
@@ -2510,7 +2505,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        total_balance_total.suptitle('t0='+str(moments['peak1']),
+        total_balance_total.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         total_balance_total.tight_layout(pad=1)
         figurename = path+'/total_balance_total'+phase+'_'+event+'.png'
@@ -2539,7 +2535,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        closed_balance_total.suptitle('t0='+str(moments['peak1']),
+        closed_balance_total.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         closed_balance_total.tight_layout(pad=1)
         figurename = path+'/closed_balance_total'+phase+'_'+event+'.png'
@@ -2603,7 +2600,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
         #save
-        closed_balance_detail.suptitle('t0='+str(moments['peak1']),
+        closed_balance_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         closed_balance_detail.tight_layout(pad=1)
         figurename = path+'/closed_balance_detail'+phase+'_'+event+'.png'
@@ -2636,7 +2634,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        total_acc_total.suptitle('t0='+str(moments['peak1']),
+        total_acc_total.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         total_acc_total.tight_layout(pad=1)
         figurename = path+'/total_acc_total'+phase+'_'+event+'.png'
@@ -2666,7 +2665,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        lobe_acc_total.suptitle('t0='+str(moments['peak1']),
+        lobe_acc_total.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         lobe_acc_total.tight_layout(pad=1)
         figurename = path+'/lobe_acc_total'+phase+'_'+event+'.png'
@@ -2697,7 +2697,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        lobe_acc_detail.suptitle('t0='+str(moments['peak1']),
+        lobe_acc_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         lobe_acc_detail.tight_layout(pad=1)
         figurename = path+'/lobe_acc_detail'+phase+'_'+event+'.png'
@@ -2722,7 +2723,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
         axis.axvline(0,ls='--',color='black')
         #save
-        inner_circulation.suptitle('t0='+str(moments['peak1']),
+        inner_circulation.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         inner_circulation.tight_layout(pad=1)
         figurename = path+'/inner_circulation'+phase+'_'+event+'.png'
@@ -2767,7 +2769,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
         #save
-        external.suptitle('t0='+str(moments['peak1']),
+        external.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         external.tight_layout(pad=1)
         figurename = path+'/external'+phase+'_'+event+'.png'
@@ -2839,7 +2842,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
         #save
-        comboVS.suptitle('t0='+str(moments['peak1']),
+        comboVS.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         comboVS.tight_layout(pad=0.04)
         figurename = path+'/comboVS'+phase+'_'+event+'.png'
@@ -2872,7 +2876,8 @@ def lobe_balance_fig(dataset,phase,path):
                       moments['peak2']).total_seconds()*1e9,0,
                        fc='lightgrey')
         #save
-        dst_comp.suptitle('t0='+str(moments['peak1']),
+        dst_comp.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         dst_comp.tight_layout(pad=1)
         figurename = path+'/dst_comp'+phase+'_'+event+'.png'
@@ -2934,7 +2939,8 @@ def lobe_balance_fig(dataset,phase,path):
         axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
                     ncol=7, fancybox=True, shadow=True)
         #save
-        flavors_external.suptitle('t0='+str(moments['peak1']),
+        flavors_external.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         flavors_external.tight_layout(pad=1)
         figurename = path+'/flavors_external'+phase+'_'+event+'.png'
@@ -3011,7 +3017,8 @@ def lobe_balance_fig(dataset,phase,path):
         #axis.legend(loc='lower right', bbox_to_anchor=(1.1, 1.05),
         #            ncol=7, fancybox=True, shadow=True)
         #save
-        flavors_internal.suptitle('t0='+str(moments['peak1']),
+        flavors_internal.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         flavors_internal.tight_layout(pad=1)
         figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
@@ -3057,7 +3064,8 @@ def lobe_balance_fig(dataset,phase,path):
                          ls='--',color='black')
             ax.axvline(0,ls='--',color='black')
         #save
-        poynting_type.suptitle('t0='+str(moments['peak1']),
+        poynting_type.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         poynting_type.tight_layout(pad=1)
         figurename = path+'/poynting_type'+phase+'_'+event+'.png'
@@ -3256,7 +3264,8 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
             axis.axvline(0,ls='--',color='black')
             '''
         #save
-        dst.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
+        dst.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
+                                                     ha='left',x=0.01,y=0.99)
         dst.tight_layout(pad=0.3)
         figname = path+'/dst_'+event+'.png'
         dst.savefig(figname)
@@ -3342,7 +3351,8 @@ def satellite_comparisons(dataset,phase,path):
             #                     color='grey',alpha=0.2)
             axis[i].tick_params(axis='y',colors='tab:blue')
         #save
-        b_compare_detail.suptitle('t0='+str(moments['peak1']),
+        b_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         b_compare_detail.tight_layout(pad=0.6)
         figurename = path+'/b_compare_detail'+phase+'_'+event+'.png'
@@ -3422,7 +3432,8 @@ def satellite_comparisons(dataset,phase,path):
             #                     color='grey',alpha=0.2)
             axis[i].tick_params(axis='y',colors='tab:blue')
         #save
-        p_compare_detail.suptitle('t0='+str(moments['peak1']),
+        p_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         p_compare_detail.tight_layout(pad=0.6)
         figurename = path+'/p_compare_detail'+phase+'_'+event+'.png'
@@ -3461,7 +3472,8 @@ def satellite_comparisons(dataset,phase,path):
                              ls='--',color='black')
             axis[i].axvline(0,ls='--',color='black')
         #save
-        u_compare_detail.suptitle('t0='+str(moments['peak1']),
+        u_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         u_compare_detail.tight_layout()
         figurename = path+'/u_compare_detail'+phase+'_'+event+'.png'
@@ -3495,7 +3507,8 @@ def satellite_comparisons(dataset,phase,path):
                          ls='--',color='black')
             axis[i].axvline(0,ls='--',color='black')
         #save
-        n_compare_detail.suptitle('t0='+str(moments['peak1']),
+        n_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         n_compare_detail.tight_layout()
         figurename = path+'/n_compare_detail'+phase+'_'+event+'.png'
@@ -3529,7 +3542,8 @@ def satellite_comparisons(dataset,phase,path):
                              ls='--',color='black')
             axis[i].axvline(0,ls='--',color='black')
         #save
-        status.suptitle('t0='+str(moments['peak1']),
+        status.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         status.tight_layout()
         figurename = path+'/status'+phase+'_'+event+'.png'
@@ -3563,7 +3577,8 @@ def satellite_comparisons(dataset,phase,path):
                          ls='--',color='black')
             axis[i].axvline(0,ls='--',color='black')
         #save
-        p_compare_detail.suptitle('t0='+str(moments['peak1']),
+        p_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         p_compare_detail.tight_layout()
         figurename = path+'/p_compare_detail'+phase+'_'+event+'.png'
@@ -3655,7 +3670,8 @@ def satellite_comparisons(dataset,phase,path):
                                  where=((virtual['Status']<0)).values)
         #save
         # K
-        k_detail.suptitle('t0='+str(moments['peak1']),
+        k_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         k_detail.tight_layout(pad=0.04)
         figurename = path+'/k_detail'+phase+'_'+event+'.png'
@@ -3663,7 +3679,8 @@ def satellite_comparisons(dataset,phase,path):
         plt.close(k_detail)
         print('\033[92m Created\033[00m',figurename)
         # H
-        h_detail.suptitle('t0='+str(moments['peak1']),
+        h_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         h_detail.tight_layout()
         figurename = path+'/h_detail'+phase+'_'+event+'.png'
@@ -3671,7 +3688,8 @@ def satellite_comparisons(dataset,phase,path):
         plt.close(h_detail)
         print('\033[92m Created\033[00m',figurename)
         # S
-        s_detail.suptitle('t0='+str(moments['peak1']),
+        s_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         s_detail.tight_layout()
         figurename = path+'/s_detail'+phase+'_'+event+'.png'
@@ -3709,7 +3727,8 @@ def satellite_comparisons(dataset,phase,path):
                              ls='--',color='black')
             axis[i].axvline(0,ls='--',color='black')
         #save
-        ky_detail.suptitle('t0='+str(moments['peak1']),
+        ky_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         ky_detail.tight_layout()
         figurename = path+'/ky_detail'+phase+'_'+event+'.png'
@@ -3746,7 +3765,8 @@ def satellite_comparisons(dataset,phase,path):
                              ls='--',color='black')
             axis[i].axvline(0,ls='--',color='black')
         #save
-        kz_detail.suptitle('t0='+str(moments['peak1']),
+        kz_compare_detail.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         kz_detail.tight_layout()
         figurename = path+'/kz_detail'+phase+'_'+event+'.png'
@@ -3944,7 +3964,6 @@ def time_integrated(dataset,phase,path):
         #           vs split quantities is better
         #       *Or even ONLY using magnetosphere quantities*
 
-        from IPython import embed; embed()
     pass
 
 def diagram_summary(dataset,phase,path):
@@ -4161,7 +4180,7 @@ def diagram_summary(dataset,phase,path):
             elif now>moments['peak2']:
                 labelcolor='blue'
             timeline.set_xdata([xpos])
-            title = figure.suptitle('t='+str(now),ha='left',
+            figure.suptitle(now.strftime("%b %Y, t0=%d-%H:%M:%S"),ha='left',
                                     x=0.01,y=0.99,color=labelcolor)
             if i==0:
                 main.set_xticks([])
@@ -4186,17 +4205,17 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
     #diagram_summary(dataset,'',unfiled)
-    time_integrated(dataset,'_main',unfiled)
+    #time_integrated(dataset,'_main',unfiled)
 
 def interval_figures(dataset):
     #hatches = ['','*','x','o']
@@ -4222,8 +4241,8 @@ if __name__ == "__main__":
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
     inSats = os.path.join(sys.argv[-1],'data/sats/')
     inGround = os.path.join(sys.argv[-1],'data/ground/')
-    #inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
-    inAnalysis = os.path.join(sys.argv[-1],'data/analysis/GM/')
+    inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
+    #inAnalysis = os.path.join(sys.argv[-1],'data/analysis/GM/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
     outSSC = os.path.join(outPath,'shockImpact')
@@ -4247,22 +4266,23 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
-    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
-    dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
+    #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    #dataset['star']['obs'] = read_indices(inLogs, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                                 end=dataset['star']['msdict']['closed'].index[-1],
-    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
-    dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
+    from IPython import embed; embed()
+    dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
+                                     read_supermag=False,
+                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
@@ -4273,8 +4293,8 @@ if __name__ == "__main__":
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    #dataset['star']['vsat'],dataset['star']['obssat'] = read_satellites(inSats)
-    dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(inSats)
+    #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]
@@ -4352,7 +4372,6 @@ if __name__ == "__main__":
                     #                                         event[key],phase)
                     #except:
                     #    print('WORK ON THIS')
-                    #    from IPython import embed; embed()
     for event_key in dataset.keys():
         event = dataset[event_key]
         obs_srcs = list(event['obs'].keys())
@@ -4662,7 +4681,6 @@ if __name__ == "__main__":
         total_acc_test.savefig(figurename)
         plt.close(total_acc_test)
         print('\033[92m Created\033[00m',figurename)
-        #from IPython import embed; embed()
     if False:
     #for event in dataset.keys():
         #Figure setup

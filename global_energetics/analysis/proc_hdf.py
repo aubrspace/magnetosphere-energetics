@@ -28,7 +28,6 @@ def load_hdf_sort(hdf, **kwargs):
 
     #keep only GM keys
     gmdict, iedict, uadict, bsdict, crossdict,termdict = {},{},{},{},{},{}
-    from IPython import embed; embed()
     for key in store.keys():
         if ('mp' in key) or ('ms' in key):
             if 'Time [UTC]' in store[key].keys():
