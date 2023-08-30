@@ -978,7 +978,8 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              zones=[zone])
     eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered,
                              zones=[zone])
-    if zone.values('Status_cc').minmax()==(0.0,0.0):
+    if ((zone.values('Status_cc').minmax()==(0.0,0.0)) or
+        ('Status_cc' not in zone.dataset.variable_names)):
         eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered,
                                    zones=[zone])
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
@@ -1014,7 +1015,10 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
     if 'energy' in analysis_type:
-        prefixlist = ['']
+        if kwargs.get('do_1Dsw',False):
+            prefixlist = ['1D']
+        else:
+            prefixlist = ['']
         for add in prefixlist:
             ##############################################################
             #Velocity normal to the surface
@@ -1025,17 +1029,17 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                             zones=zonelist)
             ##############################################################
             #Normal Poynting Flux
-            eq('{'+add+'ExB_net [W/Re^2]}={Bmag [nT]}**2/(4*pi*1e-7)*1e-9'+
-                                            '*6371**2*('+
-                                      '{U_x [km/s]}*{surface_normal_x}'+
-                                     '+{U_y [km/s]}*{surface_normal_y}'+
-                                     '+{U_z [km/s]}*{surface_normal_z})-'+
-                '({B_x [nT]}*({U_x [km/s]})+'+
-                '{B_y [nT]}*({U_y [km/s]})+'+
-                '{B_z [nT]}*({U_z [km/s]}))'+
-                                        '*({B_x [nT]}*{surface_normal_x}+'+
-                                        '{B_y [nT]}*{surface_normal_y}+'+
-                                        '{B_z [nT]}*{surface_normal_z})'+
+            eq('{'+add+'ExB_net [W/Re^2]}='+
+                        '{'+add+'Bmag [nT]}**2/(4*pi*1e-7)*1e-9*6371**2*('+
+                                  '{'+add+'U_x [km/s]}*{surface_normal_x}'+
+                                 '+{'+add+'U_y [km/s]}*{surface_normal_y}'+
+                                 '+{'+add+'U_z [km/s]}*{surface_normal_z})-'+
+                '({'+add+'B_x [nT]}*({U_x [km/s]})+'+
+                 '{'+add+'B_y [nT]}*({U_y [km/s]})+'+
+                 '{'+add+'B_z [nT]}*({U_z [km/s]}))'+
+                                  '*({'+add+'B_x [nT]}*{surface_normal_x}+'+
+                                    '{'+add+'B_y [nT]}*{surface_normal_y}+'+
+                                    '{'+add+'B_z [nT]}*{surface_normal_z})'+
                                             '/(4*pi*1e-7)*1e-9*6371**2',
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
@@ -1048,11 +1052,11 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 zones=zonelist)
             ##############################################################
             #Normal Total Pressure Flux
-            eq('{'+add+'P0_net [W/Re^2]} = (1/2*{Dp [nPa]}+2.5*{P [nPa]})'+
-                                            '*6371**2*('+
-                                        '{U_x [km/s]}*{surface_normal_x}'+
-                                        '+{U_y [km/s]}*{surface_normal_y}'+
-                                        '+{U_z [km/s]}*{surface_normal_z})',
+            eq('{'+add+'P0_net [W/Re^2]} = '+
+                    '(1/2*{'+add+'Dp [nPa]}+2.5*{'+add+'P [nPa]})*6371**2*('+
+                                    '{'+add+'U_x [km/s]}*{surface_normal_x}'+
+                                   '+{'+add+'U_y [km/s]}*{surface_normal_y}'+
+                                   '+{'+add+'U_z [km/s]}*{surface_normal_z})',
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
             #Split into + and - flux
@@ -1067,7 +1071,7 @@ def get_surface_variables(zone, analysis_type, **kwargs):
             ##############################################################
             #Normal Total Energy Flux
             eq('{'+add+'K_net [W/Re^2]}='+
-                   '{P0_net [W/Re^2]}+{ExB_net [W/Re^2]}',
+                   '{'+add+'P0_net [W/Re^2]}+{'+add+'ExB_net [W/Re^2]}',
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
             #Split into + and - flux
@@ -1079,13 +1083,17 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
     if 'mag' in analysis_type:
-        prefixlist = ['']
+        if kwargs.get('do_1Dsw',False):
+            prefixlist = ['1D']
+        else:
+            prefixlist = ['']
         for add in prefixlist:
             ##############################################################
             #Normal Magnetic Flux
-            eq('{'+add+'Bf_net [Wb/Re^2]} =({B_x [nT]}*{surface_normal_x}'+
-                                      '+{B_y [nT]}*{surface_normal_y}'+
-                                      '+{B_z [nT]}*{surface_normal_z})'+
+            eq('{'+add+'Bf_net [Wb/Re^2]} =('+
+                                      '{'+add+'B_x [nT]}*{surface_normal_x}'+
+                                     '+{'+add+'B_y [nT]}*{surface_normal_y}'+
+                                     '+{'+add+'B_z [nT]}*{surface_normal_z})'+
                                       '*6.371**2*1e3',
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
@@ -1099,15 +1107,18 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
     if 'mass' in analysis_type:
-        prefixlist = ['']
+        if kwargs.get('do_1Dsw',False):
+            prefixlist = ['1D']
+        else:
+            prefixlist = ['']
         for add in prefixlist:
             ##############################################################
             #Normal Mass Flux
-            eq('{'+add+'RhoU_net [kg/s/Re^2]} = {Rho [amu/cm^3]}*'+
+            eq('{'+add+'RhoU_net [kg/s/Re^2]} = {'+add+'Rho [amu/cm^3]}*'+
                                             '1.67*10e-12*6371**2*('+
-                                        '{U_x [km/s]}*{surface_normal_x}'+
-                                        '+{U_y [km/s]}*{surface_normal_y}'+
-                                        '+{U_z [km/s]}*{surface_normal_z})',
+                                 '{'+add+'U_x [km/s]}*{surface_normal_x}'+
+                                 '+{'+add+'U_y [km/s]}*{surface_normal_y}'+
+                                 '+{'+add+'U_z [km/s]}*{surface_normal_z})',
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
             #Split into + and - flux
@@ -1138,11 +1149,27 @@ def get_1D_sw_variables(field_data, xmax, xmin, nx):
     for x in xvalues:
         #probe data at x,y,z to get all energetic field variables
         data = tp.data.query.probe_at_position(x,yvalue,zvalue)[0]
+        indata = pd.DataFrame([data],columns=field_data.variable_names)
+        oneD_data = pd.concat([indata,oneD_data],ignore_index=False)
+        '''
         oneD_data = oneD_data.append(pd.DataFrame([data],
                                      columns=field_data.variable_names),
                                      ignore_index=False)
+        '''
     #Create new global variables
-    for var in [v for v in field_data.variable_names if 's ' in v]:
+    #for var in [v for v in field_data.variable_names if 's ' in v]:
+    varlist1D = ['Rho [amu/cm^3]',
+                 'U_x [km/s]',
+                 'U_y [km/s]',
+                 'U_z [km/s]',
+                 'B_x [nT]',
+                 'B_y [nT]',
+                 'B_z [nT]',
+                 'P [nPa]',
+                 'Dp [nPa]',
+                 'Bmag [nT]']
+    for var in (varlist1D+
+                [v for v in field_data.variable_names if '/Re^2' in v]):
         #Make polynomial fit bc tec equation length is very limited
         p = np.polyfit(oneD_data['X [R]'], oneD_data[var],3)
         fx = xvalues**3*p[0]+xvalues**2*p[1]+xvalues*p[2]+p[3]
