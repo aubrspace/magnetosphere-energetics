@@ -50,11 +50,13 @@ def energetics_analysis(infiles,outpath):
     tp.new_layout()
     #python objects
     #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
-    oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
+    #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
+    oggridfile = 'ideal_test/GM/IO2/3d__var_3_n00000800.plt'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
-    iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
+    #iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
+    iedatafile = ('ideal_test/IE/ionosphere/'+
                   'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
                       filetime.year-2000,
                       filetime.month,
@@ -79,9 +81,10 @@ def energetics_analysis(infiles,outpath):
                                       save_mesh=False,
                                       write_data=True,
                                       disp_result=False,
-                                      do_cms=False,
-                                      do_central_diff=False,
+                                      do_cms=True,
+                                      do_central_diff=True,
                                       analysis_type='energy_mass_mag',
+                                      #modes=['perfectsphere'],
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe'],
                                       inner_r=4,
@@ -113,19 +116,23 @@ def energetics_analysis(infiles,outpath):
     # Create and save an image
     northsheet = 'north_pc.sty'
     southsheet = 'south_pc.sty'
+    tp.macro.execute_command('$!LoadColorMap  '+'"'+os.path.join(os.getcwd(),'energetics.map')+'"')
     tp.macro.execute_extended_command(
                             command_processor_id='Multi Frame Manager',
                             command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
     for i,frame in enumerate(tp.frames()):
         if i==0:
             frame.load_stylesheet(northsheet)
+            northframe = frame
         elif i==1:
             frame.load_stylesheet(southsheet)
         elif i>1:
             tp.layout.active_page().delete_frame(frame)
     tp.layout.active_page().tile_frames(mode=TileMode.Rows)
+    northframe.plot().contour(1).legend.vertical=False
+    northframe.plot().contour(1).legend.position=(98,10)
     tp.save_png(os.path.join(outpath,'figures',
-                                     OUTPUTNAME+'.png'),width=1600)
+                                     outputname+'.png'),width=1600)
     '''
     with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
         png.close()
@@ -191,8 +198,8 @@ if __name__ == "__main__":
         print('now: ',nowfile)
         print('next: ',nextfile)
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        energetics_analysis([nowfile],outpath)
-        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        #energetics_analysis([nowfile],outpath)
+        energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
