@@ -491,7 +491,7 @@ def get_swmf_data(datapath,**kwargs):
     #read files
     geopath = os.path.join(datapath,kwargs.get('prefix','')+'geo*.log')
     logpath = os.path.join(datapath,kwargs.get('prefix','')+'log_*.log')
-    swpath = os.path.join(datapath,kwargs.get('prefix','')+'IMF.dat')
+    swpath = os.path.join(datapath,kwargs.get('prefix','')+'*IMF.dat')
     geoindex = glob.glob(geopath)[0]
     swmflog = glob.glob(logpath)[0]
     solarwind = glob.glob(swpath)[0]
@@ -522,7 +522,8 @@ def get_swmf_data(datapath,**kwargs):
         parse_dates={'Time [UTC]':['year','month','day',
                                    'hour','min','sec','msec']},
         date_parser=datetimeparser,
-        infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
+        infer_datetime_format=True, keep_date_col=True)
+        #infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
     swdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
     if coordsys=='GSE':
         print('GSE solarwind data found!!! Converting to GSM...')
@@ -533,11 +534,10 @@ def get_swmf_data(datapath,**kwargs):
         for key in ['bx','by','bz','vx','vy','vz']:
             swdata[key] = swdata[key+'_GSM']
             swdata.drop(columns=[key+'_GSM'])
-        #from IPython import embed; embed()
     swdata.index = swdata['Time [UTC]']
     swdata.drop(columns=['Time [UTC]'],inplace=True)
-    swdata=swdata[swdata.index < geoindexdata.index[-1]]
-    swdata =swdata[swdata.index > geoindexdata.index[0]]
+    #swdata=swdata[swdata.index < geoindexdata.index[-1]]
+    #swdata =swdata[swdata.index > geoindexdata.index[0]]
     #solar wind dynamic pressure
     convert = 1.6726e-27*1e6*(1e3)**2*1e9
     swdata['v']=np.sqrt(swdata['vx']**2+swdata['vy']**2+swdata['vz']**2)
