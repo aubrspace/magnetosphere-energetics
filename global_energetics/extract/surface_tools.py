@@ -742,46 +742,61 @@ def calc_integral(term, zone, **kwargs):
     result = {term[1]:[value]}
     return result
 
-def get_mag_dict():
+def get_mag_dict(**kwargs):
     """Creates dictionary of terms to be integrated for magnetic flux
     Inputs
     Outputs
         mag_dict(dict{str:str})- dictionary w/ pre:post integral
     """
+    if kwargs.get('do_1Dsw',False):
+        prepend = '1D'
+    else:
+        prepend = ''
     flux_suffixes = ['_escape','_injection']#net will be calculated in post
     units = ' [Wb/Re^2]'
     postunits = ' [Wb]'
     mag_dict = {}
     for direction in flux_suffixes:
-        mag_dict.update({'Bf'+direction+units:'Bf'+direction+postunits})
+        mag_dict.update(
+            {prepend+'Bf'+direction+units:prepend+'Bf'+direction+postunits})
     return mag_dict
 
-def get_energy_dict():
+def get_energy_dict(**kwargs):
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
     Outputs
         energy_dict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
+    if kwargs.get('do_1Dsw',False):
+        prepend = '1D'
+    else:
+        prepend = ''
     flux_suffixes = ['_escape','_injection']#net will be calculated in post
     units = ' [W/Re^2]'
     postunits = ' [W]'
     energy_dict = {}
     for direction in flux_suffixes:
-        energy_dict.update({'ExB'+direction+units:'ExB'+direction+postunits,
-                            'P0'+direction+units:'P0'+direction+postunits})
+        energy_dict.update(
+            {prepend+'ExB'+direction+units:prepend+'ExB'+direction+postunits,
+             prepend+'P0'+direction+units:prepend+'P0'+direction+postunits})
         #Total flux K calculated in post
     return energy_dict
 
-def get_mass_dict():
+def get_mass_dict(**kwargs):
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
     Outputs
         energy_dict(dict{str:str})- dictionary of terms w/ pre:post integral
     """
+    if kwargs.get('do_1Dsw',False):
+        prepend = '1D'
+    else:
+        prepend = ''
     flux_suffixes = ['_escape','_injection']#net will be calculated in post
     units = ' [kg/s/Re^2]'; postunits = ' [kg/s]'; mass_dict = {}
     for direction in flux_suffixes:
-        mass_dict.update({'RhoU'+direction+units:'M'+direction+postunits})
+        mass_dict.update(
+            {prepend+'RhoU'+direction+units:prepend+'M'+direction+postunits})
     return mass_dict
 
 def get_virial_dict(zone):
@@ -846,11 +861,11 @@ def surface_analysis(zone, **kwargs):
     if 'virial' in analysis_type:
         integrands.update(get_virial_dict(zone))
     if 'energy' in analysis_type:
-        integrands.update(get_energy_dict())
+        integrands.update(get_energy_dict(**kwargs))
     if 'mag' in analysis_type:
-        integrands.update(get_mag_dict())
+        integrands.update(get_mag_dict(**kwargs))
     if 'mass' in analysis_type:
-        integrands.update(get_mass_dict())
+        integrands.update(get_mass_dict(**kwargs))
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications spatially parsing results

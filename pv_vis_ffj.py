@@ -11,53 +11,33 @@ import datetime as dt
 from paraview.simple import *
 #import global_energetics.extract.pv_magnetopause
 import pv_magnetopause
-from pv_input_tools import (get_time, time_sort, read_aux, read_tecplot)
-from pv_magnetopause import (setup_pipeline,display_visuals,update_rotation,
-                             update_fluxVolume,update_fluxResults)
+from makevideo import (get_time, time_sort)
+from pv_tools import (update_rotation)
+from pv_input_tools import (read_aux, read_tecplot)
 import pv_surface_tools
+from pv_magnetopause import (setup_pipeline)
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
+from pv_visuals import (display_visuals)
 
 #if __name__ == "__main__":
 if True:
     start_time = time.time()
-    if 'Users' in os.getcwd():
-        path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
-        outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
-        herepath=os.getcwd()
-    elif 'aubr' in os.getcwd():
-        path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
-        herepath=os.getcwd()
-    elif os.path.exists('/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'):
-        path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
-        outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
-        herepath='/Users/ngpdl/Code/swmf-energetics/'
-    elif os.path.exists('/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'):
-        path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
-        herepath='/home/aubr/Code/swmf-energetics/'
-    #Overwrite
-    #path='/nfs/solsticedisk/tuija/amr_fte/thirdrun/GM/IO2/'
-    #path = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
-    #outpath='/nfs/solsticedisk/tuija/amr_fte/thirdrun/'
+    # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
+    herepath=os.getcwd()
+    inpath = os.path.join(herepath,'localdbug/starlink/')
+    outpath= os.path.join(inpath,'test_output/')
 
-    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
-
-    #path='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
-    #outpath='/Users/ngpdl/Code/swmf-energetics/localdbug/starlink/'
-    herepath='/Users/ngpdl/Code/swmf-energetics/'
-    filelist = sorted(glob.glob(path+'*paraview*.plt'),
+    filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
                       key=time_sort)
+    tstart = get_time(filelist[0])
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     #or ('02200' in f)]
-    filelist = [f for f in filelist if ('03-070300' in f)]
+    #filelist = [f for f in filelist if ('03-070300' in f)]
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
-        tstart = dt.datetime(2022,2,2,5,1,0)
         outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
@@ -66,18 +46,6 @@ if True:
                                                        path=herepath,
                                                        ffj=True,
                                                        doEnergyFlux=False)
-        '''
-        # Create lobes and closed surface
-        closed = pv_surface_tools.create_iso_surface(field,'Status',
-                                                     'closed_surface',
-                                                     iso_value=3)
-        north = pv_surface_tools.create_iso_surface(field,'Status',
-                                                     'north_surface',
-                                                     iso_value=2)
-        south = pv_surface_tools.create_iso_surface(field,'Status',
-                                                     'south_surface',
-                                                     iso_value=1)
-        '''
         # Split and display another
         layout = GetLayout()
         layout.SetSize(1280, 1280)# Single hyperwall screen
@@ -95,37 +63,40 @@ if True:
                              contourMin=-1,
                              contourMax=3,
                              cmap='Inferno (matplotlib)',
-                            show_mp=True,timestamp=(i==0))
-            '''
-            closedDisplay=Show(closed,renderView,'GeometryRepresentation')
-            ColorBy(closedDisplay, None)
-            closedDisplay.AmbientColor = [1.0, 1.0, 0.0]
-            closedDisplay.DiffuseColor = [1.0, 1.0, 0.0]
+                             show_legend=False,
+                            show_mp=True,timestamp=False)
+            stamp = Text(registrationName='stamp')
+            if i==0:
+                stamp.Text = 'NORTH'
+                stampDisplay = Show(stamp,renderView,'TextSourceRepresentation')
+                stampDisplay.WindowLocation = 'Upper Right Corner'
+                stampDisplay.FontSize=80
+            elif i==1:
+                stamp.Text = 'SOUTH'
+                stampDisplay = Show(stamp,renderView,'TextSourceRepresentation')
+                stampDisplay.WindowLocation = 'Lower Right Corner'
+                stampDisplay.FontSize=80
+            stampDisplay.Color = [0.652, 0.652, 0.652]
+            renderView.OrientationAxesVisibility = 0
+            # paraview doesn't have the capability to change OA size from
+            # python??? :'(
+            #renderView.OrientationAxesInteractivity = 1
 
-            northDisplay=Show(north,renderView,'GeometryRepresentation')
-            ColorBy(northDisplay, None)
-            northDisplay.AmbientColor = [0.333, 1.0, 1.0]
-            northDisplay.DiffuseColor = [0.333, 1.0, 1.0]
-
-            southDisplay=Show(south,renderView,'GeometryRepresentation')
-            ColorBy(southDisplay, None)
-            southDisplay.AmbientColor = [0.333, 0.666, 1.0]
-            southDisplay.DiffuseColor = [0.333, 0.666, 1.0]
-            '''
         # Overwrite camera positions
-
-        renderView1.CameraPosition = [42.585901233081, -6.769056543479001, 49.439340467258006]
+        renderView1.CameraPosition = [42.58, -6.76, 49.43]
         renderView1.CameraFocalPoint = [30.11, -4.72, 37.56]
-        renderView1.CameraViewUp = [-0.6917662588186009, -0.02005119590778553, 0.7218430526802792]
+        renderView1.CameraViewUp = [-0.69, -0.02, 0.72]
 
         # current camera placement for renderView2
-        renderView2.CameraPosition = [43.614642774448406, -0.5419440783687373, -35.94152705741683]
-        renderView2.CameraFocalPoint = [-139.74339938398316, 4.881931788875821, 102.00015934086913]
-        renderView2.CameraViewUp = [0.5999383634463533, 0.10271526877958286, 0.7934251909442058]
+        renderView2.CameraPosition = [43.61, -0.54, -35.94]
+        renderView2.CameraFocalPoint = [-139.74, 4.88, 102.00]
+        renderView2.CameraViewUp = [0.59, 0.10, 0.79]
         renderView2.CameraParallelScale = 59.4
         # Save screenshot
         SaveScreenshot(outpath+outfile,layout,
                        SaveAllViews=1,ImageResolution=[1280,1280])
+        print('\033[92m Created\033[00m',os.path.relpath(outpath+outfile,
+                                                         os.getcwd()))
     #for i,infile in enumerate(filelist[1::]):
     if False:
         print(str(i+2)+'/'+str(len(filelist))+
