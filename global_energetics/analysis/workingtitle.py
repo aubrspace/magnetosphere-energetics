@@ -567,12 +567,13 @@ def locate_phase(times,**kwargs):
         inter_start = aug2019_inter_start
         inter_end = aug2019_inter_end
     else:
-        impact = times[0]
-        peak1 = times[round(len(times)/2)]
-        peak2 = times[round(len(times)/2)]
-        #peak2 = times[-1]
-        inter_start = peak1-dt.timedelta(minutes=75)
-        inter_end = peak1+dt.timedelta(minutes=75)
+        start = dt.timedelta(minutes=390)
+        impact = dt.datetime(2014,4,10,6,30,0)
+        #impact = times[0]
+        peak1 = times[-1]
+        peak2 = times[-1]
+        inter_start = impact
+        inter_end = peak2
     #return start, impact, peak1, peak2, inter_start, inter_end
     moments={'start':start,
              'impact':impact,
@@ -2201,16 +2202,16 @@ def lobe_balance_fig(dataset,phase,path):
 
         ## TOTAL
         #M1,5,total from mp
-        M1 = mp['UtotM1 [W]']
-        M5 = mp['UtotM5 [W]']
-        M = mp['UtotM [W]']
-        MM = mp['MM [kg/s]']
+        M1 = mp['UtotM1 [W]'].fillna(value=0)
+        M5 = mp['UtotM5 [W]'].fillna(value=0)
+        M = mp['UtotM [W]'].fillna(value=0)
+        MM = mp['MM [kg/s]'].fillna(value=0)
         #M1a,1b,2b,il from lobes
-        M1a = lobes['UtotM1a [W]']
-        M1b = lobes['UtotM1b [W]']
-        M2b = lobes['UtotM2b [W]']
-        M2d = lobes['UtotM2d [W]']
-        Mil = lobes['UtotMil [W]']
+        M1a = lobes['UtotM1a [W]'].fillna(value=0)
+        M1b = lobes['UtotM1b [W]'].fillna(value=0)
+        M2b = lobes['UtotM2b [W]'].fillna(value=0)
+        M2d = lobes['UtotM2d [W]'].fillna(value=0)
+        Mil = lobes['UtotMil [W]'].fillna(value=0)
         '''
         MM_lobes = (lobes['MM1a [kg/s]']+
                     lobes['MM1b [kg/s]']-
@@ -2220,11 +2221,11 @@ def lobe_balance_fig(dataset,phase,path):
                     lobes['MM2d [kg/s]'])
         '''
         #M5a,5b,2a,ic from closed
-        M5a = closed['UtotM5a [W]']
-        M5b = closed['UtotM5b [W]']
-        M2a = closed['UtotM2a [W]']
-        M2c = closed['UtotM2c [W]']
-        Mic = closed['UtotMic [W]']
+        M5a = closed['UtotM5a [W]'].fillna(value=0)
+        M5b = closed['UtotM5b [W]'].fillna(value=0)
+        M2a = closed['UtotM2a [W]'].fillna(value=0)
+        M2c = closed['UtotM2c [W]'].fillna(value=0)
+        Mic = closed['UtotMic [W]'].fillna(value=0)
         '''
         MM_closed = (closed['MM5a [kg/s]']+
                      closed['MM5b [kg/s]']+
@@ -2239,42 +2240,42 @@ def lobe_balance_fig(dataset,phase,path):
 
         ## HYDRO
         #HM1,5,total from mp
-        HM1 = mp['uHydroM1 [W]']
-        HM5 = mp['uHydroM5 [W]']
-        HM = mp['uHydroM [W]']
+        HM1 = mp['uHydroM1 [W]'].fillna(value=0)
+        HM5 = mp['uHydroM5 [W]'].fillna(value=0)
+        HM = mp['uHydroM [W]'].fillna(value=0)
         #HM1a,1b,2b,il from lobes
-        HM1a = lobes['uHydroM1a [W]']
-        HM1b = lobes['uHydroM1b [W]']
-        HM2b = lobes['uHydroM2b [W]']
-        HM2d = lobes['uHydroM2d [W]']
-        HMil = lobes['uHydroMil [W]']
+        HM1a = lobes['uHydroM1a [W]'].fillna(value=0)
+        HM1b = lobes['uHydroM1b [W]'].fillna(value=0)
+        HM2b = lobes['uHydroM2b [W]'].fillna(value=0)
+        HM2d = lobes['uHydroM2d [W]'].fillna(value=0)
+        HMil = lobes['uHydroMil [W]'].fillna(value=0)
         #HM5a,5b,2a,ic from closed
-        HM5a = closed['uHydroM5a [W]']
-        HM5b = closed['uHydroM5b [W]']
-        HM2a = closed['uHydroM2a [W]']
-        HM2c = closed['uHydroM2c [W]']
-        HMic = closed['uHydroMic [W]']
+        HM5a = closed['uHydroM5a [W]'].fillna(value=0)
+        HM5b = closed['uHydroM5b [W]'].fillna(value=0)
+        HM2a = closed['uHydroM2a [W]'].fillna(value=0)
+        HM2c = closed['uHydroM2c [W]'].fillna(value=0)
+        HMic = closed['uHydroMic [W]'].fillna(value=0)
 
         HM_lobes = HM1a+HM1b-HM2a+HM2b-HM2c+HM2d
         HM_closed = HM5a+HM5b+HM2a-HM2b+HM2c-HM2d
 
         ## MAG
         #SM1,5,total from mp
-        SM1 = mp['uBM1 [W]']
-        SM5 = mp['uBM5 [W]']
-        SM = mp['uBM [W]']
+        SM1 = mp['uBM1 [W]'].fillna(value=0)
+        SM5 = mp['uBM5 [W]'].fillna(value=0)
+        SM = mp['uBM [W]'].fillna(value=0)
         #HM1a,1b,2b,il from lobes
-        SM1a = lobes['uBM1a [W]']
-        SM1b = lobes['uBM1b [W]']
-        SM2b = lobes['uBM2b [W]']
-        SM2d = lobes['uBM2d [W]']
-        SMil = lobes['uBMil [W]']
+        SM1a = lobes['uBM1a [W]'].fillna(value=0)
+        SM1b = lobes['uBM1b [W]'].fillna(value=0)
+        SM2b = lobes['uBM2b [W]'].fillna(value=0)
+        SM2d = lobes['uBM2d [W]'].fillna(value=0)
+        SMil = lobes['uBMil [W]'].fillna(value=0)
         #SM5a,5b,2a,ic from closed
-        SM5a = closed['uBM5a [W]']
-        SM5b = closed['uBM5b [W]']
-        SM2a = closed['uBM2a [W]']
-        SM2c = closed['uBM2c [W]']
-        SMic = closed['uBMic [W]']
+        SM5a = closed['uBM5a [W]'].fillna(value=0)
+        SM5b = closed['uBM5b [W]'].fillna(value=0)
+        SM2a = closed['uBM2a [W]'].fillna(value=0)
+        SM2c = closed['uBM2c [W]'].fillna(value=0)
+        SMic = closed['uBMic [W]'].fillna(value=0)
 
         SM_lobes = SM1a+SM1b-SM2a+SM2b-SM2c+SM2d
         SM_closed = SM5a+SM5b+SM2a-SM2b+SM2c-SM2d
@@ -2309,13 +2310,15 @@ def lobe_balance_fig(dataset,phase,path):
                    closed4['K_netK6 [W]']+
                    closed4['K_netK7 [W]'])
         M4Re = mp4['UtotM [W]']
+        '''
         predicted = mp['Utot [J]'].copy(deep=True)
         predicted.reset_index(drop=True,inplace=True)
         predicted.index+=1
-        predicted -= (Ksum*60).values
+        dt = [(t1-t0)/1e9 for t0,t1 in zip(times[0:-1],times[1::])]
+        dt.append(dt[-1])
+        predicted -= (Ksum*dt).values
         predicted.iloc[0] = 0
         #predicted.drop(index=predicted.index[-1],inplace=True)
-        '''
         '''
         Masssum_mp = (mp['M_net [kg/s]']+lobes['M_netK3 [kg/s]']+
                       closed['M_netK7 [kg/s]'])
@@ -2609,24 +2612,25 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(closed_balance_detail)
         print('\033[92m Created\033[00m',figurename)
 
+        """
         #############
         #setup figure
         total_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.plot(times,K_mp.cumsum()*60/1e15,label='CentralDiff3Re')
-        axis.plot(times,(Ksum+M).cumsum()*60/1e15,
-                         label='Summed3Re')
-        axis.plot(times4,K_mp4.cumsum()*60/1e15,label='CentralDiff4Re')
-        axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index].cumsum()*60/1e15,
-                         label='Summed4Re')
+        axis.plot(times,K_mp.cumsum()*dt/1e15,label='CentralDiff')
+        axis.plot(times,(Ksum+M).cumsum()*dt/1e15,
+                         label='Summed')
+        #axis.plot(times4,K_mp4.cumsum()*60/1e15,label='CentralDiff4Re')
+        #axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index].cumsum()*60/1e15,
+        #                 label='Summed4Re')
         axis.plot(times,-1*(predicted-mp['Utot [J]'][0])/1e15,
-                  label='1minPrediction3Re')
+                  label='1minPrediction')
         axis.fill_between(times,
                          -1*(mp['Utot [J]']-mp['Utot [J]'][0])/1e15,
-                          label='-1*Energy3Re',fc='grey')
+                          label='-1*Energy',fc='grey')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              ylim=[-40,2],
+                              #ylim=[-40,2],
                         ylabel=r'Accumulated Power $\left[ PJ\right]$',
                               timedelta=dotimedelta)
         axis.axvline((moments['impact']-
@@ -2643,6 +2647,7 @@ def lobe_balance_fig(dataset,phase,path):
         plt.close(total_acc_total)
         print('\033[92m Created\033[00m',figurename)
 
+        """
         #############
         #setup figure
         lobe_acc_total,axis = plt.subplots(1,1,figsize=[16,8])
@@ -4205,12 +4210,12 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        #lobe_balance_fig(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        satellite_comparisons(dataset, phase, path)
+        #satellite_comparisons(dataset, phase, path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -4238,11 +4243,12 @@ def interval_figures(dataset):
 if __name__ == "__main__":
     #Need input path, then create output dir's
     inBase = sys.argv[-1]
-    inLogs = os.path.join(sys.argv[-1],'data/logs/')
-    inSats = os.path.join(sys.argv[-1],'data/sats/')
-    inGround = os.path.join(sys.argv[-1],'data/ground/')
-    inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
-    #inAnalysis = os.path.join(sys.argv[-1],'data/analysis/GM/')
+    #inLogs = os.path.join(sys.argv[-1],'data/logs/')
+    inLogs = os.path.join(inBase,'')
+    inSats = os.path.join(inBase,'data/sats/')
+    inGround = os.path.join(inBase,'data/ground/')
+    #inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
+    inAnalysis = os.path.join(inBase,'analysis/GM/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
     outSSC = os.path.join(outPath,'shockImpact')
@@ -4266,23 +4272,25 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
-    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
     #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
+    dataset['ideal'] = load_hdf_sort(inAnalysis+'gm_results.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    from IPython import embed; embed()
-    dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=False,
-                                     end=dataset['star4']['msdict']['closed'].index[-1],
-                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    #dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                                 end=dataset['star4']['msdict']['closed'].index[-1],
+    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
+    dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
+                                           read_supermage=False)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
@@ -4293,8 +4301,9 @@ if __name__ == "__main__":
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(inSats)
+    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
+    dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]
@@ -4381,11 +4390,13 @@ if __name__ == "__main__":
             for src in obs_srcs:
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
                                 parse_phase(event['obs'][src],phase))
+    '''
             for sat in satlist:
                 event['vsat'][sat+phase],event[sat+'_vtime'+phase] = (
                                         parse_phase(event['vsat'][sat],phase))
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
+    '''
     '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
