@@ -55,6 +55,7 @@ def energetics_analysis(infiles,outpath):
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
+    '''
     #iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
     iedatafile = ('ideal_test/IE/ionosphere/'+
                   'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
@@ -69,6 +70,7 @@ def energetics_analysis(infiles,outpath):
         with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
             png.close()
         exit
+    '''
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
         field_data.zone(1).name = 'future'
@@ -81,20 +83,21 @@ def energetics_analysis(infiles,outpath):
                                       save_mesh=False,
                                       write_data=True,
                                       disp_result=False,
-                                      do_cms=True,
-                                      do_central_diff=True,
+                                      do_cms=False,
+                                      do_central_diff=False,
+                                      do_1Dsw=True,
                                       analysis_type='energy_mass_mag',
                                       #modes=['perfectsphere'],
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe'],
                                       inner_r=4,
                                       blankvalue=4,
-                                      customTerms={'test':'TestArea [Re^2]'},
+                                      #customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=False,
-                                      integrate_volume=True,
-                                      truegridfile=oggridfile,
+                                      integrate_surface=True,
+                                      integrate_volume=False,
+                                      #truegridfile=oggridfile,
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
@@ -198,8 +201,8 @@ if __name__ == "__main__":
         print('now: ',nowfile)
         print('next: ',nextfile)
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        #energetics_analysis([nowfile],outpath)
-        energetics_analysis([previousfile,nextfile_mirror],outpath)
+        energetics_analysis([nowfile],outpath)
+        #energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
