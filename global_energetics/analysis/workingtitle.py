@@ -2102,6 +2102,64 @@ def lobe_power_histograms(dataset, phase, path,doratios=False):
     print('\033[92m Created\033[00m',figurename)
 
 
+def oneD_comparison(dataset,phase,path):
+    """Plot the energy balance on the lobes
+    """
+    for i,event in enumerate(dataset.keys()):
+        lobes = dataset[event]['msdict'+phase]['lobes']
+        closed = dataset[event]['msdict'+phase]['closed']
+        mp = dataset[event]['mp'+phase]
+        inner = dataset[event]['inner_mp'+phase]
+        times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
+        sim = dataset[event]['obs']['swmf_log'+phase]
+        simtime = dataset[event]['swmf_log_otime'+phase]
+        simt = [float(n) for n in simtime.to_numpy()]#bad hack
+        obs = dataset[event]['obs']['omni'+phase]
+        obstime = dataset[event]['omni_otime'+phase]
+        ot = [float(n) for n in obstime.to_numpy()]#bad hack
+        moments = locate_phase(dataset[event]['time'])
+
+        #############
+        #setup figure
+        injection,axis = plt.subplots(1,1,figsize=[16,8])
+        #Plot
+        axis.plot(times,(mp['1DK_netK5 [W]']+
+                         mp['1DK_netK1 [W]'])/1e12,
+                                 label='1DNet_forward')
+        axis.plot(times,(
+            #mp['K_netK5 [W]']+
+                         lobes['K_netK1 [W]'])/1e12,
+                                 label='Net_forward')
+        rax = axis.twinx()
+        rax.plot(times,
+            (
+            #mp['K_netK5 [W]']+
+             lobes['K_netK1 [W]'])/
+            (mp['1DK_netK5 [W]']+
+             mp['1DK_netK1 [W]'])*100,
+                                 color='grey',label='Ratio')
+        #Decorations
+        general_plot_settings(axis,do_xlabel=True,legend=True,
+                              ylim=[-100,30],
+                              ylabel=r'Net Power $\left[ TW\right]$',
+                              legend_loc='lower left',
+                              timedelta=True)
+        rax.set_ylim([-50,50])
+        rax.set_ylabel(r'$\%$')
+        axis.axvspan((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,0,
+                       fc='lightgrey')
+        #save
+        injection.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
+                                      ha='left',x=0.01,y=0.99)
+        injection.tight_layout(pad=1)
+        figurename = path+'/injection'+phase+'_'+event+'.png'
+        injection.savefig(figurename)
+        plt.close(injection)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+
 def lobe_balance_fig(dataset,phase,path):
     """Plot the energy balance on the lobes
     """
@@ -2318,6 +2376,8 @@ def lobe_balance_fig(dataset,phase,path):
         dt.append(dt[-1])
         predicted -= (Ksum*dt).values
         predicted.iloc[0] = 0
+        decay_loss_rate = [-(1-np.e**(-t/36000)) for t in dt]
+        decay_loss = decay_loss_rate*closed['uHydro [J]']
         #predicted.drop(index=predicted.index[-1],inplace=True)
         '''
         Masssum_mp = (mp['M_net [kg/s]']+lobes['M_netK3 [kg/s]']+
@@ -2486,20 +2546,32 @@ def lobe_balance_fig(dataset,phase,path):
         mass_balance_regions.savefig(figurename)
         plt.close(mass_balance_regions)
         print('\033[92m Created\033[00m',figurename)
+        '''
 
         #############
         #setup figure
         total_balance_total,axis = plt.subplots(1,1,figsize=[16,8])
         #Plot
-        axis.fill_between(times,(K_mp)/1e12,label='Cdiff3Re',fc='grey')
-        axis.fill_between(times4,(K_mp4)/1e12,label='Cdiff4Re',fc='tab:blue',
-                          alpha=0.2)
-        axis.plot(times,(Ksum+M)/1e12,label='Summed3Re')
-        axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index]/1e12,label='Summed4Re')
+        axis.fill_between(times,(Ksum+M-K_mp)/1e12,label='Error',fc='grey')
+        axis.plot(times,(Ksum+M-K_mp-decay_loss)/1e12,label='DecayError')
+        #axis.plot(times,decay_loss/1e12,label='Decay')
+        #axis.plot(times,(K_mp)/1e12,label='Cdiff')
+        #axis.fill_between(times,(K_mp)/1e12,label='Cdiff',fc='grey')
+        #axis.fill_between(times4,(K_mp4)/1e12,label='Cdiff4Re',fc='tab:blue',
+        #                  alpha=0.2)
+        #axis.plot(times,(Ksum+M)/1e12,label='Summed')
+        #axis.plot(times,(Ks1)/1e12,label='K1')
+        #axis.plot(times,(Ks3)/1e12,label='K3')
+        #axis.plot(times,(Ks4)/1e12,label='K4')
+        #axis.plot(times,(Ks5)/1e12,label='K5')
+        #axis.plot(times,(Ks6)/1e12,label='K6')
+        #axis.plot(times,(Ksum+M-(Ks3+Ks7))/1e12,label='minus(K3+K7)')
+        #axis.plot(times,(M)/1e12,label='M')
+        #axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index]/1e12,label='Summed4Re')
         #axis.plot(times,(Ksum+M-K_mp)/1e12,label='Error3Re')
         #Decorations
         general_plot_settings(axis,do_xlabel=True,legend=True,
-                              ylim=[-20,5],
+                              #ylim=[-20,5],
                               ylabel=r'Net Power $\left[ TW\right]$',
                               legend_loc='lower left',
                               timedelta=dotimedelta)
@@ -2516,7 +2588,6 @@ def lobe_balance_fig(dataset,phase,path):
         total_balance_total.savefig(figurename)
         plt.close(total_balance_total)
         print('\033[92m Created\033[00m',figurename)
-        '''
 
         """
         #############
@@ -2620,6 +2691,8 @@ def lobe_balance_fig(dataset,phase,path):
         axis.plot(times,K_mp.cumsum()*dt/1e15,label='CentralDiff')
         axis.plot(times,(Ksum+M).cumsum()*dt/1e15,
                          label='Summed')
+        axis.plot(times,((Ksum+M-decay_loss)).cumsum()*dt/1e15,
+                         label='withDecay')
         #axis.plot(times4,K_mp4.cumsum()*60/1e15,label='CentralDiff4Re')
         #axis.plot(times4,(Ksum4Re+M4Re)[Ksum4Re.index].cumsum()*60/1e15,
         #                 label='Summed4Re')
@@ -4210,12 +4283,13 @@ def main_rec_figures(dataset):
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
         #satellite_comparisons(dataset, phase, path)
+        oneD_comparison(dataset,phase,path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -4236,19 +4310,20 @@ def interval_figures(dataset):
         #imf_figure(dataset,phase,path,hatches)
         #quantity_timings(dataset, phase, path)
         #quantify_timings2(dataset, phase, path)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
+        oneD_comparison(dataset,phase,path)
         #diagram_summary(dataset,phase,unfiled)
         #lobe_power_histograms(dataset, phase, path)
 
 if __name__ == "__main__":
     #Need input path, then create output dir's
     inBase = sys.argv[-1]
-    #inLogs = os.path.join(sys.argv[-1],'data/logs/')
-    inLogs = os.path.join(inBase,'')
+    inLogs = os.path.join(sys.argv[-1],'data/logs/')
+    #inLogs = os.path.join(inBase,'')
     inSats = os.path.join(inBase,'data/sats/')
     inGround = os.path.join(inBase,'data/ground/')
-    #inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
-    inAnalysis = os.path.join(inBase,'analysis/GM/')
+    inAnalysis = os.path.join(sys.argv[-1],'data/analysis/')
+    #inAnalysis = os.path.join(inBase,'analysis/GM/')
     outPath = os.path.join(inBase,'figures')
     outQT = os.path.join(outPath,'quietTime')
     outSSC = os.path.join(outPath,'shockImpact')
@@ -4272,25 +4347,25 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
-    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
     #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
-    dataset['ideal'] = load_hdf_sort(inAnalysis+'gm_results.h5')
+    #dataset['ideal'] = load_hdf_sort(inAnalysis+'gm_results.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    #dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                                 end=dataset['star4']['msdict']['closed'].index[-1],
-    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
+                                     read_supermag=False,
+                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
-    dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
-                                           read_supermage=False)
+    #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
+    #                                       read_supermage=False)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
@@ -4300,10 +4375,10 @@ if __name__ == "__main__":
 
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
-    #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
-    dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
+    #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]

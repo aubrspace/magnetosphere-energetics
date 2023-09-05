@@ -293,7 +293,8 @@ def prep_field_data(field_data, **kwargs):
                                                 rmax, rmin, itr_max, tol,
                                                 global_key='future*')
         elif (('modes' in kwargs) and
-              ('iso_betastar' not in kwargs.get('modes',[]))):
+              ('iso_betastar' not in kwargs.get('modes',[])) and
+              ('xslice' not in kwargs.get('modes',[]))):
             aux['x_subsolar'] = 0
             aux['x_nexl'] = 0
             aux['inner_l'] = 0

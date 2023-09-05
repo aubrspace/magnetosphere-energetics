@@ -784,6 +784,14 @@ def get_surf_geom_variables(zone,**kwargs):
                zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
                zones=[zone.index], value_location=CC)
+    elif 'xslice' in zone.name:
+        #These ones should be assigned a normal on creation (flat plane)
+        eq('{surface_normal_x} = {X Grid K Unit Normal}',
+            zones=[zone.index], value_location=CC)
+        eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+            zones=[zone.index], value_location=CC)
+        eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+            zones=[zone.index], value_location=CC)
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
@@ -1554,6 +1562,45 @@ def setup_solidvolume(source, blankindex, state_variable,zonename,**kwargs):
     plt.value_blanking.active = False
     return newzone
 
+def setup_slicezone(dataset, location_var, location_value, state_name,
+                    **kwargs):
+    """Function creates a slice zone and returns the new zone
+    Inputs
+    Returns
+    """
+    state_variable = dataset.variable(state_name)
+    plot = tp.active_frame().plot()
+    #turn on blanking
+    plot.value_blanking.active = True
+    #set to "primary value" for blanking
+    plot.value_blanking.cell_mode = ValueBlankCellMode.PrimaryValue
+    #turn on slices
+    plot.show_slices = True
+    #clear all conditions and slices
+    for index in range(0,8):
+        plot.value_blanking.constraint(index).active=False
+        if index!=kwargs.get('sliceindex',3):
+            plot.slice(index).show = False
+        else:
+            plot.slice(index).show = True
+            state_slice = plot.slice(index)
+    #set blank condition to not= statevariable
+    inverse_stateblank = plot.value_blanking.constraint(
+                                                   kwargs.get('blankindex',3))
+    inverse_stateblank.variable = dataset.variable(state_variable)
+    inverse_stateblank.comparison_operator = RelOp.NotEqualTo
+    inverse_stateblank.comparison_value = kwargs.get('state_value',1)
+    inverse_stateblank.active=True
+    #setup slice properties
+    if location_var=='x':
+        state_slice.orientation = SliceSurface.XPlanes
+        origin = (location_value,0,0)
+        normal = (1,0,0)
+    state_slice.origin[0] = 0
+    zone = tp.data.extract.extract_slice(origin=origin,normal=normal,
+                                         copy_cellcenters=True)
+    return zone
+
 def setup_isosurface(iso_value, varindex, zonename, *,
                      contindex=7, isoindex=7, global_key='global_field',
                                             blankvar='',blankvalue=3,
@@ -1752,6 +1799,15 @@ def calc_state(mode, zones, **kwargs):
                                         str(kwargs.get('lshelllim',7)),
                                         str(kwargs.get('bxmax',10)),
                                         zones)
+    elif 'xslice' in mode:
+        assert 'lcb' in zones[0].dataset.variable_names, ('No'+
+                                       ' closed_zone variable! Cant do xslice')
+        zonename = 'ms_'+mode
+        #state_index = calc_xslice_state(zonename,closed_zone.name,zones)
+        zone = setup_slicezone(zones[0].dataset,'x',0,'lcb')
+        zone.name = zonename
+        return zone, None, zones[0].dataset.variable('lcb').index
+
     elif 'bs' in mode:
         #TODO: revive and refresh this to give a consistant result
         #       -> then integrate only the forward projected area
@@ -2300,6 +2356,11 @@ def calc_bs_state2(deltaS, betastarblank, xtail, zones, *,
                       '({1Ds [Re^4/s^2kg^2/3]}+1e-20)<'+str(deltaS)+
                             '),1,0)',zones=zones)
     return zones[0].dataset.variable('ext_bs_Ds').index
+
+def calc_xslice_state(varname,closed_name,zones):
+    eq = tp.data.operate.execute_equation
+    eq('{'+varname+'}=if({'+closed_name+'}==1&&{X [R]}==0,1,0)',zones=zones)
+    return zones[0].dataset.variable(varname).index
 
 def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,zones,**kwargs):
     """Function creates equation for the plasmasheet or quasi diploar

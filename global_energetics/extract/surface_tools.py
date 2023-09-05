@@ -440,10 +440,16 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                 else:
                     new_eq+=('({nightmapped}'+
                               '['+condition_source+']>0)&&')
+        #Y+-
+        if ('y+' in conditions) or ('y-' in conditions):
+            if 'y+' in conditions:
+                new_eq+='({Y [R]}['+condition_source+']>0) &&'#Dusk
+            if 'y-' in conditions:
+                new_eq+='({Y [R]}['+condition_source+']<0) &&'#Dawn
         #Write out the equation modifications
         if any([a in c for c in conditions for a in
                            ['open','closed','tail','on_innerbound','L7',
-                            'daymapped','nightmapped']]):
+                            'daymapped','nightmapped','y']]):
             #chop hanging && and close up condition
             new_eq=('&&'.join(new_eq.split('&&')[0:-1])+',{'+term[0]+'}['+
                                                   str(zone.index+1)+'],0)')
@@ -697,6 +703,12 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
            ['not on_innerbound','=L7'],'L7',inner_r=kwargs.get('inner_r',3),
                                               L=kwargs.get('lshelllim',7)))
+    ##XSlice
+    if 'xslice' in target:
+        #Dusk
+        interfaces.update(conditional_mod(zone,integrands,['y+'],'Dusk'))
+        #Dawn
+        interfaces.update(conditional_mod(zone,integrands,['y-'],'Dawn'))
     return interfaces
 
 
