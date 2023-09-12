@@ -399,7 +399,8 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
                     label='External+Internal')#light green color
     #Plot stacks
     for i,(szlabel,sz) in enumerate([(l,z) for l,z in msdict.items()
-                                     if 'closed_rc' not in l]):
+                                     if ('closed_rc' not in l) and
+                                        ('slice' not in l)]):
         print(szlabel)
         szval = sz[value_key]
         #NOTE changed just for this work
