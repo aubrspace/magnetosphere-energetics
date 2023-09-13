@@ -819,6 +819,9 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                                       fluxRec.mean()))
         #setup figure
         contr,ax=plt.subplots(1,1,figsize=[18,8])
+        dtime_impact = (moments['impact']-
+                        moments['peak2']).total_seconds()*1e9
+        ax.axvspan(dtime_impact,0,facecolor='lightgrey')
         if 'lineup' in ph or 'interv' in ph:
             dotimedelta=True
         else: dotimedelta=False
@@ -839,9 +842,6 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
         #           color='Black')
         #rax.set_ylim([0,55])
         #NOTE mark impact w vertical line here
-        dtime_impact = (moments['impact']-
-                        moments['peak2']).total_seconds()*1e9
-        ax.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
         #general_plot_settings(rax,
         #                      do_xlabel=False, legend=False,
         #                      timedelta=dotimedelta)
@@ -3364,8 +3364,6 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
             print('{:<25}{:<20}\n'.format('****','****'))
             pass
         #IMF
-        ax[0].fill_between(swt,sw['B'], ec='dimgrey',fc='thistle',
-                               hatch=hatches[i], label=r'$|B|$')
         ax[0].plot(swt,sw['bx'],label=r'$B_x$',c='maroon')
         ax[0].plot(swt,sw['by'],label=r'$B_y$',c='magenta')
         ax[0].plot(swt,sw['bz'],label=r'$B_z$',c='tab:blue')
@@ -3373,8 +3371,6 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
                               do_xlabel=False, legend=True,
                               timedelta=dotimedelta)
         #Plasma
-        ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
-                               hatch=hatches[i],label=r'$P_{dyn}$')
         ax[1].plot(swt,sw['Beta'],label=r'$\beta$',c='tab:blue')
         #ax[1].plot(swt,sw['Ma'],label=r'$M_{Alf}$',c='magenta')
         #rax = ax[1].twinx()
@@ -3400,7 +3396,7 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         for axis in ax:
             axis.axvspan((moments['impact']-
                                moments['peak2']).total_seconds()*1e9,0,
-                               color='grey',alpha=0.2)
+                               fc='lightgrey')
             axis.margins(x=0.01)
             '''
             axis.axvline((moments['impact']-
@@ -3408,6 +3404,12 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
             '''
+        # NOTE Fills must come after for EPS images (no translucency allowed!)
+        ax[0].fill_between(swt,sw['B'], ec='dimgrey',fc='thistle',
+                               hatch=hatches[i], label=r'$|B|$')
+        ax[0].set_ylim([-21,20])
+        ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
+                               hatch=hatches[i],label=r'$P_{dyn}$')
         #save
         dst.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
                                                      ha='left',x=0.01,y=0.99)
@@ -3506,15 +3508,15 @@ def satellite_comparisons(dataset,phase,path):
                                moments['peak2']).total_seconds()*1e9,
                                ls='--',color='black')
             Bz_axis.axvline(0,ls='--',color='black')
-            Bz_axis.fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='mistyrose',
                                  where=((virtual['Status']>2)).values)
-            Bz_axis.fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='lightblue',
                                  where=((virtual['Status']<2)&
                                         (virtual['Status']>1)).values)
-            Bz_axis.fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='paleturquoise',
                                  where=((virtual['Status']<1)&
                                         (virtual['Status']>0)).values)
-            Bz_axis.fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='lightgrey',
                                  where=((virtual['Status']<0)).values)
             Bz_axis.tick_params(axis='y',colors='tab:blue')
             general_plot_settings(P_axis,
@@ -3529,15 +3531,15 @@ def satellite_comparisons(dataset,phase,path):
                                moments['peak2']).total_seconds()*1e9,
                                ls='--',color='black')
             P_axis.axvline(0,ls='--',color='black')
-            P_axis.fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
+            P_axis.fill_between(vtime,-1e11,1e11,color='mistyrose',
                                  where=((virtual['Status']>2)).values)
-            P_axis.fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
+            P_axis.fill_between(vtime,-1e11,1e11,color='lightblue',
                                  where=((virtual['Status']<2)&
                                         (virtual['Status']>1)).values)
-            P_axis.fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
+            P_axis.fill_between(vtime,-1e11,1e11,color='paleturquoise',
                                  where=((virtual['Status']<1)&
                                         (virtual['Status']>0)).values)
-            P_axis.fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
+            P_axis.fill_between(vtime,-1e11,1e11,color='lightgrey',
                                  where=((virtual['Status']<0)).values)
             P_axis.tick_params(axis='y',colors='tab:olive')
         #save
@@ -4394,14 +4396,14 @@ def main_rec_figures(dataset):
     #for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
     for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
+        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        solarwind_figure(dataset,phase,path,hatches,tabulate=False)
-        lobe_balance_fig(dataset,phase,path)
+        #solarwind_figure(dataset,phase,path,hatches,tabulate=False)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -4479,7 +4481,7 @@ if __name__ == "__main__":
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
     dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=True,
+                                     read_supermag=False,
                                      end=dataset['star4']['msdict']['closed'].index[-1],
                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
