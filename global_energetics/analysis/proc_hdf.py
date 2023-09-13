@@ -126,19 +126,23 @@ def load_hdf_sort(hdf, **kwargs):
     vols = [k for k in gmdict.keys() if 'ms' in k and 'volume' in k]
     surfs = [k for k in gmdict.keys() if 'ms' in k and 'surface' in k]
     for i in range(0,max(len(vols),len(surfs))):
-        if vols!=[]:
+        #if vols!=[]:
+        if i<len(vols):
             cleaned_vol = check_timing(gmdict[vols[i]],times)
             cleaned_vol = check_units(cleaned_vol)
             key = vols[i].split('_volume')[0]
             #print(vols[i])
-        if surfs!=[]:
+        #if surfs!=[]:
+        if i<len(surfs):
             cleaned_surf = check_timing(gmdict[surfs[i]],times)
             key = surfs[i].split('_surface')[0]
             #print(surfs[i])
-        if vols!=[] and surfs!=[]:
+        #if vols!=[] and surfs!=[]:
+        if i<len(vols) and i<len(surfs):
             cleaned_df=gather_magnetopause(cleaned_surf,cleaned_vol,times)
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_df})
-        elif surfs==[]:
+        #elif surfs==[]:
+        elif i<len(vols):
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_vol})
         else:
             msdict.update({key.split('/')[1].split('_')[1]:cleaned_surf})

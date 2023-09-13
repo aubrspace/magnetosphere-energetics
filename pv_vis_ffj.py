@@ -25,20 +25,24 @@ if True:
     start_time = time.time()
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
-    inpath = os.path.join(herepath,'localdbug/starlink/')
-    outpath= os.path.join(inpath,'test_output/')
+    #inpath = os.path.join(herepath,'localdbug/starlink/')
+    #outpath= os.path.join(inpath,'test_output/')
+    inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
+    outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
 
     filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
                       key=time_sort)
     tstart = get_time(filelist[0])
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    #or ('02200' in f)]
-    #filelist = [f for f in filelist if ('03-070300' in f)]
-    for infile in filelist[0:1]:
+    filelist = [f for f in filelist if ('03-1154' in f)or#t0
+                                       ('03-1204' in f)or#t1
+                                       ('03-1214' in f)or#t2
+                                       ('03-1224' in f)]#t3
+    for i,infile in enumerate(filelist[0:1]):
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
-        outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
+        outfile = 't'+str(i)+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
                                                        dimensionless=True,
@@ -48,7 +52,8 @@ if True:
                                                        doEnergyFlux=False)
         # Split and display another
         layout = GetLayout()
-        layout.SetSize(1280, 1280)# Single hyperwall screen
+        #layout.SetSize(1280, 1280)# Single hyperwall screen
+        layout.SetSize(800, 1280)# Skinny for a horizontal colloage
         layout.SplitVertical(0, 0.5)
         renderView2 = CreateView('RenderView')
         AssignViewToLayout(view=renderView2, layout=layout, hint=2)
@@ -65,6 +70,7 @@ if True:
                              cmap='Inferno (matplotlib)',
                              show_legend=False,
                             show_mp=True,timestamp=False)
+            '''
             stamp = Text(registrationName='stamp')
             if i==0:
                 stamp.Text = 'NORTH'
@@ -77,6 +83,7 @@ if True:
                 stampDisplay.WindowLocation = 'Lower Right Corner'
                 stampDisplay.FontSize=80
             stampDisplay.Color = [0.652, 0.652, 0.652]
+            '''
             renderView.OrientationAxesVisibility = 0
             # paraview doesn't have the capability to change OA size from
             # python??? :'(
@@ -94,14 +101,14 @@ if True:
         renderView2.CameraParallelScale = 59.4
         # Save screenshot
         SaveScreenshot(outpath+outfile,layout,
-                       SaveAllViews=1,ImageResolution=[1280,1280])
+                       #SaveAllViews=1,ImageResolution=[1280,1280])
+                       SaveAllViews=1,ImageResolution=[800,1280])
         print('\033[92m Created\033[00m',os.path.relpath(outpath+outfile,
                                                          os.getcwd()))
-    #for i,infile in enumerate(filelist[1::]):
-    if False:
+    for i,infile in enumerate(filelist[1::]):
         print(str(i+2)+'/'+str(len(filelist))+
               ' processing '+infile.split('/')[-1]+'...')
-        outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
+        outfile = 't'+str(i+1)+infile.split('_1_')[-1].split('.')[0]+'.png'
         if os.path.exists(outpath+outfile):
             print(outfile+' already exists, skipping')
         else:
@@ -116,10 +123,10 @@ if True:
             ###Update time varying filters
             aux = read_aux(infile.replace('.plt','.aux'))
             localtime = get_time(infile)
-            timestamp1 = FindSource('tstamp')
-            timestamp1.Text = str(localtime)
-            timestamp2 = FindSource('tsim')
-            timestamp2.Text = 'tsim: '+str(localtime-tstart)
+            #timestamp1 = FindSource('tstamp')
+            #timestamp1.Text = str(localtime)
+            #timestamp2 = FindSource('tsim')
+            #timestamp2.Text = 'tsim: '+str(localtime-tstart)
             #datacube.Script = update_datacube(path=outpath,filename=outfile)
 
             #Reload the view with all the updates
@@ -128,9 +135,12 @@ if True:
 
             # Render and save screenshot
             RenderAllViews()
-            layout.SetSize(1280, 1280)# Single hyperwall screen
+            #layout.SetSize(1280, 1280)# Single hyperwall screen
+            layout.SetSize(800, 1280)# Skinny for a horizontal colloage
             SaveScreenshot(outpath+outfile,layout,
-                       SaveAllViews=1,ImageResolution=[1280,1280])
+                       SaveAllViews=1,ImageResolution=[800,1280])
+            print('\033[92m Created\033[00m',os.path.relpath(outpath+outfile,
+                                                             os.getcwd()))
 
             # Set the current source to be replaced on next loop
             oldsource = newsource

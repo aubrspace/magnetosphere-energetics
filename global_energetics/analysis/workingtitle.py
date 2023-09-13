@@ -502,9 +502,9 @@ def locate_phase(times,**kwargs):
     #starlink_endMain1 = dt.datetime(2022,2,4,13,10)
     starlink_endMain2 = dt.datetime(2022,2,3,11,54)
     starlink_inter_start = (starlink_endMain1+
-                            dt.timedelta(hours=-1,minutes=-30))
+                            dt.timedelta(hours=-4,minutes=-20))
     starlink_inter_end = (starlink_endMain1+
-                            dt.timedelta(hours=1,minutes=30))
+                            dt.timedelta(hours=-4,minutes=0))
     #May2019
     may2019_impact = dt.datetime(2019,5,14,4,11)
     #may2019_impact = dt.datetime(2019,5,13,19,35)
@@ -620,14 +620,14 @@ def parse_phase(indata,phasekey,**kwargs):
     elif 'rec' in phasekey:
         cond = times>moments['peak1']#NOTE
     elif 'interv' in phasekey:
-        #cond=(times>moments['inter_start'])&(times<moments['inter_end'])
+        cond=(times>moments['inter_start'])&(times<moments['inter_end'])
         #cond = (times>moments['impact']) & (times<moments['peak1'])
                                             #dt.timedelta(minutes=10))
         #cond = ((times>moments['peak1']-dt.timedelta(minutes=120)) &
         #        (times<moments['peak1']+dt.timedelta(minutes=30)))
 
-        cond = ((times>moments['impact']) &
-                (times<moments['impact']+dt.timedelta(minutes=120)))
+        #cond = ((times>moments['impact']) &
+        #        (times<moments['impact']+dt.timedelta(minutes=120)))
     elif 'lineup' in phasekey:
         cond = times>times[0]+moments['start']
 
@@ -819,6 +819,9 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                                       fluxRec.mean()))
         #setup figure
         contr,ax=plt.subplots(1,1,figsize=[18,8])
+        dtime_impact = (moments['impact']-
+                        moments['peak2']).total_seconds()*1e9
+        ax.axvspan(dtime_impact,0,facecolor='lightgrey')
         if 'lineup' in ph or 'interv' in ph:
             dotimedelta=True
         else: dotimedelta=False
@@ -833,22 +836,23 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
                                legend_loc='upper right', hatch=hatches[i],
                                do_xlabel=(i==len(ds.keys())-1),
                                timedelta=dotimedelta)
+        ax.set_xlim(times[0],times[-1])
+        ax.margins(x=0.01)
         #ax.plot(times,ds[ev]['msdict'+ph]['lobes']['Utot [J]']/1e15,
         #           color='Black')
         #rax.set_ylim([0,55])
         #NOTE mark impact w vertical line here
-        dtime_impact = (moments['impact']-
-                        moments['peak2']).total_seconds()*1e9
-        ax.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
         #general_plot_settings(rax,
         #                      do_xlabel=False, legend=False,
         #                      timedelta=dotimedelta)
         ax.set_xlabel(r'Time $\left[hr\right]$')
         #save
-        contr.suptitle('t0='+str(moments['peak1']),ha='left',x=0.01,y=0.99)
+        contr.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
+                                                 ha='left',x=0.01,y=0.99)
         contr.tight_layout(pad=0.8)
-        figname = path+'/contr_energy'+ph+'_'+ev+'.png'
-        contr.savefig(figname)
+        #figname = path+'/contr_energy'+ph+'_'+ev+'.png'
+        figname = path+'/contr_energy'+ph+'_'+ev+'.eps'
+        contr.savefig(figname,dpi=300)
         plt.close(contr)
         print('\033[92m Created\033[00m',figname)
 
@@ -2182,6 +2186,8 @@ def lobe_balance_fig(dataset,phase,path):
     for i,event in enumerate(dataset.keys()):
         lobes = dataset[event]['msdict'+phase]['lobes']
         closed = dataset[event]['msdict'+phase]['closed']
+        if 'xslice' in dataset[event]['msdict'+phase].keys():
+            xslice = dataset[event]['msdict'+phase]['xslice']
         mp = dataset[event]['mp'+phase]
         inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
@@ -2197,11 +2203,12 @@ def lobe_balance_fig(dataset,phase,path):
         #inner4 = dataset['star4']['inner_mp'+phase]
         #times4=[float(n) for n in dataset['star4']['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
+        #from IPython import embed; embed()
         # for solar wind
-        '''
         sw = dataset[event]['obs']['swmf_sw'+phase]
         swtime = dataset[event]['swmf_sw_otime'+phase]
         swt = [float(n) for n in swtime.to_numpy()]#bad hack
+        '''
         sim = dataset[event]['obs']['swmf_log'+phase]
         simtime = dataset[event]['swmf_log_otime'+phase]
         simt = [float(n) for n in simtime.to_numpy()]#bad hack
@@ -2227,6 +2234,9 @@ def lobe_balance_fig(dataset,phase,path):
         Ks2bc = closed['K_netK2b [W]']
         Ks6 = closed['K_netK6 [W]']
         Ks7 = closed['K_netK7 [W]']
+        #DawnDusk from xslice
+        KsDsk = xslice.get('K_netDusk [W]')
+        KsDwn = xslice.get('K_netDawn [W]')
 
         ## HYDRO
         #H1,5 from mp
@@ -2242,6 +2252,9 @@ def lobe_balance_fig(dataset,phase,path):
         Hs2bc = closed['P0_netK2b [W]']
         Hs6 = closed['P0_netK6 [W]']
         Hs7 = closed['P0_netK7 [W]']
+        #DawnDusk from xslice
+        HsDsk = xslice.get('P0_netDusk [W]')
+        HsDwn = xslice.get('P0_netDawn [W]')
 
         ## MAG
         #S1,5 from mp
@@ -2257,6 +2270,9 @@ def lobe_balance_fig(dataset,phase,path):
         Ss2bc = closed['ExB_netK2b [W]']
         Ss6 = closed['ExB_netK6 [W]']
         Ss7 = closed['ExB_netK7 [W]']
+        #DawnDusk from xslice
+        SsDsk = xslice.get('ExB_netDusk [W]')
+        SsDwn = xslice.get('ExB_netDawn [W]')
 
         ## TOTAL
         #M1,5,total from mp
@@ -2967,7 +2983,7 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_external,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
+        flavors_external,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24])
         #Plot
         axis.plot(times,(HM1+Hs1)/1e12,label='1')
         axis.plot(times,(HM5+Hs5)/1e12,label='5')
@@ -2989,8 +3005,13 @@ def lobe_balance_fig(dataset,phase,path):
         axis3.plot(times,Ks6/1e12,label='K6')
         axis3.plot(times,Ks3/1e12,label='K3')
         axis3.plot(times,Ks7/1e12,label='K7')
+
+        #axis4.plot(times,(mp['1DK_netK5 [W]']+mp['1DK_netK1 [W]'])/1e12,
+        #           label='1D Injection')
+        #axis4.plot(times,(lobes['1DK_netK4 [W]']+closed['1DK_netK6 [W]'])/1e12,
+        #           label='1D Escape')
         #Decorations
-        powerlabel=['Hydrodynamic','Poynting','Total Energy']
+        powerlabel=['Hydro.','Poynting','Tot. Energy']
         for i,ax in enumerate([axis,axis2,axis3]):
             general_plot_settings(ax,do_xlabel=(i==2),legend=False,
                                   ylabel='Integrated '+powerlabel[i]+
@@ -3001,18 +3022,18 @@ def lobe_balance_fig(dataset,phase,path):
             ax.axvspan((moments['impact']-
                       moments['peak2']).total_seconds()*1e9,0,
                        fc='lightgrey')
-            '''
-            ax.axvline((moments['impact']-
-                      moments['peak2']).total_seconds()*1e9,
-                         ls='--',color='black')
-            ax.axvline(0,ls='--',color='black')
-            '''
+            ax.margins(x=0.01)
         axis.fill_between(times,(HM1+HM5+Hs1+Hs5+Hs4+Hs6+Hs3+Hs7)/1e12,
                            label='Total',fc='dimgray')
         axis2.fill_between(times,(SM1+SM5+Ss1+Ss5+Ss4+Ss6+Ss3+Ss7)/1e12,
                            label='Total',fc='dimgray')
         axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
                            label='Total',fc='dimgray')
+        #axis4.fill_between(times,(mp['1DK_netK1 [W]']+mp['1DK_netK5 [W]']+
+        #                        lobes['1DK_netK4 [W]']+closed['1DK_netK6 [W]']
+        #                          )/1e12,
+        #                   label='Sum',fc='dimgray')
+        #axis4.set_ylim(-120,70)
 
         axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
                     ncol=7, fancybox=True, shadow=True)
@@ -3021,90 +3042,135 @@ def lobe_balance_fig(dataset,phase,path):
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         flavors_external.tight_layout(pad=1)
-        figurename = path+'/flavors_external'+phase+'_'+event+'.png'
-        flavors_external.savefig(figurename)
+        #figurename = path+'/flavors_external'+phase+'_'+event+'.png'
+        figurename = path+'/flavors_external'+phase+'_'+event+'.eps'
+        flavors_external.savefig(figurename,dpi=300)
         plt.close(flavors_external)
         print('\033[92m Created\033[00m',figurename)
         #############
 
         #############
-        #setup figure
-        flavors_internal,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[20,24])
-        #Plot
-        axis.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'${2a}$ Cusp',
-                   color='goldenrod')
-        axis.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'${2b}$ Tail',
-                   color='tab:blue')
+        ##setup figure
+        # Figure
+        flux_internal = plt.figure(figsize=[20,26])
+        # GridSpecs
+        twochunk = plt.GridSpec(2,1,hspace=0.1,top=0.95,figure=flux_internal,
+                                height_ratios=[4,1])
+        topstacks = twochunk[0].subgridspec(3,1,hspace=0.05)
+        botstacks = twochunk[1].subgridspec(1,1,hspace=0.05)
+        # Axes
+        hydro_ax = flux_internal.add_subplot(topstacks[0,:])
+        poynting_ax = flux_internal.add_subplot(topstacks[1,:])
+        total_ax = flux_internal.add_subplot(topstacks[2,:])
+        dawndusk_ax = flux_internal.add_subplot(botstacks[0,:])
 
-        axis2.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
+        ##Plot
+        # Hydro
+        hydro_ax.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'Cusp ${2a}$',
                    color='goldenrod')
-        axis2.plot(times,(Ss2bc-SM2b-SM2d)/1e12,label=r'Tail $S_{2b}$',
+        hydro_ax.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'Tail ${2b}$',
                    color='tab:blue')
-
-        #NOTE need to do central difference during run time
-        '''
-        axis3.plot(times,(Ks2ac+M2a+M2c)/1e12,label=r'Cusp $K_{2a}$',
+        # Poynting
+        poynting_ax.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
                    color='goldenrod')
-        axis3.plot(times,(Ks2bc-M2b-M2d)/1e12,label=r'Tail $K_{2b}$',
+        poynting_ax.plot(times,(Ss2bc-SM2b-SM2d)/1e12,label=r'Tail $S_{2b}$',
                    color='tab:blue')
-        axis3.fill_between(times,(Ks2ac+Ks2bc+M2a-M2b+M2c-M2d)/1e12,
-                           label=r'Net $K_2$',fc='grey')
-        '''
-        axis3.plot(times,(
-                          Hs2ac+HM2a+HM2c+
-                          Ss2ac+SM2a+SM2c
-                          )/1e12,
-                           label=r'Cusp $K_{2a}$',color='goldenrod')
-        axis3.plot(times,(
-                          Hs2bc-HM2b-HM2d+
-                          Ss2bc-SM2b-SM2d
-                          )/1e12,
-                           label=r'Tail $K_{2b}$',color='tab:blue')
-        #axis3.plot(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d+
-        #                  Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
-        #                   label=r'Summed $S_2$',color='lime')
+        # Total
+        total_ax.plot(times,(Hs2ac+HM2a+HM2c+Ss2ac+SM2a+SM2c)/1e12,
+                      label=r'Cusp $K_{2a}$',color='goldenrod')
+        total_ax.plot(times,(Hs2bc-HM2b-HM2d+Ss2bc-SM2b-SM2d)/1e12,
+                      label=r'Tail $K_{2b}$',color='tab:blue')
+        # DawnDusk
+        dawndusk_ax.plot(times,HsDwn/1e12,label=r'$H$ Dawn',color='indianred')
+        dawndusk_ax.plot(times,HsDsk/1e12,label=r'$H$ Dusk',
+                         color='red',ls=':')
+        dawndusk_ax.plot(times,SsDwn/1e12,label=r'$S$ Dawn',
+                         color='cornflowerblue')
+        dawndusk_ax.plot(times,SsDsk/1e12,label=r'$S$ Dusk',
+                         color='blue',ls=':')
 
-        #Decorations
-        powerlabel=['Hydrodynamic','Poynting','Total Energy']
-        for i,ax in enumerate([axis,axis2,axis3]):
-            general_plot_settings(ax,do_xlabel=(i==2),legend=(i==0),
+        ##Decorations
+        powerlabel=['Hydro.','Poynting','Tot. Energy','Night->Day']
+        for i,ax in enumerate([hydro_ax,poynting_ax,total_ax,dawndusk_ax]):
+            general_plot_settings(ax,do_xlabel=(i==3),legend=False,
                                   ylabel='Integrated '+powerlabel[i]+
+                                  #ylabel=r'$\int dA$'+powerlabel[i]+
                                         r' Flux $\left[ TW\right]$',
-                                  legend_loc='upper left',
-                                  ylim=[-12,12],
+                                  #legend_loc='lower left',
+                                  #ylim=[-10,8],
                                   timedelta=dotimedelta)
             ax.axvspan((moments['impact']-
                       moments['peak2']).total_seconds()*1e9,0,
                        fc='lightgrey')
-            '''
-            ax.axvline((moments['impact']-
-                      moments['peak2']).total_seconds()*1e9,
-                         ls='--',color='black')
-            ax.axvline(0,ls='--',color='black')
-            '''
-        axis.fill_between(times,(Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
-                           label=r'Net $H_2$',fc='dimgray')
-        axis2.fill_between(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d)/1e12,
-                           label=r'Net $S_2$',fc='dimgray')
-        axis3.fill_between(times,(
+            ax.margins(x=0.01,tight=None)
+            ax.yaxis.label.set_fontsize(22)
+        hydro_ax.fill_between(times,(Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
+                           label=r'Sum',fc='dimgray')
+        poynting_ax.fill_between(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d)/1e12,
+                           label=r'Sum',fc='dimgray')
+        total_ax.fill_between(times,(
                           Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d+
                           Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d
                           )/1e12,
-                           label=r'Net $K_2$',fc='dimgray')
+                           label=r'Sum',fc='dimgray')
+        dawndusk_ax.fill_between(times,(HsDwn+HsDsk+SsDwn+SsDsk)/1e12,
+                           label=r'Sum',fc='dimgray')
 
-        #axis.legend(loc='lower right', bbox_to_anchor=(1.1, 1.05),
-        #            ncol=7, fancybox=True, shadow=True)
+        hydro_ax.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                        ncol=3, fancybox=True, shadow=True)
+        dawndusk_ax.legend(loc='lower left',ncol=5)
+        hydro_ax.set_ylim(-2.5,2)
+        poynting_ax.set_ylim(-10,8)
+        total_ax.set_ylim(-10,8)
+        dawndusk_ax.set_ylim(-10,8)
         #save
-        flavors_internal.suptitle(moments['peak1'].strftime(
+        flux_internal.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
-                                      ha='left',x=0.01,y=0.99)
-        flavors_internal.tight_layout(pad=1)
-        figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
-        flavors_internal.savefig(figurename)
-        plt.close(flavors_internal)
+                               ha='left',x=0.01,y=0.99)
+        twochunk.tight_layout(pad=0.6,figure=flux_internal)
+        #figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
+        figurename = path+'/flavors_internal'+phase+'_'+event+'.eps'
+        flux_internal.savefig(figurename,dpi=300)
+        plt.close(flux_internal)
         print('\033[92m Created\033[00m',figurename)
         #############
 
+        #############
+        #setup figure
+        terminator,(axis) = plt.subplots(1,1,figsize=[20,8])
+
+        #Plot
+        axis.plot(times,HsDwn/1e12,label=r'$H$ Dawn',color='indianred')
+        axis.plot(times,HsDsk/1e12,label=r'$H$ Dusk',color='red',ls=':')
+        axis.plot(times,SsDwn/1e12,label=r'$S$ Dawn',color='cornflowerblue')
+        axis.plot(times,SsDsk/1e12,label=r'$S$ Dusk',color='blue',ls=':')
+        #Decorations
+        powerlabel=['Energy']
+        for i,ax in enumerate([axis]):
+            general_plot_settings(ax,do_xlabel=(i==0),legend=(i==0),
+                                  ylabel='Integrated '+powerlabel[i]+
+                                        r' Flux $\left[ TW\right]$',
+                                  legend_loc='upper left',
+                                  ylim=[((KsDwn+KsDsk)/1e12).min(),
+                                        ((KsDwn+KsDsk)/1e12).max()],
+                                  timedelta=dotimedelta)
+            ax.axvspan((moments['impact']-
+                      moments['peak2']).total_seconds()*1e9,0,
+                       fc='lightgrey')
+            ax.margins(x=0.01,tight=None)
+        axis.fill_between(times,(HsDwn+HsDsk+SsDwn+SsDsk)/1e12,
+                           label=r'$K$ Night -> Day',fc='dimgray')
+        axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                    ncol=5, fancybox=False, shadow=False)
+        #save
+        terminator.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
+                                      ha='left',x=0.01,y=0.99)
+        terminator.tight_layout(pad=1)
+        figurename = path+'/terminator'+phase+'_'+event+'.png'
+        terminator.savefig(figurename)
+        plt.close(terminator)
+        print('\033[92m Created\033[00m',figurename)
         """
         #############
         #setup figure
@@ -3237,10 +3303,10 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         vsup = ds[event]['obs']['vsupermag'+ph]
         vsuptime = ds[event]['vsupermag_otime'+ph]
         vsupt = [float(n) for n in suptime.to_numpy()]#bad hack
+        moments = locate_phase(sw.index)
         if kwargs.get('tabulate',False):
             #start,impact,peak1,peak2,inter_start,inter_end=locate_phase(
             #                                                    sw.index)
-            moments = locate_phase(sw.index)
             main_int_newell=integrate.trapz(
                                 sw.loc[(sw.index>moments['impact'])&
                                        (sw.index<moments['peak1']),
@@ -3298,8 +3364,6 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
             print('{:<25}{:<20}\n'.format('****','****'))
             pass
         #IMF
-        ax[0].fill_between(swt,sw['B'], ec='dimgrey',fc='thistle',
-                               hatch=hatches[i], label=r'$|B|$')
         ax[0].plot(swt,sw['bx'],label=r'$B_x$',c='maroon')
         ax[0].plot(swt,sw['by'],label=r'$B_y$',c='magenta')
         ax[0].plot(swt,sw['bz'],label=r'$B_z$',c='tab:blue')
@@ -3307,8 +3371,6 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
                               do_xlabel=False, legend=True,
                               timedelta=dotimedelta)
         #Plasma
-        ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
-                               hatch=hatches[i],label=r'$P_{dyn}$')
         ax[1].plot(swt,sw['Beta'],label=r'$\beta$',c='tab:blue')
         #ax[1].plot(swt,sw['Ma'],label=r'$M_{Alf}$',c='magenta')
         #rax = ax[1].twinx()
@@ -3334,19 +3396,27 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         for axis in ax:
             axis.axvspan((moments['impact']-
                                moments['peak2']).total_seconds()*1e9,0,
-                               color='grey',alpha=0.2)
+                               fc='lightgrey')
+            axis.margins(x=0.01)
             '''
             axis.axvline((moments['impact']-
                           moments['peak2']).total_seconds()*1e9,
                          ls='--',color='black')
             axis.axvline(0,ls='--',color='black')
             '''
+        # NOTE Fills must come after for EPS images (no translucency allowed!)
+        ax[0].fill_between(swt,sw['B'], ec='dimgrey',fc='thistle',
+                               hatch=hatches[i], label=r'$|B|$')
+        ax[0].set_ylim([-21,20])
+        ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
+                               hatch=hatches[i],label=r'$P_{dyn}$')
         #save
         dst.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
                                                      ha='left',x=0.01,y=0.99)
         dst.tight_layout(pad=0.3)
-        figname = path+'/dst_'+event+'.png'
-        dst.savefig(figname)
+        #figname = path+'/dst_'+event+'.png'
+        figname = path+'/dst_'+event+'.eps'
+        dst.savefig(figname,dpi=300)
         plt.close(dst)
         print('\033[92m Created\033[00m',figname)
 
@@ -3360,10 +3430,15 @@ def satellite_comparisons(dataset,phase,path):
         satlist = ['cluster4','themisa','themisd','themise','mms1']
         #############
         #setup figure
-        b_compare_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[20,3*len(satlist)])
+        #bp_compare_detail,axis = plt.subplots(len(satlist)*2,1,
+        #                                     figsize=[20,6*len(satlist)])
+        bp_compare = plt.figure(figsize=[20,6*len(satlist)])
+        twochunk = plt.GridSpec(2,1,hspace=0.1,top=0.90,figure=bp_compare)
+        topstacks = twochunk[0].subgridspec(len(satlist),1,hspace=0.2)
+        botstacks = twochunk[1].subgridspec(len(satlist),1,hspace=0.2)
         #Plot
         for i,sat in enumerate(satlist):
+            j = i+len(satlist)
             # Setup quickaccess and time format
             virtual = dataset[event]['vsat'][sat+phase]
             virtualtime = dataset[event][sat+'_vtime'+phase]
@@ -3371,154 +3446,199 @@ def satellite_comparisons(dataset,phase,path):
             obs = dataset[event]['obssat'][sat+phase]
             obstime = dataset[event][sat+'_otime'+phase]
             otime = [float(t) for t in obstime.to_numpy()]
-            # Plot
+            ##Plot
             # S
-            raxis = axis[i].twinx()
-            raxis.plot(otime,np.sqrt(obs['Sx']**2+
+            Bz_axis = bp_compare.add_subplot(topstacks[i,:])
+            S_axis = Bz_axis.twinx()
+            S_axis.plot(otime,np.sqrt(obs['Sx']**2+
                                         obs['Sy']**2+
                                         obs['Sz']**2)/1e9,
                                         label='obs|S| [MW]',c='magenta')
-            raxis.plot(vtime,np.sqrt(virtual['Sx']**2+
+            S_axis.plot(vtime,np.sqrt(virtual['Sx']**2+
                                         virtual['Sy']**2+
                                         virtual['Sz']**2)/1e9,
                                     label='sim|S| [MW]',c='black',lw=1)
-            raxis.set_ylim([0,20])
-            raxis.spines['right'].set_color('magenta')
-            raxis.spines['left'].set_color('tab:blue')
-            raxis.tick_params(axis='y',colors='magenta')
-            raxis.yaxis.set_minor_locator(AutoMinorLocator())
-            #axis[i].plot(otime,obs['bx'],label='obsBx',c='maroon')
-            #axis[i].plot(otime,obs['by'],label='obsBy',c='magenta')
-            axis[i].plot(otime,obs['bz'],label='obsBz [nT]',c='tab:blue')
-            #axis[i].plot(vtime,virtual['B_x'],label='simBx',c='maroon',
-            #              ls='--')
-            #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
-            #              ls='--')
-            axis[i].plot(vtime,virtual['B_z'],label='simBz [nT]',c='dimgrey',
+            S_axis.set_ylim([0,20])
+            S_axis.spines['right'].set_color('magenta')
+            S_axis.spines['left'].set_color('tab:blue')
+            S_axis.tick_params(axis='y',colors='magenta')
+            S_axis.yaxis.set_minor_locator(AutoMinorLocator())
+            Bz_axis.plot(otime,obs['bz'],label='obsBz [nT]',c='tab:blue')
+            Bz_axis.plot(vtime,virtual['B_z'],label='simBz [nT]',c='dimgrey',
                          lw=1)
-            if i==0:
-                raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
-                          ncol=2, fancybox=True, shadow=True)
-                axis[i].legend(loc='lower right', bbox_to_anchor=(0.5, 1.05),
-                          ncol=2, fancybox=True, shadow=True)
-            general_plot_settings(axis[i],
-                                  #legend=(i==0),
-                                  #legend_loc='upper right',
-                                  legend=False,
-                                  do_xlabel=(i==len(satlist)-1),
-                                  #ylabel=sat+r' $B\left[ nT\right]$',
-                                  ylabel=sat,
-                                  ylim=[-60,100],
-                                  timedelta=dotimedelta)
-            axis[i].axvline((moments['impact']-
-                               moments['peak2']).total_seconds()*1e9,
-                               ls='--',color='black')
-            axis[i].axvline(0,ls='--',color='black')
-            axis[i].fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
-                                 where=((virtual['Status']>2)).values)
-            axis[i].fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
-                                 where=((virtual['Status']<2)&
-                                        (virtual['Status']>1)).values)
-            axis[i].fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
-                                 where=((virtual['Status']<1)&
-                                        (virtual['Status']>0)).values)
-            axis[i].fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
-                                 where=((virtual['Status']<0)).values)
-            #axis[i].axvspan((moments['impact']-
-            #                 moments['peak2']).total_seconds()*1e9,0,
-            #                     color='grey',alpha=0.2)
-            axis[i].tick_params(axis='y',colors='tab:blue')
-        #save
-        b_compare_detail.suptitle(moments['peak1'].strftime(
-                                                     "%b %Y, t0=%d-%H:%M:%S"),
-                                      ha='left',x=0.01,y=0.99)
-        b_compare_detail.tight_layout(pad=0.6)
-        figurename = path+'/b_compare_detail'+phase+'_'+event+'.png'
-        b_compare_detail.savefig(figurename)
-        plt.close(b_compare_detail)
-        print('\033[92m Created\033[00m',figurename)
-        #############
-        #setup figure
-        p_compare_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[20,3*len(satlist)])
-        #Plot
-        for i,sat in enumerate(satlist):
-            # Setup quickaccess and time format
-            virtual = dataset[event]['vsat'][sat+phase]
-            virtualtime = dataset[event][sat+'_vtime'+phase]
-            vtime = [float(t) for t in virtualtime.to_numpy()]
-            obs = dataset[event]['obssat'][sat+phase]
-            obstime = dataset[event][sat+'_otime'+phase]
-            otime = [float(t) for t in obstime.to_numpy()]
-            # Plot
             # H
-            raxis = axis[i].twinx()
-            raxis.plot(otime,np.sqrt(obs['Hx']**2+
+            P_axis = bp_compare.add_subplot(botstacks[i,:])
+            H_axis = P_axis.twinx()
+            H_axis.plot(otime,np.sqrt(obs['Hx']**2+
                                         obs['Hy']**2+
                                         obs['Hz']**2)/1e9,
-                                        label='obs|H| [MW]',c='magenta')
-            raxis.plot(vtime,np.sqrt(virtual['Hx']**2+
+                                        label='obs|H| [MW]',c='crimson')
+            H_axis.plot(vtime,np.sqrt(virtual['Hx']**2+
                                         virtual['Hy']**2+
                                         virtual['Hz']**2)/1e9,
                                     label='sim|H| [MW]',lw=1,c='black')
-            raxis.set_ylim([0,20])
-            raxis.spines['right'].set_color('magenta')
-            raxis.spines['left'].set_color('tab:blue')
-            raxis.tick_params(axis='y',colors='magenta')
-            raxis.yaxis.set_minor_locator(AutoMinorLocator())
-            #axis[i].plot(otime,obs['bx'],label='obsBx',c='maroon')
-            #axis[i].plot(otime,obs['by'],label='obsBy',c='magenta')
-            axis[i].plot(otime,obs['p']+obs['pdyn'],label='obsP [nPa]',
-                         c='tab:blue')
-            #axis[i].plot(vtime,virtual['B_x'],label='simBx',c='maroon',
-            #              ls='--')
-            #axis[i].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
-            #              ls='--')
-            axis[i].plot(vtime,virtual['P']+virtual['pdyn'],label='simP [nPa]',
+            H_axis.set_ylim([0,20])
+            H_axis.spines['right'].set_color('crimson')
+            H_axis.spines['left'].set_color('tab:olive')
+            H_axis.tick_params(axis='y',colors='crimson')
+            H_axis.yaxis.set_minor_locator(AutoMinorLocator())
+            P_axis.plot(otime,obs['p']+obs['pdyn'],label='obsP [nPa]',
+                         c='tab:olive')
+            P_axis.plot(vtime,virtual['P']+virtual['pdyn'],label='simP [nPa]',
                          c='dimgray',lw=1)
             if i==0:
-                raxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
+                Bz_axis.legend(loc='lower right', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+                S_axis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+                P_axis.legend(loc='lower right', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+                H_axis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
+                          ncol=2, fancybox=True, shadow=True)
+            ##Decorations
+            general_plot_settings(Bz_axis,
+                                  legend=False,
+                                  do_xlabel=False,
+                                  ylabel=sat,
+                                  ylim=[-60,100],
+                                  timedelta=dotimedelta)
+            Bz_axis.margins(x=0)
+            Bz_axis.set_xlim([otime[0],otime[-1]])
+            Bz_axis.axvline((moments['impact']-
+                               moments['peak2']).total_seconds()*1e9,
+                               ls='--',color='black')
+            Bz_axis.axvline(0,ls='--',color='black')
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='mistyrose',
+                                 where=((virtual['Status']>2)).values)
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='lightblue',
+                                 where=((virtual['Status']<2)&
+                                        (virtual['Status']>1)).values)
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='paleturquoise',
+                                 where=((virtual['Status']<1)&
+                                        (virtual['Status']>0)).values)
+            Bz_axis.fill_between(vtime,-1e11,1e11,color='lightgrey',
+                                 where=((virtual['Status']<0)).values)
+            Bz_axis.tick_params(axis='y',colors='tab:blue')
+            general_plot_settings(P_axis,
+                                  legend=False,
+                                  do_xlabel=(i==len(satlist)-1),
+                                  ylabel=sat,
+                                  ylim=[0,5],
+                                  timedelta=dotimedelta)
+            P_axis.margins(x=0)
+            P_axis.set_xlim([otime[0],otime[-1]])
+            P_axis.axvline((moments['impact']-
+                               moments['peak2']).total_seconds()*1e9,
+                               ls='--',color='black')
+            P_axis.axvline(0,ls='--',color='black')
+            P_axis.fill_between(vtime,-1e11,1e11,color='mistyrose',
+                                 where=((virtual['Status']>2)).values)
+            P_axis.fill_between(vtime,-1e11,1e11,color='lightblue',
+                                 where=((virtual['Status']<2)&
+                                        (virtual['Status']>1)).values)
+            P_axis.fill_between(vtime,-1e11,1e11,color='paleturquoise',
+                                 where=((virtual['Status']<1)&
+                                        (virtual['Status']>0)).values)
+            P_axis.fill_between(vtime,-1e11,1e11,color='lightgrey',
+                                 where=((virtual['Status']<0)).values)
+            P_axis.tick_params(axis='y',colors='tab:olive')
+        #save
+        bp_compare.suptitle(moments['peak1'].strftime(
+                                                     "%b %Y, t0=%d-%H:%M:%S"),
+                                      ha='left',x=0.01,y=0.99)
+        twochunk.tight_layout(pad=0.6,figure=bp_compare)
+        #figurename = path+'/bp_compare'+phase+'_'+event+'.png'
+        figurename = path+'/bp_compare'+phase+'_'+event+'.eps'
+        bp_compare.savefig(figurename,dpi=300)
+        plt.close(bp_compare)
+        print('\033[92m Created\033[00m',figurename)
+        #############
+        '''
+        #setup figure
+        #p_compare_detail,axis = plt.subplots(len(satlist),1,
+        #                                     figsize=[20,3*len(satlist)])
+        #Plot
+        for i,sat in enumerate(satlist):
+            j = i+len(satlist)
+            # Setup quickaccess and time format
+            #virtual = dataset[event]['vsat'][sat+phase]
+            #virtualtime = dataset[event][sat+'_vtime'+phase]
+            #vtime = [float(t) for t in virtualtime.to_numpy()]
+            #obs = dataset[event]['obssat'][sat+phase]
+            #obstime = dataset[event][sat+'_otime'+phase]
+            #otime = [float(t) for t in obstime.to_numpy()]
+            # Plot
+            # H
+            rjaxis = axis[j].twinx()
+            rjaxis.plot(otime,np.sqrt(obs['Hx']**2+
+                                        obs['Hy']**2+
+                                        obs['Hz']**2)/1e9,
+                                        label='obs|H| [MW]',c='crimson')
+            rjaxis.plot(vtime,np.sqrt(virtual['Hx']**2+
+                                        virtual['Hy']**2+
+                                        virtual['Hz']**2)/1e9,
+                                    label='sim|H| [MW]',lw=1,c='black')
+            rjaxis.set_ylim([0,20])
+            raxis.spines['right'].set_color('crimson')
+            rjaxis.spines['left'].set_color('tab:olive')
+            rjaxis.tick_params(axis='y',colors='crimson')
+            rjaxis.yaxis.set_minor_locator(AutoMinorLocator())
+            #axis[j].plot(otime,obs['bx'],label='obsBx',c='maroon')
+            #axis[j].plot(otime,obs['by'],label='obsBy',c='magenta')
+            axis[j].plot(otime,obs['p']+obs['pdyn'],label='obsP [nPa]',
+                         c='tab:olive')
+            #axis[j].plot(vtime,virtual['B_x'],label='simBx',c='maroon',
+            #              ls='--')
+            #axis[j].plot(vtime,virtual['B_y'],label='simBy',c='magenta',
+            #              ls='--')
+            axis[j].plot(vtime,virtual['P']+virtual['pdyn'],label='simP [nPa]',
+                         c='dimgray',lw=1)
+            if i==0:
+                rjaxis.legend(loc='lower left', bbox_to_anchor=(0.5, 1.05),
                           ncol=2, fancybox=True, shadow=True)
                 axis[i].legend(loc='lower right', bbox_to_anchor=(0.5, 1.05),
                           ncol=2, fancybox=True, shadow=True)
             #Decorations
-            general_plot_settings(axis[i],
+            general_plot_settings(axis[j],
                                   #legend=(i==0),
                                   #legend_loc='upper right',
                                   legend=False,
-                                  do_xlabel=(i==len(satlist)-1),
+                                  do_xlabel=(j==2*len(satlist)-1),
                                   #ylabel=sat+r' $B\left[ nT\right]$',
                                   ylabel=sat,
                                   ylim=[0,5],
                                   timedelta=dotimedelta)
-            axis[i].axvline((moments['impact']-
+            axis[j].margins(x=0)
+            axis[j].set_xlim([otime[0],otime[-1]])
+            axis[j].axvline((moments['impact']-
                                moments['peak2']).total_seconds()*1e9,
                                ls='--',color='black')
-            axis[i].axvline(0,ls='--',color='black')
-            axis[i].fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
+            axis[j].axvline(0,ls='--',color='black')
+            axis[j].fill_between(vtime,-1e11,1e11,color='red',alpha=0.2,
                                  where=((virtual['Status']>2)).values)
-            axis[i].fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
+            axis[j].fill_between(vtime,-1e11,1e11,color='blue',alpha=0.2,
                                  where=((virtual['Status']<2)&
                                         (virtual['Status']>1)).values)
-            axis[i].fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
+            axis[j].fill_between(vtime,-1e11,1e11,color='cyan',alpha=0.2,
                                  where=((virtual['Status']<1)&
                                         (virtual['Status']>0)).values)
-            axis[i].fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
+            axis[j].fill_between(vtime,-1e11,1e11,color='grey',alpha=0.2,
                                  where=((virtual['Status']<0)).values)
-            #axis[i].axvspan((moments['impact']-
+            #axis[j].axvspan((moments['impact']-
             #                 moments['peak2']).total_seconds()*1e9,0,
             #                     color='grey',alpha=0.2)
-            axis[i].tick_params(axis='y',colors='tab:blue')
+            axis[j].tick_params(axis='y',colors='tab:olive')
         #save
-        p_compare_detail.suptitle(moments['peak1'].strftime(
+        bp_compare_detail.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
-        p_compare_detail.tight_layout(pad=0.6)
-        figurename = path+'/p_compare_detail'+phase+'_'+event+'.png'
-        p_compare_detail.savefig(figurename)
-        plt.close(p_compare_detail)
+        bp_compare_detail.tight_layout(pad=0.6)
+        figurename = path+'/bp_compare_detail'+phase+'_'+event+'.png'
+        bp_compare_detail.savefig(figurename)
+        plt.close(bp_compare_detail)
         print('\033[92m Created\033[00m',figurename)
         #############
+        '''
         '''
         #setup figure
         u_compare_detail,axis = plt.subplots(len(satlist),1,
@@ -3748,7 +3868,7 @@ def satellite_comparisons(dataset,phase,path):
                                  where=((virtual['Status']<0)).values)
         #save
         # K
-        k_compare_detail.suptitle(moments['peak1'].strftime(
+        k_detail.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         k_detail.tight_layout(pad=0.04)
@@ -3757,7 +3877,7 @@ def satellite_comparisons(dataset,phase,path):
         plt.close(k_detail)
         print('\033[92m Created\033[00m',figurename)
         # H
-        h_compare_detail.suptitle(moments['peak1'].strftime(
+        h_detail.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         h_detail.tight_layout()
@@ -3766,7 +3886,7 @@ def satellite_comparisons(dataset,phase,path):
         plt.close(h_detail)
         print('\033[92m Created\033[00m',figurename)
         # S
-        s_compare_detail.suptitle(moments['peak1'].strftime(
+        s_detail.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         s_detail.tight_layout()
@@ -4282,14 +4402,14 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        #solarwind_figure(dataset,phase,path,hatches,tabulate=True)
+        #solarwind_figure(dataset,phase,path,hatches,tabulate=False)
         #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
-        oneD_comparison(dataset,phase,path)
+        satellite_comparisons(dataset, phase, path)
+        #oneD_comparison(dataset,phase,path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
     #polar_cap_flux_stats(dataset,unfiled)
@@ -4310,10 +4430,11 @@ def interval_figures(dataset):
         #imf_figure(dataset,phase,path,hatches)
         #quantity_timings(dataset, phase, path)
         #quantify_timings2(dataset, phase, path)
-        #lobe_balance_fig(dataset,phase,path)
-        oneD_comparison(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
+        #oneD_comparison(dataset,phase,path)
         #diagram_summary(dataset,phase,unfiled)
         #lobe_power_histograms(dataset, phase, path)
+    #time_integrated(dataset,'_interv',unfiled)
 
 if __name__ == "__main__":
     #Need input path, then create output dir's
@@ -4375,8 +4496,9 @@ if __name__ == "__main__":
 
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
-    dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(inSats)
+    #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
+                                                                    inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
     #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
 
@@ -4424,6 +4546,8 @@ if __name__ == "__main__":
         if 'msdict' in dataset[event].keys():
             dataset[event]['msdict'] = {
                 #'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
+                'xslice':dataset[event]['msdict'].get(
+                                               'xslice',pd.DataFrame()),
                 'closed':dataset[event]['msdict'].get(
                                               'closed',pd.DataFrame()),
                 'lobes':dataset[event]['msdict'].get(
@@ -4465,13 +4589,11 @@ if __name__ == "__main__":
             for src in obs_srcs:
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
                                 parse_phase(event['obs'][src],phase))
-    '''
             for sat in satlist:
                 event['vsat'][sat+phase],event[sat+'_vtime'+phase] = (
                                         parse_phase(event['vsat'][sat],phase))
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
-    '''
     '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],

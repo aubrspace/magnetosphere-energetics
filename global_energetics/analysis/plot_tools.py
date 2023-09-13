@@ -122,7 +122,7 @@ def general_plot_settings(ax, **kwargs):
         #ax.xaxis.set_minor_locator(AutoMinorLocator(3))
         ax.xaxis.set_minor_locator(AutoMinorLocator(4))
         #Get original limits
-        ax.set_xlim(xlims)
+        #ax.set_xlim(xlims)
         if kwargs.get('do_xlabel',True):
             ax.set_xlabel(
                     #kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))
@@ -399,7 +399,8 @@ def plot_stack_contrib(ax, times, mp, msdict, **kwargs):
                     label='External+Internal')#light green color
     #Plot stacks
     for i,(szlabel,sz) in enumerate([(l,z) for l,z in msdict.items()
-                                     if 'closed_rc' not in l]):
+                                     if ('closed_rc' not in l) and
+                                        ('slice' not in l)]):
         print(szlabel)
         szval = sz[value_key]
         #NOTE changed just for this work

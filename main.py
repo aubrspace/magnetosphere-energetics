@@ -27,6 +27,27 @@ from global_energetics.extract import view_set
 from global_energetics.write_disp import write_to_hdf
 from global_energetics import makevideo
 
+def save_ie_image(ie_stylehead_north, ie_stylehead_south):
+    # Create and save an image
+    northsheet = os.getcwd()+'/'+ie_stylehead_north
+    southsheet = os.getcwd()+'/'+ie_stylehead_south
+    if os.path.exists(northsheet) or os.path.exists(southsheet):
+        tp.macro.execute_extended_command(
+                            command_processor_id='Multi Frame Manager',
+                            command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
+        for i,frame in enumerate(tp.frames()):
+            if i==0 and os.path.exists(northsheet):
+                frame.load_stylesheet(northsheet)
+            elif i==1 and os.path.exists(southsheet):
+                frame.load_stylesheet(southsheet)
+            elif i>1:
+                tp.layout.active_page().delete_frame(frame)
+        tp.layout.active_page().tile_frames(mode=TileMode.Rows)
+        tp.save_png(os.path.join('polarcap2000','figures','vis',
+                                     OUTPUTNAME+'.png'),width=1600)
+    else:
+        print('NO STYLESHEETS!!')
+
 if __name__ == "__main__":
     start_time = time.time()
     if '-c' in sys.argv:
@@ -36,14 +57,20 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    all_main_phase = glob.glob('ccmc_2022-02-02/3d*')
-    all_times = sorted(glob.glob('pc2000_run/GM/IO2/3d__var_1_*.plt'),
-                                key=makevideo.time_sort)[0::]
+    inpath = 'ideal_run/GM/IO2/'
+    outpath = 'ideal_vis/'
+    head = '3d__var_1_*'
+    ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
+    #gm_stylehead = 'simple_vis.sty'
+    gm_stylehead = 'ffj_vis.sty'
 
-    oggridfile = 'ccmc_2022-02-02/3d__volume_e20220202.plt'
+    # Search to find the full list of files
+    filelist = sorted(glob.glob(os.path.join(inpath,head)),
+                                key=makevideo.time_sort)[0::]
+    oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
 
     i=0
-    for k,f in enumerate(all_main_phase[1200:1201]):
+    for k,f in enumerate(filelist):
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
@@ -51,7 +78,7 @@ if __name__ == "__main__":
             i+=1
             tp.new_layout()
             mhddatafile = f
-            iedatafile=('pc2000_run/IE/ionosphere/'+
+            iedatafile=(inpath.replace('/GM/IO2/','/IE/ionosphere/')+
                     'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
                       filetime.year-2000,
                       filetime.month,
@@ -77,23 +104,25 @@ if __name__ == "__main__":
                                     debug=False,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy_mass_mag',
-                                    modes=['xslice'],
-                                    do_interfacing=True,
+                                    analysis_type='energy_ffj',
+                                    modes=['iso_betastar'],
+                                    inner_r=4,
+                                    sp_rmin=4,
+                                    do_interfacing=False,
                                     integrate_surface=True,
                                     integrate_volume=False,
                                     integrate_line=False,
                                     do_1Dsw=False,
-                                    #truegridfile=oggridfile,
-                                    outputpath='fte_test/',
+                                    truegridfile=oggridfile,
+                                    outputpath=outpath,
                                     )
-                '''
-                # IE data
-                tp.data.load_tecplot(iedatafile,
-                                 read_data_option=ReadDataOption.Append)
-                field_data.zone(-2).name = 'ionosphere_north'
-                field_data.zone(-1).name = 'ionosphere_south'
-                ionosphere.get_ionosphere(field_data,
+                if os.path.exists(iedatafile) and False:
+                    # IE data
+                    tp.data.load_tecplot(iedatafile,
+                                    read_data_option=ReadDataOption.Append)
+                    field_data.zone(-2).name = 'ionosphere_north'
+                    field_data.zone(-1).name = 'ionosphere_south'
+                    ionosphere.get_ionosphere(field_data,
                                           verbose=True,
                                           hasGM=True,
                                           eventtime=filetime,
@@ -102,25 +131,12 @@ if __name__ == "__main__":
                                           integrate_line=True,
                                           do_interfacing=True,
                                           outputpath='polarcap2000/analysis/')
-                '''
-            '''
-            # Create and save an image
-            northsheet = '/home/aubr/Code/swmf-energetics/north_pc.sty'
-            southsheet = '/home/aubr/Code/swmf-energetics/south_pc.sty'
-            tp.macro.execute_extended_command(
-                            command_processor_id='Multi Frame Manager',
-                            command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
-            for i,frame in enumerate(tp.frames()):
-                if i==0:
-                    frame.load_stylesheet(northsheet)
-                elif i==1:
-                    frame.load_stylesheet(southsheet)
-                elif i>1:
-                    tp.layout.active_page().delete_frame(frame)
-            tp.layout.active_page().tile_frames(mode=TileMode.Rows)
-            tp.save_png(os.path.join('polarcap2000','figures','vis',
-                                     OUTPUTNAME+'.png'),width=1600)
-            '''
+                    if True:
+                        save_ie_image(ie_stylehead_north, ie_stylehead_south)
+                if os.path.exists(os.getcwd()+'/'+gm_stylehead):
+                    main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
+                    tp.save_png(os.path.join(outpath,'figures',
+                                OUTPUTNAME+'.png'),width=1600)
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
