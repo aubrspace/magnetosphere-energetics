@@ -850,8 +850,9 @@ def stack_energy_region_fig(ds,ph,path,hatches,**kwargs):
         contr.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
                                                  ha='left',x=0.01,y=0.99)
         contr.tight_layout(pad=0.8)
-        figname = path+'/contr_energy'+ph+'_'+ev+'.png'
-        contr.savefig(figname)
+        #figname = path+'/contr_energy'+ph+'_'+ev+'.png'
+        figname = path+'/contr_energy'+ph+'_'+ev+'.eps'
+        contr.savefig(figname,dpi=300)
         plt.close(contr)
         print('\033[92m Created\033[00m',figname)
 
@@ -3041,8 +3042,9 @@ def lobe_balance_fig(dataset,phase,path):
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         flavors_external.tight_layout(pad=1)
-        figurename = path+'/flavors_external'+phase+'_'+event+'.png'
-        flavors_external.savefig(figurename)
+        #figurename = path+'/flavors_external'+phase+'_'+event+'.png'
+        figurename = path+'/flavors_external'+phase+'_'+event+'.eps'
+        flavors_external.savefig(figurename,dpi=300)
         plt.close(flavors_external)
         print('\033[92m Created\033[00m',figurename)
         #############
@@ -3126,8 +3128,9 @@ def lobe_balance_fig(dataset,phase,path):
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                ha='left',x=0.01,y=0.99)
         twochunk.tight_layout(pad=0.6,figure=flux_internal)
-        figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
-        flux_internal.savefig(figurename)
+        #figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
+        figurename = path+'/flavors_internal'+phase+'_'+event+'.eps'
+        flux_internal.savefig(figurename,dpi=300)
         plt.close(flux_internal)
         print('\033[92m Created\033[00m',figurename)
         #############
@@ -3409,8 +3412,9 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         dst.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
                                                      ha='left',x=0.01,y=0.99)
         dst.tight_layout(pad=0.3)
-        figname = path+'/dst_'+event+'.png'
-        dst.savefig(figname)
+        #figname = path+'/dst_'+event+'.png'
+        figname = path+'/dst_'+event+'.eps'
+        dst.savefig(figname,dpi=300)
         plt.close(dst)
         print('\033[92m Created\033[00m',figname)
 
@@ -3541,8 +3545,9 @@ def satellite_comparisons(dataset,phase,path):
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         twochunk.tight_layout(pad=0.6,figure=bp_compare)
-        figurename = path+'/bp_compare'+phase+'_'+event+'.png'
-        bp_compare.savefig(figurename)
+        #figurename = path+'/bp_compare'+phase+'_'+event+'.png'
+        figurename = path+'/bp_compare'+phase+'_'+event+'.eps'
+        bp_compare.savefig(figurename,dpi=300)
         plt.close(bp_compare)
         print('\033[92m Created\033[00m',figurename)
         #############
@@ -4401,7 +4406,7 @@ def main_rec_figures(dataset):
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         #oneD_comparison(dataset,phase,path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
@@ -4489,9 +4494,9 @@ if __name__ == "__main__":
 
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
-    dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
-    #                                                                inSats)
+    #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
+                                                                    inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
     #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
 
