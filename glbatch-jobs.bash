@@ -5,7 +5,7 @@
 #INPUTDIR=./ideal_test/GM/IO2/
 #OUTPUTDIR=./ideal_first_results/
 INPUTDIR=./starlink2/IO2/
-OUTPUTDIR=./star2_outputs_1D/
+OUTPUTDIR=./star2_outputs_xslice/
 filecount=0
 workercount=0
 
