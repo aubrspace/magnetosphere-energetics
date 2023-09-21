@@ -403,7 +403,8 @@ def generate_3Dobj(sourcezone, **kwargs):
                         copy_kwargs = kwargs.copy()
                         copy_kwargs.update({'innerbound':True})
                         get_surf_geom_variables(inner_zone,**copy_kwargs)
-                        #zonelist.append(inner_zone)
+                        if 'iso_betastar' not in zone.name:
+                            zonelist.append(inner_zone)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})

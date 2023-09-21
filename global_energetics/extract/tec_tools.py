@@ -986,9 +986,12 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              zones=[zone])
     eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered,
                              zones=[zone])
-    if ((zone.values('Status_cc').minmax()==(0.0,0.0)) or
-        ('Status_cc' not in zone.dataset.variable_names)):
-        eq('{Status_cc}={Status}', value_location=ValueLocation.CellCentered,
+    if ('Status_cc' in zone.dataset.variable_names):
+        if (zone.values('Status_cc').minmax()==(0.0,0.0)):
+            eq('{Status_cc}={Status}',value_location=ValueLocation.CellCentered,
+                                   zones=[zone])
+    else:
+        eq('{Status_cc}={Status}',value_location=ValueLocation.CellCentered,
                                    zones=[zone])
     #eq('{W_cc}={W [km/s/Re]}', value_location=ValueLocation.CellCentered)
     #eq('{W_cc}=0', value_location=ValueLocation.CellCentered,
@@ -1936,17 +1939,19 @@ def calc_state(mode, zones, **kwargs):
                     zones[0].dataset.delete_zones(newzones)
                 #NOTE need to refresh variable for innerzone to fix index
                 innerzone = zones[0].dataset.zone(zonename+'_inner')
+                print('created '+innerzone.name)
 
                 # Name the zones
                 zone.name = zonename
+                print('created '+zone.name)
         else:
             zone = setup_isosurface(iso_value, state_index, zonename,
                                     blankvar=kwargs.get('blankvar',''),
                                     blankvalue=kwargs.get('blankvalue',3),
                               keep_zones=kwargs.get('keep_zones','largest'))
             if 'sphere' in mode and kwargs.get('sp_rmin',0)>0:
-                innerzone = setup_isosurface(kwargs.get('sp_rmin',0), state_index,
-                                    zonename+'_inner',
+                innerzone = setup_isosurface(kwargs.get('sp_rmin',0),
+                                    state_index, zonename+'_inner',
                                     blankvar=kwargs.get('blankvar',''),
                                     blankvalue=kwargs.get('blankvalue',3),
                               keep_zones=kwargs.get('keep_zones','largest'))
