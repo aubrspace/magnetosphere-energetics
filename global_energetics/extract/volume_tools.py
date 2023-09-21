@@ -242,8 +242,6 @@ def get_volume_trades(zone,integrands,**kwargs):
         trade_integrands
     """
     tdelta = str(kwargs.get('tdelta',60))
-    print(tdelta)
-    from IPython import embed; embed()
     if kwargs.get('do_central_diff',False):
         tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
     analysis_type = kwargs.get('analysis_type','')

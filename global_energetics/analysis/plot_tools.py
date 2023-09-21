@@ -122,7 +122,7 @@ def general_plot_settings(ax, **kwargs):
         #ax.xaxis.set_minor_locator(AutoMinorLocator(3))
         ax.xaxis.set_minor_locator(AutoMinorLocator(4))
         #Get original limits
-        #ax.set_xlim(xlims)
+        ax.set_xlim(xlims)
         if kwargs.get('do_xlabel',True):
             ax.set_xlabel(
                     #kwargs.get('xlabel',r'Time $\left[ hr:min\right]$'))

@@ -748,6 +748,7 @@ def calc_integral(term, zone, **kwargs):
         scalars = zone.values(term[0]).as_numpy_array()
         volumes = zone.values('trueCellVolume').as_numpy_array()
         value = np.dot(scalars,volumes)
+        #from IPython import embed; embed()
     else:
         value = integrate_tecplot(variable, zone,
                       VariableOption=kwargs.get('VariableOption','Scalar'))
