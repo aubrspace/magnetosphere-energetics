@@ -12,8 +12,12 @@
 #           > or location?
 #           > def save the routine to recalculate if necessary (AMR)
 import sys,os
+from matplotlib import pyplot as plt
+import datetime as dt
 import pandas as pd
 from global_energetics.analysis.workingtitle import central_diff
+from global_energetics.analysis.plot_tools import (general_plot_settings,
+                                                   pyplotsetup)
 
 def load_data(case_dict):
     ## Analysis Data
@@ -45,10 +49,14 @@ if __name__ == "__main__":
     for path in [outPath]:
         os.makedirs(path,exist_ok=True)
 
+    #setting pyplot configurations
+    plt.rcParams.update(pyplotsetup(mode='print'))
+
     ## Manually input case dictionary
     case_dict = {'base':inBase+'ideal_test_sp10-3.h5',
                  'conserve':inBase+'ideal_conserve_sp10-3.h5',
-                 'ie1':inBase+'ideal_IE1_sp10-3.h5'}
+                 'ie1':inBase+'ideal_IE1_sp10-3.h5',
+                 'noRCM1':inBase+'ideal_noRCM1_sp10-3.h5'}
 
     ## Load data and do minor adjustments
     dataset = load_data(case_dict)
@@ -56,6 +64,7 @@ if __name__ == "__main__":
     base_interior = dataset['base']['/sphere10_inner_surface']
     conserve_interior = dataset['conserve']['/sphere10_inner_surface']
     ie1_interior = dataset['ie1']['/sphere10_inner_surface']
+    noRCM1_interior = dataset['noRCM1']['/sphere10_inner_surface']
     #combine exterior with volume results
     dataset = combine_data(dataset,combo_list=['/sphere10_surface',
                                                '/sphere10_volume'],
@@ -66,10 +75,15 @@ if __name__ == "__main__":
     base_sphere = dataset['base']['sphere10']
     conserve_sphere = dataset['conserve']['sphere10']
     ie1_sphere = dataset['ie1']['sphere10']
+    noRCM1_sphere = dataset['noRCM1']['sphere10']
 
     # Times
-    times = conserve_sphere.index
-    interv = times
+    reltimes = conserve_sphere.index-conserve_sphere.index[0]
+    times = [float(n) for n in reltimes.to_numpy()]
+    reltimes3 = noRCM1_sphere.index-noRCM1_sphere.index[0]
+    times3 = [float(n) for n in reltimes3.to_numpy()]
+    interv = conserve_sphere.index
+    interv3 = noRCM1_sphere.index
 
     # Fluxes
     # Unmodified
@@ -81,6 +95,9 @@ if __name__ == "__main__":
     # IonosphereChange 1
     ie1Ks1 = ie1_sphere.loc[interv,'K_net [W]']
     ie1Ks3 = ie1_interior.loc[interv,'K_net [W]']
+    # NoRCM 1
+    noRCM1Ks1 = noRCM1_sphere.loc[interv3,'K_net [W]']
+    noRCM1Ks3 = noRCM1_interior.loc[interv3,'K_net [W]']
 
     # Energies
     # Unmodified
@@ -92,6 +109,9 @@ if __name__ == "__main__":
     # IonosphereChange 1
     ie1U = ie1_sphere.loc[interv,'Utot [J]']
     ie1K_sp = -1*central_diff(ie1U)
+    # noRCM 1
+    noRCM1U = noRCM1_sphere.loc[interv3,'Utot [J]']
+    noRCM1K_sp = -1*central_diff(noRCM1U)
 
     # Errors
     # Unmodified
@@ -103,4 +123,34 @@ if __name__ == "__main__":
     # IonosphereChange 1
     ie1Error = (ie1Ks1+ie1Ks3-ie1K_sp)
     ie1RelErr = ie1Error/ie1K_sp
-    from IPython import embed; embed()
+    # noRCM 1
+    noRCM1Error = (noRCM1Ks1+noRCM1Ks3-noRCM1K_sp)
+    noRCM1RelErr = noRCM1Error/noRCM1K_sp
+
+    #######################################################################
+    ## plots
+    if True:
+        #setup figure
+        figure1,(toppanel,botpanel) = plt.subplots(2,1,figsize=[16,16])
+        #Plot
+        from IPython import embed; embed()
+        toppanel.plot(times, baseU/1e15, label='base')
+        toppanel.plot(times3, noRCM1U/1e15, label='noRCM1')
+        botpanel.plot(times, (baseKs1+baseKs3)/1e12, label='base')
+        botpanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+        #Decorations
+        general_plot_settings(toppanel,do_xlabel=False,legend=True,
+                              #ylim=[-10,10],
+                              ylabel=r'Energy $\left[ PJ\right]$',
+                              timedelta=True)
+        general_plot_settings(botpanel,do_xlabel=False,legend=True,
+                              #ylim=[-10,10],
+                              ylabel=r'Energy Flux $\left[ TW\right]$',
+                              timedelta=True)
+        #save
+        figure1.tight_layout(pad=1)
+        figurename = outPath+'/demo.png'
+        figure1.savefig(figurename)
+        plt.close(figure1)
+        print('\033[92m Created\033[00m',figurename)
+    #######################################################################

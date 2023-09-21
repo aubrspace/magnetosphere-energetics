@@ -208,9 +208,13 @@ def prep_field_data(field_data, **kwargs):
             truegrid = field_data.zone(-1)
             truegrid.name = 'truegrid'
             if 'dvol [R]^3' in field_data.variable_names:
+                #TODO come back to this and figure out a different system
+                tp.data.operate.interpolate_linear(field_data.zone(0),
+                                                   source_zones=truegrid,
+                                     variables=[field_data.variable('dvol *')])
                 field_data.add_variable('trueCellVolume')
-                field_data.zone(0).values('trueCellVolume')[:]=truegrid.values(
-                                                     'dvol *').as_numpy_array()
+                field_data.zone(0).values('trueCellVolume')[:]=field_data.zone(
+                                           0).values('dvol *').as_numpy_array()
             else:
                 ## Extract the dual and true grid info and sort using pandas
                 field_data.add_variable('trueCellVolume')
