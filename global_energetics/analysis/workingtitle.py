@@ -3446,6 +3446,9 @@ def satellite_comparisons(dataset,phase,path):
             obs = dataset[event]['obssat'][sat+phase]
             obstime = dataset[event][sat+'_otime'+phase]
             otime = [float(t) for t in obstime.to_numpy()]
+            if False:#export only the used data
+                virtual.to_csv(sat+'_sim.csv',sep=',')
+                obs.to_csv(sat+'_obs.csv',sep=',')
             ##Plot
             # S
             Bz_axis = bp_compare.add_subplot(topstacks[i,:])
@@ -4468,7 +4471,7 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
-    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
@@ -4480,10 +4483,10 @@ if __name__ == "__main__":
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=False,
-                                     end=dataset['star4']['msdict']['closed'].index[-1],
-                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    #dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                                 end=dataset['star4']['msdict']['closed'].index[-1],
+    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
     #                                       read_supermage=False)
@@ -4497,47 +4500,48 @@ if __name__ == "__main__":
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
-                                                                    inSats)
+    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
+    #                                                                inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
     #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]
-        # Total
-        event['msdict']['lobes']['K_netK1 [W]'] = event['mpdict'][
+        if 'msdict' in event.keys():
+            # Total
+            event['msdict']['lobes']['K_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['K_netK1 [W]']
-        event['mpdict']['ms_full']['UtotM1 [W]'] = (
+            event['mpdict']['ms_full']['UtotM1 [W]'] = (
                                       event['msdict']['lobes']['UtotM1a [W]']+
                                       event['msdict']['lobes']['UtotM1b [W]'])
-        event['mpdict']['ms_full']['UtotM5 [W]'] = (
+            event['mpdict']['ms_full']['UtotM5 [W]'] = (
                                      event['msdict']['closed']['UtotM5a [W]']+
                                      event['msdict']['closed']['UtotM5b [W]'])
-        event['mpdict']['ms_full']['UtotM [W]'] = (
+            event['mpdict']['ms_full']['UtotM [W]'] = (
                                      event['mpdict']['ms_full']['UtotM1 [W]']+
                                      event['mpdict']['ms_full']['UtotM5 [W]'])
-        # Hydro
-        event['msdict']['lobes']['P0_netK1 [W]'] = event['mpdict'][
+            # Hydro
+            event['msdict']['lobes']['P0_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['P0_netK1 [W]']
-        event['mpdict']['ms_full']['uHydroM1 [W]'] = (
+            event['mpdict']['ms_full']['uHydroM1 [W]'] = (
                                     event['msdict']['lobes']['uHydroM1a [W]']+
                                     event['msdict']['lobes']['uHydroM1b [W]'])
-        event['mpdict']['ms_full']['uHydroM5 [W]'] = (
+            event['mpdict']['ms_full']['uHydroM5 [W]'] = (
                                     event['msdict']['closed']['uHydroM5a [W]']+
                                     event['msdict']['closed']['uHydroM5b [W]'])
-        event['mpdict']['ms_full']['uHydroM [W]'] = (
+            event['mpdict']['ms_full']['uHydroM [W]'] = (
                                     event['mpdict']['ms_full']['uHydroM1 [W]']+
                                     event['mpdict']['ms_full']['uHydroM5 [W]'])
-        # Mag
-        event['msdict']['lobes']['ExB_netK1 [W]'] = event['mpdict'][
+            # Mag
+            event['msdict']['lobes']['ExB_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['ExB_netK1 [W]']
-        event['mpdict']['ms_full']['uBM1 [W]'] = (
+            event['mpdict']['ms_full']['uBM1 [W]'] = (
                                       event['msdict']['lobes']['uBM1a [W]']+
                                       event['msdict']['lobes']['uBM1b [W]'])
-        event['mpdict']['ms_full']['uBM5 [W]'] = (
+            event['mpdict']['ms_full']['uBM5 [W]'] = (
                                      event['msdict']['closed']['uBM5a [W]']+
                                      event['msdict']['closed']['uBM5b [W]'])
-        event['mpdict']['ms_full']['uBM [W]'] = (
+            event['mpdict']['ms_full']['uBM [W]'] = (
                                      event['mpdict']['ms_full']['uBM1 [W]']+
                                      event['mpdict']['ms_full']['uBM5 [W]'])
 
@@ -4582,9 +4586,15 @@ if __name__ == "__main__":
                     #    print('WORK ON THIS')
     for event_key in dataset.keys():
         event = dataset[event_key]
-        obs_srcs = list(event['obs'].keys())
-        satlist = list([sat for sat in event['obssat'].keys()
-                        if not event['obssat'][sat].empty])
+        if 'obs' in event.keys():
+            obs_srcs = list(event['obs'].keys())
+        else:
+            obs_srcs = []
+        if 'obssat' in event.keys():
+            satlist = list([sat for sat in event['obssat'].keys()
+                            if not event['obssat'][sat].empty])
+        else:
+            satlist = []
         for phase in ['_qt','_main','_rec','_interv','_lineup']:
             for src in obs_srcs:
                 event['obs'][src+phase],event[src+'_otime'+phase]=(
@@ -4601,7 +4611,7 @@ if __name__ == "__main__":
         '''
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(dataset)
+    #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
     #interval_figures(dataset)
