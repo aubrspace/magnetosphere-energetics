@@ -6,6 +6,7 @@ import os, warnings
 import sys
 import numpy as np
 import datetime as dt
+import time as sleeptime
 
 def get_time(infile,**kwargs):
     """Function gets time from file name and returns spacepy Ticktock obj
@@ -19,7 +20,13 @@ def get_time(infile,**kwargs):
     try:#looking for typically BATSRUS 3D output
         if '_t' in infile and '_n' in infile:
             date_string=infile.split('/')[-1].split('_t')[-1].split('_')[0]
-            time_dt = dt.datetime.strptime(date_string,'%Y%m%d%H%M%S')
+            if len(date_string)==12:
+                time_dt = dt.datetime.strptime(date_string,'%Y%m%d%H%M%S')
+            elif len(date_string)==8:
+                start_date = kwargs.get('start_date',dt.datetime(1998,1,1,0,0))
+                time_dt = start_date+dt.timedelta(hours=24*int(date_string[0:2])+int(date_string[2:4]),
+                                                  minutes=int(date_string[4:6]),
+                                                  seconds=int(date_string[6:8]))
             time_dt = time_dt.replace(microsecond=0)
         else:
             date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
