@@ -14,8 +14,11 @@
 #INPUTDIR=./ideal_test/GM/IO2/
 #OUTPUTDIR=./ideal_test_sp10-3/
 
-INPUTDIR=./ideal_IE1/GM/IO2/
-OUTPUTDIR=./ideal_IE1_sp10-3/
+#INPUTDIR=./ideal_IE1/GM/IO2/
+#OUTPUTDIR=./ideal_IE1_sp10-3/
+
+INPUTDIR=./ideal_noRCM1/GM/IO2/
+OUTPUTDIR=./ideal_noRCM1_sp10-3/
 
 filecount=0
 workercount=0
