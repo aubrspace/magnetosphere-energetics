@@ -78,8 +78,8 @@ if __name__ == "__main__":
     noRCM1_sphere = dataset['noRCM1']['sphere10']
 
     # Times
-    interv = conserve_sphere.index[10::]
-    interv3 = noRCM1_sphere.index[10::]
+    interv = conserve_sphere.index[0::]
+    interv3 = noRCM1_sphere.index[0::]
     reltimes = interv-interv[0]
     times = [float(n) for n in reltimes.to_numpy()]
     reltimes3 = interv3-interv3[0]
@@ -138,14 +138,21 @@ if __name__ == "__main__":
         #setup figure
         figure1,(toppanel,botpanel) = plt.subplots(2,1,figsize=[16,16])
         #Plot
-        toppanel.plot(times, baseError/1e15, label='base')
-        toppanel.plot(times3, noRCM1Error/1e15, label='noRCM1')
-        botpanel.plot(times, (baseKs1+baseKs3)/1e12, label='base')
+        toppanel.plot(times, baseK_sp/1e12, label='baseTrue')
+        toppanel.plot(times3, noRCM1K_sp/1e12, label='noRCM1True')
+        toppanel.plot(times, (baseKs1+baseKs3)/1e12, label='base')
+        toppanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+
+        botpanel.fill_between(times3, noRCM1K_sp/1e12, label='noRCM1True',
+                              fc='grey')
+        botpanel.plot(times3, (noRCM1Ks1)/1e12, label='noRCM1K1')
+        botpanel.plot(times3, (noRCM1Ks3)/1e12, label='noRCM1K3')
         botpanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+
         #Decorations
         general_plot_settings(toppanel,do_xlabel=False,legend=True,
                               #ylim=[-10,10],
-                              ylabel=r'Error $\left[ PJ\right]$',
+                              ylabel=r'Energy Flux $\left[ TW\right]$',
                               timedelta=True)
         general_plot_settings(botpanel,do_xlabel=False,legend=True,
                               #ylim=[-10,10],
@@ -162,12 +169,22 @@ if __name__ == "__main__":
         #setup figure
         figure2,(toppanel,botpanel) = plt.subplots(2,1,figsize=[16,16])
         #Plot
-        toppanel.plot(times, (baseU-baseU[0])/1e15, label='baseEnergy')
-        botpanel.plot(times3, (noRCM1U-noRCM1U[0])/1e15, label='noRCM1Energy')
+        toppanel.fill_between(times, (baseU-baseU[0])/1e15,fc='grey',
+                              label='baseEnergy')
+        toppanel.plot(times, -1*(baseK_sp).cumsum()*dt/1e15,label='baseCheck')
         toppanel.plot(times, -1*(baseKs1+baseKs3).cumsum()*dt/1e15,
                                                               label='baseSUM')
+
+        botpanel.fill_between(times3, (noRCM1U-noRCM1U[0])/1e15,fc='grey',
+                              label='noRCM1Energy')
+        botpanel.plot(times3, -1*(noRCM1K_sp).cumsum()*dt3/1e15,
+                                                          label='noRCM1Check')
         botpanel.plot(times3, -1*(noRCM1Ks1+noRCM1Ks3).cumsum()*dt3/1e15,
                                                             label='noRCM1SUM')
+        botpanel.plot(times3, -1*(noRCM1Ks1).cumsum()*dt3/1e15,
+                                                            label='noRCM1K1')
+        botpanel.plot(times3, -1*(noRCM1Ks3).cumsum()*dt3/1e15,
+                                                            label='noRCM1K3')
         #Decorations
         general_plot_settings(toppanel,do_xlabel=False,legend=True,
                               #ylim=[-10,10],

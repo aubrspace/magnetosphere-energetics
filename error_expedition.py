@@ -36,18 +36,18 @@ if __name__ == "__main__":
     # Set file paths/individual file
     #file_path = 'ccmc_2022-02-02/'
     #file_path = 'ideal_run/GM/IO2/'
-    file_path = 'error_cases/ideal_conserve/GM/IO2/'
-    #file_path = 'run_GMonly/GM/IO2/'
+    #file_path = 'error_cases/ideal_conserve/GM/IO2/'
+    file_path = 'run_GMonly/GM/IO2/'
     filekey = '3d__var_1_*.plt'
     all_times = sorted(glob.glob(os.path.join(file_path,filekey)),
                                 key=makevideo.time_sort)
 
     #oggridfile = 'ccmc_2022-02-02/3d__volume_e20220202.plt'
-    oggridfile = 'ideal_run/GM/IO2/3d__volume__n00000800.plt'
-    #oggridfile = glob.glob(file_path+'3d*volume*.plt')[0]
+    #oggridfile = 'ideal_run/GM/IO2/3d__volume__n00000800.plt'
+    oggridfile = glob.glob(file_path+'3d*volume*.plt')[0]
 
     i=0
-    for k,f in enumerate(all_times[0:1]):
+    for k,f in enumerate(all_times[::]):
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('_1_')[-1].split('.')[0][1::]
         outpath = os.path.join('error_results',file_path.split('/')[0])
