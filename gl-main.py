@@ -51,7 +51,7 @@ def energetics_analysis(infiles,outpath):
     #python objects
     #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
     #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
-    oggridfile = 'ideal_test/GM/IO2/3d__var_3_n00000800.plt'
+    oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
