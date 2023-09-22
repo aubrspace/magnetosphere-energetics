@@ -56,7 +56,8 @@ if __name__ == "__main__":
     case_dict = {'base':inBase+'ideal_test_sp10-3.h5',
                  'conserve':inBase+'ideal_conserve_sp10-3.h5',
                  'ie1':inBase+'ideal_IE1_sp10-3.h5',
-                 'noRCM1':inBase+'ideal_noRCM1_sp10-3.h5'}
+                 'noRCM1':inBase+'ideal_noRCM1_sp10-3.h5',
+                 'GMonly':inBase+'GMonly_sp10-3.h5'}
 
     ## Load data and do minor adjustments
     dataset = load_data(case_dict)
@@ -65,6 +66,7 @@ if __name__ == "__main__":
     conserve_interior = dataset['conserve']['/sphere10_inner_surface']
     ie1_interior = dataset['ie1']['/sphere10_inner_surface']
     noRCM1_interior = dataset['noRCM1']['/sphere10_inner_surface']
+    GMonly_interior = dataset['GMonly']['/sphere10_inner_surface']
     #combine exterior with volume results
     dataset = combine_data(dataset,combo_list=['/sphere10_surface',
                                                '/sphere10_volume'],
@@ -76,18 +78,28 @@ if __name__ == "__main__":
     conserve_sphere = dataset['conserve']['sphere10']
     ie1_sphere = dataset['ie1']['sphere10']
     noRCM1_sphere = dataset['noRCM1']['sphere10']
+    GMonly_sphere = dataset['GMonly']['sphere10']
 
     # Times
-    interv = conserve_sphere.index[0::]
-    interv3 = noRCM1_sphere.index[0::]
+    interv = conserve_sphere.index[10::]
+    interv3 = noRCM1_sphere.index[10::]
+    interv98 = GMonly_sphere.index[10::]
+
     reltimes = interv-interv[0]
-    times = [float(n) for n in reltimes.to_numpy()]
     reltimes3 = interv3-interv3[0]
+    reltimes98 = interv98-interv98[0]
+
+    times = [float(n) for n in reltimes.to_numpy()]
     times3 = [float(n) for n in reltimes3.to_numpy()]
+    times98 = [float(n) for n in reltimes98.to_numpy()]
+
     dt = [t.seconds for t in interv[1::]-interv[0:-1]]
-    dt.append(dt[-1])
     dt3 = [t.seconds for t in interv3[1::]-interv3[0:-1]]
+    dt98 = [t.seconds for t in interv98[1::]-interv98[0:-1]]
+
+    dt.append(dt[-1])
     dt3.append(dt3[-1])
+    dt98.append(dt98[-1])
 
     # Fluxes
     # Unmodified
@@ -102,6 +114,9 @@ if __name__ == "__main__":
     # NoRCM 1
     noRCM1Ks1 = noRCM1_sphere.loc[interv3,'K_net [W]']
     noRCM1Ks3 = noRCM1_interior.loc[interv3,'K_net [W]']
+    # GMonly
+    GMonlyKs1 = GMonly_sphere.loc[interv98,'K_net [W]']
+    GMonlyKs3 = GMonly_interior.loc[interv98,'K_net [W]']
 
     # Energies
     # Unmodified
@@ -116,6 +131,9 @@ if __name__ == "__main__":
     # noRCM 1
     noRCM1U = noRCM1_sphere.loc[interv3,'Utot [J]']
     noRCM1K_sp = -1*central_diff(noRCM1U)
+    # GMonly
+    GMonlyU = GMonly_sphere.loc[interv98,'Utot [J]']
+    GMonlyK_sp = -1*central_diff(GMonlyU)
 
     # Errors
     # Unmodified
@@ -130,6 +148,10 @@ if __name__ == "__main__":
     # noRCM 1
     noRCM1Error = (noRCM1Ks1+noRCM1Ks3-noRCM1K_sp)
     noRCM1RelErr = noRCM1Error/noRCM1K_sp
+    # GMonly
+    GMonlyError = (GMonlyKs1+GMonlyKs3-GMonlyK_sp)
+    GMonlyRelErr = GMonlyError/GMonlyK_sp
+    from IPython import embed; embed()
 
     #######################################################################
     ## plots
@@ -139,15 +161,19 @@ if __name__ == "__main__":
         figure1,(toppanel,botpanel) = plt.subplots(2,1,figsize=[16,16])
         #Plot
         toppanel.plot(times, baseK_sp/1e12, label='baseTrue')
-        toppanel.plot(times3, noRCM1K_sp/1e12, label='noRCM1True')
         toppanel.plot(times, (baseKs1+baseKs3)/1e12, label='base')
-        toppanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+        #toppanel.plot(times98, GMonlyK_sp/1e12, label='GMonlyTrue')
+        #toppanel.plot(times98, (GMonlyKs1+GMonlyKs3)/1e12, label='GMonly')
+        #toppanel.plot(times3, noRCM1K_sp/1e12, label='noRCM1True')
+        #toppanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+        toppanel.plot(times, conserveK_sp/1e12, label='conserveTrue')
+        toppanel.plot(times, (conserveKs1+conserveKs3)/1e12, label='conserve')
 
-        botpanel.fill_between(times3, noRCM1K_sp/1e12, label='noRCM1True',
+        botpanel.fill_between(times, conserveK_sp/1e12, label='conserveTrue',
                               fc='grey')
-        botpanel.plot(times3, (noRCM1Ks1)/1e12, label='noRCM1K1')
-        botpanel.plot(times3, (noRCM1Ks3)/1e12, label='noRCM1K3')
-        botpanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+        botpanel.plot(times, (conserveKs1)/1e12, label='conserveK1')
+        botpanel.plot(times, (conserveKs3)/1e12, label='conserveK3')
+        botpanel.plot(times, (conserveKs1+conserveKs3)/1e12, label='conserve')
 
         #Decorations
         general_plot_settings(toppanel,do_xlabel=False,legend=True,
@@ -175,6 +201,7 @@ if __name__ == "__main__":
         toppanel.plot(times, -1*(baseKs1+baseKs3).cumsum()*dt/1e15,
                                                               label='baseSUM')
 
+        '''
         botpanel.fill_between(times3, (noRCM1U-noRCM1U[0])/1e15,fc='grey',
                               label='noRCM1Energy')
         botpanel.plot(times3, -1*(noRCM1K_sp).cumsum()*dt3/1e15,
@@ -185,6 +212,17 @@ if __name__ == "__main__":
                                                             label='noRCM1K1')
         botpanel.plot(times3, -1*(noRCM1Ks3).cumsum()*dt3/1e15,
                                                             label='noRCM1K3')
+        '''
+        botpanel.fill_between(times, (conserveU-conserveU[0])/1e15,fc='grey',
+                              label='conserveEnergy')
+        botpanel.plot(times, -1*(conserveK_sp).cumsum()*dt/1e15,
+                                                        label='conserveCheck')
+        botpanel.plot(times, -1*(conserveKs1+conserveKs3).cumsum()*dt/1e15,
+                                                        label='conserveSUM')
+        botpanel.plot(times, -1*(conserveKs1).cumsum()*dt/1e15,
+                                                        label='conserveK1')
+        botpanel.plot(times, -1*(conserveKs3).cumsum()*dt/1e15,
+                                                        label='conserveK3')
         #Decorations
         general_plot_settings(toppanel,do_xlabel=False,legend=True,
                               #ylim=[-10,10],
