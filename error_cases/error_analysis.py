@@ -78,12 +78,16 @@ if __name__ == "__main__":
     noRCM1_sphere = dataset['noRCM1']['sphere10']
 
     # Times
-    reltimes = conserve_sphere.index-conserve_sphere.index[0]
+    interv = conserve_sphere.index[10::]
+    interv3 = noRCM1_sphere.index[10::]
+    reltimes = interv-interv[0]
     times = [float(n) for n in reltimes.to_numpy()]
-    reltimes3 = noRCM1_sphere.index-noRCM1_sphere.index[0]
+    reltimes3 = interv3-interv3[0]
     times3 = [float(n) for n in reltimes3.to_numpy()]
-    interv = conserve_sphere.index
-    interv3 = noRCM1_sphere.index
+    dt = [t.seconds for t in interv[1::]-interv[0:-1]]
+    dt.append(dt[-1])
+    dt3 = [t.seconds for t in interv3[1::]-interv3[0:-1]]
+    dt3.append(dt3[-1])
 
     # Fluxes
     # Unmodified
@@ -130,18 +134,18 @@ if __name__ == "__main__":
     #######################################################################
     ## plots
     if True:
+        ##########################
         #setup figure
         figure1,(toppanel,botpanel) = plt.subplots(2,1,figsize=[16,16])
         #Plot
-        from IPython import embed; embed()
-        toppanel.plot(times, baseU/1e15, label='base')
-        toppanel.plot(times3, noRCM1U/1e15, label='noRCM1')
+        toppanel.plot(times, baseError/1e15, label='base')
+        toppanel.plot(times3, noRCM1Error/1e15, label='noRCM1')
         botpanel.plot(times, (baseKs1+baseKs3)/1e12, label='base')
         botpanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
         #Decorations
         general_plot_settings(toppanel,do_xlabel=False,legend=True,
                               #ylim=[-10,10],
-                              ylabel=r'Energy $\left[ PJ\right]$',
+                              ylabel=r'Error $\left[ PJ\right]$',
                               timedelta=True)
         general_plot_settings(botpanel,do_xlabel=False,legend=True,
                               #ylim=[-10,10],
@@ -153,4 +157,31 @@ if __name__ == "__main__":
         figure1.savefig(figurename)
         plt.close(figure1)
         print('\033[92m Created\033[00m',figurename)
+        ##########################
+        ##########################
+        #setup figure
+        figure2,(toppanel,botpanel) = plt.subplots(2,1,figsize=[16,16])
+        #Plot
+        toppanel.plot(times, (baseU-baseU[0])/1e15, label='baseEnergy')
+        botpanel.plot(times3, (noRCM1U-noRCM1U[0])/1e15, label='noRCM1Energy')
+        toppanel.plot(times, -1*(baseKs1+baseKs3).cumsum()*dt/1e15,
+                                                              label='baseSUM')
+        botpanel.plot(times3, -1*(noRCM1Ks1+noRCM1Ks3).cumsum()*dt3/1e15,
+                                                            label='noRCM1SUM')
+        #Decorations
+        general_plot_settings(toppanel,do_xlabel=False,legend=True,
+                              #ylim=[-10,10],
+                              ylabel=r'Energy $\left[ PJ\right]$',
+                              timedelta=True)
+        general_plot_settings(botpanel,do_xlabel=False,legend=True,
+                              #ylim=[-10,10],
+                              ylabel=r'Energy $\left[ PJ\right]$',
+                              timedelta=True)
+        #save
+        figure2.tight_layout(pad=1)
+        figurename = outPath+'/demo2.png'
+        figure2.savefig(figurename)
+        plt.close(figure2)
+        print('\033[92m Created\033[00m',figurename)
+        ##########################
     #######################################################################
