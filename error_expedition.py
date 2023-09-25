@@ -36,8 +36,8 @@ if __name__ == "__main__":
     # Set file paths/individual file
     #file_path = 'ccmc_2022-02-02/'
     #file_path = 'ideal_run/GM/IO2/'
-    file_path = 'error_cases/ideal_conserve/GM/IO2/'
-    #file_path = 'run_GMonly/GM/IO2/'
+    #file_path = 'error_cases/ideal_conserve/GM/IO2/'
+    file_path = 'run_GMonly/GM/IO2/'
     filekey = '3d__var_1_*.plt'
     all_times = sorted(glob.glob(os.path.join(file_path,filekey)),
                                 key=makevideo.time_sort)
@@ -90,6 +90,7 @@ if __name__ == "__main__":
                                     modes=['sphere'],
                                     sp_rmax=10,
                                     sp_rmin=3,
+                                    sp_x=-13,
                                     keep_zones='all',
                                     do_interfacing=False,
                                     integrate_surface=True,

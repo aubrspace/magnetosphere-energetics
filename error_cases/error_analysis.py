@@ -57,7 +57,8 @@ if __name__ == "__main__":
                  'conserve':inBase+'ideal_conserve_sp10-3.h5',
                  'ie1':inBase+'ideal_IE1_sp10-3.h5',
                  'noRCM1':inBase+'ideal_noRCM1_sp10-3.h5',
-                 'GMonly':inBase+'GMonly_sp10-3.h5'}
+                 'GMonly':inBase+'GMonly_sp10-3.h5',
+                 'GMtail':inBase+'GMonly_tail10-3.h5'}
 
     ## Load data and do minor adjustments
     dataset = load_data(case_dict)
@@ -67,6 +68,7 @@ if __name__ == "__main__":
     ie1_interior = dataset['ie1']['/sphere10_inner_surface']
     noRCM1_interior = dataset['noRCM1']['/sphere10_inner_surface']
     GMonly_interior = dataset['GMonly']['/sphere10_inner_surface']
+    GMtail_interior = dataset['GMtail']['/sphere10_inner_surface']
     #combine exterior with volume results
     dataset = combine_data(dataset,combo_list=['/sphere10_surface',
                                                '/sphere10_volume'],
@@ -79,6 +81,7 @@ if __name__ == "__main__":
     ie1_sphere = dataset['ie1']['sphere10']
     noRCM1_sphere = dataset['noRCM1']['sphere10']
     GMonly_sphere = dataset['GMonly']['sphere10']
+    GMtail_sphere = dataset['GMtail']['sphere10']
 
     # Times
     interv = conserve_sphere.index[10::]
@@ -117,6 +120,9 @@ if __name__ == "__main__":
     # GMonly
     GMonlyKs1 = GMonly_sphere.loc[interv98,'K_net [W]']
     GMonlyKs3 = GMonly_interior.loc[interv98,'K_net [W]']
+    # GMtail
+    GMtailKs1 = GMtail_sphere.loc[interv98,'K_net [W]']
+    GMtailKs3 = GMtail_interior.loc[interv98,'K_net [W]']
 
     # Energies
     # Unmodified
@@ -134,6 +140,9 @@ if __name__ == "__main__":
     # GMonly
     GMonlyU = GMonly_sphere.loc[interv98,'Utot [J]']
     GMonlyK_sp = -1*central_diff(GMonlyU)
+    # GMtail
+    GMtailU = GMtail_sphere.loc[interv98,'Utot [J]']
+    GMtailK_sp = -1*central_diff(GMtailU)
 
     # Errors
     # Unmodified
@@ -151,6 +160,9 @@ if __name__ == "__main__":
     # GMonly
     GMonlyError = (GMonlyKs1+GMonlyKs3-GMonlyK_sp)
     GMonlyRelErr = GMonlyError/GMonlyK_sp
+    # GMtail
+    GMtailError = (GMtailKs1+GMtailKs3-GMtailK_sp)
+    GMtailRelErr = GMtailError/GMtailK_sp
     from IPython import embed; embed()
 
     #######################################################################
@@ -164,10 +176,12 @@ if __name__ == "__main__":
         toppanel.plot(times, (baseKs1+baseKs3)/1e12, label='base')
         #toppanel.plot(times98, GMonlyK_sp/1e12, label='GMonlyTrue')
         #toppanel.plot(times98, (GMonlyKs1+GMonlyKs3)/1e12, label='GMonly')
-        #toppanel.plot(times3, noRCM1K_sp/1e12, label='noRCM1True')
-        #toppanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
-        toppanel.plot(times, conserveK_sp/1e12, label='conserveTrue')
-        toppanel.plot(times, (conserveKs1+conserveKs3)/1e12, label='conserve')
+        #toppanel.plot(times98, GMtailK_sp/1e12, label='GMtailTrue')
+        #toppanel.plot(times98, (GMtailKs1+GMonlyKs3)/1e12, label='GMtail')
+        toppanel.plot(times3, noRCM1K_sp/1e12, label='noRCM1True')
+        toppanel.plot(times3, (noRCM1Ks1+noRCM1Ks3)/1e12, label='noRCM1')
+        #toppanel.plot(times, conserveK_sp/1e12, label='conserveTrue')
+        #toppanel.plot(times, (conserveKs1+conserveKs3)/1e12, label='conserve')
 
         botpanel.fill_between(times, conserveK_sp/1e12, label='conserveTrue',
                               fc='grey')

@@ -1710,9 +1710,9 @@ def calc_state(mode, zones, **kwargs):
         iso_value = kwargs.get('sp_rmax',3)
     elif mode == 'sphere':
         zonename = mode+str(kwargs.get('sp_rmax',3))
-        state_index = calc_sphere_state(mode, kwargs.get('xc',0),
-                                kwargs.get('yc',0),
-                                kwargs.get('zc',0),
+        state_index = calc_sphere_state(mode, kwargs.get('sp_x',0),
+                                kwargs.get('sp_y',0),
+                                kwargs.get('sp_z',0),
                                 kwargs.get('sp_rmax',3), zones,
                                 rmin=kwargs.get('sp_rmin',0))
         #iso_value = kwargs.get('sp_rmax',3)
