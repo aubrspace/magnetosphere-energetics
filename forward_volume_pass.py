@@ -75,7 +75,10 @@ if __name__ == "__main__":
     if '-c' in sys.argv:
         tp.session.connect()
         tp.new_layout()
-    file_path = 'run_GMonly/GM/IO2/'
+    #file_path = 'run_GMonly/GM/IO2/'
+    #file_path = 'ideal_conserve/GM/IO2/'
+    #file_path = 'ideal_IE1/GM/IO2/'
+    file_path = 'ideal_noRCM1/GM/IO2/'
     filekey = '3d__var_1_*.plt'
     all_times = sorted(glob.glob(os.path.join(file_path,filekey)),
                                 key=makevideo.time_sort)
