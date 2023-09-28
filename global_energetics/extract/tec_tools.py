@@ -1424,6 +1424,15 @@ def eqeval(eqset,**kwargs):
                               zones=kwargs.get('zones'),
                               value_location=kwargs.get('value_location'),
                               ignore_divide_by_zero=True)
+        '''
+        try:
+            tp.data.operate.execute_equation(lhs+'='+rhs,
+                              zones=kwargs.get('zones'),
+                              value_location=kwargs.get('value_location'),
+                              ignore_divide_by_zero=True)
+        except TecplotSystemError:
+            from IPython import embed; embed()
+        '''
 
 def get_global_variables(field_data, analysis_type, **kwargs):
     """Function calculates values for energetics tracing
@@ -1493,6 +1502,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     if 'energy' in analysis_type or analysis_type=='all':
         eqeval(alleq['energy_flux'])
         #eqeval(alleq['energy_flux'],value_location=cc)
+    if 'wave' in analysis_type or analysis_type=='all':
+        eqeval(alleq['wave_energy'],value_location=cc)
     #Reconnection variables
     if 'reconnect' in analysis_type:
         eqeval(alleq['reconnect'])

@@ -280,6 +280,37 @@ def equations(**kwargs):
         '{K_y [W/Re^2]}':'{P0_y [W/Re^2]}+{ExB_y [W/Re^2]}',
         '{K_z [W/Re^2]}':'{P0_z [W/Re^2]}+{ExB_z [W/Re^2]}'}
     ######################################################################
+    #Wave Energy terms:
+    equations['wave_energy'] = {
+        '{UdotB}':'({U_x [km/s]}*{B_x [nT]}+'+
+                   '{U_y [km/s]}*{B_y [nT]}+'+
+                   '{U_z [km/s]}*{B_z [nT]})/{Bmag [nT]}',
+        #'{Upar_x}':'({UdotB}/{Bmag [nT]}**2 * {B_x [nT]})',
+        #'{Upar_y}':'({UdotB}/{Bmag [nT]}**2 * {B_y [nT]})',
+        #'{Upar_z}':'({UdotB}/{Bmag [nT]}**2 * {B_z [nT]})',
+        #'{U_perp [km/s]}':'sqrt(({U_x [km/s]} - {Upar_x})**2+'+
+        #                       '({U_y [km/s]} - {Upar_y})**2+'+
+        #                       '({U_z [km/s]} - {Upar_z})**2)',
+        '{U_perp [km/s]}':'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+'+
+                               '{U_z [km/s]}**2-{UdotB}**2)',
+        '{gradU_perp [km/s/Re]}':'-sqrt('+
+            '(ddx({U_perp [km/s]})*{B_x [nT]}/{Bmag [nT]})**2+'+
+            '(ddy({U_perp [km/s]})*{B_y [nT]}/{Bmag [nT]})**2+'+
+            '(ddz({U_perp [km/s]})*{B_z [nT]}/{Bmag [nT]})**2)',
+        '{deltaU}':'{gradU_perp [km/s/Re]}*{Cell Volume}**(1/3)',
+        '{Valf_x [km/s]}':'({B_x [nT]}*1e-9/sqrt('+
+             '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
+        '{Valf_y [km/s]}':'({B_y [nT]}*1e-9/sqrt('+
+             '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
+        '{Valf_z [km/s]}':'({B_z [nT]}*1e-9/sqrt('+
+             '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
+        '{sawS_x [W/Re^2]}':'1/2*{Rho [amu/cm^3]}*{deltaU}**2*sign({deltaU})'+
+                          '*{Valf_x [km/s]}*(6371**2*1.66054*10**-27*10**21)',
+        '{sawS_y [W/Re^2]}':'1/2*{Rho [amu/cm^3]}*{deltaU}**2*sign({deltaU})'+
+                          '*{Valf_y [km/s]}*(6371**2*1.66054*10**-27*10**21)',
+        '{sawS_z [W/Re^2]}':'1/2*{Rho [amu/cm^3]}*{deltaU}**2*sign({deltaU})'+
+                          '*{Valf_z [km/s]}*(6371**2*1.66054*10**-27*10**21)'}
+    ######################################################################
     #Reconnection variables: 
     #   -u x B (electric field in mhd limit)
     #   E (unit change)
