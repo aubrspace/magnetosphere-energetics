@@ -35,9 +35,9 @@ if __name__ == "__main__":
 
     # Set file paths/individual file
     #file_path = 'ccmc_2022-02-02/'
-    #file_path = 'ideal_run/GM/IO2/'
+    file_path = 'ideal_run/GM/IO2/'
     #file_path = 'error_cases/ideal_conserve/GM/IO2/'
-    file_path = 'run_GMonly/GM/IO2/'
+    #file_path = 'run_GMonly/GM/IO2/'
     filekey = '3d__var_1_*.plt'
     all_times = sorted(glob.glob(os.path.join(file_path,filekey)),
                                 key=makevideo.time_sort)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     oggridfile = glob.glob(file_path+'3d*volume*.plt')[0]
 
     i=0
-    for k,f in enumerate(all_times[::]):
+    for k,f in enumerate(all_times[1050:1051]):
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('_1_')[-1].split('.')[0][1::]
         outpath = os.path.join('error_results',file_path.split('/')[0])
@@ -86,11 +86,11 @@ if __name__ == "__main__":
                                     verbose=True,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy_mass_mag',
+                                    analysis_type='wave_energy',
                                     modes=['sphere'],
                                     sp_rmax=10,
                                     sp_rmin=3,
-                                    sp_x=-13,
+                                    #sp_x=-13,
                                     keep_zones='all',
                                     do_interfacing=False,
                                     integrate_surface=True,

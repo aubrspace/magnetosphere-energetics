@@ -795,6 +795,27 @@ def get_energy_dict(**kwargs):
         #Total flux K calculated in post
     return energy_dict
 
+def get_wave_dict(**kwargs):
+    """Creates dictionary of terms to be integrated for wave energy analysis
+    Inputs
+    Outputs
+        energy_dict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    if kwargs.get('do_1Dsw',False):
+        prepend = '1D'
+    else:
+        prepend = ''
+    flux_suffixes = ['_escape','_injection']#net will be calculated in post
+    units = ' [W/Re^2]'
+    postunits = ' [W]'
+    wave_dict = {}
+    for direction in flux_suffixes:
+        wave_dict.update(
+            {prepend+'sawS'+direction+units:
+                                         prepend+'sawS'+direction+postunits})
+        #Total flux calculated in post
+    return wave_dict
+
 def get_mass_dict(**kwargs):
     """Creates dictionary of terms to be integrated for virial analysis
     Inputs
@@ -879,6 +900,8 @@ def surface_analysis(zone, **kwargs):
         integrands.update(get_mag_dict(**kwargs))
     if 'mass' in analysis_type:
         integrands.update(get_mass_dict(**kwargs))
+    if 'wave' in analysis_type:
+        integrands.update(get_wave_dict(**kwargs))
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications spatially parsing results

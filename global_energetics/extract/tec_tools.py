@@ -1093,6 +1093,24 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                          'min({'+add+'K_net [W/Re^2]},0)',
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
+        if 'wave' in analysis_type:
+            ##############################################################
+            #Shear alfven wave energy flux
+            eq('{'+add+'sawS_net [W/Re^2]}='+
+                                    '{sawS_x [W/Re^2]}*{surface_normal_x}+'+
+                                    '{sawS_y [W/Re^2]}*{surface_normal_y}+'+
+                                    '{sawS_z [W/Re^2]}*{surface_normal_z}',
+                value_location=ValueLocation.CellCentered,
+                zones=zonelist)
+            #Split into + and - flux
+            eq('{'+add+'sawS_escape [W/Re^2]}=max({'+
+                                                add+'sawS_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=zonelist)
+            eq('{'+add+'sawS_injection [W/Re^2]} ='+
+                         'min({'+add+'sawS_net [W/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=zonelist)
     if 'mag' in analysis_type:
         if kwargs.get('do_1Dsw',False):
             prefixlist = ['1D']
@@ -1424,6 +1442,15 @@ def eqeval(eqset,**kwargs):
                               zones=kwargs.get('zones'),
                               value_location=kwargs.get('value_location'),
                               ignore_divide_by_zero=True)
+        '''
+        try:
+            tp.data.operate.execute_equation(lhs+'='+rhs,
+                              zones=kwargs.get('zones'),
+                              value_location=kwargs.get('value_location'),
+                              ignore_divide_by_zero=True)
+        except TecplotSystemError:
+            from IPython import embed; embed()
+        '''
 
 def get_global_variables(field_data, analysis_type, **kwargs):
     """Function calculates values for energetics tracing
@@ -1493,6 +1520,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     if 'energy' in analysis_type or analysis_type=='all':
         eqeval(alleq['energy_flux'])
         #eqeval(alleq['energy_flux'],value_location=cc)
+    if 'wave' in analysis_type or analysis_type=='all':
+        eqeval(alleq['wave_energy'],value_location=cc)
     #Reconnection variables
     if 'reconnect' in analysis_type:
         eqeval(alleq['reconnect'])
