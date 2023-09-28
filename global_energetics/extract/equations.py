@@ -293,17 +293,20 @@ def equations(**kwargs):
         #                       '({U_z [km/s]} - {Upar_z})**2)',
         '{U_perp [km/s]}':'sqrt({U_x [km/s]}**2+{U_y [km/s]}**2+'+
                                '{U_z [km/s]}**2-{UdotB}**2)',
-        '{gradU_perp [km/s/Re]}':'-sqrt('+
-            '(ddx({U_perp [km/s]})*{B_x [nT]}/{Bmag [nT]})**2+'+
-            '(ddy({U_perp [km/s]})*{B_y [nT]}/{Bmag [nT]})**2+'+
-            '(ddz({U_perp [km/s]})*{B_z [nT]}/{Bmag [nT]})**2)',
+        '{gradU_perp [km/s/Re]}':'-('+
+            'ddx({U_perp [km/s]})*{B_x [nT]}+'+
+            'ddy({U_perp [km/s]})*{B_y [nT]}+'+
+            'ddz({U_perp [km/s]})*{B_z [nT]})/{Bmag [nT]}',
         '{deltaU}':'{gradU_perp [km/s/Re]}*{Cell Volume}**(1/3)',
+        '{Valf [km/s]}':'({Bmag [nT]}*1e-9/sqrt('+
+             '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
         '{Valf_x [km/s]}':'({B_x [nT]}*1e-9/sqrt('+
              '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
         '{Valf_y [km/s]}':'({B_y [nT]}*1e-9/sqrt('+
              '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
         '{Valf_z [km/s]}':'({B_z [nT]}*1e-9/sqrt('+
              '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
+        #'{deltaU}':'{gradU_perp [km/s/Re]}*{Valf [km/s]}*10/6371',
         '{sawS_x [W/Re^2]}':'1/2*{Rho [amu/cm^3]}*{deltaU}**2*sign({deltaU})'+
                           '*{Valf_x [km/s]}*(6371**2*1.66054*10**-27*10**21)',
         '{sawS_y [W/Re^2]}':'1/2*{Rho [amu/cm^3]}*{deltaU}**2*sign({deltaU})'+

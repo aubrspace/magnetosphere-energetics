@@ -47,7 +47,7 @@ if __name__ == "__main__":
     oggridfile = glob.glob(file_path+'3d*volume*.plt')[0]
 
     i=0
-    for k,f in enumerate(all_times[1000:1001]):
+    for k,f in enumerate(all_times[1050:1051]):
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('_1_')[-1].split('.')[0][1::]
         outpath = os.path.join('error_results',file_path.split('/')[0])
