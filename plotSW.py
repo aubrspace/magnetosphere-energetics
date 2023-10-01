@@ -239,5 +239,9 @@ if __name__ == '__main__':
         "font.family": "sans-serif",
         "font.size": 18,
         "font.sans-serif": ["Helvetica"]})
-    plot_solarwind()
+    if '-i' in sys.argv:
+        infile = sys.argv[sys.argv.index('-i')+1]
+        plot_solarwind(imffile=infile)
+    else:
+        plot_solarwind()
     plt.show()

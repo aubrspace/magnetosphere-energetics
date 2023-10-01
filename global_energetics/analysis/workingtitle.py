@@ -567,9 +567,10 @@ def locate_phase(times,**kwargs):
         inter_start = aug2019_inter_start
         inter_end = aug2019_inter_end
     else:
-        start = dt.timedelta(minutes=390)
-        impact = dt.datetime(2014,4,10,6,30,0)
-        #impact = times[0]
+        #start = dt.timedelta(minutes=390)
+        #impact = dt.datetime(2014,4,10,6,30,0)
+        start = dt.timedelta(minutes=0)
+        impact = times[0]
         peak1 = times[-1]
         peak2 = times[-1]
         inter_start = impact
@@ -2235,8 +2236,8 @@ def lobe_balance_fig(dataset,phase,path):
         Ks6 = closed['K_netK6 [W]']
         Ks7 = closed['K_netK7 [W]']
         #DawnDusk from xslice
-        KsDsk = xslice.get('K_netDusk [W]')
-        KsDwn = xslice.get('K_netDawn [W]')
+        #KsDsk = xslice.get('K_netDusk [W]')
+        #KsDwn = xslice.get('K_netDawn [W]')
 
         ## HYDRO
         #H1,5 from mp
@@ -2253,8 +2254,8 @@ def lobe_balance_fig(dataset,phase,path):
         Hs6 = closed['P0_netK6 [W]']
         Hs7 = closed['P0_netK7 [W]']
         #DawnDusk from xslice
-        HsDsk = xslice.get('P0_netDusk [W]')
-        HsDwn = xslice.get('P0_netDawn [W]')
+        #HsDsk = xslice.get('P0_netDusk [W]')
+        #HsDwn = xslice.get('P0_netDawn [W]')
 
         ## MAG
         #S1,5 from mp
@@ -2271,8 +2272,8 @@ def lobe_balance_fig(dataset,phase,path):
         Ss6 = closed['ExB_netK6 [W]']
         Ss7 = closed['ExB_netK7 [W]']
         #DawnDusk from xslice
-        SsDsk = xslice.get('ExB_netDusk [W]')
-        SsDwn = xslice.get('ExB_netDawn [W]')
+        #SsDsk = xslice.get('ExB_netDusk [W]')
+        #SsDwn = xslice.get('ExB_netDawn [W]')
 
         ## TOTAL
         #M1,5,total from mp
@@ -3081,6 +3082,7 @@ def lobe_balance_fig(dataset,phase,path):
         total_ax.plot(times,(Hs2bc-HM2b-HM2d+Ss2bc-SM2b-SM2d)/1e12,
                       label=r'Tail $K_{2b}$',color='tab:blue')
         # DawnDusk
+        '''
         dawndusk_ax.plot(times,HsDwn/1e12,label=r'$H$ Dawn',color='indianred')
         dawndusk_ax.plot(times,HsDsk/1e12,label=r'$H$ Dusk',
                          color='red',ls=':')
@@ -3088,6 +3090,7 @@ def lobe_balance_fig(dataset,phase,path):
                          color='cornflowerblue')
         dawndusk_ax.plot(times,SsDsk/1e12,label=r'$S$ Dusk',
                          color='blue',ls=':')
+        '''
 
         ##Decorations
         powerlabel=['Hydro.','Poynting','Tot. Energy','Night->Day']
@@ -3113,8 +3116,8 @@ def lobe_balance_fig(dataset,phase,path):
                           Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d
                           )/1e12,
                            label=r'Sum',fc='dimgray')
-        dawndusk_ax.fill_between(times,(HsDwn+HsDsk+SsDwn+SsDsk)/1e12,
-                           label=r'Sum',fc='dimgray')
+        #dawndusk_ax.fill_between(times,(HsDwn+HsDsk+SsDwn+SsDsk)/1e12,
+        #                   label=r'Sum',fc='dimgray')
 
         hydro_ax.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
                         ncol=3, fancybox=True, shadow=True)
@@ -3135,6 +3138,7 @@ def lobe_balance_fig(dataset,phase,path):
         print('\033[92m Created\033[00m',figurename)
         #############
 
+        """
         #############
         #setup figure
         terminator,(axis) = plt.subplots(1,1,figsize=[20,8])
@@ -3171,7 +3175,6 @@ def lobe_balance_fig(dataset,phase,path):
         terminator.savefig(figurename)
         plt.close(terminator)
         print('\033[92m Created\033[00m',figurename)
-        """
         #############
         #setup figure
         poynting_type,(axis,axis2,axis3) = plt.subplots(3,1,figsize=[16,24])
@@ -3300,9 +3303,9 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         sup = ds[event]['obs']['supermag'+ph]
         suptime = ds[event]['supermag_otime'+ph]
         supt = [float(n) for n in suptime.to_numpy()]#bad hack
-        vsup = ds[event]['obs']['vsupermag'+ph]
-        vsuptime = ds[event]['vsupermag_otime'+ph]
-        vsupt = [float(n) for n in suptime.to_numpy()]#bad hack
+        #vsup = ds[event]['obs']['vsupermag'+ph]
+        #vsuptime = ds[event]['vsupermag_otime'+ph]
+        #vsupt = [float(n) for n in suptime.to_numpy()]#bad hack
         moments = locate_phase(sw.index)
         if kwargs.get('tabulate',False):
             #start,impact,peak1,peak2,inter_start,inter_end=locate_phase(
@@ -3387,8 +3390,8 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
                               do_xlabel=False, legend=True,
                               timedelta=dotimedelta)
         #SML index
-        ax[3].plot(vsupt,vsup['vSML'],label='Sim',c='tab:blue')
-        ax[3].plot(supt,sup['SML'],label='Obs',c='maroon')
+        #ax[3].plot(vsupt,vsup['vSML'],label='Sim',c='tab:blue')
+        #ax[3].plot(supt,sup['SML'],label='Obs',c='maroon')
         ax[3].plot(indext,index['AL'],label='AL',c='magenta',ls='--')
         general_plot_settings(ax[3],ylabel=r'SML$\left[nT\right]$',
                               do_xlabel=True, legend=True,
@@ -4399,19 +4402,19 @@ def main_rec_figures(dataset):
     #for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
     for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
+        stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        #solarwind_figure(dataset,phase,path,hatches,tabulate=False)
-        #lobe_balance_fig(dataset,phase,path)
+        solarwind_figure(dataset,phase,path,hatches,tabulate=False)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        satellite_comparisons(dataset, phase, path)
+        #satellite_comparisons(dataset, phase, path)
         #oneD_comparison(dataset,phase,path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
@@ -4476,7 +4479,7 @@ if __name__ == "__main__":
     #dataset['aug'] = {}
     #dataset['jun'] = {}
     #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
-    #dataset['ideal'] = load_hdf_sort(inAnalysis+'gm_results.h5')
+    dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
@@ -4488,8 +4491,8 @@ if __name__ == "__main__":
     #                                 end=dataset['star4']['msdict']['closed'].index[-1],
     #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
-    #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
-    #                                       read_supermage=False)
+    dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
+                                           read_supermag=True)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
@@ -4503,7 +4506,7 @@ if __name__ == "__main__":
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
     #                                                                inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
-    #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
+    dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]
@@ -4550,8 +4553,8 @@ if __name__ == "__main__":
         if 'msdict' in dataset[event].keys():
             dataset[event]['msdict'] = {
                 #'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
-                'xslice':dataset[event]['msdict'].get(
-                                               'xslice',pd.DataFrame()),
+                #'xslice':dataset[event]['msdict'].get(
+                #                               'xslice',pd.DataFrame()),
                 'closed':dataset[event]['msdict'].get(
                                               'closed',pd.DataFrame()),
                 'lobes':dataset[event]['msdict'].get(
@@ -4611,7 +4614,7 @@ if __name__ == "__main__":
         '''
     ######################################################################
     ##Main + Recovery phase
-    #main_rec_figures(dataset)
+    main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
     #interval_figures(dataset)
