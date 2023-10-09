@@ -57,20 +57,23 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'ideal_run/GM/IO2/'
-    outpath = 'ideal_vis/'
+    inpath = 'febstorm/'
+    outpath = 'demo/'
     head = '3d__var_1_*'
     ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
-    #gm_stylehead = 'simple_vis.sty'
-    gm_stylehead = 'ffj_vis.sty'
+    gm_stylehead = 'simple_vis.sty'
+    #gm_stylehead = 'ffj_vis.sty'
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
                                 key=makevideo.time_sort)[0::]
-    oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
+    #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
 
     i=0
-    for k,f in enumerate(filelist):
+    #for k,f in enumerate(filelist):
+    k=0
+    f='febstorm/3d__var_1_e20140219-055500-008.plt'
+    if True:
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
@@ -104,8 +107,8 @@ if __name__ == "__main__":
                                     debug=False,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy_ffj',
-                                    modes=['iso_betastar'],
+                                    analysis_type='energy',
+                                    modes=['iso_betastar','shue'],
                                     inner_r=4,
                                     sp_rmin=4,
                                     do_interfacing=False,
@@ -113,9 +116,11 @@ if __name__ == "__main__":
                                     integrate_volume=False,
                                     integrate_line=False,
                                     do_1Dsw=False,
-                                    truegridfile=oggridfile,
+                                    #truegridfile=oggridfile,
                                     outputpath=outpath,
                                     )
+                from relic import find_oldschool_mp
+                find_oldschool_mp(field_data)
                 if os.path.exists(iedatafile) and False:
                     # IE data
                     tp.data.load_tecplot(iedatafile,
@@ -133,7 +138,7 @@ if __name__ == "__main__":
                                           outputpath='polarcap2000/analysis/')
                     if True:
                         save_ie_image(ie_stylehead_north, ie_stylehead_south)
-                if os.path.exists(os.getcwd()+'/'+gm_stylehead):
+                if os.path.exists(os.getcwd()+'/'+gm_stylehead) and False:
                     main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
                     tp.save_png(os.path.join(outpath,'figures',
                                 OUTPUTNAME+'.png'),width=1600)

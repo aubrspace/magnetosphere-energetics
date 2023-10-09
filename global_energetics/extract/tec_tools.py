@@ -170,6 +170,7 @@ def check_streamline_closed(field_data, zone_name, r_seed, line_type,
                     return isclosed
         return isclosed
     elif line_type == 'flowline':
+        '''
         rmin = field_data.zone(zone_name+'*').values('r *').min()
         if rmin < r_seed:
             isclosed = True
@@ -177,6 +178,15 @@ def check_streamline_closed(field_data, zone_name, r_seed, line_type,
         else:
             isclosed = False
             return isclosed
+        '''
+        free_x = r_seed
+        xmax = field_data.zone(zone_name+'*').values('X *').max()
+        if xmax < free_x:
+            solar_wind = False
+            return not solar_wind
+        else:
+            solar_wind = True
+            return not solar_wind
     else:
         r_end_n, r_end_s = r_values[0], r_values[-1]
     #check if closed
