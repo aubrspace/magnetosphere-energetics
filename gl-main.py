@@ -86,7 +86,7 @@ def energetics_analysis(infiles,outpath):
                                       do_cms=False,
                                       do_central_diff=False,
                                       do_1Dsw=False,
-                                      analysis_type='energy_mass_mag',
+                                      analysis_type='energy_wave',
                                       modes=['sphere'],
                                       sp_rmax=10,
                                       sp_rmin=3,
