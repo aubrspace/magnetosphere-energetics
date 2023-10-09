@@ -20,7 +20,8 @@ from matplotlib import ticker, colors
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
 from global_energetics.analysis import analyze_bow_shock
-from global_energetics.analysis.plot_tools import (pyplotsetup,safelabel,
+from global_energetics.analysis.plot_tools import (central_diff,
+                                                   pyplotsetup,safelabel,
                                                    general_plot_settings,
                                                    plot_stack_distr,
                                                    plot_pearson_r,
@@ -290,40 +291,6 @@ def hotfix_psb(msdict):
     #msdict['closed'] = closed
     #msdict['closed'] = closed
     return msdict
-
-def central_diff(dataframe,**kwargs):
-    """Takes central difference of the columns of a dataframe
-    Inputs
-        df (DataFrame)- data
-        dt (int)- spacing used for denominator
-        kwargs:
-            fill (float)- fill value for ends of diff
-    Returns
-        cdiff (DataFrame)
-    """
-    times = dataframe.copy(deep=True).index
-    df = dataframe.copy(deep=True)
-    df = df.reset_index(drop=True).fillna(method='ffill')
-    df_fwd = df.copy(deep=True)
-    df_bck = df.copy(deep=True)
-    df_fwd.index -= 1
-    df_bck.index += 1
-    if kwargs.get('forward',False):
-        # Calculate dt at each time interval
-        dt = times[1::]-times[0:-1]
-        cdiff = (df_fwd-df)/(dt.seconds+dt.microseconds/1e6)
-        cdiff.drop(index=[-1],inplace=True)
-    else:
-        # Calculate dt at each time interval
-        dt = times[2::]-times[0:-2]
-        diff = (df_fwd-df_bck).drop(index=[-1,0,df_bck.index[-1],
-                                                df_bck.index[-2]])
-        cdiff = diff/(dt.seconds+dt.microseconds/1e6)
-        cdiff.loc[0] = 0
-        cdiff.loc[len(cdiff)]=0
-        cdiff.sort_index(inplace=True)
-    cdiff.index = dataframe.index
-    return cdiff
 
 def get_interfaces(sz):
     """Gets list of interfaces given a subzone region
@@ -2189,7 +2156,10 @@ def lobe_balance_fig(dataset,phase,path):
         closed = dataset[event]['msdict'+phase]['closed']
         if 'xslice' in dataset[event]['msdict'+phase].keys():
             xslice = dataset[event]['msdict'+phase]['xslice']
-        mp = dataset[event]['mp'+phase]
+        if 'mp'+phase in dataset[event].keys():
+            mp = dataset[event]['mp'+phase]
+        else:
+            mp = dataset[event]['mpdict']['ms_full']
         inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
         sim = dataset[event]['obs']['swmf_log'+phase]
@@ -4473,13 +4443,14 @@ if __name__ == "__main__":
     #dataset['may'] = load_hdf_sort(inAnalysis+'temp/test_may.h5')
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
-    #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    from IPython import embed; embed()
     #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
     #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
-    dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
+    #dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
@@ -4491,8 +4462,8 @@ if __name__ == "__main__":
     #                                 end=dataset['star4']['msdict']['closed'].index[-1],
     #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
-    dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
-                                           read_supermag=True)
+    #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
+    #                                       read_supermag=True)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
