@@ -201,9 +201,21 @@ def prep_field_data(field_data, **kwargs):
         show_settings(**kwargs)
     #Auxillary data from tecplot file
     aux = field_data.zone('global_field').aux_data
+    eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
+    # If the Status == -3 anywhere it means the B field trace failed somewhere
+    # What we want to do is try to use th_1 th_2 to fill in the portions
+    #   of the trace that were completed before it was abandoned and set to -3
+    if 'Status' in field_data.variable_names:
+        if ((field_data.zone(0).values('Status').min() == -3) and
+            ('theta_1 [deg]' in field_data.variable_names)):
+            eq('{Status} = if({Status}==-3,'+#Recalculate from theta's
+             'if(({theta_1 [deg]}>=0 && {theta_2 [deg]}>=-90),3,'+#closed
+             'if(({theta_1 [deg]}<0  && {theta_2 [deg]}>=-90),1,'+#south
+             'if(({theta_1 [deg]}>=0 && {theta_2 [deg]}< -90),2,0))),'+#north
+                           '{Status})')#Don't change the non -3 Status values
+    from IPython import embed; embed()
     # If a truegrid file is given, then take that information in
     if 'truegridfile' in kwargs:
-        eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
         #if field_data.zone(0).values('dvol *').max()>0:
         if 'dvol [R]^3' in field_data.variable_names:
             eq('{trueCellVolume} = {dvol [R]^3}',zones=[field_data.zone(0)])

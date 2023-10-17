@@ -57,8 +57,8 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'febstorm/'
-    outpath = 'demo/'
+    inpath = 'localdbug/parameter_study/'
+    outpath = 'parameter_study/'
     head = '3d__var_1_*'
     ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     gm_stylehead = 'simple_vis.sty'
@@ -68,12 +68,13 @@ if __name__ == "__main__":
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
                                 key=makevideo.time_sort)[0::]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
+    oggridfile = ''
 
     i=0
-    #for k,f in enumerate(filelist):
-    k=0
-    f='febstorm/3d__var_1_e20140219-055500-008.plt'
-    if True:
+    for k,f in enumerate(filelist):
+    #k=0
+    #f='febstorm/3d__var_1_e20140219-055500-008.plt'
+    #if True:
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
@@ -81,6 +82,7 @@ if __name__ == "__main__":
             i+=1
             tp.new_layout()
             mhddatafile = f
+            '''
             iedatafile=(inpath.replace('/GM/IO2/','/IE/ionosphere/')+
                     'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
                       filetime.year-2000,
@@ -89,6 +91,7 @@ if __name__ == "__main__":
                       filetime.hour,
                       filetime.minute,
                       filetime.second))
+            '''
             #python objects
             field_data = tp.data.load_tecplot(mhddatafile)
             field_data.zone(0).name = 'global_field'
@@ -103,24 +106,25 @@ if __name__ == "__main__":
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                                         write_data=True,
+                                                        disp_result=True,
                                     verbose=True,
                                     debug=False,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy',
-                                    modes=['iso_betastar','shue'],
-                                    inner_r=4,
-                                    sp_rmin=4,
-                                    do_interfacing=False,
-                                    integrate_surface=True,
-                                    integrate_volume=False,
-                                    integrate_line=False,
                                     do_1Dsw=False,
-                                    #truegridfile=oggridfile,
-                                    outputpath=outpath,
-                                    )
-                from relic import find_oldschool_mp
-                find_oldschool_mp(field_data)
+                                    analysis_type='energy',
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe'],
+                                    inner_r=4,
+                                    customTerms={'test':'TestArea [Re^2]'},
+                                    do_interfacing=True,
+                                    integrate_line=False,
+                                    integrate_surface=True,
+                                    integrate_volume=True,
+                                    truegridfile=oggridfile,
+                                    extract_flowline=False,
+                                    outputpath=outpath)
+                '''
                 if os.path.exists(iedatafile) and False:
                     # IE data
                     tp.data.load_tecplot(iedatafile,
@@ -138,6 +142,7 @@ if __name__ == "__main__":
                                           outputpath='polarcap2000/analysis/')
                     if True:
                         save_ie_image(ie_stylehead_north, ie_stylehead_south)
+                '''
                 if os.path.exists(os.getcwd()+'/'+gm_stylehead) and False:
                     main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
                     tp.save_png(os.path.join(outpath,'figures',

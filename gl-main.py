@@ -86,6 +86,7 @@ def energetics_analysis(infiles,outpath):
                                       save_mesh=False,
                                       write_data=True,
                                       disp_result=False,
+                                      verbose=False,
                                       do_cms=False,
                                       do_central_diff=False,
                                       do_1Dsw=False,
@@ -104,7 +105,6 @@ def energetics_analysis(infiles,outpath):
                                       integrate_surface=True,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
-                                      verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
     '''
