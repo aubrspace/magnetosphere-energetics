@@ -11,8 +11,8 @@
 #INPUTDIR=./ideal_conserve/GM/IO2/
 #OUTPUTDIR=./ideal_conserve_sp10-3/
 
-INPUTDIR=./ideal_test/GM/IO2/
-OUTPUTDIR=./ideal_test_sp10-3/
+#INPUTDIR=./ideal_test/GM/IO2/
+#OUTPUTDIR=./ideal_test_sp10-3/
 
 #INPUTDIR=./ideal_IE1/GM/IO2/
 #OUTPUTDIR=./ideal_IE1_sp10-3/
@@ -23,12 +23,25 @@ OUTPUTDIR=./ideal_test_sp10-3/
 #INPUTDIR=./ideal_refined/GM/IO2/
 #OUTPUTDIR=./ideal_refined_sp10-3/
 
+#INPUTDIR=./run_LOWnLOWu/GM/IO2/
+#OUTPUTDIR=./outputs_LOWnLOWu/
+
+#INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
+#OUTPUTDIR=./outputs_HIGHnHIGHu/
+
+#INPUTDIR=./run_LOWnHIGHu/GM/IO2/
+#OUTPUTDIR=./outputs_LOWnHIGHu/
+
+INPUTDIR=./run_HIGHnLOWu/GM/IO2/
+OUTPUTDIR=./outputs_HIGHnLOWu/
+
 filecount=0
 workercount=0
 
 #head=3d__var_1_e20140410-080
-head=3d__var_1_e201404
+#head=3d__var_1_e201404
 #head=3d__var_1_e202202
+head=3d__var_1_e202206
 
 #satpath=star2satloc
 
@@ -47,7 +60,7 @@ do
 
     #if you only want to process one file use this
     #i=$((i+1))
-    #if [ $i == 30 ]
+    #if [ $i == 2 ]
     #then
     #    exit
     #fi

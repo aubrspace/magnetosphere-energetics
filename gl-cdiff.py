@@ -52,28 +52,10 @@ def energetics_analysis(infiles,outpath):
     #Reset session
     tp.new_layout()
     #python objects
-    #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
-    #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
     oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
-    '''
-    #iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
-    iedatafile = ('ideal_test/IE/ionosphere/'+
-                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
-                      filetime.year-2000,
-                      filetime.month,
-                      filetime.day,
-                      filetime.hour,
-                      filetime.minute,
-                      filetime.second))
-    if not os.path.exists(iedatafile):
-        print(iedatafile,'does not exist!')
-        with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
-            png.close()
-        exit
-    '''
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
         field_data.zone(1).name = 'future'
@@ -86,8 +68,8 @@ def energetics_analysis(infiles,outpath):
                                       save_mesh=False,
                                       write_data=True,
                                       disp_result=False,
-                                      do_cms=False,
-                                      do_central_diff=False,
+                                      do_cms=True,
+                                      do_central_diff=True,
                                       do_1Dsw=False,
                                       analysis_type='energy_mass_mag',
                                       #modes=['sphere'],
@@ -101,7 +83,7 @@ def energetics_analysis(infiles,outpath):
                                       customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=True,
+                                      integrate_surface=False,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
                                       verbose=False,
@@ -177,7 +159,6 @@ if __name__ == "__main__":
 
     # Get the whole file list remaining
     file_list, full_list = parse_infiles(inpath,outpath)
-    print('Full list = ',len(full_list))
     #[print(str(f)+'\n') for f in file_list]
     # If just a single file is requested
     if '-f' in sys.argv or '--file' in sys.argv:
@@ -186,9 +167,6 @@ if __name__ == "__main__":
         elif '--file' in sys.argv:
             infile = sys.argv[sys.argv.index('--file')+1]
         nowfile = os.path.join(inpath,infile)
-        if nowfile not in file_list:
-            print('MAIN '+nowfile+' already done....')
-            exit()
 
         try:
             nextfile = full_list[full_list.index(nowfile)+1].split('/')[-1]
@@ -205,12 +183,14 @@ if __name__ == "__main__":
                 previousfile = os.path.join(inpath,
                                full_list[full_list.index(nowfile)-1].split('/')[-1])
                 nextfile_mirror = nowfile
-        print('MAIN previous: ',previousfile)
-        print('MAIN now: ',nowfile)
-        print('MAIN next: ',nextfile)
+        print('CDIFF previous: ',previousfile)
+        print('CDIFF now: ',nowfile)
+        print('CDIFF next: ',nextfile)
+        if previousfile not in file_list:
+            print('CDIFF '+previousfile+' already done....')
+            exit()
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        energetics_analysis([nowfile],outpath)
-        #energetics_analysis([previousfile,nextfile_mirror],outpath)
+        energetics_analysis([previousfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,

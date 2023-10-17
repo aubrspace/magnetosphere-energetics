@@ -205,7 +205,7 @@ def prep_field_data(field_data, **kwargs):
     if 'truegridfile' in kwargs:
         eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
         #if field_data.zone(0).values('dvol *').max()>0:
-        if 'dvol [Re^3]' in field_data.variable_names:
+        if 'dvol [R]^3' in field_data.variable_names:
             eq('{trueCellVolume} = {dvol [R]^3}',zones=[field_data.zone(0)])
         elif '.plt' in kwargs.get('truegridfile'):
             tp.data.load_tecplot(kwargs.get('truegridfile'),reset_style=False)
