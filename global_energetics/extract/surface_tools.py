@@ -887,7 +887,8 @@ def surface_analysis(zone, **kwargs):
         kwargs.get('surfGeom',False)):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
-    get_daymapped_nightmapped(zone)
+    if kwargs.get('do_interfacing',False):
+        get_daymapped_nightmapped(zone)
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     ###################################################################

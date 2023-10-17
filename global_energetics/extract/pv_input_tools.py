@@ -134,6 +134,32 @@ def fix_names(pipeline,**kwargs):
     pipeline = names
     return pipeline
 
+def status_repair(pipeline,**kwargs):
+    status_repair = ProgrammableFilter(registrationName='status_repair',
+                                       Input=pipeline)
+    status_repair.Script = """
+    #Get upstream data
+    data = inputs[0]
+    status = data.PointData['Status']
+    theta1 = data.PointData['theta_1_deg']
+    theta2 = data.PointData['theta_2_deg']
+    closed = ((theta1>=0)&(theta1<=90)
+                  &
+              (theta2<=0)&(theta2>=-90)).astype(int)
+    open_north = ((theta1>=0)&(theta1<=90)
+                  &
+                  (theta2<=-90)).astype(int)
+    open_south = ((theta1<=0)
+                  &
+                  (theta2<=0)&(theta2>=-90)).astype(int)
+    #Assign to output
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(closed,'closed')
+    output.PointData.append(open_north,'open_north')
+    output.PointData.append(open_south,'open_south')
+                         """
+    return status_repair
+
 def todimensional(pipeline, **kwargs):
     """Function modifies dimensionless variables -> dimensional variables
     Inputs

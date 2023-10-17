@@ -11,6 +11,40 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator,
                                AutoLocator, FuncFormatter)
 
+def central_diff(dataframe,**kwargs):
+    """Takes central difference of the columns of a dataframe
+    Inputs
+        df (DataFrame)- data
+        dt (int)- spacing used for denominator
+        kwargs:
+            fill (float)- fill value for ends of diff
+    Returns
+        cdiff (DataFrame)
+    """
+    times = dataframe.copy(deep=True).index
+    df = dataframe.copy(deep=True)
+    df = df.reset_index(drop=True).fillna(method='ffill')
+    df_fwd = df.copy(deep=True)
+    df_bck = df.copy(deep=True)
+    df_fwd.index -= 1
+    df_bck.index += 1
+    if kwargs.get('forward',False):
+        # Calculate dt at each time interval
+        dt = times[1::]-times[0:-1]
+        cdiff = (df_fwd-df)/(dt.seconds+dt.microseconds/1e6)
+        cdiff.drop(index=[-1],inplace=True)
+    else:
+        # Calculate dt at each time interval
+        dt = times[2::]-times[0:-2]
+        diff = (df_fwd-df_bck).drop(index=[-1,0,df_bck.index[-1],
+                                                df_bck.index[-2]])
+        cdiff = diff/(dt.seconds+dt.microseconds/1e6)
+        cdiff.loc[0] = 0
+        cdiff.loc[len(cdiff)]=0
+        cdiff.sort_index(inplace=True)
+    cdiff.index = dataframe.index
+    return cdiff
+
 def pyplotsetup(*,mode='presentation',**kwargs):
     """Creates dictionary to send to rcParams for pyplot defaults
     Inputs
@@ -110,7 +144,7 @@ def general_plot_settings(ax, **kwargs):
             locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
             '''
             n = 3600*4/1e-9
-            locs = [i*n for i in range(-10,10)]
+            locs = [i*n for i in range(-100,100)]
             #locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
         else:
             n = 3600*0.5/1e-9
@@ -480,6 +514,159 @@ def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
         ax.set_xlabel(kwargs.get('xlabel'))
         ax.set_ylabel(kwargs.get('ylabel'))
     return r
+
+
+def refactor(event,t0):
+    # Gather segments of the event to pass directly to figure functions
+    ev = {}
+    ev['lobes'] = event['msdict']['lobes']
+    ev['closed'] = event['msdict']['closed']
+    ev['mp'] = event['mpdict']['ms_full']
+    ev['inner'] = event['inner_mp']
+    ev['sim'] = event['obs']['swmf_log']
+    ev['sw'] = event['obs']['swmf_sw']
+    timedelta = [t-t0 for t in event['time']]
+    simtdelta = [t-t0 for t in ev['sim'].index]
+    swtdelta = [t-t0 for t in ev['sw'].index]
+    ev['times']=[float(n.to_numpy()) for n in timedelta]
+    ev['simt']=[float(n.to_numpy()) for n in simtdelta]
+    ev['swt']=[float(n.to_numpy()) for n in swtdelta]
+
+    ## TOTAL
+    #K1,5 from mp
+    ev['Ks1'] = ev['mp']['K_netK1 [W]']
+    ev['Ks5'] = ev['mp']['K_netK5 [W]']
+    #K2,3,4 from lobes
+    ev['Ks2al'] = ev['lobes']['K_netK2a [W]']
+    ev['Ks2bl'] = ev['lobes']['K_netK2b [W]']
+    ev['Ks3'] = ev['lobes']['K_netK3 [W]']
+    ev['Ks4'] = ev['lobes']['K_netK4 [W]']
+    #K2,6,7 from closed
+    ev['Ks2ac'] = ev['closed']['K_netK2a [W]']
+    ev['Ks2bc'] = ev['closed']['K_netK2b [W]']
+    ev['Ks6'] = ev['closed']['K_netK6 [W]']
+    ev['Ks7'] = ev['closed']['K_netK7 [W]']
+
+    ## HYDRO
+    #H1,5 from mp
+    ev['Hs1'] = ev['mp']['P0_netK1 [W]']
+    ev['Hs5'] = ev['mp']['P0_netK5 [W]']
+    #H2,3,4 from lobes
+    ev['Hs2al'] = ev['lobes']['P0_netK2a [W]']
+    ev['Hs2bl'] = ev['lobes']['P0_netK2b [W]']
+    ev['Hs3'] = ev['lobes']['P0_netK3 [W]']
+    ev['Hs4'] = ev['lobes']['P0_netK4 [W]']
+    #H2,6,7 from closed
+    ev['Hs2ac'] = ev['closed']['P0_netK2a [W]']
+    ev['Hs2bc'] = ev['closed']['P0_netK2b [W]']
+    ev['Hs6'] = ev['closed']['P0_netK6 [W]']
+    ev['Hs7'] = ev['closed']['P0_netK7 [W]']
+
+    ## MAG
+    #S1,5 from mp
+    ev['Ss1'] = ev['mp']['ExB_netK1 [W]']
+    ev['Ss5'] = ev['mp']['ExB_netK5 [W]']
+    #S2,3,4 from lobes
+    ev['Ss2al'] = ev['lobes']['ExB_netK2a [W]']
+    ev['Ss2bl'] = ev['lobes']['ExB_netK2b [W]']
+    ev['Ss3'] = ev['lobes']['ExB_netK3 [W]']
+    ev['Ss4'] = ev['lobes']['ExB_netK4 [W]']
+    #S2,6,7 from closed
+    ev['Ss2ac'] = ev['closed']['ExB_netK2a [W]']
+    ev['Ss2bc'] = ev['closed']['ExB_netK2b [W]']
+    ev['Ss6'] = ev['closed']['ExB_netK6 [W]']
+    ev['Ss7'] = ev['closed']['ExB_netK7 [W]']
+
+    ## TOTAL
+    #M1,5,total from mp
+    ev['M1'] = ev['mp']['UtotM1 [W]'].fillna(value=0)
+    ev['M5'] = ev['mp']['UtotM5 [W]'].fillna(value=0)
+    ev['M'] = ev['mp']['UtotM [W]'].fillna(value=0)
+    ev['MM'] = ev['mp']['MM [kg/s]'].fillna(value=0)
+    #M1a,1b,2b,il from lobes
+    ev['M1a'] = ev['lobes']['UtotM1a [W]'].fillna(value=0)
+    ev['M1b'] = ev['lobes']['UtotM1b [W]'].fillna(value=0)
+    ev['M2b'] = ev['lobes']['UtotM2b [W]'].fillna(value=0)
+    ev['M2d'] = ev['lobes']['UtotM2d [W]'].fillna(value=0)
+    ev['Mil'] = ev['lobes']['UtotMil [W]'].fillna(value=0)
+    #M5a,5b,2a,ic from closed
+    ev['M5a'] = ev['closed']['UtotM5a [W]'].fillna(value=0)
+    ev['M5b'] = ev['closed']['UtotM5b [W]'].fillna(value=0)
+    ev['M2a'] = ev['closed']['UtotM2a [W]'].fillna(value=0)
+    ev['M2c'] = ev['closed']['UtotM2c [W]'].fillna(value=0)
+    ev['Mic'] = ev['closed']['UtotMic [W]'].fillna(value=0)
+
+    ev['M_lobes'] = ev['M1a']+ev['M1b']-ev['M2a']+ev['M2b']-ev['M2c']+ev['M2d']
+    ev['M_closed'] = ev['M5a']+ev['M5b']+ev['M2a']-ev['M2b']+ev['M2c']-ev['M2d']
+
+    ## HYDRO
+    #HM1,5,total from mp
+    ev['HM1'] = ev['mp']['uHydroM1 [W]'].fillna(value=0)
+    ev['HM5'] = ev['mp']['uHydroM5 [W]'].fillna(value=0)
+    ev['HM'] = ev['mp']['uHydroM [W]'].fillna(value=0)
+    #HM1a,1b,2b,il from lobes
+    ev['HM1a'] = ev['lobes']['uHydroM1a [W]'].fillna(value=0)
+    ev['HM1b'] = ev['lobes']['uHydroM1b [W]'].fillna(value=0)
+    ev['HM2b'] = ev['lobes']['uHydroM2b [W]'].fillna(value=0)
+    ev['HM2d'] = ev['lobes']['uHydroM2d [W]'].fillna(value=0)
+    ev['HMil'] = ev['lobes']['uHydroMil [W]'].fillna(value=0)
+    #HM5a,5b,2a,ic from closed
+    ev['HM5a'] = ev['closed']['uHydroM5a [W]'].fillna(value=0)
+    ev['HM5b'] = ev['closed']['uHydroM5b [W]'].fillna(value=0)
+    ev['HM2a'] = ev['closed']['uHydroM2a [W]'].fillna(value=0)
+    ev['HM2c'] = ev['closed']['uHydroM2c [W]'].fillna(value=0)
+    ev['HMic'] = ev['closed']['uHydroMic [W]'].fillna(value=0)
+
+    ev['HM_lobes'] = ev['HM1a']+ev['HM1b']-ev['HM2a']+ev['HM2b']-ev['HM2c']+ev['HM2d']
+    ev['HM_closed'] = ev['HM5a']+ev['HM5b']+ev['HM2a']-ev['HM2b']+ev['HM2c']-ev['HM2d']
+
+    ## MAG
+    #SM1,5,total from mp
+    ev['SM1'] = ev['mp']['uBM1 [W]'].fillna(value=0)
+    ev['SM5'] = ev['mp']['uBM5 [W]'].fillna(value=0)
+    ev['SM'] = ev['mp']['uBM [W]'].fillna(value=0)
+    #HM1a,1b,2b,il from lobes
+    ev['SM1a'] = ev['lobes']['uBM1a [W]'].fillna(value=0)
+    ev['SM1b'] = ev['lobes']['uBM1b [W]'].fillna(value=0)
+    ev['SM2b'] = ev['lobes']['uBM2b [W]'].fillna(value=0)
+    ev['SM2d'] = ev['lobes']['uBM2d [W]'].fillna(value=0)
+    ev['SMil'] = ev['lobes']['uBMil [W]'].fillna(value=0)
+    #SM5a,5b,2a,ic from closed
+    ev['SM5a'] = ev['closed']['uBM5a [W]'].fillna(value=0)
+    ev['SM5b'] = ev['closed']['uBM5b [W]'].fillna(value=0)
+    ev['SM2a'] = ev['closed']['uBM2a [W]'].fillna(value=0)
+    ev['SM2c'] = ev['closed']['uBM2c [W]'].fillna(value=0)
+    ev['SMic'] = ev['closed']['uBMic [W]'].fillna(value=0)
+
+    ev['SM_lobes'] = ev['SM1a']+ev['SM1b']-ev['SM2a']+ev['SM2b']-ev['SM2c']+ev['SM2d']
+    ev['SM_closed'] = ev['SM5a']+ev['SM5b']+ev['SM2a']-ev['SM2b']+ev['SM2c']-ev['SM2d']
+
+    ev['Uclosed'] = ev['closed']['Utot [J]']
+    ev['Ulobes'] = ev['lobes']['Utot [J]']
+    ev['U'] = ev['mp']['Utot [J]']
+    # Central difference of partial volume integrals, total change
+    # Total
+    ev['K_cdiff_closed'] = -1*central_diff(ev['closed']['Utot [J]'])
+    ev['K_cidff_lobes'] = -1*central_diff(ev['lobes']['Utot [J]'])
+    ev['K_cdiff_mp'] = -1*central_diff(ev['mp']['Utot [J]'])
+    # Hydro
+    ev['H_cdiff_closed'] = -1*central_diff(ev['closed']['uHydro [J]'])
+    ev['H_cdiff_lobes'] = -1*central_diff(ev['lobes']['uHydro [J]'])
+    ev['H_cdiff_mp'] = -1*central_diff(ev['mp']['uHydro [J]'])
+    # Mag
+    ev['S_cdiff_closed'] = -1*central_diff(ev['closed']['uB [J]'])
+    ev['S_cdiff_lobes'] = -1*central_diff(ev['lobes']['uB [J]'])
+    ev['S_cdiff_mp'] = -1*central_diff(ev['mp']['uB [J]'])
+    ev['dDstdt_sim'] = -1*central_diff(ev['sim']['dst_sm'])
+
+    ev['K1'] = ev['Ks1']+ev['M1']
+    ev['K5'] = ev['Ks5']+ev['M5']
+    ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
+                  ev['M1']+ev['M5'])
+
+    ev['dt'] = [(t1-t0)/1e9 for t0,t1 in zip(ev['times'][0:-1],ev['times'][1::])]
+    ev['dt'].append(ev['dt'][-1])
+    return ev
 
 
 if __name__ == "__main__":

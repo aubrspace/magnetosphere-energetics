@@ -564,6 +564,9 @@ def get_swmf_data(datapath,**kwargs):
         #Note that SuperMAG lists the term as 100,
         #however from the paper: "From our work,
         #                       α is estimated to be on order of 10^3"
+        swdata['B_T'] = np.sqrt((swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)
+        swdata['M_A'] = (np.sqrt(swdata['pdyn']*1e-9*(4*pi*1e-7))
+                         /swdata['B_T'])
         swdata['clock'] = np.arctan2(swdata['by'],swdata['bz'])
         swdata['Newell']=Cmp*((swdata['v']*1e3)**(4/3)*np.sqrt(
                     (swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)**(2/3)*
@@ -572,6 +575,12 @@ def get_swmf_data(datapath,**kwargs):
         swdata['eps'] = (swdata['B']**2*swdata['v']*
                                     np.sin(swdata['clock']/2)**4*l**2*
                                               1e3*1e-9**2 / (4*np.pi*1e-7))
+        swdata['EinWang'] = (3.78e7*swdata['density']**0.24*
+                             swdata['v']**1.47*(swdata['B_T']*1e9)**0.86*
+                             (sin(swdata['clock']/2)**2.70+0.25))
+        swdata['Pstorm'] = (swdata['B_T']**2*swdata['vx']*1e3/(4*pi*1e-7)*
+                            swdata['M_A']*sin(swdata['clock']/2)**4*
+                            135/(5e-5*swdata['bz']**3+1)*6371e3**2)
     #times Time [UTC]
     geoindexdata['times'] = geoindexdata.index
     swmflogdata['times'] = swmflogdata.index

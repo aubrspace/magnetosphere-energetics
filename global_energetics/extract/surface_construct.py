@@ -7,7 +7,7 @@
 import numpy as np
 from numpy import pi, sqrt, linspace, arctan2, rad2deg
 import time
-#import matplotlib.pyplot as plot
+import matplotlib.pyplot as plot
 import scipy
 from scipy import interpolate as interp
 import pandas as pd
@@ -232,6 +232,8 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
         nX- number of point in the x direction for final mesh
         n_slice
         show- boolean for plotting
+    Return
+        mesh- DataFrame with nicely spaced points to be loaded back to tecplot
     """
     #bin in x direction and initialize newzone
     dx = (x_max-x_min)/(2*(nX-1))
@@ -281,7 +283,7 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
     #for each alpha slice 
     k = 0
     alist, da = linspace(-pi, pi, n_slice, retstep=True)
-    for a in alist:
+    for a in np.append(alist,alist[0]):
         zone_abin = newzone[(newzone['alpha'] < a+da/2) &
                             (newzone['alpha'] > a-da/2)]
         if show:
@@ -302,7 +304,8 @@ def ah_slicer(zone, x_min, x_max, nX, n_slice, show):
                 #identify the index of row with maximum r within section
                 max_h_rel_index = zone_abin[
                             (zone_abin['X [R]'] < x+dxfine/2) &
-                            (zone_abin['X [R]'] > x-dxfine/2)].idxmax(0)[
+                            #(zone_abin['X [R]'] > x-dxfine/2)].idxmax(0)[
+                            (zone_abin['X [R]'] > x-dxfine/2)].idxmin(0)[
                                                                    'h_rel']
                 #cut out alpha slice except for max_r_index row
                 zone_abin = zone_abin[

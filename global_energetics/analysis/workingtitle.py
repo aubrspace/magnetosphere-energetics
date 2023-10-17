@@ -20,7 +20,8 @@ from matplotlib import ticker, colors
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 #interpackage imports
 from global_energetics.analysis import analyze_bow_shock
-from global_energetics.analysis.plot_tools import (pyplotsetup,safelabel,
+from global_energetics.analysis.plot_tools import (central_diff,
+                                                   pyplotsetup,safelabel,
                                                    general_plot_settings,
                                                    plot_stack_distr,
                                                    plot_pearson_r,
@@ -290,40 +291,6 @@ def hotfix_psb(msdict):
     #msdict['closed'] = closed
     #msdict['closed'] = closed
     return msdict
-
-def central_diff(dataframe,**kwargs):
-    """Takes central difference of the columns of a dataframe
-    Inputs
-        df (DataFrame)- data
-        dt (int)- spacing used for denominator
-        kwargs:
-            fill (float)- fill value for ends of diff
-    Returns
-        cdiff (DataFrame)
-    """
-    times = dataframe.copy(deep=True).index
-    df = dataframe.copy(deep=True)
-    df = df.reset_index(drop=True).fillna(method='ffill')
-    df_fwd = df.copy(deep=True)
-    df_bck = df.copy(deep=True)
-    df_fwd.index -= 1
-    df_bck.index += 1
-    if kwargs.get('forward',False):
-        # Calculate dt at each time interval
-        dt = times[1::]-times[0:-1]
-        cdiff = (df_fwd-df)/(dt.seconds+dt.microseconds/1e6)
-        cdiff.drop(index=[-1],inplace=True)
-    else:
-        # Calculate dt at each time interval
-        dt = times[2::]-times[0:-2]
-        diff = (df_fwd-df_bck).drop(index=[-1,0,df_bck.index[-1],
-                                                df_bck.index[-2]])
-        cdiff = diff/(dt.seconds+dt.microseconds/1e6)
-        cdiff.loc[0] = 0
-        cdiff.loc[len(cdiff)]=0
-        cdiff.sort_index(inplace=True)
-    cdiff.index = dataframe.index
-    return cdiff
 
 def get_interfaces(sz):
     """Gets list of interfaces given a subzone region
@@ -2189,15 +2156,18 @@ def lobe_balance_fig(dataset,phase,path):
         closed = dataset[event]['msdict'+phase]['closed']
         if 'xslice' in dataset[event]['msdict'+phase].keys():
             xslice = dataset[event]['msdict'+phase]['xslice']
-        mp = dataset[event]['mp'+phase]
+        if 'mp'+phase in dataset[event].keys():
+            mp = dataset[event]['mp'+phase]
+        else:
+            mp = dataset[event]['mpdict']['ms_full']
         inner = dataset[event]['inner_mp'+phase]
         times=[float(n) for n in dataset[event]['time'+phase].to_numpy()]
-        sim = dataset[event]['obs']['swmf_log'+phase]
-        simtime = dataset[event]['swmf_log_otime'+phase]
-        simt = [float(n) for n in simtime.to_numpy()]#bad hack
-        obs = dataset[event]['obs']['omni'+phase]
-        obstime = dataset[event]['omni_otime'+phase]
-        ot = [float(n) for n in obstime.to_numpy()]#bad hack
+        #sim = dataset[event]['obs']['swmf_log'+phase]
+        #simtime = dataset[event]['swmf_log_otime'+phase]
+        #simt = [float(n) for n in simtime.to_numpy()]#bad hack
+        #obs = dataset[event]['obs']['omni'+phase]
+        #obstime = dataset[event]['omni_otime'+phase]
+        #ot = [float(n) for n in obstime.to_numpy()]#bad hack
         #lobes4 = dataset['star4']['msdict'+phase]['lobes']
         #closed4 = dataset['star4']['msdict'+phase]['closed']
         #mp4 = dataset['star4']['mp'+phase]
@@ -2206,9 +2176,9 @@ def lobe_balance_fig(dataset,phase,path):
         moments = locate_phase(dataset[event]['time'])
         #from IPython import embed; embed()
         # for solar wind
-        sw = dataset[event]['obs']['swmf_sw'+phase]
-        swtime = dataset[event]['swmf_sw_otime'+phase]
-        swt = [float(n) for n in swtime.to_numpy()]#bad hack
+        #sw = dataset[event]['obs']['swmf_sw'+phase]
+        #swtime = dataset[event]['swmf_sw_otime'+phase]
+        #swt = [float(n) for n in swtime.to_numpy()]#bad hack
         '''
         sim = dataset[event]['obs']['swmf_log'+phase]
         simtime = dataset[event]['swmf_log_otime'+phase]
@@ -2369,8 +2339,8 @@ def lobe_balance_fig(dataset,phase,path):
         S_closed = -1*central_diff(closed['uB [J]'])
         #S_lobes = -1*central_diff(lobes['uB [J]'])
         S_mp = -1*central_diff(mp['uB [J]'])
-        dDstdt_sim = -1*central_diff(sim['dst_sm'])
-        dDstdt_obs = -1*central_diff(obs['sym_h'])
+        #dDstdt_sim = -1*central_diff(sim['dst_sm'])
+        #dDstdt_obs = -1*central_diff(obs['sym_h'])
         # Mass
         #Mass_closed = -1*central_diff(closed['M [kg]'])
         #Mass_lobes = -1*central_diff(lobes['M [kg]'])
@@ -4408,7 +4378,7 @@ def main_rec_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        solarwind_figure(dataset,phase,path,hatches,tabulate=False)
+        #solarwind_figure(dataset,phase,path,hatches,tabulate=False)
         lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
@@ -4479,7 +4449,9 @@ if __name__ == "__main__":
     #dataset['aug'] = {}
     #dataset['jun'] = {}
     #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
-    dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
+    #dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
+    dataset['LL'] = load_hdf_sort('parameter_study/data/analysis/LOWnLOWu.h5')
+    dataset['HH']=load_hdf_sort('parameter_study/data/analysis/HIGHnHIGHu.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
@@ -4491,10 +4463,12 @@ if __name__ == "__main__":
     #                                 end=dataset['star4']['msdict']['closed'].index[-1],
     #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
-    dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
-                                           read_supermag=True)
+    #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
+    #                                       read_supermag=True)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
+    dataset['LL']['obs'] = {}
+    dataset['HH']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
@@ -4506,7 +4480,9 @@ if __name__ == "__main__":
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
     #                                                                inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
-    dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
+    #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
+    dataset['LL']['vsat'],dataset['LL']['obssat'] = {},{}
+    dataset['HH']['vsat'],dataset['HH']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]

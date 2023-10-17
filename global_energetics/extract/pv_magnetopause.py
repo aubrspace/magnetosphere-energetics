@@ -88,6 +88,8 @@ def setup_pipeline(infile,**kwargs):
     #pipelinehead = sourcedata
     #pipeline = sourcedata
 
+    if kwargs.get('repair_status',False):
+        pipeline = pv_input_tools.status_repair(pipeline,**kwargs)
     ###Check if unitless variables are present
     if kwargs.get('dimensionless',False):
         pipeline = pv_input_tools.todimensional(pipeline,**kwargs)
