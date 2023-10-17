@@ -27,29 +27,34 @@ if True:
     herepath=os.getcwd()
     #inpath = os.path.join(herepath,'localdbug/starlink/')
     #outpath= os.path.join(inpath,'test_output/')
-    inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
-    outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
+    #inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
+    #outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
+    inpath = os.path.join(herepath,'localdbug/parameter_study/')
+    outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
 
     filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
                       key=time_sort)
     tstart = get_time(filelist[0])
     renderView1 = GetActiveViewOrCreate('RenderView')
 
+    '''
     filelist = [f for f in filelist if ('03-1154' in f)or#t0
                                        ('03-1204' in f)or#t1
                                        ('03-1214' in f)or#t2
                                        ('03-1224' in f)]#t3
+    '''
     for i,infile in enumerate(filelist[0:1]):
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         outfile = 't'+str(i)+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
-                                                       dimensionless=True,
+                                                       dimensionless=False,
                                                        localtime=localtime,
                                                        path=herepath,
+                                                       repair_status=True,
                                                        ffj=True,
-                                                       doEnergyFlux=False)
+                                                       doEnergyFlux=True)
         # Split and display another
         layout = GetLayout()
         #layout.SetSize(1280, 1280)# Single hyperwall screen
@@ -105,6 +110,7 @@ if True:
                        SaveAllViews=1,ImageResolution=[800,1280])
         print('\033[92m Created\033[00m',os.path.relpath(outpath+outfile,
                                                          os.getcwd()))
+    '''
     for i,infile in enumerate(filelist[1::]):
         print(str(i+2)+'/'+str(len(filelist))+
               ' processing '+infile.split('/')[-1]+'...')
@@ -144,6 +150,7 @@ if True:
 
             # Set the current source to be replaced on next loop
             oldsource = newsource
+    '''
     #timestamp
     ltime = time.time()-start_time
     print('DONE')

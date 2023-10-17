@@ -144,7 +144,7 @@ def general_plot_settings(ax, **kwargs):
             locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
             '''
             n = 3600*4/1e-9
-            locs = [i*n for i in range(-10,10)]
+            locs = [i*n for i in range(-100,100)]
             #locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
         else:
             n = 3600*0.5/1e-9
