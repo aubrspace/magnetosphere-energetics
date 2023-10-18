@@ -48,6 +48,33 @@ def save_ie_image(ie_stylehead_north, ie_stylehead_south):
     else:
         print('NO STYLESHEETS!!')
 
+def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
+    # Quickly duplicate date across 4 frames
+    tp.macro.execute_extended_command(
+                        command_processor_id='Multi Frame Manager',
+                        command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
+    # Load a list of premade style sheets
+    for i,frame in enumerate(tp.frames()):
+        if i<(len(gm_style_list)):
+            frame.load_stylesheet(gm_style_list[i])
+        else:
+            tp.layout.active_page().delete_frame(frame)
+    # Regroup into a grid if not using 4 frames
+    tp.layout.active_page().tile_frames(mode=TileMode.Grid)
+    # Stamp one of the frames with the 'test phase'
+    t0 = dt.datetime(2022,6,6,0,0)#NOTE
+    reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
+    phase = int(np.floor((reltime/3600)%2))
+    text =tp.active_frame().add_text('Test Phase: '+str(phase))
+    if tp.active_frame().background_color == Color.Black:
+        text.color = Color.White
+    else:
+        text.color = Color.Black
+    text.position = (2,2)
+    # Save
+    tp.save_png(os.path.join(outpath,'data/png/',
+                             OUTPUTNAME+'.png'),width=1600)
+
 if __name__ == "__main__":
     start_time = time.time()
     if '-c' in sys.argv:
@@ -61,8 +88,9 @@ if __name__ == "__main__":
     outpath = 'parameter_study/'
     head = '3d__var_1_*'
     ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
-    gm_stylehead = 'simple_vis.sty'
+    #gm_stylehead = 'simple_vis.sty'
     #gm_stylehead = 'ffj_vis.sty'
+    #gm_stylehead = 'twopanel_status.sty'
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
@@ -143,10 +171,19 @@ if __name__ == "__main__":
                     if True:
                         save_ie_image(ie_stylehead_north, ie_stylehead_south)
                 '''
-                if os.path.exists(os.getcwd()+'/'+gm_stylehead) and False:
+                #if os.path.exists(os.getcwd()+'/'+gm_stylehead)and False:
+                if True:
+                    save_gm_multi(['front_iso_status.sty',
+                                   'tail_iso_status.sty',
+                                   'front_iso_Knet.sty',
+                                   'north_eq_Kx.sty'],outpath,OUTPUTNAME,
+                                   filetime)
+                    '''
+                    # split into multiple frames
                     main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
-                    tp.save_png(os.path.join(outpath,'figures',
+                    tp.save_png(os.path.join(outpath,'data/png/',
                                 OUTPUTNAME+'.png'),width=1600)
+                    '''
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')

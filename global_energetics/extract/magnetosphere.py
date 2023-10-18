@@ -213,7 +213,6 @@ def prep_field_data(field_data, **kwargs):
              'if(({theta_1 [deg]}<0  && {theta_2 [deg]}>=-90),1,'+#south
              'if(({theta_1 [deg]}>=0 && {theta_2 [deg]}< -90),2,0))),'+#north
                            '{Status})')#Don't change the non -3 Status values
-    from IPython import embed; embed()
     # If a truegrid file is given, then take that information in
     if 'truegridfile' in kwargs:
         #if field_data.zone(0).values('dvol *').max()>0:
