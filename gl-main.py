@@ -55,6 +55,7 @@ def energetics_analysis(infiles,outpath):
     #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
     #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
     oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
+    gm_stylehead = 'twopanel_status.sty'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
@@ -144,8 +145,20 @@ def energetics_analysis(infiles,outpath):
                                      outputname+'.png'),width=1600)
     '''
     print(os.path.join(outpath,'png',outputname+'.png'))
-    with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
-        png.close()
+    #if False:
+    if os.path.exists(os.getcwd()+'/'+gm_stylehead):
+        main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
+        view = tp.active_frame().plot().view
+        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
+        view.alpha, view.theta, view.psi = (0,137,64)
+        view.position = (-500,509,333)
+        view.magnification = 7.470
+        #oa_position = [95,7]
+        #set_orientation_axis(tp.active_frame(), position=oa_position)
+        tp.save_png(os.path.join(outpath,'png',outputname+'.png'),width=1600)
+    else:
+        with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
+            png.close()
 
 if __name__ == "__main__":
     start_time = time.time()

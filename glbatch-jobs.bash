@@ -26,14 +26,14 @@
 #INPUTDIR=./run_LOWnLOWu/GM/IO2/
 #OUTPUTDIR=./outputs_LOWnLOWu/
 
-#INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
-#OUTPUTDIR=./outputs_HIGHnHIGHu/
+INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
+OUTPUTDIR=./outputs_HIGHnHIGHu/
 
 #INPUTDIR=./run_LOWnHIGHu/GM/IO2/
 #OUTPUTDIR=./outputs_LOWnHIGHu/
 
-INPUTDIR=./run_HIGHnLOWu/GM/IO2/
-OUTPUTDIR=./outputs_HIGHnLOWu/
+#INPUTDIR=./run_HIGHnLOWu/GM/IO2/
+#OUTPUTDIR=./outputs_HIGHnLOWu/
 
 filecount=0
 workercount=0
@@ -60,7 +60,7 @@ do
 
     #if you only want to process one file use this
     #i=$((i+1))
-    #if [ $i == 2 ]
+    #if [ $i == 5 ]
     #then
     #    exit
     #fi
