@@ -25,6 +25,35 @@ from global_energetics.extract import view_set
 from global_energetics.write_disp import write_to_hdf
 from global_energetics import makevideo
 
+def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
+    # Quickly duplicate date across 4 frames
+    tp.macro.execute_command('$!LoadColorMap  '+
+                 '"'+os.path.join(os.getcwd(),'energetics.map')+'"')
+    tp.macro.execute_extended_command(
+                        command_processor_id='Multi Frame Manager',
+                        command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
+    # Load a list of premade style sheets
+    for i,frame in enumerate(tp.frames()):
+        if i<(len(gm_style_list)):
+            frame.load_stylesheet(gm_style_list[i])
+        else:
+            tp.layout.active_page().delete_frame(frame)
+    # Regroup into a grid if not using 4 frames
+    tp.layout.active_page().tile_frames(mode=TileMode.Grid)
+    # Stamp one of the frames with the 'test phase'
+    t0 = dt.datetime(2022,6,6,0,0)#NOTE
+    reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
+    phase = int(np.floor((reltime/3600)/2))
+    text =tp.active_frame().add_text('Test Phase: '+str(phase))
+    if tp.active_frame().background_color == Color.Black:
+        text.color = Color.White
+    else:
+        text.color = Color.Black
+    text.position = (2,2)
+    # Save
+    tp.save_png(os.path.join(outpath,'png',
+                             OUTPUTNAME+'.png'),width=1600)
+
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(inpath+'/3d__var_1*.plt'),
@@ -145,17 +174,10 @@ def energetics_analysis(infiles,outpath):
                                      outputname+'.png'),width=1600)
     '''
     print(os.path.join(outpath,'png',outputname+'.png'))
-    #if False:
-    if os.path.exists(os.getcwd()+'/'+gm_stylehead):
-        main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
-        view = tp.active_frame().plot().view
-        view.zoom(xmin=-40,xmax=-20,ymin=-90,ymax=10)
-        view.alpha, view.theta, view.psi = (0,137,64)
-        view.position = (-500,509,333)
-        view.magnification = 7.470
-        #oa_position = [95,7]
-        #set_orientation_axis(tp.active_frame(), position=oa_position)
-        tp.save_png(os.path.join(outpath,'png',outputname+'.png'),width=1600)
+    if True:
+        save_gm_multi(['front_iso_status.sty','tail_iso_status.sty',
+                       'front_iso_Knet.sty','north_eq_Kx.sty'],
+                       outpath,outputname,filetime)
     else:
         with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
             png.close()
