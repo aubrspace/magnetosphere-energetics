@@ -50,7 +50,6 @@ def save_ie_image(ie_stylehead_north, ie_stylehead_south):
 
 def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Quickly duplicate date across 4 frames
-    from IPython import embed; embed()
     tp.macro.execute_extended_command(
                         command_processor_id='Multi Frame Manager',
                         command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
@@ -85,8 +84,8 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    #inpath = 'localdbug/parameter_study/'
-    inpath = 'run_HIGHnHIGHu/GM/IO2/'
+    inpath = 'localdbug/parameter_study/'
+    #inpath = 'run_HIGHnHIGHu/GM/IO2/'
     outpath = 'parameter_study/'
     head = '3d__var_1_*'
     ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
