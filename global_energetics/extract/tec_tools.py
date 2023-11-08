@@ -1522,7 +1522,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     if 'mass' in analysis_type or analysis_type=='all':
         eqeval(alleq['volume_mass'])
     #eqeval(alleq['volume_energy'],value_location=cc)
-    if kwargs.get('do_interfacing',False):
+    if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
+                                               field_data.variable_names):
         eqeval(alleq['daynightmapping'])
         #eqeval(alleq['daynightmapping'],value_location=cc)
     #Virial volume terms

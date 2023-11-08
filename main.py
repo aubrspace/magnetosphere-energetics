@@ -84,11 +84,13 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'localdbug/parameter_study/'
+    #inpath = 'localdbug/parameter_study/'
+    inpath = 'localdbug/MAST/no_theta_phi/'
     #inpath = 'run_HIGHnHIGHu/GM/IO2/'
-    outpath = 'parameter_study/'
+    #outpath = 'parameter_study/'
+    outpath = 'localdbug/MAST/test_output/'
     head = '3d__var_1_*'
-    ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
+    #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
     #gm_stylehead = 'ffj_vis.sty'
     #gm_stylehead = 'twopanel_status.sty'
@@ -122,7 +124,8 @@ if __name__ == "__main__":
                       filetime.second))
             '''
             #python objects
-            field_data = tp.data.load_tecplot(mhddatafile)
+            #field_data = tp.data.load_tecplot(mhddatafile)
+            field_data = tp.data.load_tecplot(filelist[0::2])
             field_data.zone(0).name = 'global_field'
             if len(field_data.zone_names)>1:
                 field_data.zone(1).name = 'future'
@@ -138,19 +141,19 @@ if __name__ == "__main__":
                                                         disp_result=True,
                                     verbose=True,
                                     debug=False,
-                                    do_cms=False,
-                                    do_central_diff=False,
+                                    do_cms=True,
+                                    do_central_diff=True,
                                     do_1Dsw=False,
-                                    analysis_type='energy',
+                                    analysis_type='energy_mass_mag',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
                                     integrate_line=False,
-                                    integrate_surface=True,
+                                    integrate_surface=False,
                                     integrate_volume=True,
-                                    truegridfile=oggridfile,
+                                    #truegridfile=oggridfile,
                                     extract_flowline=False,
                                     outputpath=outpath)
                 '''
@@ -173,7 +176,7 @@ if __name__ == "__main__":
                         save_ie_image(ie_stylehead_north, ie_stylehead_south)
                 '''
                 #if os.path.exists(os.getcwd()+'/'+gm_stylehead)and False:
-                if True:
+                if False:
                     save_gm_multi(['front_iso_status.sty',
                                    'tail_iso_status.sty',
                                    'front_iso_Knet.sty',

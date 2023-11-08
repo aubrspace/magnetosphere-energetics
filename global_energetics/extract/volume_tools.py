@@ -248,20 +248,26 @@ def get_volume_trades(zone,integrands,**kwargs):
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []
     state_name = kwargs.get('state_var').name
+    if 'daymapped' not in zone.dataset.variable_names:
+        skip_daynightmapping = True
+    else:
+        skip_daynightmapping = False
     # Define state strings
     ext = '({mp_iso_betastar}==0)'
-    dayclosed = '({daymapped}==1&&{lcb}==1)'
-    nightclosed = '({nightmapped}==1&&{lcb}==1)'
-    daylobes = ('(({daymapped_nlobe}==1&&{NLobe}==1) ||'+
+    if not skip_daynightmapping:
+        dayclosed = '({daymapped}==1&&{lcb}==1)'
+        nightclosed = '({nightmapped}==1&&{lcb}==1)'
+        daylobes = ('(({daymapped_nlobe}==1&&{NLobe}==1) ||'+
                  '({daymapped_slobe}==1&&{SLobe}==1)   )')
-    nightlobes = ('(({nightmapped_nlobe}==1&&{NLobe}==1) ||'+
+        nightlobes = ('(({nightmapped_nlobe}==1&&{NLobe}==1) ||'+
                   '({nightmapped_slobe}==1&&{SLobe}==1)   )')
-    daylobeN = '({daymapped_nlobe}==1&&{NLobe}==1)'
-    nightlobeN = '({nightmapped_nlobe}==1&&{NLobe}==1)'
-    daylobeS = '({daymapped_slobe}==1&&{SLobe}==1)'
-    nightlobeS = '({nightmapped_slobe}==1&&{SLobe}==1)'
+        daylobeN = '({daymapped_nlobe}==1&&{NLobe}==1)'
+        nightlobeN = '({nightmapped_nlobe}==1&&{NLobe}==1)'
+        daylobeS = '({daymapped_slobe}==1&&{SLobe}==1)'
+        nightlobeS = '({nightmapped_slobe}==1&&{SLobe}==1)'
     # Closed
-    if ('lcb' in state_name and 'lcb' in zone.dataset.variable_names):
+    if ('lcb' in state_name and 'lcb' in zone.dataset.variable_names and
+         not skip_daynightmapping):
         #M5a    from  day_closed    ->  ext
         #M5b    from  night_closed  ->  ext
         tradelist.append(make_trade_eq(dayclosed,ext,'M5a',tdelta))
@@ -277,7 +283,8 @@ def get_volume_trades(zone,integrands,**kwargs):
         #Mic    from  day_closed    <-  night_closed
         tradelist.append(make_trade_eq(nightclosed,dayclosed,'Mic',tdelta))
     # North Lobe
-    if ('NLobe' in zone.dataset.variable_names and 'NLobe' in state_name):
+    if ('NLobe' in zone.dataset.variable_names and 'NLobe' in state_name and
+         not skip_daynightmapping):
         #M1a    from  day_lobeN     ->  ext
         #M1b    from  night_lobeN   ->  ext
         tradelist.append(make_trade_eq(daylobeN,ext,'M1a',tdelta))
@@ -292,7 +299,8 @@ def get_volume_trades(zone,integrands,**kwargs):
         #Mil    from  day_lobeN     ->  night_lobeN
         tradelist.append(make_trade_eq(daylobeN,nightlobeN,'Mil',tdelta))
     # South Lobe
-    if ('SLobe' in zone.dataset.variable_names and 'SLobe' in state_name):
+    if ('SLobe' in zone.dataset.variable_names and 'SLobe' in state_name and
+         not skip_daynightmapping):
         #M1a    from  day_lobeS     ->  ext
         #M1b    from  night_lobeS   ->  ext
         tradelist.append(make_trade_eq(daylobeS,ext,'M1a',tdelta))
@@ -335,7 +343,6 @@ def get_volume_trades(zone,integrands,**kwargs):
             except TecplotLogicError as err:
                 print('Equation eval failed!\n',new_eq,'\n')
                 if kwargs.get('debug',False): print(err)
-    #from IPython import embed; embed()
     return trade_integrands
 
 def get_mobile_integrands(zone,state_var,integrands,**kwargs):
