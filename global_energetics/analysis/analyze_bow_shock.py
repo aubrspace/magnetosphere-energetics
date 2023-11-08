@@ -126,6 +126,7 @@ if __name__ == "__main__":
                                cross['B_z']**2)
             cross['Pdyn']= cross['Rho']*cross['U']**2*convert
             cross['Beta'] = cross['P']/(cross['B']**2/(4*np.pi*1e-7*1e9))
+            cross['Pmag'] = (cross['B']**2/(4*np.pi*1e-7*1e9))
             cross['Beta*'] = (cross['P']+cross['Pdyn'])/(cross['B']**2/
                                                     (4*np.pi*1e-7*1e9))
             cross['Cs'] = np.sqrt(5/3*cross['P']/cross['Rho']/1.67)*1e6
@@ -152,6 +153,29 @@ if __name__ == "__main__":
             ma[i] = nose['Ma'][0]
             ms[i] = nose['Ms'][0]
             mms[i] = nose['Mms'][0]
+            fig, ax = plt.subplots(num=1,figsize=[12,8])
+            rax = ax.twinx()
+            ax.plot(curve['X'], curve['P']+curve['Pmag']+curve['Pdyn'],
+                    label='Tot')
+            ax.plot(curve['X'],curve['Pmag'],label='Pmag')
+            ax.plot(curve['X'],curve['P'],label='Therm')
+            ax.plot(curve['X'],curve['Pdyn'],label='Pdyn')
+            #ax.axvline(['X_subsolar [Re]'])
+            rax.plot(curve['X'], curve['Beta*'],ls='--',c='white',
+                     label='Beta*')
+
+            ax.set_xlabel('X [Re]')
+            ax.set_ylabel('Pressure [nPa]')
+            ax.set_ylim([0,6])
+            ax.legend(loc='upper left')
+            rax.legend(loc='upper right')
+            rax.set_ylabel('Beta*')
+            rax.set_ylim([0,6])
+
+            fig.savefig(figureout+'/Y10Crossing_'+str(i)+'.png')
+            plt.close(fig)
+            print('created: ',figureout+'/Y10Crossing_'+str(i)+'.png')
+
         bs_up['Ma'] = ma
         bs_up['Ms'] = ms
         bs_up['Mms'] = mms

@@ -613,16 +613,17 @@ def geotail_to_df(obsdict, *, satkey='geotail', crosskey='crossings'):
     dflist = []
     for satfile in obsdict.get(satkey,[]):
         if os.path.exists(satfile):
-            name = satfile.split('/')[-1].split('_')[1]
-            if (satfile.find(crosskey)!=-1) and (
-                                     satfile.lower().find(satkey)!=-1):
+            #name = satfile.split('/')[-1].split('_')[1]
+            filename = satfile.split('/')[-1]
+            name = filename.split('_')[0]
+            if (crosskey in filename) and (satkey in filename):
                 df = pd.read_csv(satfile, header=0, sep='\s+',
                                 parse_dates={'TIME':['YYYYMMDD', 'UT']},
                                 date_parser=datetimeparser4,
                                 infer_datetime_format=True,index_col=False)
                 df = df.rename(columns={'TIME':'UT'})
                 nametag = pd.Series({'name':(name+'_crossings').lower()})
-            elif (satfile.find('MGF')!=-1) or (satfile.find('CPI')!=-1):
+            elif ('MGF' in filename) or ('CPI' in filename):
                 heads, feet, skiplen, total_len = [], [], 0, 0
                 headerlines = []
                 with open(satfile,'r') as mgffile:
@@ -682,16 +683,17 @@ def cluster_to_df(obsdict, *, satkey='cluster', crosskey='crossings'):
     dflist = []
     for satfile in obsdict.get(satkey,[]):
         if os.path.exists(satfile):
-            name = satfile.split('/')[-1].split('_')[1]
-            if (satfile.find(crosskey)!=-1) and (
-                                     satfile.lower().find(satkey)!=-1):
+            #name = satfile.split('/')[-1].split('_')[1]
+            filename = satfile.split('/')[-1]
+            name = filename.split('_')[1]
+            if (crosskey in filename) and (satkey in filename):
                 df = pd.read_csv(satfile, header=0, sep='\s+',
                                 parse_dates={'TIME':['YYYYMMDD', 'UT']},
                                 date_parser=datetimeparser4,
                                 infer_datetime_format=True,index_col=False)
                 df = df.rename(columns={'TIME':'UT'})
                 nametag = pd.Series({'name':(name+'_crossings').lower()})
-            elif (satfile.find('PP')!=-1) or (satfile.find('CP')!=-1):
+            elif ('PP' in filename) or ('CP' in filename):
                 heads, feet, skiplen, total_len = [], [], 0, 0
                 headerlines = []
                 with open(satfile,'r') as clfile:
@@ -738,14 +740,16 @@ def themis_to_df(obsdict, *, satkey='themis', crosskey='crossings'):
     dflist = []
     for satfile in obsdict.get(satkey,[]):
         if os.path.exists(satfile):
-            name = satfile.split('/')[-1].split('_')[1]
-            if (satfile.find(crosskey)!=-1) and (satfile.find(satkey)!=-1):
+            #name = satfile.split('/')[-1].split('_')[1]
+            filename = satfile.split('/')[-1]
+            name = filename.split('_')[1]
+            if (crosskey in filename) and (satkey in filename):
                 df = pd.read_csv(satfile, header=42, sep='\s+',
                                 parse_dates={'UT':['TIMESTAMP']},
                                 date_parser=datetimeparser3,
                                 infer_datetime_format=True,index_col=False)
                 nametag = pd.Series({'name':(name+'_crossings').lower()})
-            elif (satfile.find('MOM')!=-1) or (satfile.find('FGM')!=-1):
+            elif ('MOM' in filename) or ('FGM' in filename):
                 heads, feet, skiplen, total_len = [], [], 0, 0
                 headerlines = []
                 with open(satfile,'r') as momfile:
@@ -1009,8 +1013,9 @@ if __name__ == "__main__":
     [cl1,cl2,cl3,cl4] = split_cluster(cluster_dfs_obs)
     [scl1,scl2,scl3,scl4] = split_cluster(cluster_dfs_sim)
     #omni
-    [_,__,___,____,omni] = read_indices(None, read_swmf=False,
+    index_data = read_indices(None, read_swmf=False,
                                               read_supermag=False)
+    omni = index_data['omni']
     #Add derived variables for observation datasets
     [th_a,th_b,th_c,th_d,th_e] = add_derived_variables(
                                                 [th_a[0],th_b[0],th_c[0],th_d[0],th_e[0]],
@@ -1036,6 +1041,8 @@ if __name__ == "__main__":
         "font.sans-serif": ["Helvetica"],
         "image.cmap": "twilight"})
     ######################################################################
+    if True:
+        from IPython import embed; embed()
     #B magnitude
     if True:
         figname = 'Bmagnitude'

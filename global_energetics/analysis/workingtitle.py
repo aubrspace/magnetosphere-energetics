@@ -31,7 +31,9 @@ from global_energetics.analysis.proc_satellites import read_satellites
 from global_energetics.analysis.proc_hdf import (load_hdf_sort,
                                                  group_subzones,
                                                  get_subzone_contrib)
-from global_energetics.analysis.analyze_energetics import plot_power
+from global_energetics.analysis.analyze_energetics import (plot_power,
+                                                           plot_P0Power,
+                                                           plot_ExBPower)
 from global_energetics.analysis.proc_energy_spatial import reformat_lshell
 from global_energetics.analysis.proc_timing import (peak2peak,
                                                     pearson_r_shifts)
@@ -2224,8 +2226,8 @@ def lobe_balance_fig(dataset,phase,path):
         Hs6 = closed['P0_netK6 [W]']
         Hs7 = closed['P0_netK7 [W]']
         #DawnDusk from xslice
-        #HsDsk = xslice.get('P0_netDusk [W]')
-        #HsDwn = xslice.get('P0_netDawn [W]')
+        HsDsk = xslice.get('P0_netDusk [W]')
+        HsDwn = xslice.get('P0_netDawn [W]')
 
         ## MAG
         #S1,5 from mp
@@ -2242,8 +2244,8 @@ def lobe_balance_fig(dataset,phase,path):
         Ss6 = closed['ExB_netK6 [W]']
         Ss7 = closed['ExB_netK7 [W]']
         #DawnDusk from xslice
-        #SsDsk = xslice.get('ExB_netDusk [W]')
-        #SsDwn = xslice.get('ExB_netDawn [W]')
+        SsDsk = xslice.get('ExB_netDusk [W]')
+        SsDwn = xslice.get('ExB_netDawn [W]')
 
         ## TOTAL
         #M1,5,total from mp
@@ -2954,7 +2956,8 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_external,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24])
+        flavors_external,(axis3) =plt.subplots(1,1,figsize=[20,8])
+        dead,(axis,axis2,axis4) =plt.subplots(3,1,figsize=[20,24])
         #Plot
         axis.plot(times,(HM1+Hs1)/1e12,label='1')
         axis.plot(times,(HM5+Hs5)/1e12,label='5')
@@ -2972,10 +2975,10 @@ def lobe_balance_fig(dataset,phase,path):
 
         axis3.plot(times,(M1+Ks1)/1e12,label='K1')
         axis3.plot(times,(M5+Ks5)/1e12,label='K5')
-        axis3.plot(times,Ks4/1e12,label='K4')
-        axis3.plot(times,Ks6/1e12,label='K6')
         axis3.plot(times,Ks3/1e12,label='K3')
         axis3.plot(times,Ks7/1e12,label='K7')
+        axis3.plot(times,Ks4/1e12,label='K4')
+        axis3.plot(times,Ks6/1e12,label='K6')
 
         #axis4.plot(times,(mp['1DK_netK5 [W]']+mp['1DK_netK1 [W]'])/1e12,
         #           label='1D Injection')
@@ -3013,9 +3016,9 @@ def lobe_balance_fig(dataset,phase,path):
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         flavors_external.tight_layout(pad=1)
-        #figurename = path+'/flavors_external'+phase+'_'+event+'.png'
-        figurename = path+'/flavors_external'+phase+'_'+event+'.eps'
-        flavors_external.savefig(figurename,dpi=300)
+        figurename = path+'/flavors_external'+phase+'_'+event+'.png'
+        #figurename = path+'/flavors_external'+phase+'_'+event+'.eps'
+        flavors_external.savefig(figurename)
         plt.close(flavors_external)
         print('\033[92m Created\033[00m',figurename)
         #############
@@ -3023,35 +3026,43 @@ def lobe_balance_fig(dataset,phase,path):
         #############
         ##setup figure
         # Figure
-        flux_internal = plt.figure(figsize=[20,26])
+        flux_internal = plt.figure(figsize=[20,8])
         # GridSpecs
-        twochunk = plt.GridSpec(2,1,hspace=0.1,top=0.95,figure=flux_internal,
-                                height_ratios=[4,1])
-        topstacks = twochunk[0].subgridspec(3,1,hspace=0.05)
-        botstacks = twochunk[1].subgridspec(1,1,hspace=0.05)
+        twochunk = plt.GridSpec(1,1,hspace=0.1,top=0.95,figure=flux_internal)
+        #                        height_ratios=[1,1])
+        #twochunk = plt.GridSpec(2,1,hspace=0.1,top=0.95,figure=flux_internal,
+        #                        height_ratios=[4,1])
+        #topstacks = twochunk[0].subgridspec(3,1,hspace=0.05)
+        topstacks = twochunk[0].subgridspec(1,1,hspace=0.05)
+        #botstacks = twochunk[1].subgridspec(1,1,hspace=0.05)
         # Axes
-        hydro_ax = flux_internal.add_subplot(topstacks[0,:])
-        poynting_ax = flux_internal.add_subplot(topstacks[1,:])
-        total_ax = flux_internal.add_subplot(topstacks[2,:])
-        dawndusk_ax = flux_internal.add_subplot(botstacks[0,:])
+        #hydro_ax = flux_internal.add_subplot(topstacks[0,:])
+        #poynting_ax = flux_internal.add_subplot(topstacks[1,:])
+        #total_ax = flux_internal.add_subplot(topstacks[0,:])
+        #dawndusk_ax = flux_internal.add_subplot(botstacks[0,:])
+        dawndusk_ax = flux_internal.add_subplot(topstacks[0,:])
 
         ##Plot
         # Hydro
-        hydro_ax.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'Cusp ${2a}$',
-                   color='goldenrod')
-        hydro_ax.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'Tail ${2b}$',
-                   color='tab:blue')
+        #hydro_ax.plot(times,(Hs2ac+HM2a+HM2c)/1e12,label=r'Cusp ${2a}$',
+        #           color='goldenrod')
+        #hydro_ax.plot(times,(Hs2bc-HM2b-HM2d)/1e12,label=r'Tail ${2b}$',
+        #           color='tab:blue')
         # Poynting
-        poynting_ax.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
-                   color='goldenrod')
-        poynting_ax.plot(times,(Ss2bc-SM2b-SM2d)/1e12,label=r'Tail $S_{2b}$',
-                   color='tab:blue')
+        #poynting_ax.plot(times,(Ss2ac+SM2a+SM2c)/1e12,label=r'Cusp $S_{2a}$',
+        #           color='goldenrod')
+        #poynting_ax.plot(times,(Ss2bc-SM2b-SM2d)/1e12,label=r'Tail $S_{2b}$',
+        #           color='tab:blue')
         # Total
-        total_ax.plot(times,(Hs2ac+HM2a+HM2c+Ss2ac+SM2a+SM2c)/1e12,
-                      label=r'Cusp $K_{2a}$',color='goldenrod')
-        total_ax.plot(times,(Hs2bc-HM2b-HM2d+Ss2bc-SM2b-SM2d)/1e12,
-                      label=r'Tail $K_{2b}$',color='tab:blue')
+        #total_ax.plot(times,(Hs2ac+HM2a+HM2c+Ss2ac+SM2a+SM2c)/1e12,
+        #              label=r'Cusp $K_{2a}$',color='goldenrod')
+        #total_ax.plot(times,(Hs2bc-HM2b-HM2d+Ss2bc-SM2b-SM2d)/1e12,
+        #              label=r'Tail $K_{2b}$',color='tab:blue')
         # DawnDusk
+        dawndusk_ax.plot(times,(HsDwn+SsDwn)/1e12,label=r'$K$ Dawn',
+                         color='red')
+        dawndusk_ax.plot(times,(HsDsk+SsDsk)/1e12,label=r'$K$ Dusk',
+                         color='blue')
         '''
         dawndusk_ax.plot(times,HsDwn/1e12,label=r'$H$ Dawn',color='indianred')
         dawndusk_ax.plot(times,HsDsk/1e12,label=r'$H$ Dusk',
@@ -3063,9 +3074,12 @@ def lobe_balance_fig(dataset,phase,path):
         '''
 
         ##Decorations
-        powerlabel=['Hydro.','Poynting','Tot. Energy','Night->Day']
-        for i,ax in enumerate([hydro_ax,poynting_ax,total_ax,dawndusk_ax]):
-            general_plot_settings(ax,do_xlabel=(i==3),legend=False,
+        powerlabel=['Night -> Day']
+        #powerlabel=['Hydro.','Poynting','Tot. Energy','Night->Day']
+        #for i,ax in enumerate([hydro_ax,poynting_ax,total_ax,dawndusk_ax]):
+        for i,ax in enumerate([dawndusk_ax]):
+            #general_plot_settings(ax,do_xlabel=(i==3),legend=False,
+            general_plot_settings(ax,do_xlabel=True,legend=False,
                                   ylabel='Integrated '+powerlabel[i]+
                                   #ylabel=r'$\int dA$'+powerlabel[i]+
                                         r' Flux $\left[ TW\right]$',
@@ -3077,33 +3091,33 @@ def lobe_balance_fig(dataset,phase,path):
                        fc='lightgrey')
             ax.margins(x=0.01,tight=None)
             ax.yaxis.label.set_fontsize(22)
-        hydro_ax.fill_between(times,(Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
-                           label=r'Sum',fc='dimgray')
-        poynting_ax.fill_between(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d)/1e12,
-                           label=r'Sum',fc='dimgray')
-        total_ax.fill_between(times,(
-                          Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d+
-                          Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d
-                          )/1e12,
-                           label=r'Sum',fc='dimgray')
-        #dawndusk_ax.fill_between(times,(HsDwn+HsDsk+SsDwn+SsDsk)/1e12,
+        #hydro_ax.fill_between(times,(Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d)/1e12,
         #                   label=r'Sum',fc='dimgray')
+        #poynting_ax.fill_between(times,(Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d)/1e12,
+        #                   label=r'Sum',fc='dimgray')
+        #total_ax.fill_between(times,(
+        #                  Hs2ac+Hs2bc+HM2a-HM2b+HM2c-HM2d+
+        #                  Ss2ac+Ss2bc+SM2a-SM2b+SM2c-SM2d
+        #                  )/1e12,
+        #                   label=r'Sum',fc='dimgray')
+        dawndusk_ax.fill_between(times,(HsDwn+HsDsk+SsDwn+SsDsk)/1e12,
+                           label=r'Sum',fc='dimgray')
 
-        hydro_ax.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
-                        ncol=3, fancybox=True, shadow=True)
+        #hydro_ax.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+        #                ncol=3, fancybox=True, shadow=True)
         dawndusk_ax.legend(loc='lower left',ncol=5)
-        hydro_ax.set_ylim(-2.5,2)
-        poynting_ax.set_ylim(-10,8)
-        total_ax.set_ylim(-10,8)
+        #hydro_ax.set_ylim(-2.5,2)
+        #poynting_ax.set_ylim(-10,8)
+        #total_ax.set_ylim(-10,8)
         dawndusk_ax.set_ylim(-10,8)
         #save
         flux_internal.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                ha='left',x=0.01,y=0.99)
         twochunk.tight_layout(pad=0.6,figure=flux_internal)
-        #figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
-        figurename = path+'/flavors_internal'+phase+'_'+event+'.eps'
-        flux_internal.savefig(figurename,dpi=300)
+        figurename = path+'/flavors_internal'+phase+'_'+event+'.png'
+        #figurename = path+'/flavors_internal'+phase+'_'+event+'.eps'
+        flux_internal.savefig(figurename)
         plt.close(flux_internal)
         print('\033[92m Created\033[00m',figurename)
         #############
@@ -3253,8 +3267,8 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         dotimedelta=True
     else: dotimedelta=False
     for i,event in enumerate(ds.keys()):
-        dst, ax = plt.subplots(4,1,sharey=False,sharex=False,
-                               figsize=[24,4*6])
+        dst, ax = plt.subplots(3,1,sharey=False,sharex=True,
+                               figsize=[24,3*6])
         #filltime = [float(n) for n in ds[event]['time'+ph].to_numpy()]
         filltime = [float(n) for n in
                     ds[event]['obs']['swmf_sw'+ph].index.to_numpy()]
@@ -3270,9 +3284,9 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         obs = ds[event]['obs']['omni'+ph]
         obstime = ds[event]['omni_otime'+ph]
         ot = [float(n) for n in obstime.to_numpy()]#bad hack
-        sup = ds[event]['obs']['supermag'+ph]
-        suptime = ds[event]['supermag_otime'+ph]
-        supt = [float(n) for n in suptime.to_numpy()]#bad hack
+        #sup = ds[event]['obs']['supermag'+ph]
+        #suptime = ds[event]['supermag_otime'+ph]
+        #supt = [float(n) for n in suptime.to_numpy()]#bad hack
         #vsup = ds[event]['obs']['vsupermag'+ph]
         #vsuptime = ds[event]['vsupermag_otime'+ph]
         #vsupt = [float(n) for n in suptime.to_numpy()]#bad hack
@@ -3357,8 +3371,9 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         ax[2].plot(simt,sim['dst_sm'],label='Sim',c='tab:blue')
         ax[2].plot(ot,obs['sym_h'],label='Obs',c='maroon')
         general_plot_settings(ax[2],ylabel=r'Sym-H$\left[nT\right]$',
-                              do_xlabel=False, legend=True,
+                              do_xlabel=True, legend=True,
                               timedelta=dotimedelta)
+        '''
         #SML index
         #ax[3].plot(vsupt,vsup['vSML'],label='Sim',c='tab:blue')
         #ax[3].plot(supt,sup['SML'],label='Obs',c='maroon')
@@ -3366,6 +3381,7 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         general_plot_settings(ax[3],ylabel=r'SML$\left[nT\right]$',
                               do_xlabel=True, legend=True,
                               timedelta=dotimedelta)
+        '''
         for axis in ax:
             axis.axvspan((moments['impact']-
                                moments['peak2']).total_seconds()*1e9,0,
@@ -3383,12 +3399,13 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
         ax[0].set_ylim([-21,20])
         ax[1].fill_between(swt,sw['pdyn'],ec='dimgrey',fc='thistle',
                                hatch=hatches[i],label=r'$P_{dyn}$')
+        ax[2].set_xlim([simt[0],simt[-1]])
         #save
         dst.suptitle(moments['peak1'].strftime("%b %Y, t0=%d-%H:%M:%S"),
                                                      ha='left',x=0.01,y=0.99)
         dst.tight_layout(pad=0.3)
-        #figname = path+'/dst_'+event+'.png'
-        figname = path+'/dst_'+event+'.eps'
+        figname = path+'/dst_'+event+'.png'
+        #figname = path+'/dst_'+event+'.eps'
         dst.savefig(figname,dpi=300)
         plt.close(dst)
         print('\033[92m Created\033[00m',figname)
@@ -3524,7 +3541,7 @@ def satellite_comparisons(dataset,phase,path):
                                       ha='left',x=0.01,y=0.99)
         twochunk.tight_layout(pad=0.6,figure=bp_compare)
         #figurename = path+'/bp_compare'+phase+'_'+event+'.png'
-        figurename = path+'/bp_compare'+phase+'_'+event+'.eps'
+        figurename = path+'/bp_compare'+phase+'_'+event+'.tiff'
         bp_compare.savefig(figurename,dpi=300)
         plt.close(bp_compare)
         print('\033[92m Created\033[00m',figurename)
@@ -4372,19 +4389,42 @@ def main_rec_figures(dataset):
     #for phase,path in [('_lineup',outLine),('_main',outMN1),('_rec',outRec)]:
     for phase,path in [('_lineup',outLine)]:
         #stack_energy_type_fig(dataset,phase,path)
-        stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
+        #stack_energy_region_fig(dataset,phase,path,hatches,tabulate=False)
         #stack_volume_fig(dataset,phase,path,hatches)
         #interf_power_fig(dataset,phase,path,hatches)
         #polar_cap_area_fig(dataset,phase,path)
         #tail_cap_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
         #solarwind_figure(dataset,phase,path,hatches,tabulate=False)
-        lobe_balance_fig(dataset,phase,path)
+        '''
+        fig,ax = plt.subplots(1,1,figsize=[16,8],sharex=True,sharey=True)
+        fig2,ax2 = plt.subplots(2,1,figsize=[16,16],sharex=True,sharey=True)
+        times=[float(n) for n in dataset['feb']['time'+phase].to_numpy()]
+        moments = locate_phase(dataset['feb']['mp'+phase].index)
+        dtime_impact = (moments['impact']-
+                        moments['peak2']).total_seconds()*1e9
+        plot_power(ax,dataset['feb']['mp'+phase],times,timedelta=True,
+                   ylabel=r'Int. Tot. Energy Flux $\left[ TW\right]$')
+        plot_P0Power(ax2[0],dataset['feb']['mp'+phase],times,timedelta=True,
+                   ylabel=r'Int. Hydrodynamic Energy Flux $\left[ TW\right]$')
+        plot_ExBPower(ax2[1],dataset['feb']['mp'+phase],times,timedelta=True,
+                   ylabel=r'Int. Magnetic Energy Flux $\left[ TW\right]$')
+        ax.axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
+        ax2[0].axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
+        ax2[1].axvspan(dtime_impact,0,alpha=0.2,facecolor='grey')
+        fig.tight_layout(pad=1)
+        fig2.tight_layout(pad=1)
+        fig.savefig(path+'/K_power.png')
+        fig2.savefig(path+'/2_power.png')
+        plt.close(fig)
+        plt.close(fig2)
+        '''
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        #satellite_comparisons(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         #oneD_comparison(dataset,phase,path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
@@ -4444,31 +4484,31 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
-    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
     #dataset['2000'] = load_hdf_sort(inAnalysis+'gm_results.h5')
     #dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
-    dataset['LL'] = load_hdf_sort('parameter_study/data/analysis/LOWnLOWu.h5')
-    dataset['HH']=load_hdf_sort('parameter_study/data/analysis/HIGHnHIGHu.h5')
+    #dataset['LL'] = load_hdf_sort('parameter_study/data/analysis/LOWnLOWu.h5')
+    #dataset['HH']=load_hdf_sort('parameter_study/data/analysis/HIGHnHIGHu.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    #dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
-    #                                 read_supermag=False,
-    #                                 end=dataset['star4']['msdict']['closed'].index[-1],
-    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
+                                     read_supermag=False,
+                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
     #                                       read_supermag=True)
     #dataset['star']['obs'] = {}
     #dataset['star4']['obs'] = {}
-    dataset['LL']['obs'] = {}
-    dataset['HH']['obs'] = {}
+    #dataset['LL']['obs'] = {}
+    #dataset['HH']['obs'] = {}
     #dataset['aug']['obs'] = read_indices(inLogs, prefix='aug2018_',
     #                                     read_supermag=False)
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
@@ -4477,12 +4517,13 @@ if __name__ == "__main__":
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
-    #                                                                inSats)
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
+                                                                    inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
     #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
-    dataset['LL']['vsat'],dataset['LL']['obssat'] = {},{}
-    dataset['HH']['vsat'],dataset['HH']['obssat'] = {},{}
+    #dataset['LL']['vsat'],dataset['LL']['obssat'] = {},{}
+    #dataset['HH']['vsat'],dataset['HH']['obssat'] = {},{}
+    #dataset['feb']['vsat'],dataset['feb']['obssat'] = {},{}
 
     for event_key in dataset.keys():
         event = dataset[event_key]
@@ -4529,8 +4570,8 @@ if __name__ == "__main__":
         if 'msdict' in dataset[event].keys():
             dataset[event]['msdict'] = {
                 #'rc':dataset[event]['msdict'].get('rc',pd.DataFrame()),
-                #'xslice':dataset[event]['msdict'].get(
-                #                               'xslice',pd.DataFrame()),
+                'xslice':dataset[event]['msdict'].get(
+                                               'xslice',pd.DataFrame()),
                 'closed':dataset[event]['msdict'].get(
                                               'closed',pd.DataFrame()),
                 'lobes':dataset[event]['msdict'].get(
