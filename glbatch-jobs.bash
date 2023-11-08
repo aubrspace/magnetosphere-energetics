@@ -32,8 +32,11 @@
 #INPUTDIR=./run_LOWnHIGHu/GM/IO2/
 #OUTPUTDIR=./outputs_LOWnHIGHu/
 
-INPUTDIR=./run_HIGHnLOWu/GM/IO2/
-OUTPUTDIR=./outputs_HIGHnLOWu/
+#INPUTDIR=./run_HIGHnLOWu/GM/IO2/
+#OUTPUTDIR=./outputs_HIGHnLOWu/
+
+INPUTDIR=./run_MEDnMEDu/GM/IO2/
+OUTPUTDIR=./outputs_MEDnMEDu/
 
 filecount=0
 workercount=0
