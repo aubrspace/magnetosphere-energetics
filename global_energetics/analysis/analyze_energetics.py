@@ -124,10 +124,7 @@ def plot_power(axis, dfdict, times, **kwargs):
     #General plot settings
     general_plot_settings(axis, **kwargs)
 
-def plot_P0Power(axis, dfdict, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=2, ls=None,
-             use_inner=False, use_shield=False, use_average=False,
-             use_surface=False):
+def plot_P0Power(axis, data, times, **kwargs):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -137,21 +134,23 @@ def plot_P0Power(axis, dfdict, timekey, ylabel, *,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper right'
-    for data in dfdict:
-        name = data['name'].iloc[-1]
+    #for data in dfdict:
+    if True:
+        #name = data['name'].iloc[-1]
         powerin_str = 'P0_injection [W]'
         powerout_str = 'P0_escape [W]'
         powernet_str = 'P0_net [W]'
-        if use_inner:
+        if kwargs.get('use_inner',False):
             powerin_str = 'inner'+powerin_str
             powerout_str = 'inner'+powerout_str
             powernet_str = 'inner'+powernet_str
-        elif use_surface:
+        elif kwargs.get('use_surface',False):
             powerin_str = 'uHydro_acquired [W]'
             powerout_str = 'uHydro_forfeited [W]'
             powernet_str = 'uHydro_net [W]'
-        if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
-            if use_shield:
+        #if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
+        if True:
+            if kwargs.get('use_shield',False):
                 oneDin = abs(data['1D'+powerin_str])*100+1
                 oneDout = abs(data['1D'+powerout_str])*100+1
                 oneDnet = abs(data['1D'+powernet_str])*100+1
@@ -159,7 +158,7 @@ def plot_P0Power(axis, dfdict, timekey, ylabel, *,
                 powerout = data[powerout_str]/oneDout
                 powernet = data[powernet_str]/oneDnet
                 axis.set_ylim([-50, 50])
-            elif use_average:
+            elif kwargs.get('use_average',False):
                 powerin = data[powerin_str]/data['Area [Re^2]']
                 powerout = data[powerout_str]/data['Area [Re^2]']
                 powernet = data[powernet_str]/data['Area [Re^2]']
@@ -169,43 +168,33 @@ def plot_P0Power(axis, dfdict, timekey, ylabel, *,
                 powernet = data[powernet_str]/1e12
                 axis.set_ylim([-20, 20])
             #INJECTION
-            axis.plot(data[timekey],powerin,
-                            label=r'Injection',
-                        linewidth=Size, linestyle=ls,
-                        color='gold')
-            if name.find('aggr')==-1:
-                axis.fill_between(data[timekey],powerin,
+            axis.plot(times,powerin,label=r'Injection',color='gold')
+            #if name.find('aggr')==-1:
+            if True:
+                axis.fill_between(times,powerin,
                               color='wheat')
             #ESCAPE
-            axis.plot(data[timekey],powerout,
+            axis.plot(times,powerout,
                             label=r'Escape',
-                        linewidth=Size, linestyle=ls,
                         color='peru')
-            if name.find('aggr')==-1:
-                axis.fill_between(data[timekey],powerout,
+            #if name.find('aggr')==-1:
+            if True:
+                axis.fill_between(times,powerout,
                                   color='peachpuff')
             #NET
-            if not use_shield:
+            if not kwargs.get('use_shield',False):
                 Size = 1
-                axis.plot(data[timekey],powernet,
+                axis.plot(times,powernet,
                             label=r'Net',
-                            linewidth=Size, linestyle=ls,
                             color='maroon')
-                if name.find('aggr')==-1:
-                    axis.fill_between(data[timekey],powernet,
+                #if name.find('aggr')==-1:
+                if True:
+                    axis.fill_between(times,powernet,
                                 color='coral')
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time [UTC]}')
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+    #General plot settings
+    general_plot_settings(axis, **kwargs)
 
-def plot_ExBPower(axis, dfdict, timekey, ylabel, *,
-             xlim=None, ylim=None, Color=None, Size=2, ls=None,
-             use_inner=False, use_shield=False, use_average=False,
-             use_surface=False):
+def plot_ExBPower(axis, data, times, **kwargs):
     """Function plots outer surface boundary powers
     Inputs
         axis- object plotted on
@@ -215,21 +204,23 @@ def plot_ExBPower(axis, dfdict, timekey, ylabel, *,
         ylabel, xlim, ylim, Color, Size, ls,- plot/axis settings
     """
     legend_loc = 'upper right'
-    for data in dfdict:
-        name = data['name'].iloc[-1]
+    #for data in dfdict:
+    if True:
+        #name = data['name'].iloc[-1]
         powerin_str = 'ExB_injection [W]'
         powerout_str = 'ExB_escape [W]'
         powernet_str = 'ExB_net [W]'
-        if use_inner:
+        if kwargs.get('use_inner',False):
             powerin_str = 'inner'+powerin_str
             powerout_str = 'inner'+powerout_str
             powernet_str = 'inner'+powernet_str
-        elif use_surface:
+        elif kwargs.get('use_surface',False):
             powerin_str = 'uB_acquired [W]'
             powerout_str = 'uB_forfeited [W]'
             powernet_str = 'uB_net [W]'
-        if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
-            if use_shield:
+        #if (name.find('mp')!=-1) or (name.find('aggr')!=-1):
+        if True:
+            if kwargs.get('use_shield',False):
                 oneDin = abs(data['1D'+powerin_str])*100+1
                 oneDout = abs(data['1D'+powerout_str])*100+1
                 oneDnet = abs(data['1D'+powernet_str])*100+1
@@ -237,7 +228,7 @@ def plot_ExBPower(axis, dfdict, timekey, ylabel, *,
                 powerout = data[powerout_str]/oneDout
                 powernet = data[powernet_str]/oneDnet
                 axis.set_ylim([-50, 50])
-            elif use_average:
+            elif kwargs.get('use_average',False):
                 powerin = data[powerin_str]/data['Area [Re^2]']
                 powerout = data[powerout_str]/data['Area [Re^2]']
                 powernet = data[powernet_str]/data['Area [Re^2]']
@@ -247,38 +238,33 @@ def plot_ExBPower(axis, dfdict, timekey, ylabel, *,
                 powernet = data[powernet_str]/1e12
                 axis.set_ylim([-20, 20])
             #INJECTION
-            axis.plot(data[timekey],powerin,
+            axis.plot(times,powerin,
                             label=r'Injection',
-                        linewidth=Size, linestyle=ls,
                         color='mediumvioletred')
-            if name.find('aggr')==-1:
-                axis.fill_between(data[timekey],powerin,
+            #if name.find('aggr')==-1:
+            if True:
+                axis.fill_between(times,powerin,
                                   color='palevioletred')
             #ESCAPE
-            axis.plot(data[timekey],powerout,
+            axis.plot(times,powerout,
                             label=r'Escape',
-                        linewidth=Size, linestyle=ls,
                         color='deepskyblue')
-            if name.find('aggr')==-1:
-                axis.fill_between(data[timekey],powerout,
+            #if name.find('aggr')==-1:
+            if True:
+                axis.fill_between(times,powerout,
                                   color='lightsteelblue')
             #NET
-            if not use_shield:
+            if not kwargs.get('use_shield',False):
                 Size = 1
-                axis.plot(data[timekey],powernet,
+                axis.plot(times,powernet,
                             label=r'Net',
-                            linewidth=Size, linestyle=ls,
                             color='midnightblue')
-                if name.find('aggr')==-1:
-                    axis.fill_between(data[timekey],powernet,
+                #if name.find('aggr')==-1:
+                if True:
+                    axis.fill_between(times,powernet,
                                     color='blue')
-    if xlim!=None:
-        axis.set_xlim(xlim)
-    if ylim!=None:
-        axis.set_ylim(ylim)
-    axis.set_xlabel(r'\textit{Time [UTC]}')
-    axis.set_ylabel(ylabel)
-    axis.legend(loc=legend_loc)
+    #General plot settings
+    general_plot_settings(axis, **kwargs)
 
 def plot_PowerSpatDist(axis, dfdict, timekey, ylabel, powerkey, *,
              xlim=None, ylim=None, Color=None, Size=2, ls=None,
