@@ -468,12 +468,14 @@ def match_variable_names(zones):
     """
     eq = tp.data.operate.execute_equation
     eq('{Rho [amu/cm^3]} = 56',zones=zones)
-    eq('{U_x [km/s]} = {Ux [km/s]}',zones=zones)
-    eq('{U_y [km/s]} = {Uy [km/s]}',zones=zones)
-    eq('{U_z [km/s]} = {Uz [km/s]}',zones=zones)
-    eq('{B_x [nT]} = {Bdx}',zones=zones)
-    eq('{B_y [nT]} = {Bdy}',zones=zones)
-    eq('{B_z [nT]} = {Bdz}',zones=zones)
+    if 'Ux [km/s]' in zones[0].dataset.variable_names:
+        eq('{U_x [km/s]} = {Ux [km/s]}',zones=zones)
+        eq('{U_y [km/s]} = {Uy [km/s]}',zones=zones)
+        eq('{U_z [km/s]} = {Uz [km/s]}',zones=zones)
+    if 'Bdx' in zones[0].dataset.variable_names:
+        eq('{B_x [nT]} = {Bdx}',zones=zones)
+        eq('{B_y [nT]} = {Bdy}',zones=zones)
+        eq('{B_z [nT]} = {Bdz}',zones=zones)
     eq('{P [nPa]} = 0.5',zones=zones)
     eq('{J_x [uA/m^2]} = {Jx [`mA/m^2]}',zones=zones)
     eq('{J_y [uA/m^2]} = {Jy [`mA/m^2]}',zones=zones)
@@ -482,6 +484,9 @@ def match_variable_names(zones):
     eq('{theta_2 [deg]} = {Theta [deg]}-90',zones=zones)
     eq('{phi_1 [deg]} = {Psi [deg]}',zones=zones)
     eq('{phi_2 [deg]} = {Psi [deg]}',zones=zones)
+    if 'RT 1/B [1/T]' in zones[0].dataset.variable_names:
+        eq('{Status} = if({RT 1/B [1/T]}<-1,2,3)',zones=zones[0])
+        eq('{Status} = if({RT 1/B [1/T]}<-1,1,3)',zones=zones[1])
 
 def check_edges(zone,hemi,**kwargs):
     """
@@ -550,17 +555,23 @@ def get_ionosphere(dataset,**kwargs):
         #TODO Visually investigate the pinch point in north and island in south
         #       Then, pick out some worst cases from the first cut video
         #       Run this new method for those cases and do a side by side
-        #from IPython import embed; embed()
         get_global_variables(dataset,'',aux=aux)
-        if kwargs.get('integrate_line',False):
-            # Create a dipole terminator zone
-            north_term,_ = calc_terminator_zone('terminator',zoneNorth,
+    else:
+        if 'eventtime' in kwargs:
+            eventtime = kwargs.get('eventtime')
+        match_variable_names([zoneNorth,zoneSouth])
+        get_global_variables(dataset,'',only_dipole=True,
+                             aux={'BTHETATILT':'0','GAMMA':'1.6666667'})
+    #Analyze data
+    if kwargs.get('integrate_line',False):
+        # Create a dipole terminator zone
+        north_term,_ = calc_terminator_zone('terminator',zoneNorth,
                                                 hemi='North',
-                                                stat_var='Status_cc',
+                                                #stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
-            _,south_term = calc_terminator_zone('terminator',zoneSouth,
+        _,south_term = calc_terminator_zone('terminator',zoneSouth,
                                                 hemi='South',
-                                                stat_var='Status_cc',
+                                                #stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:

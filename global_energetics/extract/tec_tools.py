@@ -891,6 +891,9 @@ def get_daymapped_nightmapped(zone,**kwargs):
                         '(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
                              '({phi_2 [deg]}<270&&{phi_2 [deg]}>90),1,0)',
                                                             zones=[zone])
+    elif 'ionosphere' in zone.name:
+        eq('{daymapped} = IF({Xd [R]}>0,1,0)',zones=[zone])
+        eq('{nightmapped} = IF({Xd [R]}<0,1,0)',zones=[zone])
 
 def get_day_flank_tail(zone,**kwargs):
     """Function assigns variables to represent dayside, flank, and tail,
@@ -1495,11 +1498,18 @@ def get_global_variables(field_data, analysis_type, **kwargs):
                                           'CALCULATE FUNCTION = '+
                                           'CELLVOLUME VALUELOCATION = '+
                                           'CELLCENTERED')
-        aux = field_data.zone('global_field').aux_data
+        if 'aux' in kwargs:
+            aux = kwargs.get('aux')
+        else:
+            aux = field_data.zone('global_field').aux_data
         eqeval(alleq['basic3d'])
         eqeval(alleq['dipole_coord'])
         eqeval(alleq['dipole'])
         #eqeval(alleq['dipole'],value_location=cc)
+        if kwargs.get('only_dipole',False):#use the dipole as the whole field
+            eqeval({'{B_x [nT]}':'{Bdx}',
+                    '{B_y [nT]}':'{Bdy}',
+                    '{B_z [nT]}':'{Bdz}'})
     else:
         if 'XY_zone_index' in kwargs:
             eqeval(alleq['basic2d_XY'],
