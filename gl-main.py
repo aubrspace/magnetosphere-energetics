@@ -134,7 +134,7 @@ def energetics_analysis(infiles,outpath):
                                       integrate_line=False,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                                      truegridfile=oggridfile,
+                                      #truegridfile=oggridfile,
                                       extract_flowline=False,
                                       outputpath=outpath)
     '''
@@ -174,7 +174,7 @@ def energetics_analysis(infiles,outpath):
                                      outputname+'.png'),width=1600)
     '''
     print(os.path.join(outpath,'png',outputname+'.png'))
-    if True:
+    if False:
         save_gm_multi(['front_iso_status.sty','tail_iso_status.sty',
                        'front_iso_Knet.sty','north_eq_Kx.sty'],
                        outpath,outputname,filetime)

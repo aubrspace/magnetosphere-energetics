@@ -85,7 +85,7 @@ def energetics_analysis(infiles,outpath):
                                       integrate_line=False,
                                       integrate_surface=False,
                                       integrate_volume=True,
-                                      truegridfile=oggridfile,
+                                      #truegridfile=oggridfile,
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)

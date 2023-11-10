@@ -35,8 +35,14 @@
 #INPUTDIR=./run_HIGHnLOWu/GM/IO2/
 #OUTPUTDIR=./outputs_HIGHnLOWu/
 
-INPUTDIR=./run_MEDnMEDu/GM/IO2/
-OUTPUTDIR=./outputs_MEDnMEDu/
+#INPUTDIR=./run_MEDnMEDu/GM/IO2/
+#OUTPUTDIR=./outputs_MEDnMEDu/
+
+INPUTDIR=./run_MEDnHIGHu/GM/IO2/
+OUTPUTDIR=./outputs_MEDnHIGHu/
+
+#INPUTDIR=./Original_sw_run_output/
+#OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/
 
 filecount=0
 workercount=0
@@ -45,6 +51,7 @@ workercount=0
 #head=3d__var_1_e201404
 #head=3d__var_1_e202202
 head=3d__var_1_e202206
+#head=3d__var_1_e201505
 
 #satpath=star2satloc
 
@@ -62,10 +69,10 @@ do
     #                              -s $satpath
 
     #if you only want to process one file use this
-    #i=$((i+1))
-    #if [ $i == 5 ]
-    #then
-    #    exit
-    #fi
+    i=$((i+1))
+    if [ $i == 3 ]
+    then
+        exit
+    fi
 done
 
