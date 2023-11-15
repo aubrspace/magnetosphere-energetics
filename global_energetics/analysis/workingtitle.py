@@ -2176,7 +2176,6 @@ def lobe_balance_fig(dataset,phase,path):
         #inner4 = dataset['star4']['inner_mp'+phase]
         #times4=[float(n) for n in dataset['star4']['time'+phase].to_numpy()]
         moments = locate_phase(dataset[event]['time'])
-        #from IPython import embed; embed()
         # for solar wind
         #sw = dataset[event]['obs']['swmf_sw'+phase]
         #swtime = dataset[event]['swmf_sw_otime'+phase]
@@ -2195,57 +2194,57 @@ def lobe_balance_fig(dataset,phase,path):
 
         ## TOTAL
         #K1,5 from mp
-        Ks1 = mp['K_netK1 [W]']
-        Ks5 = mp['K_netK5 [W]']
+        Ks1 = mp.get('K_netK1 [W]',np.zeros(len(mp)))
+        Ks5 = mp.get('K_netK5 [W]',np.zeros(len(mp)))
         #K2,3,4 from lobes
-        Ks2al = lobes['K_netK2a [W]']
-        Ks2bl = lobes['K_netK2b [W]']
-        Ks3 = lobes['K_netK3 [W]']
-        Ks4 = lobes['K_netK4 [W]']
+        Ks2al = lobes.get('K_netK2a [W]',np.zeros(len(mp)))
+        Ks2bl = lobes.get('K_netK2b [W]',np.zeros(len(mp)))
+        Ks3 = lobes.get('K_netK3 [W]',np.zeros(len(mp)))
+        Ks4 = lobes.get('K_netK4 [W]',np.zeros(len(mp)))
         #K2,6,7 from closed
-        Ks2ac = closed['K_netK2a [W]']
-        Ks2bc = closed['K_netK2b [W]']
-        Ks6 = closed['K_netK6 [W]']
-        Ks7 = closed['K_netK7 [W]']
+        Ks2ac = closed.get('K_netK2a [W]',np.zeros(len(mp)))
+        Ks2bc = closed.get('K_netK2b [W]',np.zeros(len(mp)))
+        Ks6 = closed.get('K_netK6 [W]',np.zeros(len(mp)))
+        Ks7 = closed.get('K_netK7 [W]',np.zeros(len(mp)))
         #DawnDusk from xslice
         #KsDsk = xslice.get('K_netDusk [W]')
         #KsDwn = xslice.get('K_netDawn [W]')
 
         ## HYDRO
         #H1,5 from mp
-        Hs1 = mp['P0_netK1 [W]']
-        Hs5 = mp['P0_netK5 [W]']
+        Hs1 = mp.get('P0_netK1 [W]',np.zeros(len(mp)))
+        Hs5 = mp.get('P0_netK5 [W]',np.zeros(len(mp)))
         #H2,3,4 from lobes
-        Hs2al = lobes['P0_netK2a [W]']
-        Hs2bl = lobes['P0_netK2b [W]']
-        Hs3 = lobes['P0_netK3 [W]']
-        Hs4 = lobes['P0_netK4 [W]']
+        Hs2al = lobes.get('P0_netK2a [W]',np.zeros(len(mp)))
+        Hs2bl = lobes.get('P0_netK2b [W]',np.zeros(len(mp)))
+        Hs3 = lobes.get('P0_netK3 [W]',np.zeros(len(mp)))
+        Hs4 = lobes.get('P0_netK4 [W]',np.zeros(len(mp)))
         #H2,6,7 from closed
-        Hs2ac = closed['P0_netK2a [W]']
-        Hs2bc = closed['P0_netK2b [W]']
-        Hs6 = closed['P0_netK6 [W]']
-        Hs7 = closed['P0_netK7 [W]']
+        Hs2ac = closed.get('P0_netK2a [W]',np.zeros(len(mp)))
+        Hs2bc = closed.get('P0_netK2b [W]',np.zeros(len(mp)))
+        Hs6 = closed.get('P0_netK6 [W]',np.zeros(len(mp)))
+        Hs7 = closed.get('P0_netK7 [W]',np.zeros(len(mp)))
         #DawnDusk from xslice
-        HsDsk = xslice.get('P0_netDusk [W]')
-        HsDwn = xslice.get('P0_netDawn [W]')
+        HsDsk = xslice.get('P0_netDusk [W]',np.zeros(len(mp)))
+        HsDwn = xslice.get('P0_netDawn [W]',np.zeros(len(mp)))
 
         ## MAG
         #S1,5 from mp
-        Ss1 = mp['ExB_netK1 [W]']
-        Ss5 = mp['ExB_netK5 [W]']
+        Ss1 = mp.get('ExB_netK1 [W]',np.zeros(len(mp)))
+        Ss5 = mp.get('ExB_netK5 [W]',np.zeros(len(mp)))
         #S2,3,4 from lobes
-        Ss2al = lobes['ExB_netK2a [W]']
-        Ss2bl = lobes['ExB_netK2b [W]']
-        Ss3 = lobes['ExB_netK3 [W]']
-        Ss4 = lobes['ExB_netK4 [W]']
+        Ss2al = lobes.get('ExB_netK2a [W]',np.zeros(len(mp)))
+        Ss2bl = lobes.get('ExB_netK2b [W]',np.zeros(len(mp)))
+        Ss3 = lobes.get('ExB_netK3 [W]',np.zeros(len(mp)))
+        Ss4 = lobes.get('ExB_netK4 [W]',np.zeros(len(mp)))
         #S2,6,7 from closed
-        Ss2ac = closed['ExB_netK2a [W]']
-        Ss2bc = closed['ExB_netK2b [W]']
-        Ss6 = closed['ExB_netK6 [W]']
-        Ss7 = closed['ExB_netK7 [W]']
+        Ss2ac = closed.get('ExB_netK2a [W]',np.zeros(len(mp)))
+        Ss2bc = closed.get('ExB_netK2b [W]',np.zeros(len(mp)))
+        Ss6 = closed.get('ExB_netK6 [W]',np.zeros(len(mp)))
+        Ss7 = closed.get('ExB_netK7 [W]',np.zeros(len(mp)))
         #DawnDusk from xslice
-        SsDsk = xslice.get('ExB_netDusk [W]')
-        SsDwn = xslice.get('ExB_netDawn [W]')
+        SsDsk = xslice.get('ExB_netDusk [W]',np.zeros(len(mp)))
+        SsDwn = xslice.get('ExB_netDawn [W]',np.zeros(len(mp)))
 
         ## TOTAL
         #M1,5,total from mp
@@ -2254,11 +2253,11 @@ def lobe_balance_fig(dataset,phase,path):
         M = mp['UtotM [W]'].fillna(value=0)
         MM = mp['MM [kg/s]'].fillna(value=0)
         #M1a,1b,2b,il from lobes
-        M1a = lobes['UtotM1a [W]'].fillna(value=0)
-        M1b = lobes['UtotM1b [W]'].fillna(value=0)
-        M2b = lobes['UtotM2b [W]'].fillna(value=0)
-        M2d = lobes['UtotM2d [W]'].fillna(value=0)
-        Mil = lobes['UtotMil [W]'].fillna(value=0)
+        M1a = lobes.get('UtotM1a [W]',np.zeros(len(mp)))
+        M1b = lobes.get('UtotM1b [W]',np.zeros(len(mp)))
+        M2b = lobes.get('UtotM2b [W]',np.zeros(len(mp)))
+        M2d = lobes.get('UtotM2d [W]',np.zeros(len(mp)))
+        Mil = lobes.get('UtotMil [W]',np.zeros(len(mp)))
         '''
         MM_lobes = (lobes['MM1a [kg/s]']+
                     lobes['MM1b [kg/s]']-
@@ -2268,11 +2267,11 @@ def lobe_balance_fig(dataset,phase,path):
                     lobes['MM2d [kg/s]'])
         '''
         #M5a,5b,2a,ic from closed
-        M5a = closed['UtotM5a [W]'].fillna(value=0)
-        M5b = closed['UtotM5b [W]'].fillna(value=0)
-        M2a = closed['UtotM2a [W]'].fillna(value=0)
-        M2c = closed['UtotM2c [W]'].fillna(value=0)
-        Mic = closed['UtotMic [W]'].fillna(value=0)
+        M5a = closed.get('UtotM5a [W]',np.zeros(len(mp)))
+        M5b = closed.get('UtotM5b [W]',np.zeros(len(mp)))
+        M2a = closed.get('UtotM2a [W]',np.zeros(len(mp)))
+        M2c = closed.get('UtotM2c [W]',np.zeros(len(mp)))
+        Mic = closed.get('UtotMic [W]',np.zeros(len(mp)))
         '''
         MM_closed = (closed['MM5a [kg/s]']+
                      closed['MM5b [kg/s]']+
@@ -2287,42 +2286,42 @@ def lobe_balance_fig(dataset,phase,path):
 
         ## HYDRO
         #HM1,5,total from mp
-        HM1 = mp['uHydroM1 [W]'].fillna(value=0)
-        HM5 = mp['uHydroM5 [W]'].fillna(value=0)
-        HM = mp['uHydroM [W]'].fillna(value=0)
+        HM1 = mp.get('uHydroM1 [W]',np.zeros(len(mp)))
+        HM5 = mp.get('uHydroM5 [W]',np.zeros(len(mp)))
+        HM = mp.get('uHydroM [W]',np.zeros(len(mp)))
         #HM1a,1b,2b,il from lobes
-        HM1a = lobes['uHydroM1a [W]'].fillna(value=0)
-        HM1b = lobes['uHydroM1b [W]'].fillna(value=0)
-        HM2b = lobes['uHydroM2b [W]'].fillna(value=0)
-        HM2d = lobes['uHydroM2d [W]'].fillna(value=0)
-        HMil = lobes['uHydroMil [W]'].fillna(value=0)
+        HM1a = lobes.get('uHydroM1a [W]',np.zeros(len(mp)))
+        HM1b = lobes.get('uHydroM1b [W]',np.zeros(len(mp)))
+        HM2b = lobes.get('uHydroM2b [W]',np.zeros(len(mp)))
+        HM2d = lobes.get('uHydroM2d [W]',np.zeros(len(mp)))
+        HMil = lobes.get('uHydroMil [W]',np.zeros(len(mp)))
         #HM5a,5b,2a,ic from closed
-        HM5a = closed['uHydroM5a [W]'].fillna(value=0)
-        HM5b = closed['uHydroM5b [W]'].fillna(value=0)
-        HM2a = closed['uHydroM2a [W]'].fillna(value=0)
-        HM2c = closed['uHydroM2c [W]'].fillna(value=0)
-        HMic = closed['uHydroMic [W]'].fillna(value=0)
+        HM5a = closed.get('uHydroM5a [W]',np.zeros(len(mp)))
+        HM5b = closed.get('uHydroM5b [W]',np.zeros(len(mp)))
+        HM2a = closed.get('uHydroM2a [W]',np.zeros(len(mp)))
+        HM2c = closed.get('uHydroM2c [W]',np.zeros(len(mp)))
+        HMic = closed.get('uHydroMic [W]',np.zeros(len(mp)))
 
         HM_lobes = HM1a+HM1b-HM2a+HM2b-HM2c+HM2d
         HM_closed = HM5a+HM5b+HM2a-HM2b+HM2c-HM2d
 
         ## MAG
         #SM1,5,total from mp
-        SM1 = mp['uBM1 [W]'].fillna(value=0)
-        SM5 = mp['uBM5 [W]'].fillna(value=0)
-        SM = mp['uBM [W]'].fillna(value=0)
+        SM1 = mp.get('uBM1 [W]',np.zeros(len(mp)))
+        SM5 = mp.get('uBM5 [W]',np.zeros(len(mp)))
+        SM = mp.get('uBM [W]',np.zeros(len(mp)))
         #HM1a,1b,2b,il from lobes
-        SM1a = lobes['uBM1a [W]'].fillna(value=0)
-        SM1b = lobes['uBM1b [W]'].fillna(value=0)
-        SM2b = lobes['uBM2b [W]'].fillna(value=0)
-        SM2d = lobes['uBM2d [W]'].fillna(value=0)
-        SMil = lobes['uBMil [W]'].fillna(value=0)
+        SM1a = lobes.get('uBM1a [W]',np.zeros(len(mp)))
+        SM1b = lobes.get('uBM1b [W]',np.zeros(len(mp)))
+        SM2b = lobes.get('uBM2b [W]',np.zeros(len(mp)))
+        SM2d = lobes.get('uBM2d [W]',np.zeros(len(mp)))
+        SMil = lobes.get('uBMil [W]',np.zeros(len(mp)))
         #SM5a,5b,2a,ic from closed
-        SM5a = closed['uBM5a [W]'].fillna(value=0)
-        SM5b = closed['uBM5b [W]'].fillna(value=0)
-        SM2a = closed['uBM2a [W]'].fillna(value=0)
-        SM2c = closed['uBM2c [W]'].fillna(value=0)
-        SMic = closed['uBMic [W]'].fillna(value=0)
+        SM5a = closed.get('uBM5a [W]',np.zeros(len(mp)))
+        SM5b = closed.get('uBM5b [W]',np.zeros(len(mp)))
+        SM2a = closed.get('uBM2a [W]',np.zeros(len(mp)))
+        SM2c = closed.get('uBM2c [W]',np.zeros(len(mp)))
+        SMic = closed.get('uBMic [W]',np.zeros(len(mp)))
 
         SM_lobes = SM1a+SM1b-SM2a+SM2b-SM2c+SM2d
         SM_closed = SM5a+SM5b+SM2a-SM2b+SM2c-SM2d
@@ -2956,29 +2955,29 @@ def lobe_balance_fig(dataset,phase,path):
 
         #############
         #setup figure
-        flavors_external,(axis3) =plt.subplots(1,1,figsize=[20,8])
-        dead,(axis,axis2,axis4) =plt.subplots(3,1,figsize=[20,24])
+        #flavors_external,(axis3) =plt.subplots(1,1,figsize=[20,8])
+        flavors_external,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24])
         #Plot
-        axis.plot(times,(HM1+Hs1)/1e12,label='1')
-        axis.plot(times,(HM5+Hs5)/1e12,label='5')
-        axis.plot(times,Hs4/1e12,label='4')
-        axis.plot(times,Hs6/1e12,label='6')
-        axis.plot(times,Hs3/1e12,label='3')
-        axis.plot(times,Hs7/1e12,label='7')
+        axis.plot(mp.index,(HM1+Hs1)/1e12,label='1')
+        axis.plot(mp.index,(HM5+Hs5)/1e12,label='5')
+        axis.plot(mp.index,Hs4/1e12,label='4')
+        axis.plot(mp.index,Hs6/1e12,label='6')
+        axis.plot(mp.index,Hs3/1e12,label='3')
+        axis.plot(mp.index,Hs7/1e12,label='7')
 
-        axis2.plot(times,(SM1+Ss1)/1e12,label='S1')
-        axis2.plot(times,(SM5+Ss5)/1e12,label='S5')
-        axis2.plot(times,Ss4/1e12,label='S4')
-        axis2.plot(times,Ss6/1e12,label='S6')
-        axis2.plot(times,Ss3/1e12,label='S3')
-        axis2.plot(times,Ss7/1e12,label='S7')
+        axis2.plot(mp.index,(SM1+Ss1)/1e12,label='S1')
+        axis2.plot(mp.index,(SM5+Ss5)/1e12,label='S5')
+        axis2.plot(mp.index,Ss4/1e12,label='S4')
+        axis2.plot(mp.index,Ss6/1e12,label='S6')
+        axis2.plot(mp.index,Ss3/1e12,label='S3')
+        axis2.plot(mp.index,Ss7/1e12,label='S7')
 
-        axis3.plot(times,(M1+Ks1)/1e12,label='K1')
-        axis3.plot(times,(M5+Ks5)/1e12,label='K5')
-        axis3.plot(times,Ks3/1e12,label='K3')
-        axis3.plot(times,Ks7/1e12,label='K7')
-        axis3.plot(times,Ks4/1e12,label='K4')
-        axis3.plot(times,Ks6/1e12,label='K6')
+        axis3.plot(mp.index,(M1+Ks1)/1e12,label='K1')
+        axis3.plot(mp.index,(M5+Ks5)/1e12,label='K5')
+        axis3.plot(mp.index,Ks3/1e12,label='K3')
+        axis3.plot(mp.index,Ks7/1e12,label='K7')
+        axis3.plot(mp.index,Ks4/1e12,label='K4')
+        axis3.plot(mp.index,Ks6/1e12,label='K6')
 
         #axis4.plot(times,(mp['1DK_netK5 [W]']+mp['1DK_netK1 [W]'])/1e12,
         #           label='1D Injection')
@@ -2991,17 +2990,18 @@ def lobe_balance_fig(dataset,phase,path):
                                   ylabel='Integrated '+powerlabel[i]+
                                         r' Flux $\left[ TW\right]$',
                                   legend_loc='lower left',
-                                  ylim=[-12,7],
-                                  timedelta=dotimedelta)
-            ax.axvspan((moments['impact']-
-                      moments['peak2']).total_seconds()*1e9,0,
-                       fc='lightgrey')
-            ax.margins(x=0.01)
-        axis.fill_between(times,(HM1+HM5+Hs1+Hs5+Hs4+Hs6+Hs3+Hs7)/1e12,
+                                  #ylim=[-12,7],
+                                  xlim=[mp.index[0],mp.index[-1]],
+                                  timedelta=False)
+            #ax.axvspan((moments['impact']-
+            #          moments['peak2']).total_seconds()*1e9,0,
+            #           fc='lightgrey')
+            #ax.margins(x=0.01)
+        axis.fill_between(mp.index,(HM1+HM5+Hs1+Hs5+Hs4+Hs6+Hs3+Hs7)/1e12,
                            label='Total',fc='dimgray')
-        axis2.fill_between(times,(SM1+SM5+Ss1+Ss5+Ss4+Ss6+Ss3+Ss7)/1e12,
+        axis2.fill_between(mp.index,(SM1+SM5+Ss1+Ss5+Ss4+Ss6+Ss3+Ss7)/1e12,
                            label='Total',fc='dimgray')
-        axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
+        axis3.fill_between(mp.index,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
                            label='Total',fc='dimgray')
         #axis4.fill_between(times,(mp['1DK_netK1 [W]']+mp['1DK_netK5 [W]']+
         #                        lobes['1DK_netK4 [W]']+closed['1DK_netK6 [W]']
@@ -3016,11 +3016,26 @@ def lobe_balance_fig(dataset,phase,path):
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
         flavors_external.tight_layout(pad=1)
+        axis.margins(x=0.01)
+        axis2.margins(x=0.01)
+        axis3.margins(x=0.01)
         figurename = path+'/flavors_external'+phase+'_'+event+'.png'
         #figurename = path+'/flavors_external'+phase+'_'+event+'.eps'
         flavors_external.savefig(figurename)
         plt.close(flavors_external)
         print('\033[92m Created\033[00m',figurename)
+
+        #Save Data
+        csvname = path+'/../../csv/Kvalues_'+event+'.csv'
+        forexport = pd.DataFrame()
+        forexport['K1'] = Ks1+M1
+        forexport['K5'] = Ks5+M5
+        forexport['K3'] = Ks3
+        forexport['K4'] = Ks4
+        forexport['K6'] = Ks6
+        forexport['Ks7'] = Ks7
+        forexport.to_csv(csvname,sep=' ')
+        print('\033[92m Created\033[00m',csvname)
         #############
 
         #############
@@ -4419,12 +4434,12 @@ def main_rec_figures(dataset):
         plt.close(fig)
         plt.close(fig2)
         '''
-        #lobe_balance_fig(dataset,phase,path)
+        lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
         #quantify_timings2(dataset, phase, path)
-        satellite_comparisons(dataset, phase, path)
+        #satellite_comparisons(dataset, phase, path)
         #oneD_comparison(dataset,phase,path)
         pass
     #power_correlations2(dataset,'',unfiled, optimize_tshift=False)#Whole event
@@ -4484,7 +4499,7 @@ if __name__ == "__main__":
     #dataset['feb'] = load_hdf_sort(inAnalysis+'feb2014_results.h5',
     #                               tshift=45)
     #dataset['star'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
-    dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
+    #dataset['star4'] = load_hdf_sort(inAnalysis+'starlink2_results4Re.h5')
     #dataset['star'] = {}
     #dataset['aug'] = {}
     #dataset['jun'] = {}
@@ -4492,16 +4507,17 @@ if __name__ == "__main__":
     #dataset['ideal'] = load_hdf_sort(inAnalysis+'GM/gm_results.h5')
     #dataset['LL'] = load_hdf_sort('parameter_study/data/analysis/LOWnLOWu.h5')
     #dataset['HH']=load_hdf_sort('parameter_study/data/analysis/HIGHnHIGHu.h5')
+    dataset['orig_sw'] = load_hdf_sort(inAnalysis+'original_sw_energetics.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
     #                                read_supermag=False)
     #dataset['feb']['obs'] = read_indices(inLogs, prefix='feb2014_',
     #                                read_supermag=False, tshift=45)
-    dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
-                                     read_supermag=False,
-                                     end=dataset['star4']['msdict']['closed'].index[-1],
-                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    #dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
+    #                                 read_supermag=False,
+    #                                 end=dataset['star4']['msdict']['closed'].index[-1],
+    #             magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
     #                                       read_supermag=True)
@@ -4513,12 +4529,13 @@ if __name__ == "__main__":
     #                                     read_supermag=False)
     #dataset['jun']['obs'] = read_indices(inLogs, prefix='jun2015_',
     #                                     read_supermag=False)
+    dataset['orig_sw']['obs'] = {}
 
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
-                                                                    inSats)
+    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
+    #                                                                inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
     #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
     #dataset['LL']['vsat'],dataset['LL']['obssat'] = {},{}
@@ -4531,36 +4548,42 @@ if __name__ == "__main__":
             # Total
             event['msdict']['lobes']['K_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['K_netK1 [W]']
+            '''
             event['mpdict']['ms_full']['UtotM1 [W]'] = (
                                       event['msdict']['lobes']['UtotM1a [W]']+
                                       event['msdict']['lobes']['UtotM1b [W]'])
             event['mpdict']['ms_full']['UtotM5 [W]'] = (
                                      event['msdict']['closed']['UtotM5a [W]']+
                                      event['msdict']['closed']['UtotM5b [W]'])
+            '''
             event['mpdict']['ms_full']['UtotM [W]'] = (
                                      event['mpdict']['ms_full']['UtotM1 [W]']+
                                      event['mpdict']['ms_full']['UtotM5 [W]'])
             # Hydro
             event['msdict']['lobes']['P0_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['P0_netK1 [W]']
+            '''
             event['mpdict']['ms_full']['uHydroM1 [W]'] = (
                                     event['msdict']['lobes']['uHydroM1a [W]']+
                                     event['msdict']['lobes']['uHydroM1b [W]'])
             event['mpdict']['ms_full']['uHydroM5 [W]'] = (
                                     event['msdict']['closed']['uHydroM5a [W]']+
                                     event['msdict']['closed']['uHydroM5b [W]'])
+            '''
             event['mpdict']['ms_full']['uHydroM [W]'] = (
                                     event['mpdict']['ms_full']['uHydroM1 [W]']+
                                     event['mpdict']['ms_full']['uHydroM5 [W]'])
             # Mag
             event['msdict']['lobes']['ExB_netK1 [W]'] = event['mpdict'][
                                                   'ms_full']['ExB_netK1 [W]']
+            '''
             event['mpdict']['ms_full']['uBM1 [W]'] = (
                                       event['msdict']['lobes']['uBM1a [W]']+
                                       event['msdict']['lobes']['uBM1b [W]'])
             event['mpdict']['ms_full']['uBM5 [W]'] = (
                                      event['msdict']['closed']['uBM5a [W]']+
                                      event['msdict']['closed']['uBM5b [W]'])
+            '''
             event['mpdict']['ms_full']['uBM [W]'] = (
                                      event['mpdict']['ms_full']['uBM1 [W]']+
                                      event['mpdict']['ms_full']['uBM5 [W]'])

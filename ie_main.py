@@ -27,7 +27,8 @@ from global_energetics.extract import view_set
 from global_energetics.write_disp import write_to_hdf
 from global_energetics import makevideo
 
-def save_ie_image(ie_stylehead_north, ie_stylehead_south):
+def save_ie_image(ie_stylehead_north, ie_stylehead_south,
+                  outpath):
     # Create and save an image
     northsheet = os.getcwd()+'/'+ie_stylehead_north
     southsheet = os.getcwd()+'/'+ie_stylehead_south
@@ -43,7 +44,7 @@ def save_ie_image(ie_stylehead_north, ie_stylehead_south):
             elif i>1:
                 tp.layout.active_page().delete_frame(frame)
         tp.layout.active_page().tile_frames(mode=TileMode.Rows)
-        tp.save_png(os.path.join('polarcap2000','figures','vis',
+        tp.save_png(os.path.join(outpath,'png',
                                      OUTPUTNAME+'.png'),width=1600)
     else:
         print('NO STYLESHEETS!!')
@@ -68,7 +69,7 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist[0:1]):
+    for k,f in enumerate(filelist[0::]):
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('it')[-1].split('.')[0]
         if True:
@@ -97,7 +98,8 @@ if __name__ == "__main__":
                                           do_interfacing=True,
                         outputpath='localdbug/parameter_study/test_ouptuts/')
                 if True:
-                    save_ie_image(ie_stylehead_north, ie_stylehead_south)
+                    save_ie_image(ie_stylehead_north, ie_stylehead_south,
+                                  outpath)
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
