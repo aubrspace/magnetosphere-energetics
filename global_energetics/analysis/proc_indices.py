@@ -492,107 +492,137 @@ def get_swmf_data(datapath,**kwargs):
     geopath = os.path.join(datapath,kwargs.get('prefix','')+'geo*.log')
     logpath = os.path.join(datapath,kwargs.get('prefix','')+'log_*.log')
     swpath = os.path.join(datapath,kwargs.get('prefix','')+'*IMF.dat')
-    geoindex = glob.glob(geopath)[0]
-    swmflog = glob.glob(logpath)[0]
-    solarwind = glob.glob(swpath)[0]
+    if glob.glob(geopath) != []:
+        geoindex = glob.glob(geopath)[0]
+        skip_geo = False
+    else:
+        skip_geo=True
+        geoindexdata = pd.DataFrame()
+    if glob.glob(logpath) != []:
+        swmflog = glob.glob(logpath)[0]
+        skip_log = False
+    else:
+        skip_log=True
+        swmflogdata = pd.DataFrame()
+    if glob.glob(swpath) != []:
+        solarwind = glob.glob(swpath)[0]
+        skip_sw = False
+    else:
+        skip_sw=True
+        swdata = pd.DataFrame()
     #get dataset names
-    geoindexname = geoindex.split('/')[-1].split('.log')[0]
-    swmflogname = swmflog.split('/')[-1].split('.log')[0]
-    solarwindname = solarwind.split('/')[-1].split('.dat')[0]
-    print('reading: \n\t{}\n\t{}\n\t{}'.format(geoindex,swmflog,solarwind))
+    print('reading: ')
+    if not skip_geo:
+        geoindexname = geoindex.split('/')[-1].split('.log')[0]
+        print('\t{}'.format(geoindex))
+    if not skip_log:
+        swmflogname = swmflog.split('/')[-1].split('.log')[0]
+        print('\t{}'.format(swmflog))
+    if not skip_sw:
+        solarwindname = solarwind.split('/')[-1].split('.dat')[0]
+        print('\t{}'.format(solarwind))
     ##SIMULATION INDICES
-    geoindexdata = pd.read_csv(geoindex, sep='\s+', skiprows=1,
-        parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-        date_parser=datetimeparser,
-        infer_datetime_format=True, keep_date_col=True)
-    geoindexdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-    geoindexdata.index = geoindexdata['Time [UTC]']
-    geoindexdata.drop(columns=['Time [UTC]'],inplace=True)
+    if not skip_geo:
+        geoindexdata = pd.read_csv(geoindex, sep='\s+', skiprows=1,
+            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+            date_parser=datetimeparser,
+            infer_datetime_format=True, keep_date_col=True)
+        geoindexdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        geoindexdata.index = geoindexdata['Time [UTC]']
+        geoindexdata.drop(columns=['Time [UTC]'],inplace=True)
     ##SIMULATION LOG
-    swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
-        parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-        date_parser=datetimeparser,
-        infer_datetime_format=True, keep_date_col=True)
-    swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-    swmflogdata.index = swmflogdata['Time [UTC]']
-    swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
+    if not skip_log:
+        swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
+            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+            date_parser=datetimeparser,
+            infer_datetime_format=True, keep_date_col=True)
+        swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        swmflogdata.index = swmflogdata['Time [UTC]']
+        swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
     ##SIMULATION SOLARWIND
-    coordsys = pd.read_csv(solarwind).loc[2][0]#NOTE come back to this
-    swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[0,1,2,4,5,6,7],
-        parse_dates={'Time [UTC]':['year','month','day',
+    if not skip_sw:
+        coordsys = pd.read_csv(solarwind).loc[2][0]#NOTE come back to this
+        swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[0,1,2,4,5,6,7],
+            parse_dates={'Time [UTC]':['year','month','day',
                                    'hour','min','sec','msec']},
-        date_parser=datetimeparser,
-        infer_datetime_format=True, keep_date_col=True)
-        #infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
-    swdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-    if coordsys=='GSE':
-        print('GSE solarwind data found!!! Converting to GSM...')
-        swdata = df_coord_transform(swdata, 'Time [UTC]', ['vx','vy','vz'],
+            date_parser=datetimeparser,
+            infer_datetime_format=True, keep_date_col=True)
+            #infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
+        swdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        if coordsys=='GSE':
+            print('GSE solarwind data found!!! Converting to GSM...')
+            swdata = df_coord_transform(swdata, 'Time [UTC]', ['vx','vy','vz'],
                                   ('GSE','car'), ('GSM','car'))
-        swdata = df_coord_transform(swdata, 'Time [UTC]', ['bx','by','bz'],
+            swdata = df_coord_transform(swdata, 'Time [UTC]', ['bx','by','bz'],
                                   ('GSE','car'), ('GSM','car'))
-        for key in ['bx','by','bz','vx','vy','vz']:
-            swdata[key] = swdata[key+'_GSM']
-            swdata.drop(columns=[key+'_GSM'])
-    swdata.index = swdata['Time [UTC]']
-    swdata.drop(columns=['Time [UTC]'],inplace=True)
-    #swdata=swdata[swdata.index < geoindexdata.index[-1]]
-    #swdata =swdata[swdata.index > geoindexdata.index[0]]
-    #solar wind dynamic pressure
-    convert = 1.6726e-27*1e6*(1e3)**2*1e9
-    swdata['v']=np.sqrt(swdata['vx']**2+swdata['vy']**2+swdata['vz']**2)
-    swdata['pdyn'] = swdata['density']*swdata['v']**2*convert
-    if kwargs.get('doBetaMa',True):
-        #solar wind plasma beta,beta*,Valfven,Ma
-        swdata['P']=swdata['density']*1.3807e-23*swdata['temperature']*1e15
-        swdata['B']=np.sqrt(swdata['bx']**2+swdata['by']**2+swdata['bz']**2)
-        swdata['Beta'] = swdata['P']/(swdata['B']**2/(4*np.pi*1e-7*1e9))
-        swdata['Beta*'] = (swdata['P']+swdata['pdyn'])/(swdata['B']**2/
-                                                    (4*np.pi*1e-7*1e9))
-        swdata['Va'] = np.sqrt(swdata['B']**2/(4*np.pi)/
-                           swdata['density']/1.67)*1e5
-        swdata['Ma'] = swdata['v']*1e3/swdata['Va']
-    if kwargs.get('doStandoff',True):
-        #Shue standoff distance
-        swdata['r_shue98'], swdata['alpha'] = (
-                                r0_alpha_1998(swdata['bz'],swdata['pdyn']))
-    if kwargs.get('doCoupls',True):
-        #coupling functions
-        Cmp = 1000 #Followed
-        #https://supermag.jhuapl.edu/info/data.php?page=swdata
-        #term comes from Cai and Clauer[2013].
-        #Note that SuperMAG lists the term as 100,
-        #however from the paper: "From our work,
-        #                       α is estimated to be on order of 10^3"
-        swdata['B_T'] = np.sqrt((swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)
-        swdata['M_A'] = (np.sqrt(swdata['pdyn']*1e-9*(4*pi*1e-7))
-                         /swdata['B_T'])
-        swdata['clock'] = np.arctan2(swdata['by'],swdata['bz'])
-        swdata['Newell']=Cmp*((swdata['v']*1e3)**(4/3)*np.sqrt(
-                    (swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)**(2/3)*
-                                   abs(np.sin(swdata['clock']/2))**(8/3))
-        l = 7*6371*1000
-        swdata['eps'] = (swdata['B']**2*swdata['v']*
-                                    np.sin(swdata['clock']/2)**4*l**2*
-                                              1e3*1e-9**2 / (4*np.pi*1e-7))
-        swdata['EinWang'] = (3.78e7*swdata['density']**0.24*
-                             swdata['v']**1.47*(swdata['B_T']*1e9)**0.86*
-                             (abs(sin(swdata['clock']/2))**2.70+0.25))
-        swdata['Pstorm'] = (swdata['B_T']**2*swdata['vx']*1e3/(4*pi*1e-7)*
+            for key in ['bx','by','bz','vx','vy','vz']:
+                swdata[key] = swdata[key+'_GSM']
+                swdata.drop(columns=[key+'_GSM'])
+        swdata.index = swdata['Time [UTC]']
+        swdata.drop(columns=['Time [UTC]'],inplace=True)
+        #swdata=swdata[swdata.index < geoindexdata.index[-1]]
+        #swdata =swdata[swdata.index > geoindexdata.index[0]]
+        #solar wind dynamic pressure
+        convert = 1.6726e-27*1e6*(1e3)**2*1e9
+        swdata['v']=np.sqrt(swdata['vx']**2+swdata['vy']**2+swdata['vz']**2)
+        swdata['pdyn'] = swdata['density']*swdata['v']**2*convert
+        if kwargs.get('doBetaMa',True):
+            #solar wind plasma beta,beta*,Valfven,Ma
+            swdata['P']=swdata['density']*1.3807e-23*swdata['temperature']*1e15
+            swdata['B']=np.sqrt(swdata['bx']**2+swdata['by']**2+swdata['bz']**2)
+            swdata['Beta'] = swdata['P']/(swdata['B']**2/(4*np.pi*1e-7*1e9))
+            swdata['Beta*'] = (swdata['P']+swdata['pdyn'])/(swdata['B']**2/
+                                                        (4*np.pi*1e-7*1e9))
+            swdata['Va'] = np.sqrt(swdata['B']**2/(4*np.pi)/
+                            swdata['density']/1.67)*1e5
+            swdata['Ma'] = swdata['v']*1e3/swdata['Va']
+        if kwargs.get('doStandoff',True):
+            #Shue standoff distance
+            swdata['r_shue98'], swdata['alpha'] = (
+                                    r0_alpha_1998(swdata['bz'],swdata['pdyn']))
+        if kwargs.get('doCoupls',True):
+            #coupling functions
+            Cmp = 1000 #Followed
+            #https://supermag.jhuapl.edu/info/data.php?page=swdata
+            #term comes from Cai and Clauer[2013].
+            #Note that SuperMAG lists the term as 100,
+            #however from the paper: "From our work,
+            #                       α is estimated to be on order of 10^3"
+            swdata['B_T'] = np.sqrt((swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)
+            swdata['M_A'] = (np.sqrt(swdata['pdyn']*1e-9*(4*pi*1e-7))
+                            /swdata['B_T'])
+            swdata['clock'] = np.arctan2(swdata['by'],swdata['bz'])
+            swdata['Newell']=Cmp*((swdata['v']*1e3)**(4/3)*np.sqrt(
+                        (swdata['by']*1e-9)**2+(swdata['bz']*1e-9)**2)**(2/3)*
+                                    abs(np.sin(swdata['clock']/2))**(8/3))
+            l = 7*6371*1000
+            swdata['eps'] = (swdata['B']**2*swdata['v']*
+                                        np.sin(swdata['clock']/2)**4*l**2*
+                                                1e3*1e-9**2 / (4*np.pi*1e-7))
+            swdata['EinWang'] = (3.78e7*swdata['density']**0.24*
+                                swdata['v']**1.47*(swdata['B_T']*1e9)**0.86*
+                                (abs(sin(swdata['clock']/2))**2.70+0.25))
+            swdata['Pstorm'] = (swdata['B_T']**2*swdata['vx']*1e3/(4*pi*1e-7)*
                             swdata['M_A']*abs(sin(swdata['clock']/2))**4*
                             135/(5e-5*swdata['bz']**3+1)*6371e3**2)
     #times Time [UTC]
-    geoindexdata['times'] = geoindexdata.index
-    swmflogdata['times'] = swmflogdata.index
-    swdata['times'] = swdata.index
-    swdata['dens'] = swdata['density']
+    if not skip_geo:
+        geoindexdata['times'] = geoindexdata.index
+    if not skip_log:
+        swmflogdata['times'] = swmflogdata.index
+    if not skip_sw:
+        swdata['times'] = swdata.index
+        swdata['dens'] = swdata['density']
 
     #trim according to kwargs passed
-    geoindexdata = geoindexdata.truncate(before=kwargs.get('start'),
+    if not skip_geo:
+        geoindexdata = geoindexdata.truncate(before=kwargs.get('start'),
                                          after=kwargs.get('end'))
-    swmflogdata = swmflogdata.truncate(before=kwargs.get('start'),
+    if not skip_log:
+        swmflogdata = swmflogdata.truncate(before=kwargs.get('start'),
                                        after=kwargs.get('end'))
-    swdata = swdata.truncate(before=kwargs.get('start'),
+    if not skip_sw:
+        swdata = swdata.truncate(before=kwargs.get('start'),
                              after=kwargs.get('end'))
 
     return geoindexdata, swmflogdata, swdata
@@ -718,8 +748,8 @@ def read_indices(data_path, **kwargs):
         data.update({'swmf_log':swmf_log})
         data.update({'swmf_sw':swmf_sw})
         #find new start/end times, will have been trimmed already if needed
-        kwargs.update({'start':swmf_index.index[0]})
-        kwargs.update({'end':swmf_index.index[-1]})
+        kwargs.update({'start':swmf_log.index[0]})
+        kwargs.update({'end':swmf_log.index[-1]})
     #get supermag and omni
     if kwargs.get('read_supermag',True):
         import supermag
