@@ -85,7 +85,7 @@ if __name__ == "__main__":
         pass
     # Set file paths/individual file
     #inpath = 'localdbug/parameter_study/'
-    inpath = 'localdbug/MAST/no_theta_phi/'
+    inpath = 'localdbug/starlink/'
     #inpath = 'run_HIGHnHIGHu/GM/IO2/'
     #outpath = 'parameter_study/'
     outpath = 'localdbug/MAST/test_output/'
@@ -102,7 +102,7 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist[0:1]):
+    for k,f in enumerate(filelist[-1::]):
     #k=0
     #f='febstorm/3d__var_1_e20140219-055500-008.plt'
     #if True:
@@ -124,8 +124,8 @@ if __name__ == "__main__":
                       filetime.second))
             '''
             #python objects
-            #field_data = tp.data.load_tecplot(mhddatafile)
-            field_data = tp.data.load_tecplot(filelist[0::2])
+            field_data = tp.data.load_tecplot(mhddatafile)
+            #field_data = tp.data.load_tecplot(filelist[0::2])
             field_data.zone(0).name = 'global_field'
             if len(field_data.zone_names)>1:
                 field_data.zone(1).name = 'future'
@@ -141,16 +141,17 @@ if __name__ == "__main__":
                                                         disp_result=True,
                                     verbose=True,
                                     debug=False,
-                                    do_cms=True,
-                                    do_central_diff=True,
+                                    do_cms=False,
+                                    do_central_diff=False,
                                     do_1Dsw=False,
-                                    analysis_type='energy_mass_mag',
+                                    analysis_type='energy',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
                                     integrate_line=False,
+                                    tail_cap=-100,
                                     integrate_surface=False,
                                     integrate_volume=True,
                                     #truegridfile=oggridfile,

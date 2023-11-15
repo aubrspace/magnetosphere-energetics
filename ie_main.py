@@ -60,7 +60,7 @@ if __name__ == "__main__":
     inpath = 'localdbug/parameter_study/'
     outpath = 'parameter_study/'
     head = 'it*'
-    ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
+    ie_stylehead_north, ie_stylehead_south = 'north_Jr_status.sty','south_Jr_status.sty'
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
@@ -96,7 +96,7 @@ if __name__ == "__main__":
                                           integrate_line=True,
                                           do_interfacing=True,
                         outputpath='localdbug/parameter_study/test_ouptuts/')
-                if False:
+                if True:
                     save_ie_image(ie_stylehead_north, ie_stylehead_south)
 
     if '-c' in sys.argv:
