@@ -58,15 +58,14 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'localdbug/parameter_study/'
-    outpath = 'parameter_study/'
+    inpath = 'ideal_recon_tim/IE/'
+    outpath = 'polarcap_rxn/'
     head = 'it*'
     ie_stylehead_north, ie_stylehead_south = 'north_Jr_status.sty','south_Jr_status.sty'
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
                                 key=makevideo.time_sort)[0::]
-    oggridfile = ''
 
     i=0
     for k,f in enumerate(filelist[0::]):
@@ -86,9 +85,12 @@ if __name__ == "__main__":
                 # IE data
                 field_data = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
-                field_data.zone(-2).name = 'ionosphere_north'
-                field_data.zone(-1).name = 'ionosphere_south'
-                ionosphere.get_ionosphere(field_data,
+                if len(field_data.zone_names)<2:
+                    pass
+                else:
+                    field_data.zone(0).name = 'ionosphere_north'
+                    field_data.zone(1).name = 'ionosphere_south'
+                    ionosphere.get_ionosphere(field_data,
                                           verbose=True,
                                           hasGM=False,
                                           eventtime=filetime,
@@ -96,9 +98,9 @@ if __name__ == "__main__":
                                           integrate_surface=True,
                                           integrate_line=True,
                                           do_interfacing=True,
-                        outputpath='localdbug/parameter_study/test_ouptuts/')
-                if True:
-                    save_ie_image(ie_stylehead_north, ie_stylehead_south,
+                        outputpath=outpath)
+                    if True:
+                        save_ie_image(ie_stylehead_north, ie_stylehead_south,
                                   outpath)
 
     if '-c' in sys.argv:
