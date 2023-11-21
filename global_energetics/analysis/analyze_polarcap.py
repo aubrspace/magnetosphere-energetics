@@ -89,46 +89,39 @@ if __name__ == "__main__":
         #cpcp.plot(logt,log['cpcpn'],label='CPCPn')
         #cpcp.plot(logt,log['cpcps'],label='CPCPs')
         # Polar Cap Flux
-        pcFlux.plot(times,abs(dayFlux_north.rolling(1).mean()),label='Day')
-        pcFlux.plot(times,abs(nightFlux_north.rolling(1).mean()),label='Night')
-        pcFlux.plot(times,(abs(dayFlux_north)+
-                          abs(nightFlux_north)).rolling(1).mean(),
-                          label='Total')
+        pcFlux.plot(times,abs(dayFlux_north),label='DayN')
+        pcFlux.plot(times,abs(nightFlux_north),label='NightN')
+        pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north)),
+                          label='TotalN')
         pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north))[0]+
-                          -(rxnDay_north+rxnDay_south+
-                           rxnNight_north+rxnNight_south).cumsum()*60,
-                    label='Sum')
-        pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north))[0]+
-                          dphidt.cumsum()*60,label='OtherSum')
+                          -(rxnDay_north+rxnNight_north).cumsum()*60,
+                    label='SumN')
         # Reconnection Rate
-        rxn.plot(times,rxnDay_north.rolling(1).mean()/1000,label='Day')
-        rxn.plot(times,rxnNight_north.rolling(1).mean()/1000,label='Night')
-        rxn.plot(times,night2dayNet_north/1000,label='TermNight2Day')
+        # North
+        rxn.plot(times,rxnDay_north/1000,label='DayN')
+        rxn.plot(times,rxnNight_north/1000,label='NightN')
+        rxn.plot(times,night2dayNet_north/1000,label='TermNight2DayN')
+        # South
+        rxn.plot(times,rxnDay_south/1000,label='DayS')
+        rxn.plot(times,rxnNight_south/1000,label='NightS')
+        rxn.plot(times,night2dayNet_south/1000,label='TermNight2DayS')
         ##Decorations
         # IMF
         general_plot_settings(imf,do_xlabel=False,legend=True,
                               ylabel=r'$B \left[nT\right]$',
-                              #xlim=[dt.datetime(2014,4,10,3,30),
-                              #      dt.datetime(2014,4,10,9,30)],
                               timedelta=False)
         # CPCP
         #general_plot_settings(cpcp,do_xlabel=False,legend=True,
         #                      ylabel=r'$CPCP\left[kV\right]$',
-        #                      #xlim=[dt.datetime(2014,4,10,3,30),
-        #                      #      dt.datetime(2014,4,10,9,30)],
         #                      timedelta=False)
         # Polar Cap Flux
         general_plot_settings(pcFlux,do_xlabel=False,legend=True,
                               #ylabel=r'$B \left[nT\right]$',
                               ylabel=r'$\vec{B}\cdot\vec{A}\left[Wb\right]$',
-                              #xlim=[dt.datetime(2014,4,10,3,30),
-                              #      dt.datetime(2014,4,10,9,30)],
                               timedelta=False)
         # Reconnection Rate
         general_plot_settings(rxn,do_xlabel=True,legend=True,
                               ylabel=r'RXPotential $d\phi dt\left[kV\right]$',
-                              #xlim=[dt.datetime(2014,4,10,3,30),
-                              #      dt.datetime(2014,4,10,9,30)],
                               timedelta=False)
         #save
         rx.tight_layout(pad=1)
