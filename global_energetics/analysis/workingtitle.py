@@ -4508,6 +4508,10 @@ if __name__ == "__main__":
     #dataset['LL'] = load_hdf_sort('parameter_study/data/analysis/LOWnLOWu.h5')
     #dataset['HH']=load_hdf_sort('parameter_study/data/analysis/HIGHnHIGHu.h5')
     dataset['orig_sw'] = load_hdf_sort(inAnalysis+'original_sw_energetics.h5')
+    dataset['box'] = load_hdf_sort(inAnalysis+'box_energetics.h5')
+    dataset['box+ULF'] = load_hdf_sort(inAnalysis+'box+ULF_energetics.h5')
+    dataset['lowpass'] = load_hdf_sort(inAnalysis+'lowpass_energetics.h5')
+    dataset['ULF'] = load_hdf_sort(inAnalysis+'ulf_energetics.h5')
 
     ## Log Data and Indices
     #dataset['may']['obs'] = read_indices(inLogs, prefix='may2019_',
