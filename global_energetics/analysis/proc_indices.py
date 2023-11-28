@@ -492,6 +492,7 @@ def get_swmf_data(datapath,**kwargs):
     geopath = os.path.join(datapath,kwargs.get('prefix','')+'geo*.log')
     logpath = os.path.join(datapath,kwargs.get('prefix','')+'log_*.log')
     swpath = os.path.join(datapath,kwargs.get('prefix','')+'*IMF.dat')
+    iepath = os.path.join(datapath,kwargs.get('prefix','')+'IE_*.log')
     if glob.glob(geopath) != []:
         geoindex = glob.glob(geopath)[0]
         skip_geo = False
@@ -510,6 +511,12 @@ def get_swmf_data(datapath,**kwargs):
     else:
         skip_sw=True
         swdata = pd.DataFrame()
+    if glob.glob(iepath) != []:
+        ielog = glob.glob(iepath)[0]
+        skip_ie = False
+    else:
+        skip_ie = True
+        ielogdata = pd.DataFrame()
     #get dataset names
     print('reading: ')
     if not skip_geo:
@@ -530,7 +537,7 @@ def get_swmf_data(datapath,**kwargs):
         geoindexdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
         geoindexdata.index = geoindexdata['Time [UTC]']
         geoindexdata.drop(columns=['Time [UTC]'],inplace=True)
-    ##SIMULATION LOG
+    ##SIMULATION LOG (GM)
     if not skip_log:
         swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
             parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
@@ -539,6 +546,15 @@ def get_swmf_data(datapath,**kwargs):
         swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
         swmflogdata.index = swmflogdata['Time [UTC]']
         swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
+    ##IE SIMULATION LOG
+    if not skip_ie:
+        ielogdata = pd.read_csv(ielog,sep='\s+',skiprows=1,
+           parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+           date_parser=datetimeparser,infer_datetime_format=True,
+           keep_date_col=True)
+        ielogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        ielogdata.index = ielogdata['Time [UTC]']
+        ielogdata.drop(columns=['Time [UTC]'],inplace=True)
     ##SIMULATION SOLARWIND
     if not skip_sw:
         coordsys = pd.read_csv(solarwind).loc[2][0]#NOTE come back to this
@@ -624,8 +640,16 @@ def get_swmf_data(datapath,**kwargs):
     if not skip_sw:
         swdata = swdata.truncate(before=kwargs.get('start'),
                              after=kwargs.get('end'))
+    if not skip_ie:
+        ielogdata = ielogdata.truncate(before=kwargs.get('start'),
+                                       after=kwargs.get('end'))
 
-    return geoindexdata, swmflogdata, swdata
+    data = {}
+    data.update({'swmf_index':geoindexdata})
+    data.update({'swmf_log':swmflogdata})
+    data.update({'swmf_sw':swdata})
+    data.update({'ie_log':ielogdata})
+    return data
 
 def prepare_figures(data, path, **kwargs):
     """Function creates figure and axis objects to fill with plots and
@@ -741,15 +765,15 @@ def read_indices(data_path, **kwargs):
     Returns
         data (dict{DataFrame})- swmf_indices, swmf_log, swmf_sw, supermag, omni
     """
-    data = {}
     if kwargs.get('read_swmf',True):
-        swmf_index, swmf_log, swmf_sw = get_swmf_data(data_path,**kwargs)
-        data.update({'swmf_index':swmf_index})
-        data.update({'swmf_log':swmf_log})
-        data.update({'swmf_sw':swmf_sw})
+        data = get_swmf_data(data_path,**kwargs)
+        #data.update({'swmf_index':swmf_index})
+        #data.update({'swmf_log':swmf_log})
+        #data.update({'swmf_sw':swmf_sw})
         #find new start/end times, will have been trimmed already if needed
-        kwargs.update({'start':swmf_log.index[0]})
-        kwargs.update({'end':swmf_log.index[-1]})
+        anykey = [k for k in data.keys()][0]
+        kwargs.update({'start':data[anykey].index[0]})
+        kwargs.update({'end':data[anykey].index[-1]})
     #get supermag and omni
     if kwargs.get('read_supermag',True):
         import supermag

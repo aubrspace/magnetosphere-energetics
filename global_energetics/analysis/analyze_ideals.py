@@ -594,7 +594,7 @@ def scatter_internalFlux(tave):
     #setup figure
     scatterK2b,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tave.keys()):
@@ -630,7 +630,7 @@ def scatter_internalFlux(tave):
     #setup figure
     scatterAL,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tave.keys()):
@@ -668,7 +668,7 @@ def scatter_externalFlux(tave):
     #setup figure
     scatterK1,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tave.keys()):
@@ -706,7 +706,7 @@ def scatter_externalFlux(tave):
     #Plot
     all_X = np.array([])
     all_Y = np.array([])
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -742,7 +742,7 @@ def scatter_cuspFlux(tave):
     #setup figure
     scatterCusp,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -772,7 +772,7 @@ def innerLobeFlux(tave):
     #setup figure
     scatterLobe,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -813,7 +813,7 @@ def scatters(tave):
     #setup figure
     scatter2,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -954,6 +954,7 @@ if __name__ == "__main__":
     dataset['LOWnHIGHu'] = load_hdf_sort(inAnalysis+'LOWnHIGHu.h5')
     dataset['HIGHnLOWu'] = load_hdf_sort(inAnalysis+'HIGHnLOWu.h5')
     dataset['MEDnMEDu'] = load_hdf_sort(inAnalysis+'MEDnMEDu.h5')
+    dataset['MEDnHIGHu'] = load_hdf_sort(inAnalysis+'MEDnHIGHu.h5')
 
     #HOTFIX duplicate LOWLOW values
     M5 = dataset['LOWnLOWu']['mpdict']['ms_full']['UtotM5 [W]'].copy()/1e12
@@ -979,6 +980,8 @@ if __name__ == "__main__":
     dataset['HIGHnLOWu']['obs'] = read_indices(inLogs, prefix='HIGHnLOWu_',
                                               read_supermag=False)
     dataset['MEDnMEDu']['obs'] = read_indices(inLogs, prefix='MEDnMEDu_',
+                                              read_supermag=False)
+    dataset['MEDnHIGHu']['obs'] = read_indices(inLogs, prefix='MEDnHIGHu_',
                                               read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures

@@ -38,12 +38,13 @@ if __name__ == "__main__":
     dataset = {}
     #dataset['analysis'] = load_hdf_sort(inAnalysis+'/ie_results.h5')
     dataset['analysis'] = {}
-    with pd.HDFStore(os.path.join(inAnalysis,'austins_method.h5')) as store:
+    #with pd.HDFStore(os.path.join(inAnalysis,'austins_method.h5')) as store:
+    with pd.HDFStore(os.path.join(inAnalysis,'ie_MEDnMEDu.h5')) as store:
         for key in store.keys():
             dataset['analysis'][key] = store[key]
 
     ## Logs and observation Data
-    dataset['obs'] = read_indices(inLogs, prefix='',
+    dataset['obs'] = read_indices(inLogs, prefix='MEDnMEDu_',
                                   read_supermag=False)
 
     # Name the top level
@@ -56,6 +57,7 @@ if __name__ == "__main__":
     swt = sw.index
     log = dataset['obs']['swmf_log']
     logt = log.index
+    ielogt = dataset['obs']['ie_log'].index
     # Name more specific stuff
     dayFlux_north = surface_north['Bf_injectionPolesDayN [Wb]']
     dayFlux_south = surface_south['Bf_escapePolesDayS [Wb]']
@@ -86,7 +88,8 @@ if __name__ == "__main__":
         imf.plot(swt,sw['bz'],label='Bz')
         #axis1.plot(swt,sw['Newell'],label='Newell')
         # CPCP
-        #cpcp.plot(logt,log['cpcpn'],label='CPCPn')
+        cpcp.plot(logt,log['cpcpn'],label='CPCPn')
+        cpcp.plot(ielogt,dataset['obs']['ie_log']['cpcpn'],label='ie_CPCPn')
         #cpcp.plot(logt,log['cpcps'],label='CPCPs')
         # Polar Cap Flux
         pcFlux.plot(times,abs(dayFlux_north),label='DayN')
@@ -111,9 +114,9 @@ if __name__ == "__main__":
                               ylabel=r'$B \left[nT\right]$',
                               timedelta=False)
         # CPCP
-        #general_plot_settings(cpcp,do_xlabel=False,legend=True,
-        #                      ylabel=r'$CPCP\left[kV\right]$',
-        #                      timedelta=False)
+        general_plot_settings(cpcp,do_xlabel=False,legend=True,
+                              ylabel=r'$CPCP\left[kV\right]$',
+                              timedelta=False)
         # Polar Cap Flux
         general_plot_settings(pcFlux,do_xlabel=False,legend=True,
                               #ylabel=r'$B \left[nT\right]$',
