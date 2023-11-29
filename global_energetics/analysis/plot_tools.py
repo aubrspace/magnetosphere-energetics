@@ -661,6 +661,8 @@ def refactor(event,t0):
 
     ev['K1'] = ev['Ks1']+ev['M1']
     ev['K5'] = ev['Ks5']+ev['M5']
+    ev['K2a'] = ev['Ks2ac']+ev['M2a']+ev['M2c']
+    ev['K2b'] = ev['Ks2bc']-ev['M2b']-ev['M2d']
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
 

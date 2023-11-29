@@ -885,24 +885,34 @@ def energy_vs_polarcap(ev,event,path):
                                         ev['mp'].index)
     #############
     #setup figure
-    Ulobe_PCflux,(Ulobe,PCflux) =plt.subplots(2,1,figsize=[20,8],sharex=True)
+    Ulobe_PCflux,(Ulobe,PCflux,K3) = plt.subplots(3,1,figsize=[20,16],
+                                                  sharex=True)
     #Plot
     Ulobe.plot(ev['times'],ev['Ulobes']/1e15,label='Utot')
     PCflux.plot(ev['ie_times'],ev['ie_allFlux']/1e9,label='PCFlux')
+    K3.plot(ev['times'],ev['Ks3']/1e12,label='K3')
     #Decorate
     for interv in interval_list:
         Ulobe.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                       c='grey')
         PCflux.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                       c='grey')
+        K3.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
+        Ulobe.axhline(0,c='black')
+        PCflux.axhline(0,c='black')
+        K3.axhline(0,c='black')
     general_plot_settings(Ulobe,do_xlabel=False,legend=True,
                           ylabel=r'Energy $\left[PJ\right]$',
                           timedelta=True)
-    general_plot_settings(PCflux,do_xlabel=True,legend=True,
+    general_plot_settings(PCflux,do_xlabel=False,legend=True,
                           ylabel=r'Magnetic Flux $\left[MWb\right]$',
+                          timedelta=True)
+    general_plot_settings(K3,do_xlabel=True,legend=True,
+                          ylabel=r'Energy Flux $\left[TW\right]$',
                           timedelta=True)
     Ulobe.margins(x=0.01)
     PCflux.margins(x=0.01)
+    K3.margins(x=0.01)
     Ulobe_PCflux.tight_layout(pad=1)
     #Save
     figurename = path+'/Ulobe_PCflux_'+event+'.png'
@@ -910,6 +920,105 @@ def energy_vs_polarcap(ev,event,path):
     plt.close(Ulobe_PCflux)
     print('\033[92m Created\033[00m',figurename)
 
+def mpflux_vs_rxn(ev,event,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Kmp_rxn,(K5_K1,DayRxn,NightRxn) = plt.subplots(3,1,figsize=[20,16],
+                                                  sharex=True)
+    #Plot
+    K5_K1.plot(ev['times'],ev['K5']/1e12,label='K5')
+    K5_K1.plot(ev['times'],ev['K1']/1e12,label='K1')
+    DayRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
+                                ev['rxnDay_north'])/1e3,label='Day')
+    NightRxn.plot(ev['ie_times'],(ev['rxnNight_south']+
+                                  ev['rxnNight_north'])/1e3,label='Night')
+    #Decorate
+    for interv in interval_list:
+        K5_K1.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        K5_K1.axhline(0,c='black')
+        DayRxn.axhline(0,c='black')
+        NightRxn.axhline(0,c='black')
+    general_plot_settings(K5_K1,do_xlabel=False,legend=True,
+                          ylabel=r'Int. Energy Flux $\left[TW\right]$',
+                          timedelta=True)
+    general_plot_settings(DayRxn,do_xlabel=False,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    general_plot_settings(NightRxn,do_xlabel=True,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    K5_K1.margins(x=0.01)
+    DayRxn.margins(x=0.01)
+    NightRxn.margins(x=0.01)
+    Kmp_rxn.tight_layout(pad=1)
+    #Save
+    figurename = path+'/Kmp_rxn_'+event+'.png'
+    Kmp_rxn.savefig(figurename)
+    plt.close(Kmp_rxn)
+    print('\033[92m Created\033[00m',figurename)
+
+def internalflux_vs_rxn(ev,event,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Kinternal_rxn,(K2a_K2b,DayRxn,NightRxn,NetRxn) = plt.subplots(4,1,
+                                                              figsize=[20,20],
+                                                              sharex=True)
+    #Plot
+    K2a_K2b.plot(ev['times'],ev['K2a']/1e12,label='K2a')
+    K2a_K2b.plot(ev['times'],ev['K2b']/1e12,label='K2b')
+    DayRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
+                                ev['rxnDay_north'])/1e3,label='Day')
+    NightRxn.plot(ev['ie_times'],(ev['rxnNight_south']+
+                                  ev['rxnNight_north'])/1e3,label='Night')
+    NetRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
+                                ev['rxnDay_north']+
+                                ev['rxnNight_south']+
+                                ev['rxnNight_north'])/1e3,label='NetRxn')
+    #Decorate
+    for interv in interval_list:
+        K2a_K2b.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        NetRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        K2a_K2b.axhline(0,c='black')
+        DayRxn.axhline(0,c='black')
+        NightRxn.axhline(0,c='black')
+        NetRxn.axhline(0,c='black')
+    general_plot_settings(K2a_K2b,do_xlabel=False,legend=True,
+                          ylabel=r'Int. Energy Flux $\left[TW\right]$',
+                          timedelta=True)
+    general_plot_settings(DayRxn,do_xlabel=False,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    general_plot_settings(NightRxn,do_xlabel=False,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    general_plot_settings(NetRxn,do_xlabel=True,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    K2a_K2b.margins(x=0.01)
+    DayRxn.margins(x=0.01)
+    NightRxn.margins(x=0.01)
+    NetRxn.margins(x=0.01)
+    Kinternal_rxn.tight_layout(pad=1)
+    #Save
+    figurename = path+'/Kinternal_rxn_'+event+'.png'
+    Kinternal_rxn.savefig(figurename)
+    plt.close(Kinternal_rxn)
+    print('\033[92m Created\033[00m',figurename)
 
 def tab_ranges(dataset):
     events = dataset.keys()
@@ -956,10 +1065,10 @@ def initial_figures(dataset):
         #TODO:
         #   Read in the arguments
         #   Plot total energy vs total polar cap flux
-        #   Ulobe vs PCF
-        #   Inner open flux vs PCF
-        #   DayRxn vs K5
-        #   DayRxn vs K1
+        #   xUlobe vs PCF
+        #   xInner open flux vs PCF
+        #   xDayRxn vs K5
+        #   xDayRxn vs K1
         #   NightRxn vs 2b
         #   NightRxn vs Inner open flux
         #   NightRxn vs Inner closed flux
@@ -977,6 +1086,8 @@ def initial_figures(dataset):
         #  that organizes the data in a nice way
         if '/ionosphere_north_surface' in dataset[event].keys():
             energy_vs_polarcap(ev,event,path)
+            mpflux_vs_rxn(ev,event,path)
+            internalflux_vs_rxn(ev,event,path)
     '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)
