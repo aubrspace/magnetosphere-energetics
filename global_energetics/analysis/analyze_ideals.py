@@ -218,7 +218,6 @@ def segments(event,ev,**kwargs):
     #setup figure
     segments,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24],
                                                  sharey=False)
-    #from IPython import embed; embed()
     #Plot
     for i,(start,end) in enumerate(interval_list):
         interv = (ev['Ks1'].index>start)&(ev['Ks1'].index<end)
@@ -881,6 +880,36 @@ def scatters(tave):
     print('\033[92m Created\033[00m',figurename)
     #############
 
+def energy_vs_polarcap(ev,event,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Ulobe_PCflux,(Ulobe,PCflux) =plt.subplots(2,1,figsize=[20,8],sharex=True)
+    #Plot
+    Ulobe.plot(ev['times'],ev['Ulobes']/1e15,label='Utot')
+    PCflux.plot(ev['ie_times'],ev['ie_allFlux']/1e9,label='PCFlux')
+    #Decorate
+    for interv in interval_list:
+        Ulobe.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        PCflux.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+    general_plot_settings(Ulobe,do_xlabel=False,legend=True,
+                          ylabel=r'Energy $\left[PJ\right]$',
+                          timedelta=True)
+    general_plot_settings(PCflux,do_xlabel=True,legend=True,
+                          ylabel=r'Magnetic Flux $\left[MWb\right]$',
+                          timedelta=True)
+    Ulobe.margins(x=0.01)
+    PCflux.margins(x=0.01)
+    Ulobe_PCflux.tight_layout(pad=1)
+    #Save
+    figurename = path+'/Ulobe_PCflux_'+event+'.png'
+    Ulobe_PCflux.savefig(figurename)
+    plt.close(Ulobe_PCflux)
+    print('\033[92m Created\033[00m',figurename)
+
 
 def tab_ranges(dataset):
     events = dataset.keys()
@@ -946,7 +975,8 @@ def initial_figures(dataset):
         #   subsotrm phases
         # Then take new scatter averages split by substorm phases and see if 
         #  that organizes the data in a nice way
-        energy_vs_polarcap(event,ev,path)
+        if '/ionosphere_north_surface' in dataset[event].keys():
+            energy_vs_polarcap(ev,event,path)
     '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)

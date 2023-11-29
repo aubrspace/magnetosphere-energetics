@@ -675,7 +675,8 @@ def ie_refactor(event,t0):
     ev['ie_surface_south'] = event['/ionosphere_south_surface']
     ev['term_north'] = event['/terminatornorth']
     ev['term_south'] = event['/terminatorsouth']
-    ev['ie_times'] = ev['term_north'].index
+    timedelta = [t-t0 for t in ev['term_north'].index]
+    ev['ie_times']=[float(n.to_numpy()) for n in timedelta]
     #TODO if not already in
     '''
     ev['sw'] = ev['obs']['swmf_sw']
