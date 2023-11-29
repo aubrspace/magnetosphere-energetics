@@ -18,7 +18,7 @@ from global_energetics.analysis.plot_tools import (central_diff,
                                                    plot_stack_distr,
                                                    plot_pearson_r,
                                                    plot_stack_contrib,
-                                                   refactor)
+                                                   refactor,ie_refactor)
 from global_energetics.analysis.proc_hdf import (load_hdf_sort)
 from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.analyze_energetics import plot_power
@@ -41,7 +41,9 @@ def interval_average(ev):
         for key in ev['sw'].keys():
             tave_ev.loc[i,key] = ev['sw'].loc[swinterv,key].mean()
         banlist = ['lobes','closed','mp','inner',
-                   'sim','sw','times','simt','swt','dDstdt_sim']
+                   'sim','sw','times','simt','swt','dDstdt_sim',
+                   'ie_surface_north','ie_surface_south',
+                   'term_north','term_south','ie_times']
         keylist = [k for k in ev.keys() if k not in banlist]
         for key in[k for k in keylist if type(ev[k])is not type([])]:
             tave_ev.loc[i,key] = ev[key][interv].mean()
@@ -903,6 +905,11 @@ def initial_figures(dataset):
     for i,event in enumerate(dataset.keys()):
         ev = refactor(dataset[event],dt.datetime(2022,6,6,0))
         tave[event] = interval_average(ev)
+        if '/ionosphere_north_surface' in dataset[event].keys():
+            ev2 = ie_refactor(dataset[event],dt.datetime(2022,6,6,0))
+            for key in ev2.keys():
+                ev[key] = ev2[key]
+        #TODO- decide how to stich the average values together
         if False:
             external_flux_timeseries(event,ev['times'],
                                       ev['HM1'],ev['Hs1'],ev['HM5'],ev['Hs5'],
@@ -917,6 +924,30 @@ def initial_figures(dataset):
         #common_x_lineup(event,ev)
         #segments(event,ev)
         #series_segments(event,ev)
+        #TODO:
+        #   Read in the arguments
+        #   Plot total energy vs total polar cap flux
+        #   Ulobe vs PCF
+        #   Inner open flux vs PCF
+        #   DayRxn vs K5
+        #   DayRxn vs K1
+        #   NightRxn vs 2b
+        #   NightRxn vs Inner open flux
+        #   NightRxn vs Inner closed flux
+        #   
+        #   Try to suss out if there are clear relationships between IE
+        #    and GM results. Especially if we can find a substorm cycle
+
+        # Look at the CPCP and SML together to get another perspective on substorm phase
+        # READ up some on what a *clear* substorm looks like so it can be
+        #  properly called out
+
+        # Think about ways in which the timeseries can be split up into the
+        #   subsotrm phases
+        # Then take new scatter averages split by substorm phases and see if 
+        #  that organizes the data in a nice way
+        energy_vs_polarcap(event,ev,path)
+    '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)
     scatter_externalFlux(tave)
@@ -929,6 +960,7 @@ def initial_figures(dataset):
     scatter_Pstorm(tave)
     innerLobeFlux(tave)
     tab_ranges(dataset)
+    '''
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
@@ -949,12 +981,18 @@ if __name__ == "__main__":
 
     ## Analysis Data
     dataset = {}
-    dataset['LOWnLOWu'] = load_hdf_sort(inAnalysis+'LOWnLOWu.h5')
-    dataset['HIGHnHIGHu'] = load_hdf_sort(inAnalysis+'HIGHnHIGHu.h5')
-    dataset['LOWnHIGHu'] = load_hdf_sort(inAnalysis+'LOWnHIGHu.h5')
-    dataset['HIGHnLOWu'] = load_hdf_sort(inAnalysis+'HIGHnLOWu.h5')
-    dataset['MEDnMEDu'] = load_hdf_sort(inAnalysis+'MEDnMEDu.h5')
-    dataset['MEDnHIGHu'] = load_hdf_sort(inAnalysis+'MEDnHIGHu.h5')
+    for event in ['LOWnLOWu','HIGHnHIGHu','LOWnHIGHu','HIGHnLOWu',
+                  'MEDnMEDu','MEDnHIGHu']:
+        GMfile = os.path.join(inAnalysis,event+'.h5')
+        IEfile = os.path.join(inAnalysis,'IE','ie_'+event+'.h5')
+        # GM data
+        if os.path.exists(GMfile):
+            dataset[event] = load_hdf_sort(GMfile)
+        # IE data
+        if os.path.exists(IEfile):
+            with pd.HDFStore(IEfile) as store:
+                for key in store.keys():
+                    dataset[event][key] = store[key]
 
     #HOTFIX duplicate LOWLOW values
     M5 = dataset['LOWnLOWu']['mpdict']['ms_full']['UtotM5 [W]'].copy()/1e12
