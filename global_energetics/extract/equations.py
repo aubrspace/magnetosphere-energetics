@@ -297,7 +297,7 @@ def equations(**kwargs):
             'ddx({U_perp [km/s]})*{B_x [nT]}+'+
             'ddy({U_perp [km/s]})*{B_y [nT]}+'+
             'ddz({U_perp [km/s]})*{B_z [nT]})/{Bmag [nT]}',
-        '{deltaU}':'{gradU_perp [km/s/Re]}*{Cell Volume}**(1/3)',
+        '{deltaU}':'{gradU_perp [km/s/Re]}*{Cell Size}',
         '{Valf [km/s]}':'({Bmag [nT]}*1e-9/sqrt('+
              '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
         '{Valf_x [km/s]}':'({B_x [nT]}*1e-9/sqrt('+

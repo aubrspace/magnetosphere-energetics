@@ -271,6 +271,21 @@ def prep_field_data(field_data, **kwargs):
         if do_1Dsw or 'bs' in kwargs.get('modes',[]):
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
+    #Update global variables with the centroid adjusted magnetic mapping
+    if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
+                                               field_data.variable_names):
+        from global_energetics.extract.tec_tools import(get_surface_variables,
+                                                      get_surf_geom_variables,
+                                                        croissant_trace)
+        if any([('innerbound' in z) for z in field_data.zone_names]):
+            spherezone = zone.dataset.zone('*innerbound*')
+        else:
+            spherezone,_,_ = calc_state('perfectsphere',[field_data.zone(0)])
+            get_surf_geom_variables(spherezone)
+            #get_surface_variables(spherezone, kwargs.get('analysis_type'))
+        croissant_trace(spherezone)
+        if not any([('innerbound' in z) for z in field_data.zone_names]):
+            field_data.delete_zones(spherezone)
     #Add imfclock angle if not there already
     if not any([key.find('imf_clock_deg')!=-1 for key in aux.keys()]):
         rho,ux,uy,uz,IMFbx,IMFby,IMFbz= tp.data.query.probe_at_position(
@@ -321,7 +336,7 @@ def prep_field_data(field_data, **kwargs):
             aux['inner_l'] = 0
             return aux, None
         else:
-            tp.data.operate.execute_equation('{Status_cc}={Status}',
+            tp.data.operate.execute_equation('{status_cc}={Status}',
                                     value_location=ValueLocation.CellCentered)
             closed_index = calc_closed_state('lcb','Status', 3, tail_cap,0,
                                              kwargs.get('inner_r',3))

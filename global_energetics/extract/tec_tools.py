@@ -7,7 +7,7 @@ import sys
 import time
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
+from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad, arctan2
 import datetime as dt
 import scipy.spatial as space
 import tecplot as tp
@@ -748,9 +748,13 @@ def get_surf_geom_variables(zone,**kwargs):
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    eq('{Cell Area} = {Cell Volume}',zones=[zone],value_location=CC)
+    zone.dataset.delete_variables([zone.dataset.variable('Cell Volume')])
     #Generate cellcentered versions of postitional variables
-    for var in ['X [R]','Y [R]','Z [R]','r [R]',
-                'B_x [nT]','B_y [nT]','B_z [nT]','Bdx','Bdy','Bdz']:
+    for var in ['X [R]','Y [R]','Z [R]','r [R]','Xd [R]','Zd [R]',
+                'B_x [nT]','B_y [nT]','B_z [nT]','Bdx','Bdy','Bdz',
+                'theta_1 [deg]','phi_1 [deg]',
+                'Utot [J/Re^3]','Status']:
         if var in zone.dataset.variable_names:
             newvar = var.split(' ')[0].lower()+'_cc'
             eq('{'+newvar+'}={'+var+'}', value_location=CC,
@@ -826,7 +830,125 @@ def get_surf_geom_variables(zone,**kwargs):
         zone.aux_data.update({'hmin':
                hvals[np.where(np.logical_and(xvals<-5,xvals>-8))].min()})
 
+def general_rotation(vec1,vec2):
+    r1 = np.sqrt(vec1[0]**2+vec1[1]**2+vec1[2]**2)
+    r2 = np.sqrt(vec2[0]**2+vec2[1]**2+vec2[2]**2)
+    axis = np.cross(vec1,vec2)
+    axis_mag = np.sqrt(axis[0]**2+axis[1]**2+axis[2]**2)
+    ax, ay, az = axis/axis_mag
+    sn = axis_mag/(r1*r2)
+    cs = np.dot(vec1,vec2)/(r1*r2)
+    R = np.array(
+              [[cs+ax**2*(1-cs), ax*ay*(1-cs)-az*sn, ax*az*(1-cs)+ay*sn],
+               [ay*ax*(1-cs)+az*sn, cs+ay**2*(1-cs), ay*az*(1-cs)-ax*sn],
+               [az*ax*(1-cs)-ay*sn, az*ay*(1-cs)+ax*sn, cs+az**2*(1-cs)]]
+                )
+    return R
+
+def croissant_trace(spherezone,**kwargs):
+    """The polar cap can sometimes look like a croissant with extrusions of
+        the nightside OCFLB existing forward of the dipole terminator line.
+        This function will create a new theta/phi magnetic mapping variable
+        for each hemisphere relative to the polar cap centroid, rather than
+        the dipole center. This corrects identification of the
+        dayside/nightside boundaries.
+    Inputs
+        zone (Zone) - Tecplot zone of the surface we want the map variables on
+        kwargs:
+    Returns
+        None
+    """
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    # Pull XYZ, Status, and area values from the sphere to find the centroid
+    all_x = spherezone.values('xd_cc').as_numpy_array()
+    all_y = spherezone.values('y_cc').as_numpy_array()
+    all_z = spherezone.values('zd_cc').as_numpy_array()
+    status = spherezone.values('status_cc').as_numpy_array()
+    areas = spherezone.values('Cell Area').as_numpy_array()
+    # Filter the Values according to Status
+    areasnorth = areas[(status==2)]
+    xnorth = all_x[(status==2)]
+    ynorth = all_y[(status==2)]
+    znorth = all_z[(status==2)]
+    areassouth = areas[(status==1)]
+    xsouth = all_x[(status==1)]
+    ysouth = all_y[(status==1)]
+    zsouth = all_z[(status==1)]
+    # Calculate the centroid as: Cxyz = Sum(Pxyz*Area)/Sum(Area)
+    X_north = np.sum(xnorth*areasnorth)/np.sum(areasnorth)
+    Y_north = np.sum(ynorth*areasnorth)/np.sum(areasnorth)
+    Z_north = np.sum(znorth*areasnorth)/np.sum(areasnorth)
+    X_south = np.sum(xsouth*areassouth)/np.sum(areassouth)
+    Y_south = np.sum(ysouth*areassouth)/np.sum(areassouth)
+    Z_south = np.sum(zsouth*areassouth)/np.sum(areassouth)
+    # Find the rotation matrix R using positions of centroid and pole
+    radius_north = np.sqrt(X_north**2+Y_north**2+Z_north**2)
+    radius_south = np.sqrt(X_south**2+Y_south**2+Z_south**2)
+    pole_north = [0,0,radius_north]
+    pole_south = [0,0,-radius_south]
+    centroid_north = [X_north,Y_north,Z_north]
+    centroid_south = [X_south,Y_south,Z_south]
+    R_north = general_rotation(centroid_north,pole_north)
+    R_south = general_rotation(centroid_south,pole_south)
+    # Then each footpoint into r=1 spherical coordinates
+    eq('{xfoot_1}=sin(-{theta_1 [deg]}*pi/180+pi/2)*cos({phi_1 [deg]}*pi/180)')
+    eq('{yfoot_1}=sin(-{theta_1 [deg]}*pi/180+pi/2)*sin({phi_1 [deg]}*pi/180)')
+    eq('{zfoot_1}=cos(-{theta_1 [deg]}*pi/180+pi/2)')
+    eq('{xfoot_2}=sin(-{theta_2 [deg]}*pi/180+pi/2)*cos({phi_2 [deg]}*pi/180)')
+    eq('{yfoot_2}=sin(-{theta_2 [deg]}*pi/180+pi/2)*sin({phi_2 [deg]}*pi/180)')
+    eq('{zfoot_2} = 1*cos(-{theta_2 [deg]}*pi/180+pi/2)')
+    status_node = spherezone.values('Status').as_numpy_array()
+    xnorth_node = spherezone.values('Xd *').as_numpy_array()[(status_node==2)]
+    ynorth_node = spherezone.values('Y *').as_numpy_array()[(status_node==2)]
+    xfoot_north=spherezone.values('xfoot_1').as_numpy_array()[(status_node==2)]
+    yfoot_north=spherezone.values('yfoot_1').as_numpy_array()[(status_node==2)]
+    zfoot_north=spherezone.values('zfoot_1').as_numpy_array()[(status_node==2)]
+    # Store the cross polar cap dipole terminator points
+    iterm_max_north = ynorth_node==ynorth_node[abs(xnorth_node)<0.5].max()
+    iterm_min_north = ynorth_node==ynorth_node[abs(xnorth_node)<0.5].min()
+    term_north_max = np.array([xfoot_north[iterm_max_north][0],
+                               yfoot_north[iterm_max_north][0],
+                               zfoot_north[iterm_max_north][0]])
+    term_north_min = np.array([xfoot_north[iterm_min_north][0],
+                               yfoot_north[iterm_min_north][0],
+                               zfoot_north[iterm_min_north][0]])
+    '''
+    # For a test also pull the corresponding theta_1/phi_1
+    theta_1 = spherezone.values('theta_1 *').as_numpy_array()[(status_node==2)]
+    phi_1 = spherezone.values('phi_1 *').as_numpy_array()[(status_node==2)]
+    term_test_max = np.array([theta_1[iterm_max_north][0],
+                              phi_1[iterm_max_north][0]])
+    term_test_min = np.array([theta_1[iterm_min_north][0],
+                              phi_1[iterm_min_north][0]])
+    '''
+    # Parse out some strings to make it easier to read here
+    xnew_1 = ('('+str(R_north[0][0])+'*{xfoot_1}+'+
+                  str(R_north[0][1])+'*{yfoot_1}+'+
+                  str(R_north[0][2])+'*{zfoot_1})')
+    ynew_1 = ('('+str(R_north[1][0])+'*{xfoot_1}+'+
+                  str(R_north[1][1])+'*{yfoot_1}+'+
+                  str(R_north[1][2])+'*{zfoot_1})')
+    znew_1 = ('('+str(R_north[2][0])+'*{xfoot_1}+'+
+                  str(R_north[2][1])+'*{yfoot_1}+'+
+                  str(R_north[2][2])+'*{zfoot_1})')
+
+    xnew_2 = ('('+str(R_south[0][0])+'*{xfoot_2}+'+
+                  str(R_south[0][1])+'*{yfoot_2}+'+
+                  str(R_south[0][2])+'*{zfoot_2})')
+    ynew_2 = ('('+str(R_south[1][0])+'*{xfoot_2}+'+
+                  str(R_south[1][1])+'*{yfoot_2}+'+
+                  str(R_south[1][2])+'*{zfoot_2})')
+    znew_2 = ('('+str(R_south[2][0])+'*{xfoot_2}+'+
+                  str(R_south[2][1])+'*{yfoot_2}+'+
+                  str(R_south[2][2])+'*{zfoot_2})')
+    # Calculate the new theta and phi positions
+    eq('{theta_centroid_1} = (-acos('+znew_1+')+pi/2)*180/pi')
+    eq('{phi_centroid_1} = atan2('+ynew_1+','+xnew_1+')*180/pi+180')
+
 def get_daymapped_nightmapped(zone,**kwargs):
+    pass
+
+def OLD_get_daymapped_nightmapped(zone,**kwargs):
     """Function assigns variables to represent day and night mapped,
     Inputs
         zone(Zone)- tecplot Zone object to do calculation
@@ -983,6 +1105,7 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              kwargs.get('surface_unevaluated_type'),
                             ' without associated variables!')
         analysis_type = kwargs.get('surface_unevaluated_type')
+    '''
     ##Throw-away variables, these will be overwritten each time
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered,
                                zones=[zone])
@@ -999,16 +1122,17 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              zones=[zone])
     eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered,
                              zones=[zone])
-    eq('{Status_cc}={Status}',value_location=ValueLocation.CellCentered,
+    eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
                                    zones=[zone])
     '''
+    '''
     REMOVE THIS
-    if ('Status_cc' in zone.dataset.variable_names):
-        if (zone.values('Status_cc').minmax()==(0.0,0.0)):
-            eq('{Status_cc}={Status}',value_location=ValueLocation.CellCentered,
+    if ('status_cc' in zone.dataset.variable_names):
+        if (zone.values('status_cc').minmax()==(0.0,0.0)):
+            eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
                                    zones=[zone])
     else:
-        eq('{Status_cc}={Status}',value_location=ValueLocation.CellCentered,
+        eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
                                    zones=[zone])
     REMOVE THIS
     '''
@@ -1506,6 +1630,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eqeval(alleq['dipole_coord'])
         eqeval(alleq['dipole'])
         #eqeval(alleq['dipole'],value_location=cc)
+        field_data.delete_variables([field_data.variable('Cell Volume')])
         if kwargs.get('only_dipole',False):#use the dipole as the whole field
             eqeval({'{B_x [nT]}':'{Bdx}',
                     '{B_y [nT]}':'{Bdy}',
