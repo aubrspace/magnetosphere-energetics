@@ -901,7 +901,7 @@ def surface_analysis(zone, **kwargs):
     if'analysis_type' in kwargs: analysis_type = kwargs.pop('analysis_type')
     else: analysis_type==''
     #Find needed surface variables for integrations
-    if (('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0) or
+    if ((('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0)) or
         kwargs.get('surfGeom',False)):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)

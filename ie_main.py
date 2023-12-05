@@ -58,8 +58,10 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'ideal_recon_tim/IE/'
-    outpath = 'polarcap_rxn/'
+    inpath = 'localdbug/parameter_study/ie/'
+    outpath = 'localdbug/parameter_study/ie/'
+    #inpath = 'ideal_recon_tim/IE/'
+    #outpath = 'polarcap_rxn/'
     head = 'it*'
     ie_stylehead_north, ie_stylehead_south = 'north_Jr_status.sty','south_Jr_status.sty'
 
@@ -96,8 +98,9 @@ if __name__ == "__main__":
                                           eventtime=filetime,
                                           analysis_type='mag',
                                           integrate_surface=True,
-                                          integrate_line=True,
-                                          do_interfacing=True,
+                                          integrate_line=False,
+                                          integrate_contour=True,
+                                          do_interfacing=False,
                         outputpath=outpath)
                     if True:
                         save_ie_image(ie_stylehead_north, ie_stylehead_south,

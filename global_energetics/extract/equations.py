@@ -198,21 +198,37 @@ def equations(**kwargs):
     # Generic mappings for closed and general magnetosphere
     #   daymapped
     #   nightmapped
+    if False:
+    #if 'aux' in kwargs:
+        aux=kwargs.get('aux')
+        phi1 = '{phi_centroid_1}'
+        phi2 = '{phi_centroid_2}'
+        phi1max = aux['phi_max_north']
+        phi1min = aux['phi_min_north']
+        phi2max = aux['phi_max_south']
+        phi2min = aux['phi_min_south']
+    else:
+        phi1 = '{phi_1 [deg]}'
+        phi2 = '{phi_2 [deg]}'
+        phi1max = '270'
+        phi1min = '90'
+        phi2max = '270'
+        phi2min = '90'
     equations['daynightmapping'] = {
-        '{daymapped_nlobe}':'IF({phi_1 [deg]}>270||'+
-                              '({phi_1 [deg]}<90&&{phi_1 [deg]}>0),1,0)',
-        '{nightmapped_nlobe}':'IF({phi_1 [deg]}<270&&'+
-                                 '{phi_1 [deg]}>90,1,0)',
-        '{daymapped_slobe}':'IF({phi_2 [deg]}>270||'+
-                              '({phi_2 [deg]}<90&&{phi_2 [deg]}>0),1,0)',
-        '{nightmapped_slobe}':'IF({phi_2 [deg]}<270&&'+
-                                 '{phi_2 [deg]}>90,1,0)',
-        '{daymapped}':'IF(({phi_1 [deg]}>=270||'+
-                        '({phi_1 [deg]}<=90&&{phi_1 [deg]}>=0))||'+
-                         '({phi_2 [deg]}>=270||'+
-                         '({phi_2 [deg]}<=90&&{phi_2 [deg]}>=0)),1,0)',
-        '{nightmapped}':'IF(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
-                            '({phi_2 [deg]}<270&&{phi_2 [deg]}>90),1,0)',
+        '{daymapped_nlobe}':'IF('+phi1+'>'+phi1max+'||'+
+                              '('+phi1+'<'+phi1min+'&&'+phi1+'>0),1,0)',
+        '{nightmapped_nlobe}':'IF('+phi1+'<'+phi1max+'&&'+
+                                 ''+phi1+'>'+phi1min+',1,0)',
+        '{daymapped_slobe}':'IF('+phi2+'>'+phi2max+'||'+
+                              '('+phi2+'<'+phi2min+'&&'+phi2+'>0),1,0)',
+        '{nightmapped_slobe}':'IF('+phi2+'<'+phi2max+'&&'+
+                                 ''+phi2+'>'+phi2min+',1,0)',
+        '{daymapped}':'IF(('+phi1+'>='+phi1max+'||'+
+                        '('+phi1+'<='+phi1min+'&&'+phi1+'>=0))||'+
+                         '('+phi2+'>='+phi2max+'||'+
+                         '('+phi2+'<='+phi2min+'&&'+phi2+'>=0)),1,0)',
+        '{nightmapped}':'IF(('+phi1+'<'+phi1max+'&&'+phi1+'>'+phi1min+')&&'+
+                          '('+phi2+'<'+phi2max+'&&'+phi2+'>'+phi2min+'),1,0)',
             }
     ######################################################################
     #Virial Volumetric energy terms, includes:

@@ -8,6 +8,7 @@ from tecplot.exception import *
 import pandas as pd
 from scipy.integrate import trapezoid as trap
 #interpackage modules, different path if running as main to test
+from global_energetics.extract.tec_tools import (get_surf_geom_variables)
 #from global_energetics.extract.tec_tools import (get_surface_variables)
 
 def get_mag_dict():
@@ -26,6 +27,61 @@ def get_x(zone,**kwargs):
     #Find or create needed flux variables or integration
     if 'terminator' in zone.name:
         xvar = 'Y *'
+    elif 'ocflb' in zone.name:
+        eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+        get_surf_geom_variables(zone,is1D=True)
+        # Perp projection of the 'surface normal' to be // to the sphere surf
+        #   Get normal proj to the radial direction
+        eq('{nradial_x} = ({surface_normal_x}*{x_cc}+'+
+                          '{surface_normal_y}*{y_cc}+'+
+                          '{surface_normal_z}*{z_cc})*{x_cc}/'+
+                          '({x_cc}**2+{y_cc}**2+{z_cc}**2)',
+                          zones=[zone],value_location=CC)
+        eq('{nradial_y} = ({surface_normal_x}*{x_cc}+'+
+                          '{surface_normal_y}*{y_cc}+'+
+                          '{surface_normal_z}*{z_cc})*{y_cc}/'+
+                          '({x_cc}**2+{y_cc}**2+{z_cc}**2)',
+                          zones=[zone],value_location=CC)
+        eq('{nradial_z} = ({surface_normal_x}*{x_cc}+'+
+                          '{surface_normal_y}*{y_cc}+'+
+                          '{surface_normal_z}*{z_cc})*{z_cc}/'+
+                          '({x_cc}**2+{y_cc}**2+{z_cc}**2)',
+                          zones=[zone],value_location=CC)
+        #   Subtract this part to obtain the vector parallel to radial dir
+        eq('{npar_x} = {surface_normal_x}-{nradial_x}',
+                          zones=[zone],value_location=CC)
+        eq('{npar_y} = {surface_normal_y}-{nradial_y}',
+                          zones=[zone],value_location=CC)
+        eq('{npar_z} = {surface_normal_z}-{nradial_z}',
+                          zones=[zone],value_location=CC)
+        #   Calculate tangential velocity along this curve normal direction
+        eq('{U_tnorm} = {U_txd}*{npar_x}+{U_ty}*{npar_y}+{U_tzd}*{npar_z}',
+                          zones=[zone],value_location=CC)
+        # Construct the 'y' value as a path length from 0-fullpath
+        x = zone.values('x_cc').as_numpy_array()
+        y = zone.values('y_cc').as_numpy_array()
+        #   Get the ID of the subsolar (polar cap) point
+        #   start at the ID for the subsolar point and go towards +Y
+        #   count backwards in the other direction for the remaining points
+        cell_length = zone.values('Cell Length').as_numpy_array()
+        idvals = np.array([i for i in range(1,zone.num_elements+1)])
+        i_start = idvals[x==x[abs(y)<0.01].max()][0]
+        id_shifted = (idvals[-1]+idvals-i_start)%idvals[-1]+1
+        length = 0
+        length_arr = np.zeros(len(idvals))
+        for k in (idvals-1)[i_start::]:
+            length += 0.5*cell_length[k]+0.5*cell_length[k-1]
+            length_arr[k] = length
+        #   Get the full length
+        length = np.sum(cell_length)
+        for k in reversed((idvals-1)[0:i_start-1]):
+            length -= 0.5*cell_length[k]+0.5*cell_length[k+1]
+            length_arr[k] = length
+        zone.dataset.add_variable('ID',locations=CC)
+        zone.dataset.add_variable(zone.name+'_length',locations=CC)
+        zone.values('ID')[::] = id_shifted
+        zone.values(zone.name+'_length')[::] = length_arr
+        xvar = 'Cell Length'
     return zone.values(xvar).as_numpy_array()
 
 def get_fx(zone,integrands,**kwargs):
@@ -37,6 +93,7 @@ def get_fx(zone,integrands,**kwargs):
         ydict dict(integrand output:np arr)- numpy array of values
     """
     ydict, eq = {}, tp.data.operate.execute_equation
+    CC = ValueLocation.CellCentered
     for inpt,outpt in integrands.items():
         #Split off the units
         base_in = inpt.split(' ')[0].replace('{','')
@@ -67,6 +124,25 @@ def get_fx(zone,integrands,**kwargs):
                                 zones=[zone])
             ydict[base_out+'_night2day '+u_out] = zone.values(
                                            ybase+'_night2*').as_numpy_array()
+        elif 'ocflb' in zone.name:
+            ybase = base_in+'U_tnorm'
+            y_u = u_in.replace('/Re^2','/sRe')
+            ## Net flux
+            ynet = '{'+ybase+'_net '+y_u+'}'
+            eq(ynet+' = abs({'+inpt+'})*{U_tnorm}/6371',
+                                              zones=[zone],value_location=CC)
+            ydict[base_out+'_net '+u_out] = zone.values(
+                                              ybase+'_net*').as_numpy_array()
+            ## Injected flux
+            yinj = '{'+ybase+'_injection '+y_u+'}'
+            eq(yinj+' = min(0,'+ynet+')',zones=[zone],value_location=CC)
+            ydict[base_out+'_injection '+u_out] = zone.values(
+                                        ybase+'_injection*').as_numpy_array()
+            ## Escaped flux
+            yesc = '{'+ybase+'_escape '+y_u+'}'
+            eq(yesc+' = max(0,'+ynet+')',zones=[zone],value_location=CC)
+            ydict[base_out+'_escape '+u_out] = zone.values(
+                                           ybase+'_escape*').as_numpy_array()
     return ydict
 
 def line_analysis(zone, **kwargs):
@@ -98,7 +174,10 @@ def line_analysis(zone, **kwargs):
         print('{:<30}{:<35}{:<9}'.format('Line','Term','Value'))
         print('{:<30}{:<35}{:<9}'.format('****','****','*****'))
     for name,y in ydict.items():
-        results[name] = [trap(y,x)]
+        if 'terminator' in zone.name:
+            results[name] = [trap(y,x)]
+        elif 'ocflb' in zone.name:
+            results[name] = [np.sum(y*x)]
         if kwargs.get('verbose',False):
             print('{:<30}{:<35}{:>.3}'.format(zone.name,name,results[name][0]))
     ###################################################################

@@ -283,7 +283,8 @@ def prep_field_data(field_data, **kwargs):
             spherezone,_,_ = calc_state('perfectsphere',[field_data.zone(0)])
             get_surf_geom_variables(spherezone)
             #get_surface_variables(spherezone, kwargs.get('analysis_type'))
-        croissant_trace(spherezone)
+        map_limits = croissant_trace(spherezone)
+        for key in map_limits: aux[key] = map_limits[key]
         if not any([('innerbound' in z) for z in field_data.zone_names]):
             field_data.delete_zones(spherezone)
     #Add imfclock angle if not there already
@@ -499,6 +500,21 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         >Blanking
             do_blank, blank_variable, blank_value- use tp blank feature
     """
+    #TODO
+    #   A new section where we
+    #       combine GM and IE
+    #       Rotate IE to GSM
+    #       using inputs from IEzone+singleGMzone
+    #           for k,ie_point:
+    #               if ie_point not matched w GMzone:
+    #                   skip
+    #               else
+    #                   gm_index = where[th/phi in close]
+    #                   xl,xu = X_gm[gm_index].minmax
+    #                   '' for y and z too
+    #               set {daymapped} for all index (in GM)
+    #               set {xyzl,xyzu} for ie[k]
+    #               derive {daymapped} for ie from above
     #Setup default values based on any given kwargs
     outputpath = kwargs.get('outputpath', 'output/')
     source = kwargs.get('source', 'swmf')

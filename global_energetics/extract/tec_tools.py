@@ -748,7 +748,10 @@ def get_surf_geom_variables(zone,**kwargs):
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
-    eq('{Cell Area} = {Cell Volume}',zones=[zone],value_location=CC)
+    if kwargs.get('is1D',False):
+        eq('{Cell Length} = {Cell Volume}',zones=[zone],value_location=CC)
+    else:
+        eq('{Cell Area} = {Cell Volume}',zones=[zone],value_location=CC)
     zone.dataset.delete_variables([zone.dataset.variable('Cell Volume')])
     #Generate cellcentered versions of postitional variables
     for var in ['X [R]','Y [R]','Z [R]','r [R]','Xd [R]','Zd [R]',
@@ -806,6 +809,23 @@ def get_surf_geom_variables(zone,**kwargs):
             zones=[zone.index], value_location=CC)
         eq('{surface_normal_z} = {Z Grid K Unit Normal}',
             zones=[zone.index], value_location=CC)
+    elif 'ocflb' in zone.name:
+        #Look at the extreme +X location where the polar cap looks nice
+        if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)]) >
+            len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)])):
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+        else:
+            eq('{surface_normal_x} = {X Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
@@ -853,11 +873,17 @@ def croissant_trace(spherezone,**kwargs):
         the dipole center. This corrects identification of the
         dayside/nightside boundaries.
     Inputs
-        zone (Zone) - Tecplot zone of the surface we want the map variables on
+        spherezone (Zone) - Tecplot zone we want the map variables on
         kwargs:
     Returns
-        None
+        map_limits (dict{str:list[float,float]}) - new variable values of the
+                                                 original terminator ymax/min
+            keys:   theta_limits_north
+                    theta_limits_south
+                    phi_limits_north
+                    phi_limits_south
     """
+    map_limits = {}
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     # Pull XYZ, Status, and area values from the sphere to find the centroid
     all_x = spherezone.values('xd_cc').as_numpy_array()
@@ -900,27 +926,19 @@ def croissant_trace(spherezone,**kwargs):
     status_node = spherezone.values('Status').as_numpy_array()
     xnorth_node = spherezone.values('Xd *').as_numpy_array()[(status_node==2)]
     ynorth_node = spherezone.values('Y *').as_numpy_array()[(status_node==2)]
+    xsouth_node = spherezone.values('Xd *').as_numpy_array()[(status_node==1)]
+    ysouth_node = spherezone.values('Y *').as_numpy_array()[(status_node==1)]
     xfoot_north=spherezone.values('xfoot_1').as_numpy_array()[(status_node==2)]
     yfoot_north=spherezone.values('yfoot_1').as_numpy_array()[(status_node==2)]
     zfoot_north=spherezone.values('zfoot_1').as_numpy_array()[(status_node==2)]
+    xfoot_south=spherezone.values('xfoot_2').as_numpy_array()[(status_node==1)]
+    yfoot_south=spherezone.values('yfoot_2').as_numpy_array()[(status_node==1)]
+    zfoot_south=spherezone.values('zfoot_2').as_numpy_array()[(status_node==1)]
     # Store the cross polar cap dipole terminator points
-    iterm_max_north = ynorth_node==ynorth_node[abs(xnorth_node)<0.5].max()
-    iterm_min_north = ynorth_node==ynorth_node[abs(xnorth_node)<0.5].min()
-    term_north_max = np.array([xfoot_north[iterm_max_north][0],
-                               yfoot_north[iterm_max_north][0],
-                               zfoot_north[iterm_max_north][0]])
-    term_north_min = np.array([xfoot_north[iterm_min_north][0],
-                               yfoot_north[iterm_min_north][0],
-                               zfoot_north[iterm_min_north][0]])
-    '''
-    # For a test also pull the corresponding theta_1/phi_1
-    theta_1 = spherezone.values('theta_1 *').as_numpy_array()[(status_node==2)]
-    phi_1 = spherezone.values('phi_1 *').as_numpy_array()[(status_node==2)]
-    term_test_max = np.array([theta_1[iterm_max_north][0],
-                              phi_1[iterm_max_north][0]])
-    term_test_min = np.array([theta_1[iterm_min_north][0],
-                              phi_1[iterm_min_north][0]])
-    '''
+    iterm_min_north = ynorth_node==ynorth_node[abs(xnorth_node)<0.5].max()
+    iterm_max_north = ynorth_node==ynorth_node[abs(xnorth_node)<0.5].min()
+    iterm_min_south = ysouth_node==ysouth_node[abs(xsouth_node)<0.5].max()
+    iterm_max_south = ysouth_node==ysouth_node[abs(xsouth_node)<0.5].min()
     # Parse out some strings to make it easier to read here
     xnew_1 = ('('+str(R_north[0][0])+'*{xfoot_1}+'+
                   str(R_north[0][1])+'*{yfoot_1}+'+
@@ -942,11 +960,116 @@ def croissant_trace(spherezone,**kwargs):
                   str(R_south[2][1])+'*{yfoot_2}+'+
                   str(R_south[2][2])+'*{zfoot_2})')
     # Calculate the new theta and phi positions
-    eq('{theta_centroid_1} = (-acos('+znew_1+')+pi/2)*180/pi')
-    eq('{phi_centroid_1} = atan2('+ynew_1+','+xnew_1+')*180/pi+180')
+    eq('{theta_centroid_1} = if({theta_1 [deg]}<0,{theta_1 [deg]},'+
+                               '(-acos('+znew_1+')+pi/2)*180/pi)')
+    eq('{phi_centroid_1} = if({phi_1 [deg]}<0,{phi_1 [deg]},'+
+                               '-atan2('+ynew_1+',-'+xnew_1+')*180/pi+180)')
+    eq('{theta_centroid_2} = if({theta_2 [deg]}<0,{theta_2 [deg]},'+
+                               '(-acos('+znew_2+')+pi/2)*180/pi)')
+    eq('{phi_centroid_2} = if({phi_2 [deg]}<0,{phi_2 [deg]},'+
+                               '-atan2('+ynew_2+',-'+xnew_2+')*180/pi+180)')
+    theta_centr_north =spherezone.values('theta_centroid_1').as_numpy_array()[
+                                                             (status_node==2)]
+    phi_centr_north = spherezone.values('phi_centroid_1').as_numpy_array()[
+                                                             (status_node==2)]
+    map_limits['theta_min_north'] = theta_centr_north[iterm_min_north][0]
+    map_limits['theta_max_north'] = theta_centr_north[iterm_max_north][0]
+    map_limits['phi_min_north'] = phi_centr_north[iterm_min_north][0]
+    map_limits['phi_max_north'] = phi_centr_north[iterm_max_north][0]
+
+    theta_centr_south =spherezone.values('theta_centroid_2').as_numpy_array()[
+                                                             (status_node==1)]
+    phi_centr_south = spherezone.values('phi_centroid_2').as_numpy_array()[
+                                                             (status_node==1)]
+    map_limits['theta_min_south'] = theta_centr_south[iterm_min_south][0]
+    map_limits['theta_max_south'] = theta_centr_south[iterm_max_south][0]
+    map_limits['phi_min_south'] = phi_centr_south[iterm_min_south][0]
+    map_limits['phi_max_south'] = phi_centr_south[iterm_max_south][0]
+    return map_limits
 
 def get_daymapped_nightmapped(zone,**kwargs):
-    pass
+    phi_1min = zone.dataset.zone(0).aux_data['phi_min_north']
+    phi_1max = zone.dataset.zone(0).aux_data['phi_max_north']
+    phi_2min = zone.dataset.zone(0).aux_data['phi_min_south']
+    phi_2max = zone.dataset.zone(0).aux_data['phi_max_south']
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    if 'lobe' in zone.name:
+        if 'nlobe' in zone.name:
+            eq('{daymapped_nlobe_cc}=IF'+
+               '({phi_centroid_1}>='+phi_1max+'||'+
+                '({phi_centroid_1}<='+phi_1min+'&&{phi_centroid_1}>=0),1,0)',
+                                            value_location=CC,zones=[zone])
+            eq('{nightmapped_nlobe_cc}=IF'+
+                        '({phi_centroid_1}<'+phi_1max+
+                       '&&{phi_centroid_1}>'+phi_1min+',1,0)',
+                                            value_location=CC,zones=[zone])
+        elif 'slobe' in zone.name:
+            eq('{daymapped_slobe_cc}=IF'+
+                        '({phi_centroid_2}>='+phi_2max+'||'+
+                        '({phi_centroid_2}<='+phi_2min+
+                              '&&{phi_centroid_2}>=0),1,0)',
+                                            value_location=CC,zones=[zone])
+            eq('{nightmapped_slobe_cc}=IF'+
+                        '({phi_centroid_2}<'+phi_2max+
+                       '&&{phi_centroid_2}>'+phi_2min+',1,0)',
+                                            value_location=CC,zones=[zone])
+    elif 'mp' in zone.name or 'closed' in zone.name:
+        eq('{daymapped_cc}=IF'+
+                    '(({phi_centroid_1}>='+phi_1max+'||'+
+                        '({phi_centroid_1}<='+phi_1min+
+                       '&&{phi_centroid_1}>=0))||'+
+                            '({phi_centroid_2}>='+phi_2max+'||'+
+                            '({phi_centroid_2}<='+phi_2min+
+                           '&&{phi_centroid_2}>=0)),1,0)',
+                                            value_location=CC,zones=[zone])
+        eq('{nightmapped_cc}=IF'+
+                        '(({phi_centroid_1}<'+phi_1max+
+                        '&&{phi_centroid_1}>'+phi_1min+')&&'+
+                             '({phi_centroid_2}<'+phi_2max+
+                            '&&{phi_centroid_2}>'+phi_2min+'),1,0)',
+                                            value_location=CC,zones=[zone])
+    elif 'global' in zone.name:
+        if 'NLobe' in kwargs.get('state_var').name:
+            eq('{daymapped_nlobe}=IF'+
+               '({phi_centroid_1}>'+phi_1max+'||'+
+                '({phi_centroid_1}<'+phi_1min+
+               '&&{phi_centroid_1}>0),1,0)',zones=[zone])
+            eq('{nightmapped_nlobe}=IF'+
+                        '({phi_centroid_1}<'+phi_1max+
+                       '&&{phi_centroid_1}>'+phi_1min+',1,0)',
+                                                           zones=[zone])
+        elif 'SLobe' in kwargs.get('state_var').name:
+            eq('{daymapped_slobe}=IF'+
+                        '({phi_centroid_2}>'+phi_2max+'||'+
+                               '({phi_centroid_2}<'+phi_2min+
+                              '&&{phi_centroid_2}>0),1,0)',
+                                                           zones=[zone])
+            eq('{nightmapped_slobe}=IF'+
+                        '({phi_centroid_2}<'+phi_2max+
+                       '&&{phi_centroid_2}>'+phi_2min+',1,0)',
+                                                           zones=[zone])
+        else:
+            if 'mp' in kwargs.get('state_var').name:
+                targetname = 'mp_iso_betastar'
+            elif 'lcb' in kwargs.get('state_var').name:
+                targetname = 'closed'
+            eq('{daymapped'+targetname+'}=IF'+
+                    '(({phi_centroid_1}>='+phi_1max+'||'+
+                        '({phi_centroid_1}<='+phi_1min+
+                       '&&{phi_centroid_1}>=0))||'+
+                            '({phi_centroid_2}>='+phi_2max+'||'+
+                            '({phi_centroid_2}<='+phi_2min+
+                           '&&{phi_centroid_2}>=0)),1,0)',
+                                                            zones=[zone])
+            eq('{nightmapped'+targetname+'}=IF'+
+                        '(({phi_centroid_1}<'+phi_1max+
+                        '&&{phi_centroid_1}>'+phi_1min+')&&'+
+                             '({phi_centroid_2}<'+phi_2max+
+                            '&&{phi_centroid_2}>'+phi_2min+'),1,0)',
+                                                            zones=[zone])
+    elif 'ionosphere' in zone.name:
+        eq('{daymapped} = IF({Xd [R]}>0,1,0)',zones=[zone])
+        eq('{nightmapped} = IF({Xd [R]}<0,1,0)',zones=[zone])
 
 def OLD_get_daymapped_nightmapped(zone,**kwargs):
     """Function assigns variables to represent day and night mapped,
@@ -1659,7 +1782,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     #eqeval(alleq['volume_energy'],value_location=cc)
     if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
                                                field_data.variable_names):
-        eqeval(alleq['daynightmapping'])
+        pass
+        #eqeval(alleq['daynightmapping'])
         #eqeval(alleq['daynightmapping'],value_location=cc)
     #Virial volume terms
     if 'virial' in analysis_type or analysis_type=='all':
@@ -2255,6 +2379,47 @@ def open_contour(sphere_zone, terminator_zone,*,
     #Re-interpolate the 1D zones values from the global zone
     tp.data.operate.interpolate_linear(terminator_zone,source_zones=[0])
 
+def calc_ocflb_zone(name,source,**kwargs):
+    """ Function extracts openclosed field line boundary from source and saves
+        largest connected contour
+    Inputs
+        name (str) - for name of new zone
+        source (Zone) - tecplot zone what we're extracting from
+        kwargs:
+            hemi (str)- default 'North', otw 'South'
+            contour_offset (float) - offset value for contour level
+    Returns
+        keepzone (Zone) - newly create zone
+    """
+    # Read inputs
+    hemi = kwargs.get('hemi','North')
+    contour_offset = kwargs.get('contour_offset',0.4)
+    if hemi=='North': contour_level = 2
+    elif hemi=='South': contour_level = 1
+    # Setup variable hooks and contours
+    plot = tp.active_frame().plot()
+    plot.show_contour = True
+    plot.contour(0).variable_index = source.dataset.variable('Status').index
+    plot.contour(0).levels.delete_range(-3,3)
+    plot.contour(0).levels.add(contour_level+contour_offset)
+    # Adjust the field map to show contour LINE so we can then extract
+    fieldmap = plot.fieldmap(source.index)#NOTE assume fieldmap-zonelist match
+    fieldmap.contour.show = True
+    fieldmap.contour.contour_type = ContourType.Lines
+    zones = tp.macro.execute_command('$!CreateContourLineZones '+
+                          'ContLineCreateMode = OneZonePerIndependentPolyline')
+    toplength = 0
+    for zone in source.dataset.zones():
+        if str(contour_level+contour_offset) in zone.name:
+            zonelength = zone.num_points
+            if zonelength>toplength:
+                keepzone = zone
+                toplength = zonelength
+    keepzone.name = name+'_'+hemi
+    badzones = [z for z in source.dataset.zones('*'+str(contour_level+
+                                                        contour_offset)+'*')]
+    source.dataset.delete_zones(badzones)
+    return keepzone
 
 def calc_terminator_zone(name, sp_zone, **kwargs):
     """ Function takes spherical zone and creates zones for the north and

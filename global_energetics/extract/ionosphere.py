@@ -20,6 +20,7 @@ from global_energetics.write_disp import write_to_hdf, display_progress
 from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     create_stream_zone,
                                                     calc_terminator_zone,
+                                                    calc_ocflb_zone,
                                                     get_global_variables)
 from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract import line_tools
@@ -530,6 +531,7 @@ def get_ionosphere(dataset,**kwargs):
     """
     zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
     zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    tp.active_frame().plot_type = PlotType.Cartesian3D
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
@@ -573,6 +575,17 @@ def get_ionosphere(dataset,**kwargs):
                                                 hemi='South',
                                                 #stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
+    if kwargs.get('integrate_contour',False):
+        # Create Open Closed Field Line Boundary zone
+        north_ocflb = calc_ocflb_zone('ocflb',zoneNorth,hemi='North')
+        south_ocflb = calc_ocflb_zone('ocflb',zoneSouth,hemi='South')
+        # Integrate along the contour boundary
+        line_results = line_tools.line_analysis(north_ocflb,**kwargs)
+        line_results['Time [UTC]'] = eventtime
+        data_to_write.update({zoneNorth.name+'_line':line_results})
+        line_results = line_tools.line_analysis(south_ocflb,**kwargs)
+        line_results['Time [UTC]'] = eventtime
+        data_to_write.update({zoneSouth.name+'_line':line_results})
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:
             #integrate power on created surface
