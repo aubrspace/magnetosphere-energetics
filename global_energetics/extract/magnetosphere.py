@@ -500,21 +500,6 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         >Blanking
             do_blank, blank_variable, blank_value- use tp blank feature
     """
-    #TODO
-    #   A new section where we
-    #       combine GM and IE
-    #       Rotate IE to GSM
-    #       using inputs from IEzone+singleGMzone
-    #           for k,ie_point:
-    #               if ie_point not matched w GMzone:
-    #                   skip
-    #               else
-    #                   gm_index = where[th/phi in close]
-    #                   xl,xu = X_gm[gm_index].minmax
-    #                   '' for y and z too
-    #               set {daymapped} for all index (in GM)
-    #               set {xyzl,xyzu} for ie[k]
-    #               derive {daymapped} for ie from above
     #Setup default values based on any given kwargs
     outputpath = kwargs.get('outputpath', 'output/')
     source = kwargs.get('source', 'swmf')
