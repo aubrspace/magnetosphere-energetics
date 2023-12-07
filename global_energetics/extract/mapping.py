@@ -8,7 +8,7 @@ import time
 import glob
 from array import array
 import numpy as np
-from numpy import abs, pi, cos, sin, sqrt
+from numpy import abs, pi, cos, sin, sqrt,sign
 import datetime as dt
 import tecplot as tp
 from tecplot.constant import *
@@ -26,6 +26,49 @@ from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 
+def check_bin(x,theta_1,phi_1,inbin,state):
+    """Function checks 4 quadrants of bin to determine contestation (daynight)
+    Inputs
+        x (arr[float])
+        theta_1 (arr[float])
+        phi_1 (arr[float])
+        inbin (arr[float])
+        state (arr[float])
+    Return
+        qs (list[list[bools]]) - quarters of the original bin
+        contested
+    """
+    thHigh = theta_1[inbin].max()
+    thLow = theta_1[inbin].min()
+    phHigh = phi_1[inbin].max()
+    phLow = phi_1[inbin].min()
+    thMid = (thHigh+thLow)/2
+    phMid = (phHigh+phLow)/2
+    q1 = ((state==1)&
+          (theta_1<thHigh)&(theta_1>thMid)&
+          (phi_1<phMid)&(phi_1>phLow))
+    q2 = ((state==1)&
+          (theta_1<thMid)&(theta_1>thLow)&
+          (phi_1<phMid)&(phi_1>phLow))
+    q3 = ((state==1)&
+          (theta_1<thMid)&(theta_1>thLow)&
+          (phi_1<phHigh)&(phi_1>phMid))
+    q4 = ((state==1)&
+          (theta_1<thHigh)&(theta_1>thMid)&
+          (phi_1<phHigh)&(phi_1>phMid))
+    quadbins = []
+    for q in [q1,q2,q3,q4]:
+        if any(q):
+            quadbins.append(q)
+    signs = [sign(x[q].mean()) for q in quadbins]
+    if (len(signs)==0):
+        contested = False
+    elif (len(signs)==signs.count(signs[0])):
+        contested = False
+    else:
+        contested = True
+    return quadbins, contested
+
 def reversed_mapping(gmzone,state_var,**kwargs):
     # Convert theta/phi mapping variable into cartesian footpoint values
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
@@ -42,39 +85,64 @@ def reversed_mapping(gmzone,state_var,**kwargs):
             gmzone.dataset.add_variable('mapID')
         mapID = gmzone.values('mapID').as_numpy_array()
     daynight = gmzone.values('daynight').as_numpy_array()
-    theta_bins = np.linspace(0,90,18)
-    phi_bins = np.linspace(0,360,46)
+    theta_bins = np.linspace(0,90,10)
+    phi_bins = np.linspace(0,360,37)
     k=0
-    for i,th in enumerate(theta_bins[1::]):
-        for j,ph in enumerate(phi_bins[1::]):
-            dayside,nightside,split = 0,0,False
+    for i,thHigh in enumerate(theta_bins[1::]):
+        for j,phHigh in enumerate(phi_bins[1::]):
+            thLow = theta_bins[i-1]
+            phLow = phi_bins[j-1]
             inbins = ((state==1)&
-                      (theta_1<th)&
-                      (theta_1>theta_bins[i-1])&
-                      (phi_1<ph)&
-                      (phi_1>phi_bins[j-1]))
+                      (theta_1<thHigh)&
+                      (theta_1>thLow)&
+                      (phi_1<phHigh)&
+                      (phi_1>phLow))
             if any(inbins):
-                k+=1
-                if kwargs.get('debug',False):
-                    mapID[inbins] = k
-                if x[inbins].mean()>0:
-                    dayside = 1
-                if x[inbins].mean()<0:
-                    nightside = 1
-                if dayside*nightside>0:
-                    split = True
-                if not split:
-                    if dayside:
-                        daynight[inbins] = 1
-                    elif nightside:
-                        daynight[inbins] = -1
-                else:
-                    daynight[inbins] = -999
-                if kwargs.get('verbose',False):
-                    print(k,theta_bins[i-1],th,
-                          phi_bins[j-1],ph,
+                finished_bins = []
+                contested_bins = [inbins]
+                i=0
+                while len(contested_bins)>0:
+                    i+=1
+                    old_contested_bins = contested_bins
+                    contested_bins = []
+                    for b in old_contested_bins:
+                        qs, contested = check_bin(x,theta_1,phi_1,b,state)
+                        if not contested:
+                            finished_bins.append(b)
+                        else:
+                            for q in qs:
+                                contested_bins.append(q)
+                    if i>1 and kwargs.get('verbose',False):
+                        print(i)
+                    if i>5:
+                        for q in qs:
+                            finished_bins.append(q)
+                        contested_bins = []
+                for inbin in finished_bins:
+                    dayside,nightside,split = 0,0,False
+                    k+=1
+                    if kwargs.get('debug',False):
+                        mapID[inbins] = k
+                    if x[inbin].mean()>0:
+                        dayside = 1
+                    if x[inbin].mean()<0:
+                        nightside = 1
+                    if dayside*nightside>0:
+                        split = True
+                    if not split:
+                        if dayside:
+                            daynight[inbin] = 1
+                        elif nightside:
+                            daynight[inbin] = -1
+                    else:
+                        daynight[inbins] = -999
+                    if kwargs.get('verbose',False):
+                        print(k,thLow,thHigh,
+                          phLow,phHigh,
                           x[inbins].min(),x[inbins].max(),
                           '\tday:',dayside,'\tnight:',nightside)
+                #if i>1:
+                #    from IPython import embed; embed()
     gmzone.values('daynight')[::] = daynight
     if kwargs.get('debug',False):
         gmzone.values('mapID')[::] = mapID
