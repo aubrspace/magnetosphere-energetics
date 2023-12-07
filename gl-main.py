@@ -41,15 +41,20 @@ def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Regroup into a grid if not using 4 frames
     tp.layout.active_page().tile_frames(mode=TileMode.Grid)
     # Stamp one of the frames with the 'test phase'
-    t0 = dt.datetime(2022,6,6,0,0)#NOTE
+    #t0 = dt.datetime(2022,6,6,0,0)#NOTE
+    t0 = dt.datetime(2015,5,18,3,0)#NOTE
     reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
-    phase = int(np.floor((reltime/3600)/2))
-    text =tp.active_frame().add_text('Test Phase: '+str(phase))
+    #phase = int(np.floor((reltime/3600)/2))
+    text1 =tp.active_frame().add_text(str(filetime))
+    #text2 =tp.active_frame().add_text('Test Phase: '+str(phase))
     if tp.active_frame().background_color == Color.Black:
-        text.color = Color.White
+        text1.color = Color.White
+    #    text2.color = Color.White
     else:
-        text.color = Color.Black
-    text.position = (2,2)
+        text1.color = Color.Black
+    #    text2.color = Color.Black
+    text1.position = (2,5)
+    #text2.position = (2,2)
     # Save
     tp.save_png(os.path.join(outpath,'png',
                              OUTPUTNAME+'.png'),width=1600)
@@ -109,6 +114,11 @@ def energetics_analysis(infiles,outpath):
         field_data.zone(1).name = 'future'
     main = tp.active_frame()
     main.name = 'main'
+    #field_data.add_variable('Spacer1')
+    #field_data.add_variable('Spacer2')
+    #field_data.add_variable('Spacer3')
+    #field_data.add_variable('Spacer4')
+    #field_data.add_variable('Spacer5')
 
     #Perform data extraction
     # GM
@@ -134,7 +144,7 @@ def energetics_analysis(infiles,outpath):
                                       integrate_line=False,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                                      #truegridfile=oggridfile,
+                                      truegridfile=oggridfile,
                                       extract_flowline=False,
                                       outputpath=outpath)
     '''
@@ -174,7 +184,7 @@ def energetics_analysis(infiles,outpath):
                                      outputname+'.png'),width=1600)
     '''
     print(os.path.join(outpath,'png',outputname+'.png'))
-    if False:
+    if True:
         save_gm_multi(['front_iso_status.sty','tail_iso_status.sty',
                        'front_iso_Knet.sty','north_eq_Kx.sty'],
                        outpath,outputname,filetime)

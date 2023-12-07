@@ -38,12 +38,24 @@
 #INPUTDIR=./run_MEDnMEDu/GM/IO2/
 #OUTPUTDIR=./outputs_MEDnMEDu/
 
-#INPUTDIR=./run_MEDnHIGHu/GM/IO2/
-INPUTDIR=./run_MEDnMEDu/IE/ionosphere/
-OUTPUTDIR=./outputs_MEDnMEDu/
+INPUTDIR=./run_MEDnHIGHu/GM/IO2/
+#INPUTDIR=./run_MEDnMEDu/IE/ionosphere/
+OUTPUTDIR=./outputs_MEDnHIGHu/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/
+
+#INPUTDIR=./Box_run_output/
+#OUTPUTDIR=./outputs_MAST/Box_run_energetics/
+
+#INPUTDIR=./Box+ULF_run_output/
+#OUTPUTDIR=./outputs_MAST/Box+ULF_run_energetics/
+
+#INPUTDIR=./Lowpass_run_output/
+#OUTPUTDIR=./outputs_MAST/Lowpass_run_energetics/
+
+#INPUTDIR=./Only_ULF_run_output/
+#OUTPUTDIR=./outputs_MAST/Only_ULF_run_energetics/
 
 filecount=0
 workercount=0
@@ -51,15 +63,15 @@ workercount=0
 #head=3d__var_1_e20140410-080
 #head=3d__var_1_e201404
 #head=3d__var_1_e202202
-#head=3d__var_1_e202206
+head=3d__var_1_e202206
 #head=3d__var_1_e201505
-head=it2206
+#head=it2206
 
 #satpath=star2satloc
 
 i=0
 #execute script on tecplot output files
-for file in $INPUTDIR$head*.tec
+for file in $INPUTDIR$head*.plt
 do
     #submit a job with the following flags:
     #   -i input directory
