@@ -661,6 +661,8 @@ def refactor(event,t0):
 
     ev['K1'] = ev['Ks1']+ev['M1']
     ev['K5'] = ev['Ks5']+ev['M5']
+    ev['K2a'] = ev['Ks2ac']+ev['M2a']+ev['M2c']
+    ev['K2b'] = ev['Ks2bc']-ev['M2b']-ev['M2d']
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
 
@@ -668,6 +670,45 @@ def refactor(event,t0):
     ev['dt'].append(ev['dt'][-1])
     return ev
 
+def ie_refactor(event,t0):
+    # Name the top level
+    ev = {}
+    ev['ie_surface_north'] = event['/ionosphere_north_surface']
+    ev['ie_surface_south'] = event['/ionosphere_south_surface']
+    ev['term_north'] = event['/terminatornorth']
+    ev['term_south'] = event['/terminatorsouth']
+    timedelta = [t-t0 for t in ev['term_north'].index]
+    ev['ie_times']=[float(n.to_numpy()) for n in timedelta]
+    #TODO if not already in
+    '''
+    ev['sw'] = ev['obs']['swmf_sw']
+    ev['swt'] = sw.index
+    ev['log'] = ev['obs']['swmf_log']
+    ev['logt'] = log.index
+    '''
+    #ev['ielogt = dataset[event]['obs']['ie_log'].index
+    # Name more specific stuff
+    ev['ie_dayFlux_north']=ev['ie_surface_north']['Bf_injectionPolesDayN [Wb]']
+    ev['ie_dayFlux_south']=ev['ie_surface_south']['Bf_escapePolesDayS [Wb]']
+    ev['ie_nightFlux_north'] = ev['ie_surface_north'][
+                                             'Bf_injectionPolesNightN [Wb]']
+    ev['ie_nightFlux_south'] = ev['ie_surface_south'][
+                                             'Bf_escapePolesNightS [Wb]']
+    ev['ie_night2dayNet_north'] = ev['term_north']['dPhidt_net [Wb/s]']
+    ev['ie_night2dayNet_south'] = ev['term_south']['dPhidt_net [Wb/s]']
+    ev['ie_allFlux']=(abs(ev['ie_dayFlux_north'])+abs(ev['ie_dayFlux_south'])+
+                  abs(ev['ie_nightFlux_north'])+abs(ev['ie_nightFlux_south']))
+    # Derive some things
+    ev['dphidt_day_north'] = central_diff(abs(ev['ie_dayFlux_north']))
+    ev['dphidt_day_south'] = central_diff(abs(ev['ie_dayFlux_south']))
+    ev['dphidt_night_north'] = central_diff(abs(ev['ie_nightFlux_north']))
+    ev['dphidt_night_south'] = central_diff(abs(ev['ie_nightFlux_south']))
+    ev['dphidt'] = central_diff(ev['ie_allFlux'])
+    ev['rxnDay_north'] = -ev['dphidt_day_north']+ev['ie_night2dayNet_north']
+    ev['rxnDay_south'] = -ev['dphidt_day_south']+ev['ie_night2dayNet_south']
+    ev['rxnNight_north']= -ev['dphidt_night_north']-ev['ie_night2dayNet_north']
+    ev['rxnNight_south']= -ev['dphidt_night_south']-ev['ie_night2dayNet_south']
+    return ev
 
 if __name__ == "__main__":
     print('this module only contains helper functions and other useful '+

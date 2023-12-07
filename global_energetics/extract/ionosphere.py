@@ -20,6 +20,7 @@ from global_energetics.write_disp import write_to_hdf, display_progress
 from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     create_stream_zone,
                                                     calc_terminator_zone,
+                                                    calc_ocflb_zone,
                                                     get_global_variables)
 from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract import line_tools
@@ -530,31 +531,27 @@ def get_ionosphere(dataset,**kwargs):
     """
     zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
     zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    tp.active_frame().plot_type = PlotType.Cartesian3D
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
-        zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
+        #zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
         aux = zoneGM.aux_data
         if 'eventtime' in kwargs:
             eventtime = kwargs.get('eventtime')
-        # TODO check that XYZ are given in IE data
         # Map sphere onto Z aligned IE data
-        blank_and_trace(zoneSphere,'North')
-        blank_and_trace(zoneSphere,'South')
-        sphere2cart_map(zoneSphere)
-        blank_and_interpolate(zoneSphere,zoneNorth,'North')
-        blank_and_interpolate(zoneSphere,zoneSouth,'South')
+        #blank_and_trace(zoneSphere,'North')
+        #blank_and_trace(zoneSphere,'South')
+        #sphere2cart_map(zoneSphere)
+        #blank_and_interpolate(zoneSphere,zoneNorth,'North')
+        #blank_and_interpolate(zoneSphere,zoneSouth,'South')
         # Rotate IE_xyz(SM) to GM_xyz(GSM)
-        rotate_xyz([zoneNorth,zoneSouth,zoneSphere],float(aux['BTHETATILT']))
+        rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
         match_variable_names([zoneNorth,zoneSouth])
         #rotate_xyz([zoneNorth,zoneSphere],float(aux['BTHETATILT']))
         #match_variable_names([zoneNorth])
-        check_edges(zoneNorth,'North')
-        check_edges(zoneSouth,'South')
-        #TODO check how this edge check compares to simply calling all >1% in
-        #TODO Visually investigate the pinch point in north and island in south
-        #       Then, pick out some worst cases from the first cut video
-        #       Run this new method for those cases and do a side by side
+        #check_edges(zoneNorth,'North')
+        #check_edges(zoneSouth,'South')
         get_global_variables(dataset,'',aux=aux)
     else:
         if 'eventtime' in kwargs:
@@ -573,6 +570,17 @@ def get_ionosphere(dataset,**kwargs):
                                                 hemi='South',
                                                 #stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
+    if kwargs.get('integrate_contour',False):
+        # Create Open Closed Field Line Boundary zone
+        north_ocflb = calc_ocflb_zone('ocflb',zoneNorth,hemi='North')
+        south_ocflb = calc_ocflb_zone('ocflb',zoneSouth,hemi='South')
+        # Integrate along the contour boundary
+        line_results = line_tools.line_analysis(north_ocflb,**kwargs)
+        line_results['Time [UTC]'] = eventtime
+        data_to_write.update({zoneNorth.name+'_line':line_results})
+        line_results = line_tools.line_analysis(south_ocflb,**kwargs)
+        line_results['Time [UTC]'] = eventtime
+        data_to_write.update({zoneSouth.name+'_line':line_results})
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:
             #integrate power on created surface

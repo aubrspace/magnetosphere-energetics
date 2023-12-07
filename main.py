@@ -84,11 +84,11 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    #inpath = 'localdbug/parameter_study/'
-    inpath = 'localdbug/starlink/'
+    inpath = 'localdbug/parameter_study/MEDMED/'
     #inpath = 'run_HIGHnHIGHu/GM/IO2/'
     #outpath = 'parameter_study/'
-    outpath = 'localdbug/MAST/test_output/'
+    #outpath = 'localdbug/MAST/test_output/'
+    outpath = 'localdbug/parameter_study/'
     head = '3d__var_1_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
@@ -152,9 +152,9 @@ if __name__ == "__main__":
                                     do_interfacing=True,
                                     integrate_line=False,
                                     tail_cap=-100,
-                                    integrate_surface=False,
+                                    integrate_surface=True,
                                     integrate_volume=True,
-                                    #truegridfile=oggridfile,
+                                    truegridfile=oggridfile,
                                     extract_flowline=False,
                                     outputpath=outpath)
                 '''

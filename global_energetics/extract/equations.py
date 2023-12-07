@@ -198,21 +198,37 @@ def equations(**kwargs):
     # Generic mappings for closed and general magnetosphere
     #   daymapped
     #   nightmapped
+    if False:
+    #if 'aux' in kwargs:
+        aux=kwargs.get('aux')
+        phi1 = '{phi_centroid_1}'
+        phi2 = '{phi_centroid_2}'
+        phi1max = aux['phi_max_north']
+        phi1min = aux['phi_min_north']
+        phi2max = aux['phi_max_south']
+        phi2min = aux['phi_min_south']
+    else:
+        phi1 = '{phi_1 [deg]}'
+        phi2 = '{phi_2 [deg]}'
+        phi1max = '270'
+        phi1min = '90'
+        phi2max = '270'
+        phi2min = '90'
     equations['daynightmapping'] = {
-        '{daymapped_nlobe}':'IF({phi_1 [deg]}>270||'+
-                              '({phi_1 [deg]}<90&&{phi_1 [deg]}>0),1,0)',
-        '{nightmapped_nlobe}':'IF({phi_1 [deg]}<270&&'+
-                                 '{phi_1 [deg]}>90,1,0)',
-        '{daymapped_slobe}':'IF({phi_2 [deg]}>270||'+
-                              '({phi_2 [deg]}<90&&{phi_2 [deg]}>0),1,0)',
-        '{nightmapped_slobe}':'IF({phi_2 [deg]}<270&&'+
-                                 '{phi_2 [deg]}>90,1,0)',
-        '{daymapped}':'IF(({phi_1 [deg]}>=270||'+
-                        '({phi_1 [deg]}<=90&&{phi_1 [deg]}>=0))||'+
-                         '({phi_2 [deg]}>=270||'+
-                         '({phi_2 [deg]}<=90&&{phi_2 [deg]}>=0)),1,0)',
-        '{nightmapped}':'IF(({phi_1 [deg]}<270&&{phi_1 [deg]}>90)&&'+
-                            '({phi_2 [deg]}<270&&{phi_2 [deg]}>90),1,0)',
+        '{daymapped_nlobe}':'IF('+phi1+'>'+phi1max+'||'+
+                              '('+phi1+'<'+phi1min+'&&'+phi1+'>0),1,0)',
+        '{nightmapped_nlobe}':'IF('+phi1+'<'+phi1max+'&&'+
+                                 ''+phi1+'>'+phi1min+',1,0)',
+        '{daymapped_slobe}':'IF('+phi2+'>'+phi2max+'||'+
+                              '('+phi2+'<'+phi2min+'&&'+phi2+'>0),1,0)',
+        '{nightmapped_slobe}':'IF('+phi2+'<'+phi2max+'&&'+
+                                 ''+phi2+'>'+phi2min+',1,0)',
+        '{daymapped}':'IF(('+phi1+'>='+phi1max+'||'+
+                        '('+phi1+'<='+phi1min+'&&'+phi1+'>=0))||'+
+                         '('+phi2+'>='+phi2max+'||'+
+                         '('+phi2+'<='+phi2min+'&&'+phi2+'>=0)),1,0)',
+        '{nightmapped}':'IF(('+phi1+'<'+phi1max+'&&'+phi1+'>'+phi1min+')&&'+
+                          '('+phi2+'<'+phi2max+'&&'+phi2+'>'+phi2min+'),1,0)',
             }
     ######################################################################
     #Virial Volumetric energy terms, includes:
@@ -297,7 +313,7 @@ def equations(**kwargs):
             'ddx({U_perp [km/s]})*{B_x [nT]}+'+
             'ddy({U_perp [km/s]})*{B_y [nT]}+'+
             'ddz({U_perp [km/s]})*{B_z [nT]})/{Bmag [nT]}',
-        '{deltaU}':'{gradU_perp [km/s/Re]}*{Cell Volume}**(1/3)',
+        '{deltaU}':'{gradU_perp [km/s/Re]}*{Cell Size}',
         '{Valf [km/s]}':'({Bmag [nT]}*1e-9/sqrt('+
              '4*3.14159*10**-7*{Rho [amu/cm^3]}*1.66054*10**-27*10**6))*1e-3',
         '{Valf_x [km/s]}':'({B_x [nT]}*1e-9/sqrt('+

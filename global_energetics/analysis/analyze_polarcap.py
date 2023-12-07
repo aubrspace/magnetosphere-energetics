@@ -37,103 +37,101 @@ if __name__ == "__main__":
     ## Analysis Data
     dataset = {}
     #dataset['analysis'] = load_hdf_sort(inAnalysis+'/ie_results.h5')
-    dataset['analysis'] = {}
-    with pd.HDFStore(os.path.join(inAnalysis,'austins_method.h5')) as store:
+    dataset['MEDnMEDu'] = {}
+    #with pd.HDFStore(os.path.join(inAnalysis,'austins_method.h5')) as store:
+    with pd.HDFStore(os.path.join(inAnalysis,'ie_MEDnMEDu.h5')) as store:
         for key in store.keys():
-            dataset['analysis'][key] = store[key]
+            dataset['MEDnMEDu'][key] = store[key]
 
     ## Logs and observation Data
-    dataset['obs'] = read_indices(inLogs, prefix='',
-                                  read_supermag=False)
+    dataset['MEDnMEDu']['obs'] = read_indices(inLogs, prefix='MEDnMEDu_',
+                                              read_supermag=False)
 
-    # Name the top level
-    surface_north = dataset['analysis']['/ionosphere_north_surface']
-    surface_south = dataset['analysis']['/ionosphere_south_surface']
-    term_north = dataset['analysis']['/terminatornorth']
-    term_south = dataset['analysis']['/terminatorsouth']
-    times = term_north.index
-    sw = dataset['obs']['swmf_sw']
-    swt = sw.index
-    log = dataset['obs']['swmf_log']
-    logt = log.index
-    # Name more specific stuff
-    dayFlux_north = surface_north['Bf_injectionPolesDayN [Wb]']
-    dayFlux_south = surface_south['Bf_escapePolesDayS [Wb]']
-    nightFlux_north = surface_north['Bf_injectionPolesNightN [Wb]']
-    nightFlux_south = surface_south['Bf_escapePolesNightS [Wb]']
-    night2dayNet_north = term_north['dPhidt_net [Wb/s]']
-    night2dayNet_south = term_south['dPhidt_net [Wb/s]']
-    allFlux = abs(dayFlux_north)+abs(dayFlux_south)+abs(nightFlux_north)+abs(nightFlux_south)
-    # Derive some things
-    dphidt_day_north = central_diff(abs(dayFlux_north.rolling(1).mean()))
-    dphidt_day_south = central_diff(abs(dayFlux_south.rolling(1).mean()))
-    dphidt_night_north = central_diff(abs(nightFlux_north.rolling(1).mean()))
-    dphidt_night_south = central_diff(abs(nightFlux_south.rolling(1).mean()))
-    dphidt = central_diff(allFlux)
-    rxnDay_north = -dphidt_day_north+night2dayNet_north
-    rxnDay_south = -dphidt_day_south+night2dayNet_south
-    rxnNight_north = -dphidt_night_north-night2dayNet_north
-    rxnNight_south = -dphidt_night_south-night2dayNet_south
-    if True:
-        #############
-        #setup figure
-        rx,(imf,cpcp,pcFlux,rxn) = plt.subplots(4,1,figsize=[32,32],
-                                                    sharex=False)
-        ##Plot
-        # IMF
-        imf.plot(swt,sw['bx'],label='Bx')
-        imf.plot(swt,sw['by'],label='By')
-        imf.plot(swt,sw['bz'],label='Bz')
-        #axis1.plot(swt,sw['Newell'],label='Newell')
-        # CPCP
-        #cpcp.plot(logt,log['cpcpn'],label='CPCPn')
-        #cpcp.plot(logt,log['cpcps'],label='CPCPs')
-        # Polar Cap Flux
-        pcFlux.plot(times,abs(dayFlux_north.rolling(1).mean()),label='Day')
-        pcFlux.plot(times,abs(nightFlux_north.rolling(1).mean()),label='Night')
-        pcFlux.plot(times,(abs(dayFlux_north)+
-                          abs(nightFlux_north)).rolling(1).mean(),
-                          label='Total')
-        pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north))[0]+
-                          -(rxnDay_north+rxnDay_south+
-                           rxnNight_north+rxnNight_south).cumsum()*60,
-                    label='Sum')
-        pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north))[0]+
-                          dphidt.cumsum()*60,label='OtherSum')
-        # Reconnection Rate
-        rxn.plot(times,rxnDay_north.rolling(1).mean()/1000,label='Day')
-        rxn.plot(times,rxnNight_north.rolling(1).mean()/1000,label='Night')
-        rxn.plot(times,night2dayNet_north/1000,label='TermNight2Day')
-        ##Decorations
-        # IMF
-        general_plot_settings(imf,do_xlabel=False,legend=True,
-                              ylabel=r'$B \left[nT\right]$',
-                              #xlim=[dt.datetime(2014,4,10,3,30),
-                              #      dt.datetime(2014,4,10,9,30)],
-                              timedelta=False)
-        # CPCP
-        #general_plot_settings(cpcp,do_xlabel=False,legend=True,
-        #                      ylabel=r'$CPCP\left[kV\right]$',
-        #                      #xlim=[dt.datetime(2014,4,10,3,30),
-        #                      #      dt.datetime(2014,4,10,9,30)],
-        #                      timedelta=False)
-        # Polar Cap Flux
-        general_plot_settings(pcFlux,do_xlabel=False,legend=True,
-                              #ylabel=r'$B \left[nT\right]$',
-                              ylabel=r'$\vec{B}\cdot\vec{A}\left[Wb\right]$',
-                              #xlim=[dt.datetime(2014,4,10,3,30),
-                              #      dt.datetime(2014,4,10,9,30)],
-                              timedelta=False)
-        # Reconnection Rate
-        general_plot_settings(rxn,do_xlabel=True,legend=True,
-                              ylabel=r'RXPotential $d\phi dt\left[kV\right]$',
-                              #xlim=[dt.datetime(2014,4,10,3,30),
-                              #      dt.datetime(2014,4,10,9,30)],
-                              timedelta=False)
-        #save
-        rx.tight_layout(pad=1)
-        figurename = path+'/rx.png'
-        rx.savefig(figurename)
-        plt.close(rx)
-        print('\033[92m Created\033[00m',figurename)
-        #############
+    for event in dataset.keys():
+        # Name the top level
+        surface_north = dataset[event]['/ionosphere_north_surface']
+        surface_south = dataset[event]['/ionosphere_south_surface']
+        term_north = dataset[event]['/terminatornorth']
+        term_south = dataset[event]['/terminatorsouth']
+        times = term_north.index
+        sw = dataset[event]['obs']['swmf_sw']
+        swt = sw.index
+        log = dataset[event]['obs']['swmf_log']
+        logt = log.index
+        ielogt = dataset[event]['obs']['ie_log'].index
+        # Name more specific stuff
+        dayFlux_north = surface_north['Bf_injectionPolesDayN [Wb]']
+        dayFlux_south = surface_south['Bf_escapePolesDayS [Wb]']
+        nightFlux_north = surface_north['Bf_injectionPolesNightN [Wb]']
+        nightFlux_south = surface_south['Bf_escapePolesNightS [Wb]']
+        night2dayNet_north = term_north['dPhidt_net [Wb/s]']
+        night2dayNet_south = term_south['dPhidt_net [Wb/s]']
+        allFlux = abs(dayFlux_north)+abs(dayFlux_south)+abs(nightFlux_north)+abs(nightFlux_south)
+        # Derive some things
+        dphidt_day_north = central_diff(abs(dayFlux_north.rolling(1).mean()))
+        dphidt_day_south = central_diff(abs(dayFlux_south.rolling(1).mean()))
+        dphidt_night_north = central_diff(abs(nightFlux_north.rolling(1).mean()))
+        dphidt_night_south = central_diff(abs(nightFlux_south.rolling(1).mean()))
+        dphidt = central_diff(allFlux)
+        rxnDay_north = -dphidt_day_north+night2dayNet_north
+        rxnDay_south = -dphidt_day_south+night2dayNet_south
+        rxnNight_north = -dphidt_night_north-night2dayNet_north
+        rxnNight_south = -dphidt_night_south-night2dayNet_south
+        if True:
+            #############
+            #setup figure
+            rx,(imf,cpcp,pcFlux,rxn) = plt.subplots(4,1,figsize=[32,32],
+                                                        sharex=False)
+            ##Plot
+            # IMF
+            imf.plot(swt,sw['bx'],label='Bx')
+            imf.plot(swt,sw['by'],label='By')
+            imf.plot(swt,sw['bz'],label='Bz')
+            #axis1.plot(swt,sw['Newell'],label='Newell')
+            # CPCP
+            cpcp.plot(logt,log['cpcpn'],label='CPCPn')
+            cpcp.plot(ielogt,dataset[event]['obs']['ie_log']['cpcpn'],
+                      label='ie_CPCPn')
+            #cpcp.plot(logt,log['cpcps'],label='CPCPs')
+            # Polar Cap Flux
+            pcFlux.plot(times,abs(dayFlux_north),label='DayN')
+            pcFlux.plot(times,abs(nightFlux_north),label='NightN')
+            pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north)),
+                            label='TotalN')
+            pcFlux.plot(times,(abs(dayFlux_north)+abs(nightFlux_north))[0]+
+                            -(rxnDay_north+rxnNight_north).cumsum()*60,
+                        label='SumN')
+            # Reconnection Rate
+            # North
+            rxn.plot(times,rxnDay_north/1000,label='DayN')
+            rxn.plot(times,rxnNight_north/1000,label='NightN')
+            rxn.plot(times,night2dayNet_north/1000,label='TermNight2DayN')
+            # South
+            rxn.plot(times,rxnDay_south/1000,label='DayS')
+            rxn.plot(times,rxnNight_south/1000,label='NightS')
+            rxn.plot(times,night2dayNet_south/1000,label='TermNight2DayS')
+            ##Decorations
+            # IMF
+            general_plot_settings(imf,do_xlabel=False,legend=True,
+                                ylabel=r'$B \left[nT\right]$',
+                                timedelta=False)
+            # CPCP
+            general_plot_settings(cpcp,do_xlabel=False,legend=True,
+                                ylabel=r'$CPCP\left[kV\right]$',
+                                timedelta=False)
+            # Polar Cap Flux
+            general_plot_settings(pcFlux,do_xlabel=False,legend=True,
+                                #ylabel=r'$B \left[nT\right]$',
+                                ylabel=r'$\vec{B}\cdot\vec{A}\left[Wb\right]$',
+                                timedelta=False)
+            # Reconnection Rate
+            general_plot_settings(rxn,do_xlabel=True,legend=True,
+                                ylabel=r'RXPotential $d\phi dt\left[kV\right]$',
+                                timedelta=False)
+            #save
+            rx.tight_layout(pad=1)
+            figurename = path+'/'+event+'_rx.png'
+            rx.savefig(figurename)
+            plt.close(rx)
+            print('\033[92m Created\033[00m',figurename)
+            #############

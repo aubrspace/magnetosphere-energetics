@@ -378,16 +378,16 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
             any(['closed' in c for c in conditions])):
             if (any(['not open' in c for c in conditions]) or
                 any(['closed' in c for c in conditions])):
-                new_eq+='({Status_cc}['+condition_source+']>=3) &&'#closed
+                new_eq+='({status_cc}['+condition_source+']>=3) &&'#closed
             elif any(['N' in c for c in conditions]):
-                new_eq+=('({Status_cc}['+condition_source+']<3&&'+
-                          '{Status_cc}['+condition_source+']>=2)&&')#north
+                new_eq+=('({status_cc}['+condition_source+']<3&&'+
+                          '{status_cc}['+condition_source+']>=2)&&')#north
             elif any(['S' in c for c in conditions]):
-                new_eq+=('({Status_cc}['+condition_source+']<2 &&'+
-                          '{Status_cc}['+condition_source+']>0) &&')#south
+                new_eq+=('({status_cc}['+condition_source+']<2 &&'+
+                          '{status_cc}['+condition_source+']>0) &&')#south
             else:
-                new_eq+=('({Status_cc}['+condition_source+']<3 && '+
-                          '{Status_cc}['+condition_source+']>0) &&')#open
+                new_eq+=('({status_cc}['+condition_source+']<3 && '+
+                          '{status_cc}['+condition_source+']>0) &&')#open
         #TAIL
         if any(['tail' in c for c in conditions]):
             if 'not tail' in conditions:
@@ -767,7 +767,6 @@ def calc_integral(term, zone, **kwargs):
         scalars = zone.values(term[0]).as_numpy_array()
         volumes = zone.values('trueCellVolume').as_numpy_array()
         value = np.dot(scalars,volumes)
-        #from IPython import embed; embed()
     else:
         value = integrate_tecplot(variable, zone,
                       VariableOption=kwargs.get('VariableOption','Scalar'))
@@ -902,7 +901,7 @@ def surface_analysis(zone, **kwargs):
     if'analysis_type' in kwargs: analysis_type = kwargs.pop('analysis_type')
     else: analysis_type==''
     #Find needed surface variables for integrations
-    if (('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0) or
+    if ((('innerbound' in zone.name) and (len(zone.aux_data.as_dict())==0)) or
         kwargs.get('surfGeom',False)):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)

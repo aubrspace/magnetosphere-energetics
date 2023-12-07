@@ -18,7 +18,7 @@ from global_energetics.analysis.plot_tools import (central_diff,
                                                    plot_stack_distr,
                                                    plot_pearson_r,
                                                    plot_stack_contrib,
-                                                   refactor)
+                                                   refactor,ie_refactor)
 from global_energetics.analysis.proc_hdf import (load_hdf_sort)
 from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.analyze_energetics import plot_power
@@ -41,7 +41,9 @@ def interval_average(ev):
         for key in ev['sw'].keys():
             tave_ev.loc[i,key] = ev['sw'].loc[swinterv,key].mean()
         banlist = ['lobes','closed','mp','inner',
-                   'sim','sw','times','simt','swt','dDstdt_sim']
+                   'sim','sw','times','simt','swt','dDstdt_sim',
+                   'ie_surface_north','ie_surface_south',
+                   'term_north','term_south','ie_times']
         keylist = [k for k in ev.keys() if k not in banlist]
         for key in[k for k in keylist if type(ev[k])is not type([])]:
             tave_ev.loc[i,key] = ev[key][interv].mean()
@@ -216,7 +218,6 @@ def segments(event,ev,**kwargs):
     #setup figure
     segments,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24],
                                                  sharey=False)
-    #from IPython import embed; embed()
     #Plot
     for i,(start,end) in enumerate(interval_list):
         interv = (ev['Ks1'].index>start)&(ev['Ks1'].index<end)
@@ -594,7 +595,7 @@ def scatter_internalFlux(tave):
     #setup figure
     scatterK2b,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tave.keys()):
@@ -630,7 +631,7 @@ def scatter_internalFlux(tave):
     #setup figure
     scatterAL,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tave.keys()):
@@ -668,7 +669,7 @@ def scatter_externalFlux(tave):
     #setup figure
     scatterK1,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tave.keys()):
@@ -706,7 +707,7 @@ def scatter_externalFlux(tave):
     #Plot
     all_X = np.array([])
     all_Y = np.array([])
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -742,7 +743,7 @@ def scatter_cuspFlux(tave):
     #setup figure
     scatterCusp,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -772,7 +773,7 @@ def innerLobeFlux(tave):
     #setup figure
     scatterLobe,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -813,7 +814,7 @@ def scatters(tave):
     #setup figure
     scatter2,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
-    shapes=['o','<','X','+','>']
+    shapes=['o','<','X','+','>','^']
     for i,case in enumerate(tave.keys()):
         print(case, shapes[i])
         ev = tave[case]
@@ -879,6 +880,145 @@ def scatters(tave):
     print('\033[92m Created\033[00m',figurename)
     #############
 
+def energy_vs_polarcap(ev,event,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Ulobe_PCflux,(Ulobe,PCflux,K3) = plt.subplots(3,1,figsize=[20,16],
+                                                  sharex=True)
+    #Plot
+    Ulobe.plot(ev['times'],ev['Ulobes']/1e15,label='Utot')
+    PCflux.plot(ev['ie_times'],ev['ie_allFlux']/1e9,label='PCFlux')
+    K3.plot(ev['times'],ev['Ks3']/1e12,label='K3')
+    #Decorate
+    for interv in interval_list:
+        Ulobe.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        PCflux.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        K3.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
+        Ulobe.axhline(0,c='black')
+        PCflux.axhline(0,c='black')
+        K3.axhline(0,c='black')
+    general_plot_settings(Ulobe,do_xlabel=False,legend=True,
+                          ylabel=r'Energy $\left[PJ\right]$',
+                          timedelta=True)
+    general_plot_settings(PCflux,do_xlabel=False,legend=True,
+                          ylabel=r'Magnetic Flux $\left[MWb\right]$',
+                          timedelta=True)
+    general_plot_settings(K3,do_xlabel=True,legend=True,
+                          ylabel=r'Energy Flux $\left[TW\right]$',
+                          timedelta=True)
+    Ulobe.margins(x=0.01)
+    PCflux.margins(x=0.01)
+    K3.margins(x=0.01)
+    Ulobe_PCflux.tight_layout(pad=1)
+    #Save
+    figurename = path+'/Ulobe_PCflux_'+event+'.png'
+    Ulobe_PCflux.savefig(figurename)
+    plt.close(Ulobe_PCflux)
+    print('\033[92m Created\033[00m',figurename)
+
+def mpflux_vs_rxn(ev,event,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Kmp_rxn,(K5_K1,DayRxn,NightRxn) = plt.subplots(3,1,figsize=[20,16],
+                                                  sharex=True)
+    #Plot
+    K5_K1.plot(ev['times'],ev['K5']/1e12,label='K5')
+    K5_K1.plot(ev['times'],ev['K1']/1e12,label='K1')
+    DayRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
+                                ev['rxnDay_north'])/1e3,label='Day')
+    NightRxn.plot(ev['ie_times'],(ev['rxnNight_south']+
+                                  ev['rxnNight_north'])/1e3,label='Night')
+    #Decorate
+    for interv in interval_list:
+        K5_K1.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        K5_K1.axhline(0,c='black')
+        DayRxn.axhline(0,c='black')
+        NightRxn.axhline(0,c='black')
+    general_plot_settings(K5_K1,do_xlabel=False,legend=True,
+                          ylabel=r'Int. Energy Flux $\left[TW\right]$',
+                          timedelta=True)
+    general_plot_settings(DayRxn,do_xlabel=False,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    general_plot_settings(NightRxn,do_xlabel=True,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    K5_K1.margins(x=0.01)
+    DayRxn.margins(x=0.01)
+    NightRxn.margins(x=0.01)
+    Kmp_rxn.tight_layout(pad=1)
+    #Save
+    figurename = path+'/Kmp_rxn_'+event+'.png'
+    Kmp_rxn.savefig(figurename)
+    plt.close(Kmp_rxn)
+    print('\033[92m Created\033[00m',figurename)
+
+def internalflux_vs_rxn(ev,event,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Kinternal_rxn,(K2a_K2b,DayRxn,NightRxn,NetRxn) = plt.subplots(4,1,
+                                                              figsize=[20,20],
+                                                              sharex=True)
+    #Plot
+    K2a_K2b.plot(ev['times'],ev['K2a']/1e12,label='K2a')
+    K2a_K2b.plot(ev['times'],ev['K2b']/1e12,label='K2b')
+    DayRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
+                                ev['rxnDay_north'])/1e3,label='Day')
+    NightRxn.plot(ev['ie_times'],(ev['rxnNight_south']+
+                                  ev['rxnNight_north'])/1e3,label='Night')
+    NetRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
+                                ev['rxnDay_north']+
+                                ev['rxnNight_south']+
+                                ev['rxnNight_north'])/1e3,label='NetRxn')
+    #Decorate
+    for interv in interval_list:
+        K2a_K2b.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        NetRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
+        K2a_K2b.axhline(0,c='black')
+        DayRxn.axhline(0,c='black')
+        NightRxn.axhline(0,c='black')
+        NetRxn.axhline(0,c='black')
+    general_plot_settings(K2a_K2b,do_xlabel=False,legend=True,
+                          ylabel=r'Int. Energy Flux $\left[TW\right]$',
+                          timedelta=True)
+    general_plot_settings(DayRxn,do_xlabel=False,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    general_plot_settings(NightRxn,do_xlabel=False,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    general_plot_settings(NetRxn,do_xlabel=True,legend=True,
+                          ylabel=r'Reconnection $\left[kV\right]$',
+                          timedelta=True)
+    K2a_K2b.margins(x=0.01)
+    DayRxn.margins(x=0.01)
+    NightRxn.margins(x=0.01)
+    NetRxn.margins(x=0.01)
+    Kinternal_rxn.tight_layout(pad=1)
+    #Save
+    figurename = path+'/Kinternal_rxn_'+event+'.png'
+    Kinternal_rxn.savefig(figurename)
+    plt.close(Kinternal_rxn)
+    print('\033[92m Created\033[00m',figurename)
 
 def tab_ranges(dataset):
     events = dataset.keys()
@@ -903,6 +1043,11 @@ def initial_figures(dataset):
     for i,event in enumerate(dataset.keys()):
         ev = refactor(dataset[event],dt.datetime(2022,6,6,0))
         tave[event] = interval_average(ev)
+        if '/ionosphere_north_surface' in dataset[event].keys():
+            ev2 = ie_refactor(dataset[event],dt.datetime(2022,6,6,0))
+            for key in ev2.keys():
+                ev[key] = ev2[key]
+        #TODO- decide how to stich the average values together
         if False:
             external_flux_timeseries(event,ev['times'],
                                       ev['HM1'],ev['Hs1'],ev['HM5'],ev['Hs5'],
@@ -917,6 +1062,33 @@ def initial_figures(dataset):
         #common_x_lineup(event,ev)
         #segments(event,ev)
         #series_segments(event,ev)
+        #TODO:
+        #   Read in the arguments
+        #   Plot total energy vs total polar cap flux
+        #   xUlobe vs PCF
+        #   xInner open flux vs PCF
+        #   xDayRxn vs K5
+        #   xDayRxn vs K1
+        #   NightRxn vs 2b
+        #   NightRxn vs Inner open flux
+        #   NightRxn vs Inner closed flux
+        #   
+        #   Try to suss out if there are clear relationships between IE
+        #    and GM results. Especially if we can find a substorm cycle
+
+        # Look at the CPCP and SML together to get another perspective on substorm phase
+        # READ up some on what a *clear* substorm looks like so it can be
+        #  properly called out
+
+        # Think about ways in which the timeseries can be split up into the
+        #   subsotrm phases
+        # Then take new scatter averages split by substorm phases and see if 
+        #  that organizes the data in a nice way
+        if '/ionosphere_north_surface' in dataset[event].keys():
+            energy_vs_polarcap(ev,event,path)
+            mpflux_vs_rxn(ev,event,path)
+            internalflux_vs_rxn(ev,event,path)
+    '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)
     scatter_externalFlux(tave)
@@ -929,6 +1101,7 @@ def initial_figures(dataset):
     scatter_Pstorm(tave)
     innerLobeFlux(tave)
     tab_ranges(dataset)
+    '''
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
@@ -949,11 +1122,18 @@ if __name__ == "__main__":
 
     ## Analysis Data
     dataset = {}
-    dataset['LOWnLOWu'] = load_hdf_sort(inAnalysis+'LOWnLOWu.h5')
-    dataset['HIGHnHIGHu'] = load_hdf_sort(inAnalysis+'HIGHnHIGHu.h5')
-    dataset['LOWnHIGHu'] = load_hdf_sort(inAnalysis+'LOWnHIGHu.h5')
-    dataset['HIGHnLOWu'] = load_hdf_sort(inAnalysis+'HIGHnLOWu.h5')
-    dataset['MEDnMEDu'] = load_hdf_sort(inAnalysis+'MEDnMEDu.h5')
+    for event in ['LOWnLOWu','HIGHnHIGHu','LOWnHIGHu','HIGHnLOWu',
+                  'MEDnMEDu','MEDnHIGHu']:
+        GMfile = os.path.join(inAnalysis,event+'.h5')
+        IEfile = os.path.join(inAnalysis,'IE','ie_'+event+'.h5')
+        # GM data
+        if os.path.exists(GMfile):
+            dataset[event] = load_hdf_sort(GMfile)
+        # IE data
+        if os.path.exists(IEfile):
+            with pd.HDFStore(IEfile) as store:
+                for key in store.keys():
+                    dataset[event][key] = store[key]
 
     #HOTFIX duplicate LOWLOW values
     M5 = dataset['LOWnLOWu']['mpdict']['ms_full']['UtotM5 [W]'].copy()/1e12
@@ -979,6 +1159,8 @@ if __name__ == "__main__":
     dataset['HIGHnLOWu']['obs'] = read_indices(inLogs, prefix='HIGHnLOWu_',
                                               read_supermag=False)
     dataset['MEDnMEDu']['obs'] = read_indices(inLogs, prefix='MEDnMEDu_',
+                                              read_supermag=False)
+    dataset['MEDnHIGHu']['obs'] = read_indices(inLogs, prefix='MEDnHIGHu_',
                                               read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures
