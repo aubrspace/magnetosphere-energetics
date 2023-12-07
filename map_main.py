@@ -59,7 +59,7 @@ def save_image(stylehead, outpath,filetime):
         frame.load_stylesheet(stylesheet)
         t0 = dt.datetime(2022,6,6,0,0)#NOTE
         reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
-        phase = int(np.floor((reltime/3600)%2))
+        phase = int(np.floor((reltime/3600)/2))
         text2 =tp.active_frame().add_text('Test Phase: '+str(phase))
         if tp.active_frame().background_color == Color.Black:
             text2.color = Color.White
