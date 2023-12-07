@@ -40,7 +40,7 @@
 
 INPUTDIR=./run_MEDnHIGHu/GM/IO2/
 #INPUTDIR=./run_MEDnMEDu/IE/ionosphere/
-OUTPUTDIR=./outputs_MEDnHIGHu/
+OUTPUTDIR=./outputs_DAYNIGHTMAP/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/

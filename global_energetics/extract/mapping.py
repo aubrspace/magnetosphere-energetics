@@ -42,8 +42,8 @@ def reversed_mapping(gmzone,state_var,**kwargs):
             gmzone.dataset.add_variable('mapID')
         mapID = gmzone.values('mapID').as_numpy_array()
     daynight = gmzone.values('daynight').as_numpy_array()
-    theta_bins = np.linspace(0,90,10)
-    phi_bins = np.linspace(0,360,37)
+    theta_bins = np.linspace(0,90,18)
+    phi_bins = np.linspace(0,360,46)
     k=0
     for i,th in enumerate(theta_bins[1::]):
         for j,ph in enumerate(phi_bins[1::]):
