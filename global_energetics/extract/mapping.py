@@ -26,38 +26,59 @@ from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 
-def reversed_mapping(gmzone,state_var):
+def reversed_mapping(gmzone,state_var,**kwargs):
     # Convert theta/phi mapping variable into cartesian footpoint values
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
-    if 'xfoot_1' not in gmzone.dataset.variable_names:
-        eq('{xfoot_1}=sin(-{theta_1 [deg]}*pi/180+pi/2)*'+
-                      'cos({phi_1 [deg]}*pi/180)')
-        eq('{yfoot_1}=sin(-{theta_1 [deg]}*pi/180+pi/2)*'+
-                     'sin({phi_1 [deg]}*pi/180)')
-        eq('{zfoot_1}=cos(-{theta_1 [deg]}*pi/180+pi/2)')
-        #eq('{xfoot_2}=sin(-{theta_2 [deg]}*pi/180+pi/2)*'+
-        #             'cos({phi_2 [deg]}*pi/180)')
-        #eq('{yfoot_2}=sin(-{theta_2 [deg]}*pi/180+pi/2)*'+
-        #             'sin({phi_2 [deg]}*pi/180)')
-        #eq('{zfoot_2} = 1*cos(-{theta_2 [deg]}*pi/180+pi/2)')
     # Pull some data from tecplot-> numpy
     state = gmzone.values(state_var).as_numpy_array()
-    xfoot_1 = gmzone.values('xfoot_1').as_numpy_array()[state==1]
-    yfoot_1 = gmzone.values('yfoot_1').as_numpy_array()[state==1]
-    zfoot_1 = gmzone.values('zfoot_1').as_numpy_array()[state==1]
-    #xfoot_2 = gmzone.values('xfoot_2').as_numpy_array()[state==1]
-    #yfoot_2 = gmzone.values('yfoot_2').as_numpy_array()[state==1]
-    #zfoot_2 = gmzone.values('zfoot_2').as_numpy_array()[state==1]
+    theta_1 = gmzone.values('theta_1 *').as_numpy_array()
+    phi_1 = gmzone.values('phi_1 *').as_numpy_array()
+    x = gmzone.values('X *').as_numpy_array()
     # Make a new set of variables
-    gmzone.dataset.add_variable('x_extent_1')
-    gmzone.dataset.add_variable('y_extent_1')
-    gmzone.dataset.add_variable('z_extent_1')
-    x_extent = gmzone.values('x_extend_1').as_numpy_array()[state==1]
-    y_extent = gmzone.values('y_extend_1').as_numpy_array()[state==1]
-    z_extent = gmzone.values('z_extend_1').as_numpy_array()[state==1]
-    theta_bins = np.linspace(-180,180,11)
-    phi_bins = np.linspace(0,360,11)
-    from IPython import embed; embed()
+    if 'daynight' not in gmzone.dataset.variable_names:
+        gmzone.dataset.add_variable('daynight')
+    if kwargs.get('debug',False):
+        if 'mapID' not in gmzone.dataset.variable_names:
+            gmzone.dataset.add_variable('mapID')
+        mapID = gmzone.values('mapID').as_numpy_array()
+    daynight = gmzone.values('daynight').as_numpy_array()
+    theta_bins = np.linspace(0,90,10)
+    phi_bins = np.linspace(0,360,37)
+    k=0
+    for i,th in enumerate(theta_bins[1::]):
+        for j,ph in enumerate(phi_bins[1::]):
+            dayside,nightside,split = 0,0,False
+            inbins = ((state==1)&
+                      (theta_1<th)&
+                      (theta_1>theta_bins[i-1])&
+                      (phi_1<ph)&
+                      (phi_1>phi_bins[j-1]))
+            if any(inbins):
+                k+=1
+                if kwargs.get('debug',False):
+                    mapID[inbins] = k
+                if x[inbins].mean()>0:
+                    dayside = 1
+                if x[inbins].mean()<0:
+                    nightside = 1
+                if dayside*nightside>0:
+                    split = True
+                if not split:
+                    if dayside:
+                        daynight[inbins] = 1
+                    elif nightside:
+                        daynight[inbins] = -1
+                else:
+                    daynight[inbins] = -999
+                if kwargs.get('verbose',False):
+                    print(k,theta_bins[i-1],th,
+                          phi_bins[j-1],ph,
+                          x[inbins].min(),x[inbins].max(),
+                          '\tday:',dayside,'\tnight:',nightside)
+    gmzone.values('daynight')[::] = daynight
+    if kwargs.get('debug',False):
+        gmzone.values('mapID')[::] = mapID
+
 
 
     #TODO

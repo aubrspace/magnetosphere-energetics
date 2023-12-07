@@ -16,6 +16,7 @@ from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import post_proc_interface2
 from global_energetics.extract.volume_tools import volume_analysis
+from global_energetics.extract.mapping import reversed_mapping
 from global_energetics.extract.tec_tools import (streamfind_bisection,
                                                     get_global_variables,
                                                     calc_state,
@@ -271,22 +272,6 @@ def prep_field_data(field_data, **kwargs):
         if do_1Dsw or 'bs' in kwargs.get('modes',[]):
             print('Calculating 1D "pristine" Solar Wind variables')
             get_1D_sw_variables(field_data, 30, -30, 121)
-    #Update global variables with the centroid adjusted magnetic mapping
-    if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
-                                               field_data.variable_names):
-        from global_energetics.extract.tec_tools import(get_surface_variables,
-                                                      get_surf_geom_variables,
-                                                        croissant_trace)
-        if any([('innerbound' in z) for z in field_data.zone_names]):
-            spherezone = zone.dataset.zone('*innerbound*')
-        else:
-            spherezone,_,_ = calc_state('perfectsphere',[field_data.zone(0)])
-            get_surf_geom_variables(spherezone)
-            #get_surface_variables(spherezone, kwargs.get('analysis_type'))
-        map_limits = croissant_trace(spherezone)
-        for key in map_limits: aux[key] = map_limits[key]
-        if not any([('innerbound' in z) for z in field_data.zone_names]):
-            field_data.delete_zones(spherezone)
     #Add imfclock angle if not there already
     if not any([key.find('imf_clock_deg')!=-1 for key in aux.keys()]):
         rho,ux,uy,uz,IMFbx,IMFby,IMFbz= tp.data.query.probe_at_position(
@@ -331,6 +316,7 @@ def prep_field_data(field_data, **kwargs):
                                                 global_key='future*')
         elif (('modes' in kwargs) and
               ('iso_betastar' not in kwargs.get('modes',[])) and
+              ('closed' not in kwargs.get('modes',[])) and
               ('xslice' not in kwargs.get('modes',[]))):
             aux['x_subsolar'] = 0
             aux['x_nexl'] = 0
@@ -368,6 +354,25 @@ def prep_field_data(field_data, **kwargs):
             closed_index = None
             closed_zone = None
     print('closed_zone: '+closed_zone.name)
+    #Update global variables with the centroid adjusted magnetic mapping
+    if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
+                                               field_data.variable_names):
+        reversed_mapping(field_data.zone(0),'lcb',**kwargs)
+        '''
+        from global_energetics.extract.tec_tools import(get_surface_variables,
+                                                      get_surf_geom_variables,
+                                                        croissant_trace)
+        if any([('innerbound' in z) for z in field_data.zone_names]):
+            spherezone = zone.dataset.zone('*innerbound*')
+        else:
+            spherezone,_,_ = calc_state('perfectsphere',[field_data.zone(0)])
+            get_surf_geom_variables(spherezone)
+            #get_surface_variables(spherezone, kwargs.get('analysis_type'))
+        map_limits = croissant_trace(spherezone)
+        for key in map_limits: aux[key] = map_limits[key]
+        if not any([('innerbound' in z) for z in field_data.zone_names]):
+            field_data.delete_zones(spherezone)
+        '''
     return aux, closed_zone
 
 def generate_3Dobj(sourcezone, **kwargs):

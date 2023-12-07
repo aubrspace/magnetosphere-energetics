@@ -535,28 +535,23 @@ def get_ionosphere(dataset,**kwargs):
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
-        zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
+        #zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
         aux = zoneGM.aux_data
         if 'eventtime' in kwargs:
             eventtime = kwargs.get('eventtime')
-        # TODO check that XYZ are given in IE data
         # Map sphere onto Z aligned IE data
-        blank_and_trace(zoneSphere,'North')
-        blank_and_trace(zoneSphere,'South')
-        sphere2cart_map(zoneSphere)
-        blank_and_interpolate(zoneSphere,zoneNorth,'North')
-        blank_and_interpolate(zoneSphere,zoneSouth,'South')
+        #blank_and_trace(zoneSphere,'North')
+        #blank_and_trace(zoneSphere,'South')
+        #sphere2cart_map(zoneSphere)
+        #blank_and_interpolate(zoneSphere,zoneNorth,'North')
+        #blank_and_interpolate(zoneSphere,zoneSouth,'South')
         # Rotate IE_xyz(SM) to GM_xyz(GSM)
-        rotate_xyz([zoneNorth,zoneSouth,zoneSphere],float(aux['BTHETATILT']))
+        rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
         match_variable_names([zoneNorth,zoneSouth])
         #rotate_xyz([zoneNorth,zoneSphere],float(aux['BTHETATILT']))
         #match_variable_names([zoneNorth])
-        check_edges(zoneNorth,'North')
-        check_edges(zoneSouth,'South')
-        #TODO check how this edge check compares to simply calling all >1% in
-        #TODO Visually investigate the pinch point in north and island in south
-        #       Then, pick out some worst cases from the first cut video
-        #       Run this new method for those cases and do a side by side
+        #check_edges(zoneNorth,'North')
+        #check_edges(zoneSouth,'South')
         get_global_variables(dataset,'',aux=aux)
     else:
         if 'eventtime' in kwargs:
