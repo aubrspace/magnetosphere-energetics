@@ -65,20 +65,20 @@ def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Regroup into a grid if not using 4 frames
     tp.layout.active_page().tile_frames(mode=TileMode.Grid)
     # Stamp one of the frames with the 'test phase'
-    #t0 = dt.datetime(2022,6,6,0,0)#NOTE
-    t0 = dt.datetime(2015,5,18,3,0)#NOTE
+    t0 = dt.datetime(2022,6,6,0,0)#NOTE
+    #t0 = dt.datetime(2015,5,18,3,0)#NOTE
     reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
-    #phase = int(np.floor((reltime/3600)/2))
-    text1 =tp.active_frame().add_text(str(filetime))
-    #text2 =tp.active_frame().add_text('Test Phase: '+str(phase))
+    phase = int(np.floor((reltime/3600)/2))
+    #text1 =tp.active_frame().add_text(str(filetime))
+    text2 =tp.active_frame().add_text('Test Phase: '+str(phase))
     if tp.active_frame().background_color == Color.Black:
-        text1.color = Color.White
-    #    text2.color = Color.White
+    #    text1.color = Color.White
+        text2.color = Color.White
     else:
-        text1.color = Color.Black
-    #    text2.color = Color.Black
-    text1.position = (2,5)
-    #text2.position = (2,2)
+    #    text1.color = Color.Black
+        text2.color = Color.Black
+    #text1.position = (2,5)
+    text2.position = (2,5)
     # Save
     tp.save_png(os.path.join(outpath,'png',
                              OUTPUTNAME+'.png'),width=1600)
@@ -117,6 +117,7 @@ def energetics_analysis(infiles,outpath):
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
+    '''
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
         field_data.zone(1).name = 'future'
@@ -155,9 +156,12 @@ def energetics_analysis(infiles,outpath):
                                       truegridfile=oggridfile,
                                       extract_flowline=False,
                                       outputpath=outpath)
+    '''
     # IE data
     inpath = 'run_MEDnHIGHu/IE/ionosphere/'
     iedatafile, success = find_IE_matched_file(inpath,filetime)
+    print(inpath,infiles,iedatafile,success)
+    '''
     if os.path.exists(iedatafile):
         dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
@@ -188,6 +192,7 @@ def energetics_analysis(infiles,outpath):
     else:
         with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
             png.close()
+    '''
 
 if __name__ == "__main__":
     start_time = time.time()
