@@ -25,6 +25,30 @@ from global_energetics.extract import view_set
 from global_energetics.write_disp import write_to_hdf
 from global_energetics import makevideo
 
+def find_IE_matched_file(path,filetime):
+    """Function returns the IE file at a specific time, if it exists
+    Inputs
+        path (str)
+        filetime (datetime)
+    Returns
+        iedatafile (str)
+        success (bool)
+    """
+    iedatafile = (path+
+                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
+    if not os.path.exists(iedatafile):
+        print(iedatafile,'does not exist!')
+        success = False
+    else:
+        success = True
+    return iedatafile, success
+
 def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Quickly duplicate date across 4 frames
     tp.macro.execute_command('$!LoadColorMap  '+
@@ -93,22 +117,6 @@ def energetics_analysis(infiles,outpath):
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
-    '''
-    #iedatafile = ('run_2000_polarcap/IE/ionosphere/'+
-    iedatafile = ('ideal_test/IE/ionosphere/'+
-                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
-                      filetime.year-2000,
-                      filetime.month,
-                      filetime.day,
-                      filetime.hour,
-                      filetime.minute,
-                      filetime.second))
-    if not os.path.exists(iedatafile):
-        print(iedatafile,'does not exist!')
-        with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
-            png.close()
-        exit
-    '''
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
         field_data.zone(1).name = 'future'
@@ -147,42 +155,31 @@ def energetics_analysis(infiles,outpath):
                                       truegridfile=oggridfile,
                                       extract_flowline=False,
                                       outputpath=outpath)
-    '''
-    # IE
-    tp.data.load_tecplot(iedatafile,read_data_option=ReadDataOption.Append)
-    field_data.zone(-2).name = 'ionosphere_north'
-    field_data.zone(-1).name = 'ionosphere_south'
-
-    ionosphere.get_ionosphere(field_data,
-                                          verbose=True,
-                                          hasGM=True,
-                                          eventtime=filetime,
-                                          analysis_type='mag',
-                                          integrate_surface=True,
-                                          integrate_line=True,
-                                          do_interfacing=True,
-                                          outputpath=outpath)
-    # Create and save an image
-    northsheet = 'north_pc.sty'
-    southsheet = 'south_pc.sty'
-    tp.macro.execute_command('$!LoadColorMap  '+'"'+os.path.join(os.getcwd(),'energetics.map')+'"')
-    tp.macro.execute_extended_command(
-                            command_processor_id='Multi Frame Manager',
-                            command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
-    for i,frame in enumerate(tp.frames()):
-        if i==0:
-            frame.load_stylesheet(northsheet)
-            northframe = frame
-        elif i==1:
-            frame.load_stylesheet(southsheet)
-        elif i>1:
-            tp.layout.active_page().delete_frame(frame)
-    tp.layout.active_page().tile_frames(mode=TileMode.Rows)
-    northframe.plot().contour(1).legend.vertical=False
-    northframe.plot().contour(1).legend.position=(98,10)
-    tp.save_png(os.path.join(outpath,'figures',
-                                     outputname+'.png'),width=1600)
-    '''
+    # IE data
+    inpath = 'run_MEDnHIGHu/IE/ionosphere/'
+    iedatafile, success = find_IE_matched_file(inpath,filetime)
+    if os.path.exists(iedatafile):
+        dataset = tp.data.load_tecplot(iedatafile,
+                                    read_data_option=ReadDataOption.Append)
+        if dataset.zone('IonN*') is not None:
+            dataset.zone('IonN*').name = 'ionosphere_north'
+            do_north = True
+        if dataset.zone('IonS*') is not None:
+            dataset.zone('IonS*').name = 'ionosphere_south'
+            do_south = True
+        if do_north*do_south:
+            ionosphere.get_ionosphere(dataset,
+                                              verbose=False,
+                                              hasGM=True,
+                                              eventtime=filetime,
+                                              analysis_type='mag',
+                                              integrate_surface=True,
+                                              integrate_line=False,
+                                              integrate_contour=True,
+                                              do_interfacing=False,
+                                              do_cms=False,
+                                              do_central_diff=False,
+                                              outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     if True:
         save_gm_multi(['front_iso_status.sty','tail_iso_status.sty',

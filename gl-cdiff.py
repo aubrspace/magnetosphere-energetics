@@ -25,6 +25,30 @@ from global_energetics.extract import view_set
 from global_energetics.write_disp import write_to_hdf
 from global_energetics import makevideo
 
+def find_IE_matched_file(path,filetime):
+    """Function returns the IE file at a specific time, if it exists
+    Inputs
+        path (str)
+        filetime (datetime)
+    Returns
+        iedatafile (str)
+        success (bool)
+    """
+    iedatafile = (path+
+                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
+    if not os.path.exists(iedatafile):
+        print(iedatafile,'does not exist!')
+        success = False
+    else:
+        success = True
+    return iedatafile, success
+
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(inpath+'/3d__var_1*.plt'),
@@ -52,9 +76,11 @@ def energetics_analysis(infiles,outpath):
     #Reset session
     tp.new_layout()
     #python objects
-    oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
+    #oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
+    oggridfile = ''
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
+    futuretime = makevideo.get_time(infiles[1])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
@@ -89,42 +115,40 @@ def energetics_analysis(infiles,outpath):
                                       verbose=False,
                                       extract_flowline=False,
                                       outputpath=outpath)
-    '''
-    # IE
-    tp.data.load_tecplot(iedatafile,read_data_option=ReadDataOption.Append)
-    field_data.zone(-2).name = 'ionosphere_north'
-    field_data.zone(-1).name = 'ionosphere_south'
-
-    ionosphere.get_ionosphere(field_data,
-                                          verbose=True,
-                                          hasGM=True,
-                                          eventtime=filetime,
-                                          analysis_type='mag',
-                                          integrate_surface=True,
-                                          integrate_line=True,
-                                          do_interfacing=True,
-                                          outputpath=outpath)
-    # Create and save an image
-    northsheet = 'north_pc.sty'
-    southsheet = 'south_pc.sty'
-    tp.macro.execute_command('$!LoadColorMap  '+'"'+os.path.join(os.getcwd(),'energetics.map')+'"')
-    tp.macro.execute_extended_command(
-                            command_processor_id='Multi Frame Manager',
-                            command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
-    for i,frame in enumerate(tp.frames()):
-        if i==0:
-            frame.load_stylesheet(northsheet)
-            northframe = frame
-        elif i==1:
-            frame.load_stylesheet(southsheet)
-        elif i>1:
-            tp.layout.active_page().delete_frame(frame)
-    tp.layout.active_page().tile_frames(mode=TileMode.Rows)
-    northframe.plot().contour(1).legend.vertical=False
-    northframe.plot().contour(1).legend.position=(98,10)
-    tp.save_png(os.path.join(outpath,'figures',
-                                     outputname+'.png'),width=1600)
-    '''
+    # IE data
+    inpath = '/'.join([f for f in infiles[0].split('/')])[0:-1]+'/'
+    iedatafile, success = find_IE_matched_file(inpath,filetime)
+    future_iefile, _ = find_IE_matched_file(inpath,futuretime)
+    if os.path.exists(iedatafile):
+        dataset = tp.data.load_tecplot(iedatafile,
+                                    read_data_option=ReadDataOption.Append)
+        if dataset.zone('IonN*') is not None:
+            dataset.zone('IonN*').name = 'ionosphere_north'
+            do_north = True
+        if dataset.zone('IonS*') is not None:
+            dataset.zone('IonS*').name = 'ionosphere_south'
+            do_south = True
+        dataset = tp.data.load_tecplot(future_iefile,
+                        read_data_option=ReadDataOption.Append)
+        if dataset.zone('IonN*') is not None:
+            dataset.zone('IonN*').name = 'future_ionosphere_north'
+            do_north = True
+        if dataset.zone('IonS*') is not None:
+            dataset.zone('IonS*').name = 'future_ionosphere_south'
+            do_south = True
+        if do_north*do_south:
+            ionosphere.get_ionosphere(dataset,
+                                              verbose=False,
+                                              hasGM=True,
+                                              eventtime=filetime,
+                                              analysis_type='mag',
+                                              integrate_surface=True,
+                                              integrate_line=False,
+                                              integrate_contour=False,
+                                              do_interfacing=False,
+                                              do_cms=True,
+                                              do_central_diff=True,
+                                              outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
         png.close()
