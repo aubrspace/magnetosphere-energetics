@@ -248,15 +248,15 @@ def get_volume_trades(zone,integrands,**kwargs):
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []
     state_name = kwargs.get('state_var').name
-    if 'daymapped' not in zone.dataset.variable_names:
+    if 'daynight' not in zone.dataset.variable_names:
         skip_daynightmapping = True
     else:
         skip_daynightmapping = False
     # Define state strings
     ext = '({mp_iso_betastar}==0)'
     if not skip_daynightmapping:
-        dayclosed = '({daymapped}==1&&{lcb}==1)'
-        nightclosed = '({nightmapped}==1&&{lcb}==1)'
+        dayclosed = '({daynight}==1&&{lcb}==1)'
+        nightclosed = '({daynight}<1&&{lcb}==1)'
         lobes = ('(({NLobe}==1) ||'+
                  '({SLobe}==1)   )')
         lobeN = '({NLobe}==1)'
@@ -531,6 +531,7 @@ def volume_analysis(state_var, **kwargs):
         '''
         interface_terms = get_volume_trades(global_zone,integrands,
                                             **kwargs,state_var=state_var)
+        print(interface_terms)
         integrands.update(interface_terms)
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,
