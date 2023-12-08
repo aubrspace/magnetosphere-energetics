@@ -23,6 +23,7 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     calc_ocflb_zone,
                                                     get_global_variables)
 from global_energetics.extract.equations import (get_dipole_field)
+from global_energetics.extract.mapping import port_mapping_to_ie
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 
@@ -482,7 +483,7 @@ def match_variable_names(zones):
     eq('{J_y [uA/m^2]} = {Jy [`mA/m^2]}',zones=zones)
     eq('{J_z [uA/m^2]} = {Jz [`mA/m^2]}',zones=zones)
     eq('{theta_1 [deg]} = -{Theta [deg]}+90',zones=zones)
-    eq('{theta_2 [deg]} = {Theta [deg]}-90',zones=zones)
+    eq('{theta_2 [deg]} = -{Theta [deg]}+90',zones=zones)
     eq('{phi_1 [deg]} = {Psi [deg]}',zones=zones)
     eq('{phi_2 [deg]} = {Psi [deg]}',zones=zones)
     if 'RT 1/B [1/T]' in zones[0].dataset.variable_names:
@@ -531,12 +532,18 @@ def get_ionosphere(dataset,**kwargs):
     """
     zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
     zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    if kwargs.get('do_cms',False):
+        future_North = dataset.zone('future_ionosphere_north')
+        future_South = dataset.zone('future_ionosphere_south')
     tp.active_frame().plot_type = PlotType.Cartesian3D
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
         #zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
         aux = zoneGM.aux_data
+        if kwargs.get('do_cms',False):
+            futureGM = dataset.zone(kwargs.get('zoneGM','future'))
+            futureaux = futureGM.aux_data
         if 'eventtime' in kwargs:
             eventtime = kwargs.get('eventtime')
         # Map sphere onto Z aligned IE data
@@ -548,6 +555,10 @@ def get_ionosphere(dataset,**kwargs):
         # Rotate IE_xyz(SM) to GM_xyz(GSM)
         rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
         match_variable_names([zoneNorth,zoneSouth])
+        if kwargs.get('do_cms',False):
+            rotate_xyz([future_North,future_South],
+                       float(futureaux['BTHETATILT']))
+            match_variable_names([future_North,future_South])
         #rotate_xyz([zoneNorth,zoneSphere],float(aux['BTHETATILT']))
         #match_variable_names([zoneNorth])
         #check_edges(zoneNorth,'North')
@@ -574,20 +585,33 @@ def get_ionosphere(dataset,**kwargs):
         # Create Open Closed Field Line Boundary zone
         north_ocflb = calc_ocflb_zone('ocflb',zoneNorth,hemi='North')
         south_ocflb = calc_ocflb_zone('ocflb',zoneSouth,hemi='South')
-        # Integrate along the contour boundary
-        line_results = line_tools.line_analysis(north_ocflb,**kwargs)
-        line_results['Time [UTC]'] = eventtime
-        data_to_write.update({zoneNorth.name+'_line':line_results})
-        line_results = line_tools.line_analysis(south_ocflb,**kwargs)
-        line_results['Time [UTC]'] = eventtime
-        data_to_write.update({zoneSouth.name+'_line':line_results})
+        # Port daynight mapping onto the ocflb zones
+        port_mapping_to_ie(north_ocflb,dataset.zone(0),**kwargs)
+        port_mapping_to_ie(south_ocflb,dataset.zone(0),**kwargs)
+        if kwargs.get('do_cms',False):
+            future_n_ocflb = calc_ocflb_zone('ocflb',futureNorth,hemi='North')
+            future_s_ocflb = calc_ocflb_zone('ocflb',futureSouth,hemi='South')
+            port_mapping_to_ie(future_n_ocflb,dataset.zone(0),**kwargs)
+            port_mapping_to_ie(future_s_ocflb,dataset.zone(0),**kwargs)
+        if not kwargs.get('do_cms',False):
+            # Integrate along the contour boundary
+            line_results = line_tools.line_analysis(north_ocflb,**kwargs)
+            line_results['Time [UTC]'] = eventtime
+            data_to_write.update({zoneNorth.name+'_line':line_results})
+            line_results = line_tools.line_analysis(south_ocflb,**kwargs)
+            line_results['Time [UTC]'] = eventtime
+            data_to_write.update({zoneSouth.name+'_line':line_results})
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:
             #integrate power on created surface
             print('\nWorking on: '+zone.name+' surface')
             surf_results = surface_tools.surface_analysis(zone,surfGeom=True,
                                                           **kwargs)
-            surf_results['Time [UTC]'] = eventtime
+            if kwargs.get('do_central_diff',False):
+                surf_results['Time [UTC]'] = (eventtime+dt.timedelta(seconds=
+                                                    kwargs.get('tdelta',60)))
+            else:
+                surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
         data_to_write = surface_tools.post_proc(data_to_write,
                          do_interfacing=kwargs.get('do_interfacing',False))

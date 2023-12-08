@@ -878,6 +878,42 @@ def get_virial_dict(zone):
     '''
     return virial_dict
 
+def get_surface_trades(zone,integrands,**kwargs):
+    tdelta = str(kwargs.get('tdelta',60))
+    if kwargs.get('do_central_diff',False):
+        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    analysis_type = kwargs.get('analysis_type','')
+    trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
+    tradelist = []
+    state_name = kwargs.get('state_var').name
+    # Define state strings
+    dayclosed = '({daynight}==1&&{Status}==3)'
+    nightclosed = '({daynight}==-1&&{Status}==3)'
+    lobe = '({Status}==2||{Status==1})'
+    #M2a    from  lobe     ->  dayclosed
+    #M2b    from  lobe     ->  nightclosed
+    tradelist.append(make_trade_eq(lobe,dayclosed,'M2a',tdelta))
+    tradelist.append(make_trade_eq(lobe,nightclosed,'M2b',tdelta))
+    # Evaluate all equations and update the integrands for return
+    for varstr,name in integrands.items():
+        for tradestr in tradelist:
+            qty,unit = name.split(' ')
+            tradetag = tradestr.split('{name')[1].split('}')[0]
+            new_eq = tradestr.replace('value',varstr).replace('name',qty)
+            if unit=='[J]':
+                newunit = '[W]'
+            elif unit=='[kg]':
+                newunit = '[kg/s]'
+            elif unit=='[Wb]':
+                newunit = '[Wb/s]'
+            try:
+                eq(new_eq,zones=[zone],value_location=ValueLocation.Nodal)
+                trade_integrands[qty+tradetag]=' '.join([qty+tradetag,newunit])
+            except TecplotLogicError as err:
+                print('Equation eval failed!\n',new_eq,'\n')
+                if kwargs.get('debug',False): print(err)
+    return trade_integrands
+
 def surface_analysis(zone, **kwargs):
     """Function to calculate energy flux at magnetopause surface
     Inputs
@@ -934,7 +970,7 @@ def surface_analysis(zone, **kwargs):
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications spatially parsing results
-    if kwargs.get('do_interfacing',False):
+    if kwargs.get('do_interfacing',False) and 'ionosphere' not in zone.name:
         integrands.update(get_interface_integrands(zone, integrands,
                                                    **kwargs))
     else:
@@ -945,6 +981,9 @@ def surface_analysis(zone, **kwargs):
                                                      **kwargs))
         if 'ionosphere' in zone.name and kwargs.get('doOpenClose',True):
             integrands.update(get_open_close_integrands(zone, integrands))
+            if kwargs.get('do_cms',False):
+                get_surface_trades(zone,integrands,**kwargs)
+                pass
     ###################################################################
     #Evaluate integrals
     if kwargs.get('verbose',False):

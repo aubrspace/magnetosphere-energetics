@@ -360,6 +360,8 @@ def prep_field_data(field_data, **kwargs):
         eq('{trace_limits}=if({Status}==3 && '+
                             '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
         reversed_mapping(field_data.zone(0),'trace_limits',**kwargs)
+        if do_cms:
+            reversed_mapping(field_data.zone(1),'trace_limits',**kwargs)
         '''
         from global_energetics.extract.tec_tools import(get_surface_variables,
                                                       get_surf_geom_variables,

@@ -65,7 +65,8 @@ def get_x(zone,**kwargs):
         #   count backwards in the other direction for the remaining points
         cell_length = zone.values('Cell Length').as_numpy_array()
         idvals = np.array([i for i in range(1,zone.num_elements+1)])
-        i_start = idvals[x==x[abs(y)<0.01].max()][0]
+        #i_start = idvals[x==x[abs(y)<0.01].max()][0]
+        i_start = 0
         id_shifted = (idvals[-1]+idvals-i_start)%idvals[-1]+1
         length = 0
         length_arr = np.zeros(len(idvals))
@@ -145,6 +146,18 @@ def get_fx(zone,integrands,**kwargs):
                                            ybase+'_escape*').as_numpy_array()
     return ydict
 
+def get_daynight_integrands(zone,integrands):
+    daynight_dict, eq = {}, tp.data.operate.execute_equation
+    for term in integrands.items():
+        name = term[0].split(' [')[0]
+        outputname = term[1].split(' [')[0]
+        units = '['+term[1].split('[')[1].split(']')[0]+']'
+        eq('{'+name+'Day}=if({daynight}==1,{'+term[0]+'},0)',zones=[zone])
+        eq('{'+name+'Night}=if({daynight}<1,{'+term[0]+'},0)',zones=[zone])
+        daynight_dict.update({name+'Day':outputname+'Day '+units,
+                              name+'Night':outputname+'Night '+units})
+    return daynight_dict
+
 def line_analysis(zone, **kwargs):
     """Function to calculate fluxes through 1D objects in the magnetosphere
     Inputs
@@ -163,6 +176,8 @@ def line_analysis(zone, **kwargs):
     ## Set integrands
     if 'mag' in analysis_type:
         integrands.update(get_mag_dict())
+    if True:
+        integrands.update(get_daynight_integrands(zone, integrands))
     integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     ## Setup integrals

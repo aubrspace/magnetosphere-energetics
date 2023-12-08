@@ -48,6 +48,30 @@ def save_ie_image(ie_stylehead_north, ie_stylehead_south):
     else:
         print('NO STYLESHEETS!!')
 
+def find_IE_matched_file(path,filetime):
+    """Function returns the IE file at a specific time, if it exists
+    Inputs
+        path (str)
+        filetime (datetime)
+    Returns
+        iedatafile (str)
+        success (bool)
+    """
+    iedatafile = (path+
+                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
+    if not os.path.exists(iedatafile):
+        print(iedatafile,'does not exist!')
+        success = False
+    else:
+        success = True
+    return iedatafile, success
+
 def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Quickly duplicate date across 4 frames
     tp.macro.execute_extended_command(
@@ -84,7 +108,7 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'localdbug/parameter_study/MEDMED/'
+    inpath = 'localdbug/parameter_study/MEDHIGH/'
     #inpath = 'run_HIGHnHIGHu/GM/IO2/'
     #outpath = 'parameter_study/'
     #outpath = 'localdbug/MAST/test_output/'
@@ -108,21 +132,14 @@ if __name__ == "__main__":
     #if True:
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
+        tp.new_layout()
+        tp.load_layout('plsDELETE.lay')
         if True:
+            '''
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
             mhddatafile = f
-            '''
-            iedatafile=(inpath.replace('/GM/IO2/','/IE/ionosphere/')+
-                    'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
-                      filetime.year-2000,
-                      filetime.month,
-                      filetime.day,
-                      filetime.hour,
-                      filetime.minute,
-                      filetime.second))
-            '''
             #python objects
             field_data = tp.data.load_tecplot(mhddatafile)
             #field_data = tp.data.load_tecplot(filelist[0::2])
@@ -133,62 +150,66 @@ if __name__ == "__main__":
             main.name = 'main'
 
             #Perform data extraction
+            '''
             with tp.session.suspend():
+                '''
                 # GM data
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                                         write_data=True,
                                                         disp_result=True,
                                     verbose=True,
-                                    debug=False,
-                                    do_cms=False,
-                                    do_central_diff=False,
-                                    do_1Dsw=False,
                                     analysis_type='energy',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
-                                    integrate_line=False,
                                     tail_cap=-100,
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     truegridfile=oggridfile,
-                                    extract_flowline=False,
                                     outputpath=outpath)
                 '''
-                if os.path.exists(iedatafile) and False:
+                iedatafile, success = find_IE_matched_file(inpath,filetime)
+                future_iefile, _ = find_IE_matched_file(inpath,nexttime)
+                if os.path.exists(iedatafile):
                     # IE data
-                    tp.data.load_tecplot(iedatafile,
+                    dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
-                    field_data.zone(-2).name = 'ionosphere_north'
-                    field_data.zone(-1).name = 'ionosphere_south'
-                    ionosphere.get_ionosphere(field_data,
-                                          verbose=True,
-                                          hasGM=True,
-                                          eventtime=filetime,
-                                          analysis_type='mag',
-                                          integrate_surface=True,
-                                          integrate_line=True,
-                                          do_interfacing=True,
-                                          outputpath='polarcap2000/analysis/')
-                    if True:
-                        save_ie_image(ie_stylehead_north, ie_stylehead_south)
-                '''
-                #if os.path.exists(os.getcwd()+'/'+gm_stylehead)and False:
+                    if dataset.zone('IonN*') is not None:
+                        dataset.zone('IonN*').name = 'ionosphere_north'
+                        do_north = True
+                    if dataset.zone('IonS*') is not None:
+                        dataset.zone('IonS*').name = 'ionosphere_south'
+                        do_south = True
+                    dataset = tp.data.load_tecplot(future_iefile,
+                                    read_data_option=ReadDataOption.Append)
+                    if dataset.zone('IonN*') is not None:
+                        dataset.zone('IonN*').name = 'future_ionosphere_north'
+                        do_north = True
+                    if dataset.zone('IonS*') is not None:
+                        dataset.zone('IonS*').name = 'future_ionosphere_south'
+                        do_south = True
+                if do_north*do_south:
+                    ionosphere.get_ionosphere(dataset,
+                                              verbose=True,
+                                              hasGM=True,
+                                              eventtime=filetime,
+                                              analysis_type='mag',
+                                              integrate_surface=True,
+                                              integrate_line=False,
+                                              integrate_contour=True,
+                                              do_interfacing=False,
+                                              do_cms=True,
+                                              do_central_diff=True,
+                                              outputpath=outpath)
                 if False:
                     save_gm_multi(['front_iso_status.sty',
                                    'tail_iso_status.sty',
                                    'front_iso_Knet.sty',
                                    'north_eq_Kx.sty'],outpath,OUTPUTNAME,
                                    filetime)
-                    '''
-                    # split into multiple frames
-                    main.load_stylesheet(os.getcwd()+'/'+gm_stylehead)
-                    tp.save_png(os.path.join(outpath,'data/png/',
-                                OUTPUTNAME+'.png'),width=1600)
-                    '''
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')

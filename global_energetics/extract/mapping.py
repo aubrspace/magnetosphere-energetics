@@ -154,3 +154,49 @@ def reversed_mapping(gmzone,state_var,**kwargs):
     if kwargs.get('debug',False):
         gmzone.values('mapID')[::] = mapID
 
+def port_mapping_to_ie(ocflb,gm,**kwargs):
+    """Function that does some stuff
+    Inputs
+        ocflb (Zone)-
+        gm (Zone) -
+    Returns
+        None
+    """
+    # Pull in some Tecplot objects
+    if 'North' in ocflb.name:
+        ie_theta = ocflb.values('theta_1 *').as_numpy_array()
+        ie_phi = ocflb.values('phi_1 *').as_numpy_array()
+        gm_theta = gm.values('theta_1 *').as_numpy_array()
+        gm_phi = gm.values('phi_1 *').as_numpy_array()
+    elif 'South' in ocflb.name:
+        ie_theta = ocflb.values('theta_2 *').as_numpy_array()
+        ie_phi = ocflb.values('phi_2 *').as_numpy_array()
+        gm_theta = gm.values('theta_2 *').as_numpy_array()
+        gm_phi = gm.values('phi_2 *').as_numpy_array()
+    gm_status = gm.values('Status').as_numpy_array()
+    gm_mapping = gm.values('daynight').as_numpy_array()
+    ie_mapping = ocflb.values('daynight').as_numpy_array()
+    for i,(th,ph) in enumerate(zip(ie_theta,ie_phi)):
+        if kwargs.get('verbose',False):
+            print(i,'/',len(ie_theta))
+        # find a neighborhood in GM around theta/phi and Status==3
+        neighborhood = ((gm_status==3)&
+                        (abs(gm_theta-th)<1)&
+                        (abs(gm_phi-ph)<1))
+        if not any(neighborhood):
+            neighborhood = ((gm_status==3)&
+                            (abs(gm_theta-th)<2)&
+                            (abs(gm_phi-ph)<2))
+        theta_neighbors = gm_theta[neighborhood]
+        phi_neighbors = gm_phi[neighborhood]
+        # calculate the distance matrix given theta/phi matricies
+        distances = np.sqrt(2-2*(
+                    sin(theta_neighbors)*sin(th)*cos(phi_neighbors-ph)+
+                    cos(theta_neighbors)*cos(th)))
+        # take the daynight (+1,-1) of the closest point
+        closest = distances==distances.min()
+        mapping = gm_mapping[neighborhood][closest][0]
+        # Save this value in an array
+        ie_mapping[i] = mapping
+    # Update the Tecplot state
+    ocflb.values('daynight')[::] = ie_mapping

@@ -2421,7 +2421,8 @@ def calc_ocflb_zone(name,source,**kwargs):
     keepzone.name = name+'_'+hemi
     badzones = [z for z in source.dataset.zones('*'+str(contour_level+
                                                         contour_offset)+'*')]
-    source.dataset.delete_zones(badzones)
+    if len(badzones)>0:
+        source.dataset.delete_zones(badzones)
     return keepzone
 
 def calc_terminator_zone(name, sp_zone, **kwargs):
