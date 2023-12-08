@@ -94,7 +94,7 @@ def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
         text.color = Color.White
     else:
         text.color = Color.Black
-    text.position = (2,2)
+    text.position = (2,4)
     # Save
     tp.save_png(os.path.join(outpath,'data/png/',
                              OUTPUTNAME+'.png'),width=1600)
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     #f='febstorm/3d__var_1_e20140219-055500-008.plt'
     if True:
         filetime = makevideo.get_time(filelist[0])
-        futuretime = makevideo.get_time(filelist[1])
+        #futuretime = makevideo.get_time(filelist[1])
         OUTPUTNAME = filelist[0].split('e')[-1].split('.')[0]
         if True:
             print('('+str(i)+') ',filetime)
@@ -140,7 +140,7 @@ if __name__ == "__main__":
             #mhddatafile = filelist
             #python objects
             #field_data = tp.data.load_tecplot(mhddatafile)
-            field_data = tp.data.load_tecplot(filelist[0:2])
+            field_data = tp.data.load_tecplot(filelist[0:1])
             field_data.zone(0).name = 'global_field'
             if len(field_data.zone_names)>1:
                 field_data.zone(1).name = 'future'
@@ -155,21 +155,21 @@ if __name__ == "__main__":
                                                         write_data=True,
                                                         disp_result=True,
                                     verbose=True,
-                                    do_cms=True,
-                                    do_central_diff=True,
-                                    analysis_type='energy',
+                                    do_cms=False,
+                                    do_central_diff=False,
+                                    analysis_type='energy_mass_mag',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
-                                    tail_cap=-100,
-                                    integrate_surface=False,
+                                    #tail_cap=-100,
+                                    integrate_surface=True,
                                     integrate_volume=True,
                                     truegridfile=oggridfile,
                                     outputpath=outpath)
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
-                future_iefile, _ = find_IE_matched_file(inpath,futuretime)
+                #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
                 if os.path.exists(iedatafile):
                     # IE data
                     dataset = tp.data.load_tecplot(iedatafile,
@@ -180,14 +180,14 @@ if __name__ == "__main__":
                     if dataset.zone('IonS*') is not None:
                         dataset.zone('IonS*').name = 'ionosphere_south'
                         do_south = True
-                    dataset = tp.data.load_tecplot(future_iefile,
-                                    read_data_option=ReadDataOption.Append)
-                    if dataset.zone('IonN*') is not None:
-                        dataset.zone('IonN*').name = 'future_ionosphere_north'
-                        do_north = True
-                    if dataset.zone('IonS*') is not None:
-                        dataset.zone('IonS*').name = 'future_ionosphere_south'
-                        do_south = True
+                    #dataset = tp.data.load_tecplot(future_iefile,
+                    #                read_data_option=ReadDataOption.Append)
+                    #if dataset.zone('IonN*') is not None:
+                    #    dataset.zone('IonN*').name = 'future_ionosphere_north'
+                    #    do_north = True
+                    #if dataset.zone('IonS*') is not None:
+                    #    dataset.zone('IonS*').name = 'future_ionosphere_south'
+                    #    do_south = True
                 if do_north*do_south:
                     ionosphere.get_ionosphere(dataset,
                                               verbose=True,
@@ -196,16 +196,16 @@ if __name__ == "__main__":
                                               analysis_type='mag',
                                               integrate_surface=True,
                                               integrate_line=False,
-                                              integrate_contour=False,
+                                              integrate_contour=True,
                                               do_interfacing=False,
-                                              do_cms=True,
-                                              do_central_diff=True,
+                                              do_cms=False,
+                                              do_central_diff=False,
                                               outputpath=outpath)
-                if False:
-                    save_gm_multi(['front_iso_status.sty',
-                                   'tail_iso_status.sty',
-                                   'front_iso_Knet.sty',
-                                   'north_eq_Kx.sty'],outpath,OUTPUTNAME,
+                if True:
+                    save_gm_multi(['status_forward.sty',
+                                   'energy_forward.sty',
+                                   'daynight_closed_side.sty',
+                                   'north_pc_rxn_busy.sty'],outpath,OUTPUTNAME,
                                    filetime)
 
     if '-c' in sys.argv:
