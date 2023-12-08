@@ -988,6 +988,9 @@ def croissant_trace(spherezone,**kwargs):
     return map_limits
 
 def get_daymapped_nightmapped(zone,**kwargs):
+    reversed_mapping(zone,1)
+
+def SECOND_get_daymapped_nightmapped(zone,**kwargs):
     phi_1min = zone.dataset.zone(0).aux_data['phi_min_north']
     phi_1max = zone.dataset.zone(0).aux_data['phi_max_north']
     phi_2min = zone.dataset.zone(0).aux_data['phi_min_south']

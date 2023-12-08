@@ -66,18 +66,18 @@ def post_proc_interface2(results,**kwargs):
                       if'&K2a' in k]:
         closed[base+'K2a'+unit]=(closed[base+'K5day&K2a'+unit]
                                       -mp[base+'K5day'+unit])
-    for base,unit in [k.split('K1day&K2a') for k in lobes.keys()
-                      if'&K2a' in k]:
-        lobes[base+'K2a'+unit]=(lobes[base+'K1day&K2a'+unit]
-                                      -mp[base+'K1day'+unit])
+    #for base,unit in [k.split('K1day&K2a') for k in lobes.keys()
+    #                  if'&K2a' in k]:
+    #    lobes[base+'K2a'+unit]=(lobes[base+'K1day&K2a'+unit]
+    #                                  -mp[base+'K1day'+unit])
     for base,unit in [k.split('K5night&K2b') for k in closed.keys()
                       if'&K2b' in k]:
         closed[base+'K2b'+unit]=(closed[base+'K5night&K2b'+unit]
                                       -mp[base+'K5night'+unit])
-    for base,unit in [k.split('K1night&K2b') for k in lobes.keys()
-                      if'&K2b' in k]:
-        lobes[base+'K2b'+unit]=(lobes[base+'K1night&K2b'+unit]
-                                      -mp[base+'K1night'+unit])
+    #for base,unit in [k.split('K1night&K2b') for k in lobes.keys()
+    #                  if'&K2b' in k]:
+    #    lobes[base+'K2b'+unit]=(lobes[base+'K1night&K2b'+unit]
+    #                                  -mp[base+'K1night'+unit])
     return results
 
 def post_proc_interface(results,**kwargs):
@@ -399,7 +399,7 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
             if 'not on_innerbound' in conditions:
                 new_eq+=('(abs({r [R]}['+condition_source+']-'+
                                str(kwargs.get('inner_r',3))+')>'+
-                           '{Cell Size [Re]}['+condition_source+']*0.75) &&')
+                           '{Cell Size [Re]}['+condition_source+']*1) &&')
             else:
                 new_eq+=('(abs({r [R]}['+condition_source+']-'+
                                str(kwargs.get('inner_r',3))+')<'+
@@ -431,15 +431,15 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
                     new_eq+=('({daymapped_'+kwargs.get('target')+'}'+
                               '['+condition_source+']>0)&&')
                 else:
-                    new_eq+=('({daymapped}'+
-                              '['+condition_source+']>0)&&')
+                    new_eq+=('({daynight}'+
+                              '['+condition_source+']==1)&&')
             if 'nightmapped' in conditions:
                 if 'lobe' in kwargs.get('target'):
                     new_eq+=('({nightmapped_'+kwargs.get('target')+'}'+
                               '['+condition_source+']>0)&&')
                 else:
-                    new_eq+=('({nightmapped}'+
-                              '['+condition_source+']>0)&&')
+                    new_eq+=('({daynight}'+
+                              '['+condition_source+']<1)&&')
         #Y+-
         if ('y+' in conditions) or ('y-' in conditions):
             if 'y+' in conditions:
@@ -480,7 +480,7 @@ def get_interface_integrands(zone,integrands,**kwargs):
         target = zone.name.split('ms_')[-1]
         dotail='not tail'
     # Check that we actually have the day/night mapping variables available
-    if 'daymapped' not in zone.dataset.variable_names:
+    if 'daynight' not in zone.dataset.variable_names:
         skip_daynightmapping = True
     else:
         skip_daynightmapping = False
@@ -499,17 +499,17 @@ def get_interface_integrands(zone,integrands,**kwargs):
                                          ['open',dotail],'K1',**kwargs,
                                           target=target))
         # K1_day
-        if not skip_daynightmapping:
-            interfaces.update(conditional_mod(zone,integrands,
-                                          ['open','daymapped',dotail],
-                                          'K1day',**kwargs,
-                                          target=target))
+        #if not skip_daynightmapping:
+        #    interfaces.update(conditional_mod(zone,integrands,
+        #                                  ['open','daymapped',dotail],
+        #                                  'K1day',**kwargs,
+        #                                  target=target))
         # K1_night
-        if not skip_daynightmapping:
-            interfaces.update(conditional_mod(zone,integrands,
-                                         ['open','nightmapped',dotail],
-                                          'K1night',**kwargs,
-                                          target=target))
+        #if not skip_daynightmapping:
+        #    interfaces.update(conditional_mod(zone,integrands,
+        #                                 ['open','nightmapped',dotail],
+        #                                  'K1night',**kwargs,
+        #                                  target=target))
         # K5
         interfaces.update(conditional_mod(zone,integrands,
                                        ['closed',dotail],'K5',**kwargs,
@@ -580,50 +580,56 @@ def get_interface_integrands(zone,integrands,**kwargs):
     if ('sphere' in target):
         #Poles
         #interfaces.update(conditional_mod(zone,integrands,['open'],'Poles'))
+        if 'north' in target:
+            interfaces.update(conditional_mod(zone,integrands,
+                                         ['openN'],'PolesN',**kwargs))
+        if 'south' in target:
+            interfaces.update(conditional_mod(zone,integrands,
+                                         ['openS'],'PolesS',**kwargs))
         #Poles dayside only
-        if 'north' in target:
-            if not skip_daynightmapping:
-                interfaces.update(conditional_mod(zone,integrands,
-                                        ['openN','day'],'PolesDayN',**kwargs))
-        elif 'south' in target:
-            if not skip_daynightmapping:
-                interfaces.update(conditional_mod(zone,integrands,
-                                        ['openS','day'],'PolesDayS',**kwargs))
-        else:
-            if not skip_daynightmapping:
-                interfaces.update(conditional_mod(zone,integrands,
-                                        ['openN','day'],'PolesDayN',**kwargs))
-                interfaces.update(conditional_mod(zone,integrands,
-                                        ['openS','day'],'PolesDayS',**kwargs))
+        #if 'north' in target:
+        #    if not skip_daynightmapping:
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                                ['openN','day'],'PolesDayN',**kwargs))
+        #elif 'south' in target:
+        #    if not skip_daynightmapping:
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                                ['openS','day'],'PolesDayS',**kwargs))
+        #else:
+        #    if not skip_daynightmapping:
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                                ['openN','day'],'PolesDayN',**kwargs))
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                                ['openS','day'],'PolesDayS',**kwargs))
         #Poles nightside only
-        if 'north' in target:
-            if not skip_daynightmapping:
-                interfaces.update(conditional_mod(zone,integrands,
-                                 ['openN','night'],'PolesNightN',**kwargs))
-        elif 'south' in target:
-            if not skip_daynightmapping:
-                interfaces.update(conditional_mod(zone,integrands,
-                                 ['openS','night'],'PolesNightS',**kwargs))
-        else:
-            if not skip_daynightmapping:
-                interfaces.update(conditional_mod(zone,integrands,
-                                 ['openN','night'],'PolesNightN',**kwargs))
-                interfaces.update(conditional_mod(zone,integrands,
-                                 ['openS','night'],'PolesNightS',**kwargs))
+        #if 'north' in target:
+        #    if not skip_daynightmapping:
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                         ['openN','night'],'PolesNightN',**kwargs))
+        #elif 'south' in target:
+        #    if not skip_daynightmapping:
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                         ['openS','night'],'PolesNightS',**kwargs))
+        #else:
+        #    if not skip_daynightmapping:
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                         ['openN','night'],'PolesNightN',**kwargs))
+        #        interfaces.update(conditional_mod(zone,integrands,
+        #                         ['openS','night'],'PolesNightS',**kwargs))
     ##Lobes
     if 'lobe' in target:
         # K1_day+K2a
-        if not skip_daynightmapping:
-            interfaces.update(conditional_mod(zone,integrands,
-                            ['daymapped','not on_innerbound','not tail'],
-                                          'K1day&K2a',**kwargs,
-                                          target=target))
-        # K1_night+K2b
-        if not skip_daynightmapping:
-            interfaces.update(conditional_mod(zone,integrands,
-                            ['nightmapped','not on_innerbound','not tail'],
-                                          'K1night&K2b',**kwargs,
-                                          target=target))
+        #if not skip_daynightmapping:
+        #    interfaces.update(conditional_mod(zone,integrands,
+        #                    ['daymapped','not on_innerbound','not tail'],
+        #                                  'K1day&K2a',**kwargs,
+        #                                  target=target))
+        ## K1_night+K2b
+        #if not skip_daynightmapping:
+        #    interfaces.update(conditional_mod(zone,integrands,
+        #                    ['nightmapped','not on_innerbound','not tail'],
+        #                                  'K1night&K2b',**kwargs,
+        #                                  target=target))
         # K3
         interfaces.update(conditional_mod(zone,integrands,
                                           ['on_innerbound'],'K3',**kwargs,
@@ -905,9 +911,12 @@ def surface_analysis(zone, **kwargs):
         kwargs.get('surfGeom',False)):
         get_surf_geom_variables(zone)
     get_surface_variables(zone, analysis_type, **kwargs)
-    if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
-                                               zone.dataset.variable_names):
-        get_daymapped_nightmapped(zone)
+    '''
+    if 'lobe' not in zone.name:
+        if (kwargs.get('do_interfacing',False) and
+            'phi_1 [deg]' in zone.dataset.variable_names):
+            get_daymapped_nightmapped(zone)
+    '''
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
     ###################################################################

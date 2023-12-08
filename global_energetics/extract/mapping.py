@@ -35,8 +35,8 @@ def check_bin(x,theta_1,phi_1,inbin,state):
         inbin (arr[float])
         state (arr[float])
     Return
-        qs (list[list[bools]]) - quarters of the original bin
-        contested
+        qs (list[list[bools]]) - quadrants of the original bin
+        contested (bool) - if the quads agree about daynight
     """
     thHigh = theta_1[inbin].max()
     thLow = theta_1[inbin].min()
@@ -73,7 +73,10 @@ def reversed_mapping(gmzone,state_var,**kwargs):
     # Convert theta/phi mapping variable into cartesian footpoint values
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     # Pull some data from tecplot-> numpy
-    state = gmzone.values(state_var).as_numpy_array()
+    if state_var==1:
+        state = 1
+    else:
+        state = gmzone.values(state_var).as_numpy_array()
     theta_1 = gmzone.values('theta_1 *').as_numpy_array()
     phi_1 = gmzone.values('phi_1 *').as_numpy_array()
     volume = gmzone.values('dvol *').as_numpy_array()
@@ -86,9 +89,11 @@ def reversed_mapping(gmzone,state_var,**kwargs):
             gmzone.dataset.add_variable('mapID')
         mapID = gmzone.values('mapID').as_numpy_array()
     daynight = gmzone.values('daynight').as_numpy_array()
+    # Create an initial set of coarse bins
     theta_bins = np.linspace(0,90,10)
     phi_bins = np.linspace(0,360,37)
     k=0
+    # Iterate through each bin
     for i,thHigh in enumerate(theta_bins[1::]):
         for j,phHigh in enumerate(phi_bins[1::]):
             thLow = theta_bins[i-1]
@@ -99,6 +104,7 @@ def reversed_mapping(gmzone,state_var,**kwargs):
                       (phi_1<phHigh)&
                       (phi_1>phLow))
             if any(inbins):
+                # Subdivide bin until 4 subquadrants agree
                 finished_bins = []
                 contested_bins = [inbins]
                 i=0
@@ -119,6 +125,7 @@ def reversed_mapping(gmzone,state_var,**kwargs):
                         for q in qs:
                             finished_bins.append(q)
                         contested_bins = []
+                # Now actually set the values using the finished_bin list
                 for inbin in finished_bins:
                     dayside,nightside,split = 0,0,False
                     k+=1
@@ -142,26 +149,8 @@ def reversed_mapping(gmzone,state_var,**kwargs):
                           phLow,phHigh,
                           x[inbins].min(),x[inbins].max(),
                           '\tday:',dayside,'\tnight:',nightside)
-                #if i>1:
-                #    from IPython import embed; embed()
+    # Set the values in Tecplot from our numpy array
     gmzone.values('daynight')[::] = daynight
     if kwargs.get('debug',False):
         gmzone.values('mapID')[::] = mapID
 
-
-
-    #TODO
-    #   A new section where we
-    #       combine GM and IE
-    #       Rotate IE to GSM
-    #       using inputs from IEzone+singleGMzone
-    #           for k,ie_point:
-    #               if ie_point not matched w GMzone:
-    #                   skip
-    #               else
-    #                   gm_index = where[th/phi in close]
-    #                   xl,xu = X_gm[gm_index].minmax
-    #                   '' for y and z too
-    #               set {daymapped} for all index (in GM)
-    #               set {xyzl,xyzu} for ie[k]
-    #               derive {daymapped} for ie from above

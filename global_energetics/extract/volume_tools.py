@@ -257,14 +257,10 @@ def get_volume_trades(zone,integrands,**kwargs):
     if not skip_daynightmapping:
         dayclosed = '({daymapped}==1&&{lcb}==1)'
         nightclosed = '({nightmapped}==1&&{lcb}==1)'
-        daylobes = ('(({daymapped_nlobe}==1&&{NLobe}==1) ||'+
-                 '({daymapped_slobe}==1&&{SLobe}==1)   )')
-        nightlobes = ('(({nightmapped_nlobe}==1&&{NLobe}==1) ||'+
-                  '({nightmapped_slobe}==1&&{SLobe}==1)   )')
-        daylobeN = '({daymapped_nlobe}==1&&{NLobe}==1)'
-        nightlobeN = '({nightmapped_nlobe}==1&&{NLobe}==1)'
-        daylobeS = '({daymapped_slobe}==1&&{SLobe}==1)'
-        nightlobeS = '({nightmapped_slobe}==1&&{SLobe}==1)'
+        lobes = ('(({NLobe}==1) ||'+
+                 '({SLobe}==1)   )')
+        lobeN = '({NLobe}==1)'
+        lobeS = '({SLobe}==1)'
     # Closed
     if ('lcb' in state_name and 'lcb' in zone.dataset.variable_names and
          not skip_daynightmapping):
@@ -274,46 +270,39 @@ def get_volume_trades(zone,integrands,**kwargs):
         tradelist.append(make_trade_eq(nightclosed,ext,'M5b',tdelta))
         if ('NLobe' in zone.dataset.variable_names and
             'SLobe' in zone.dataset.variable_names):
-            #M2a    from  day_closed    ->  day_lobes
-            #M2b    from  night_closed  <-  night_lobes
-            #M2c    from  day_closed    <-  night_lobes
-            #M2d    from  night_closed  <-  day_lobes
-            tradelist.append(make_trade_eq(dayclosed,daylobes,'M2a',tdelta))
-            tradelist.append(make_trade_eq(dayclosed,nightlobes,'M2c',tdelta))
+            #M2a    from  day_closed    ->  lobes
+            #M2b    from  night_closed  ->  lobes
+            tradelist.append(make_trade_eq(dayclosed,lobes,'M2a',tdelta))
+            tradelist.append(make_trade_eq(nightclosed,lobes,'M2b',tdelta))
+            #tradelist.append(make_trade_eq(dayclosed,nightlobes,'M2c',tdelta))
         #Mic    from  day_closed    <-  night_closed
         tradelist.append(make_trade_eq(nightclosed,dayclosed,'Mic',tdelta))
     # North Lobe
     if ('NLobe' in zone.dataset.variable_names and 'NLobe' in state_name and
          not skip_daynightmapping):
-        #M1a    from  day_lobeN     ->  ext
-        #M1b    from  night_lobeN   ->  ext
-        tradelist.append(make_trade_eq(daylobeN,ext,'M1a',tdelta))
-        tradelist.append(make_trade_eq(nightlobeN,ext,'M1b',tdelta))
+        #M1    from  lobeN     ->  ext
+        tradelist.append(make_trade_eq(lobeN,ext,'M1',tdelta))
+        #tradelist.append(make_trade_eq(nightlobeN,ext,'M1b',tdelta))
         if 'lcb' in zone.dataset.variable_names:
-            #M2a    from  day_lobeN     <-  day_closed
-            #M2b    from  night_lobeN   ->  night_closed
-            #M2c    from  day_closed    <-  night_lobes
-            #M2d    from  night_closed  <-  day_lobes
-            tradelist.append(make_trade_eq(nightlobeN,nightclosed,'M2b',tdelta))
-            tradelist.append(make_trade_eq(daylobeN,nightclosed,'M2d',tdelta))
-        #Mil    from  day_lobeN     ->  night_lobeN
-        tradelist.append(make_trade_eq(daylobeN,nightlobeN,'Mil',tdelta))
+            #M2a    from  lobeN         <-  day_closed
+            #M2b    from  lobeN         ->  night_closed
+            #tradelist.append(make_trade_eq(lobeN,nightclosed,'M2b',tdelta))
+            #tradelist.append(make_trade_eq(daylobeN,nightclosed,'M2d',tdelta))
+            pass
+        #tradelist.append(make_trade_eq(daylobeN,nightlobeN,'Mil',tdelta))
     # South Lobe
     if ('SLobe' in zone.dataset.variable_names and 'SLobe' in state_name and
          not skip_daynightmapping):
-        #M1a    from  day_lobeS     ->  ext
-        #M1b    from  night_lobeS   ->  ext
-        tradelist.append(make_trade_eq(daylobeS,ext,'M1a',tdelta))
-        tradelist.append(make_trade_eq(nightlobeS,ext,'M1b',tdelta))
+        #M1    from  lobeS     ->  ext
+        tradelist.append(make_trade_eq(lobeS,ext,'M1',tdelta))
+        #tradelist.append(make_trade_eq(nightlobeS,ext,'M1b',tdelta))
         if 'lcb' in zone.dataset.variable_names:
-            #M2a    from  day_lobeS     <-  day_closed
-            #M2b    from  night_lobeS   ->  night_closed
-            #M2c    from  day_closed    <-  night_lobes
-            #M2d    from  night_closed  <-  day_lobes
-            tradelist.append(make_trade_eq(nightlobeS,nightclosed,'M2b',tdelta))
-            tradelist.append(make_trade_eq(daylobeS,nightclosed,'M2d',tdelta))
-        #Mil    from  day_lobeS     ->  night_lobeS
-        tradelist.append(make_trade_eq(daylobeS,nightlobeS,'Mil',tdelta))
+            #M2a    from  lobeS     <-  day_closed
+            #M2b    from  lobeS     ->  night_closed
+            #tradelist.append(make_trade_eq(lobeS,nightclosed,'M2b',tdelta))
+            #tradelist.append(make_trade_eq(daylobeS,nightclosed,'M2d',tdelta))
+            pass
+        #tradelist.append(make_trade_eq(daylobeS,nightlobeS,'Mil',tdelta))
     # Debug trades (linear combinations of above, for testing only!)
     if 'mp' in state_name:
         lobes = '({NLobe}==1 || {SLobe}==1)'
