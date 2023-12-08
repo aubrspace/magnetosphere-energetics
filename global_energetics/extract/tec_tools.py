@@ -2423,7 +2423,9 @@ def calc_ocflb_zone(name,source,**kwargs):
                                                         contour_offset)+'*')]
     if len(badzones)>0:
         source.dataset.delete_zones(badzones)
-    return keepzone
+        #NOTE deleting zones can f up the reference to keepzone so must
+        #      re-establish the variable after the delete zone operation
+    return source.dataset.zone(name+'_'+hemi)
 
 def calc_terminator_zone(name, sp_zone, **kwargs):
     """ Function takes spherical zone and creates zones for the north and

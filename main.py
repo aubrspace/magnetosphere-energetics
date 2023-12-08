@@ -126,23 +126,21 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist[-1::]):
+    #for k,f in enumerate(filelist[0:1]):
     #k=0
     #f='febstorm/3d__var_1_e20140219-055500-008.plt'
-    #if True:
-        filetime = makevideo.get_time(f)
-        OUTPUTNAME = f.split('e')[-1].split('.')[0]
-        tp.new_layout()
-        tp.load_layout('plsDELETE.lay')
+    if True:
+        filetime = makevideo.get_time(filelist[0])
+        futuretime = makevideo.get_time(filelist[1])
+        OUTPUTNAME = filelist[0].split('e')[-1].split('.')[0]
         if True:
-            '''
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            mhddatafile = f
+            #mhddatafile = filelist
             #python objects
-            field_data = tp.data.load_tecplot(mhddatafile)
-            #field_data = tp.data.load_tecplot(filelist[0::2])
+            #field_data = tp.data.load_tecplot(mhddatafile)
+            field_data = tp.data.load_tecplot(filelist[0:2])
             field_data.zone(0).name = 'global_field'
             if len(field_data.zone_names)>1:
                 field_data.zone(1).name = 'future'
@@ -150,15 +148,15 @@ if __name__ == "__main__":
             main.name = 'main'
 
             #Perform data extraction
-            '''
             with tp.session.suspend():
-                '''
                 # GM data
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                                         write_data=True,
                                                         disp_result=True,
                                     verbose=True,
+                                    do_cms=True,
+                                    do_central_diff=True,
                                     analysis_type='energy',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
@@ -166,13 +164,12 @@ if __name__ == "__main__":
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
                                     tail_cap=-100,
-                                    integrate_surface=True,
+                                    integrate_surface=False,
                                     integrate_volume=True,
                                     truegridfile=oggridfile,
                                     outputpath=outpath)
-                '''
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
-                future_iefile, _ = find_IE_matched_file(inpath,nexttime)
+                future_iefile, _ = find_IE_matched_file(inpath,futuretime)
                 if os.path.exists(iedatafile):
                     # IE data
                     dataset = tp.data.load_tecplot(iedatafile,
@@ -199,7 +196,7 @@ if __name__ == "__main__":
                                               analysis_type='mag',
                                               integrate_surface=True,
                                               integrate_line=False,
-                                              integrate_contour=True,
+                                              integrate_contour=False,
                                               do_interfacing=False,
                                               do_cms=True,
                                               do_central_diff=True,

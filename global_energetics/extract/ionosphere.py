@@ -23,7 +23,8 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     calc_ocflb_zone,
                                                     get_global_variables)
 from global_energetics.extract.equations import (get_dipole_field)
-from global_energetics.extract.mapping import port_mapping_to_ie
+from global_energetics.extract.mapping import (port_mapping_to_ie,
+                                               surface_condition_map_to_ie)
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 
@@ -206,10 +207,16 @@ def rotate_xyz(zones,angle,**kwargs):
     eq('{Xd [R]} = {X [R]}',zones=zones)
     eq('{Zd [R]} = {Z [R]}',zones=zones)
     # Update xyz
+    '''
     eq('{X [R]} = '+mXhat_x+'*({Xd [R]}*'+mXhat_x+'+{Zd [R]}*'+mXhat_z+')',
                                                                  zones=zones)
     eq('{Z [R]} = '+mZhat_z+'*({Xd [R]}*'+mZhat_x+'+{Zd [R]}*'+mZhat_z+')',
                                                                  zones=zones)
+    '''
+    a = str((-angle)*pi/180)
+    eq('{X [R]} = cos('+a+')*{Xd [R]}+sin('+a+')*{Zd [R]}',zones=zones)
+    eq('{Z [R]} = -sin('+a+')*{Xd [R]}+cos('+a+')*{Zd [R]}',zones=zones)
+
     # Update dirctions of other vectors
     for base in ['E','J','U']:
         if zones[0].dataset.variable(base+'x*') is not None:
@@ -533,17 +540,14 @@ def get_ionosphere(dataset,**kwargs):
     zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
     zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
     if kwargs.get('do_cms',False):
-        future_North = dataset.zone('future_ionosphere_north')
-        future_South = dataset.zone('future_ionosphere_south')
+        futureNorth = dataset.zone('future_ionosphere_north')
+        futureSouth = dataset.zone('future_ionosphere_south')
     tp.active_frame().plot_type = PlotType.Cartesian3D
     data_to_write={}
     if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
         #zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
         aux = zoneGM.aux_data
-        if kwargs.get('do_cms',False):
-            futureGM = dataset.zone(kwargs.get('zoneGM','future'))
-            futureaux = futureGM.aux_data
         if 'eventtime' in kwargs:
             eventtime = kwargs.get('eventtime')
         # Map sphere onto Z aligned IE data
@@ -553,12 +557,26 @@ def get_ionosphere(dataset,**kwargs):
         #blank_and_interpolate(zoneSphere,zoneNorth,'North')
         #blank_and_interpolate(zoneSphere,zoneSouth,'South')
         # Rotate IE_xyz(SM) to GM_xyz(GSM)
+        if kwargs.get('do_cms',False):
+            # Find the places where Status chagnes between two time steps
+            eq = tp.data.operate.execute_equation
+            old = str(zoneNorth.index+1)
+            new = str(futureNorth.index+1)
+            eq('{changeFlux} = if(({RT 1/B [1/T]}['+old+']<-1)&&'+
+                                 '({RT 1/B [1/T]}['+new+']>-1),1,'+
+                           'if(({RT 1/B [1/T]}['+new+']<-1)&&'+
+                              '({RT 1/B [1/T]}['+old+']>-1),-1,0))',
+                              zones=[zoneNorth])
+            old = str(zoneSouth.index+1)
+            new = str(futureSouth.index+1)
+            eq('{changeFlux} = if(({RT 1/B [1/T]}['+old+']<-1)&&'+
+                                 '({RT 1/B [1/T]}['+new+']>-1),1,'+
+                           'if(({RT 1/B [1/T]}['+new+']<-1)&&'+
+                              '({RT 1/B [1/T]}['+old+']>-1),-1,0))',
+                              zones=[zoneSouth])
+            dataset.delete_zones([futureNorth,futureSouth])
         rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
         match_variable_names([zoneNorth,zoneSouth])
-        if kwargs.get('do_cms',False):
-            rotate_xyz([future_North,future_South],
-                       float(futureaux['BTHETATILT']))
-            match_variable_names([future_North,future_South])
         #rotate_xyz([zoneNorth,zoneSphere],float(aux['BTHETATILT']))
         #match_variable_names([zoneNorth])
         #check_edges(zoneNorth,'North')
@@ -589,10 +607,13 @@ def get_ionosphere(dataset,**kwargs):
         port_mapping_to_ie(north_ocflb,dataset.zone(0),**kwargs)
         port_mapping_to_ie(south_ocflb,dataset.zone(0),**kwargs)
         if kwargs.get('do_cms',False):
-            future_n_ocflb = calc_ocflb_zone('ocflb',futureNorth,hemi='North')
-            future_s_ocflb = calc_ocflb_zone('ocflb',futureSouth,hemi='South')
-            port_mapping_to_ie(future_n_ocflb,dataset.zone(0),**kwargs)
-            port_mapping_to_ie(future_s_ocflb,dataset.zone(0),**kwargs)
+            pass
+            #future_n_ocflb = calc_ocflb_zone('future_ocflb',futureNorth,
+            #                                 hemi='North')
+            #future_s_ocflb = calc_ocflb_zone('future_ocflb',futureSouth,
+            #                                 hemi='South')
+            #port_mapping_to_ie(future_n_ocflb,dataset.zone(0),**kwargs)
+            #port_mapping_to_ie(future_s_ocflb,dataset.zone(0),**kwargs)
         if not kwargs.get('do_cms',False):
             # Integrate along the contour boundary
             line_results = line_tools.line_analysis(north_ocflb,**kwargs)
@@ -603,6 +624,10 @@ def get_ionosphere(dataset,**kwargs):
             data_to_write.update({zoneSouth.name+'_line':line_results})
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:
+            if kwargs.get('do_cms',False):
+                # Reversemap the changeFlux points to get daynight
+                surface_condition_map_to_ie(zone,'changeFlux',zoneGM,
+                                            dataset.zone('future'),**kwargs)
             #integrate power on created surface
             print('\nWorking on: '+zone.name+' surface')
             surf_results = surface_tools.surface_analysis(zone,surfGeom=True,

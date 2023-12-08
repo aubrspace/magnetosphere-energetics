@@ -878,6 +878,19 @@ def get_virial_dict(zone):
     '''
     return virial_dict
 
+def get_traded_dict(zone,**kwargs):
+    daynight_dict, eq = {}, tp.data.operate.execute_equation
+    tdelta = str(kwargs.get('tdelta',60))
+    if kwargs.get('do_central_diff',False):
+        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    qty = 'abs({Bf_net [Wb/Re^2]})'
+    eq('{Bf_netDay} = if({daynight}==1,{changeFlux}*'+qty+'/'+tdelta+',0)',
+                                                                 zones=[zone])
+    eq('{Bf_netNight} = if({daynight}<1,{changeFlux}*'+qty+'/'+tdelta+',0)',
+                                                                 zones=[zone])
+    return {'Bf_netDay':'Bf_netDay [Wb/s]',
+            'Bf_netNight':'Bf_netNight [Wb/s]'}
+
 def get_surface_trades(zone,integrands,**kwargs):
     tdelta = str(kwargs.get('tdelta',60))
     if kwargs.get('do_central_diff',False):
@@ -982,8 +995,8 @@ def surface_analysis(zone, **kwargs):
         if 'ionosphere' in zone.name and kwargs.get('doOpenClose',True):
             integrands.update(get_open_close_integrands(zone, integrands))
             if kwargs.get('do_cms',False):
-                get_surface_trades(zone,integrands,**kwargs)
-                pass
+                #get_surface_trades(zone,integrands,**kwargs)
+                integrands.update(get_traded_dict(zone,**kwargs))
     ###################################################################
     #Evaluate integrals
     if kwargs.get('verbose',False):
