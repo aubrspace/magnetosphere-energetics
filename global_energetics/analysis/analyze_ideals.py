@@ -325,16 +325,21 @@ def common_x_lineup(event,ev,**kwargs):
     print('\033[92m Created\033[00m',figurename)
 
 def test_matrix(event,ev,path):
+    timedelta = [t-T0 for t in dataset[event]['obs']['swmf_log'].index]
+    times = [float(n.to_numpy()) for n in timedelta]
+    interval_list =build_interval_list(TSTART,DT,TJUMP,dataset[event]['time'])
     #############
     #setup figure
-    matrix,(axis) =plt.subplots(1,1,figsize=[20,8],sharex=True)
+    matrix,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
     axis.plot(ev['swt'],ev['sw']['by'],label='by')
     axis.plot(ev['swt'],ev['sw']['bz'],label='bz')
     axis.fill_between(ev['swt'],np.sqrt(ev['sw']['by']**2+ev['sw']['bz']**2),
                                         fc='grey',label='B')
-
-    general_plot_settings(axis,do_xlabel=True,legend=True,
+    axis2.plot(times,dataset[event]['obs']['swmf_log']['dst_sm'],label=event)
+    general_plot_settings(axis,do_xlabel=False,legend=True,
                           ylabel=r'IMF $\left[nT\right]$',timedelta=True)
+    general_plot_settings(axis2,do_xlabel=True,legend=True,
+                          ylabel=r'Dst $\left[nT\right]$',timedelta=True)
     axis.margins(x=0.01)
     matrix.tight_layout(pad=1)
     figurename = path+'/matrix'+event+'.png'
@@ -344,7 +349,7 @@ def test_matrix(event,ev,path):
 
 def indices(dataset,path):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
-                                       dataset['HIGHnHIGHu']['time'])
+                                       dataset['MEDnHIGHu']['time'])
     #############
     #setup figure
     indices,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
@@ -358,14 +363,17 @@ def indices(dataset,path):
         axis.plot(times,
                   dataset[event]['obs']['swmf_log']['dst_sm'],
                   label=event)
-        axis2.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
-                   label=event)
+        axis2.plot(times,
+                  dataset[event]['obs']['swmf_log']['cpcpn'],
+                  label=event)
+        #axis2.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
+        #           label=event)
     for interv in interval_list:
         axis.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
         axis2.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                       c='grey')
 
-    general_plot_settings(axis,do_xlabel=True,legend=True,
+    general_plot_settings(axis,do_xlabel=False,legend=True,
                           ylabel=r'Dst $\left[nT\right]$',timedelta=True)
     general_plot_settings(axis2,do_xlabel=True,legend=True,
                           ylabel=r'SML $\left[nT\right]$',timedelta=True)
@@ -522,6 +530,34 @@ def external_flux_timeseries(event,times,
     plt.close(flavors_external)
     print('\033[92m Created\033[00m',figurename)
     #############
+
+def scatter_rxn_energy(ev):
+    #setup figure
+    scatter_rxn,(axis) =plt.subplots(1,1,figsize=[20,20])
+    #Plot
+    X = ev['RXN_Day']/1e3
+    Y = ev['K1']/1e12
+    axis.scatter(X,Y,s=200)
+    slope,intercept,r,p,stderr = linregress(X,Y)
+    R2 = r**2
+    linelabel = (f'-K1 Flux [TW]:{slope:.2f}Ein [TW], R2={R2:.2f}')
+    axis.plot(X,(intercept+X*slope),
+                      label=linelabel,color='grey', ls='--')
+    #Decorations
+    #axis.set_ylim([-5,25])
+    #axis.set_xlim([-5,25])
+    axis.axhline(0,c='black')
+    axis.axvline(0,c='black')
+    axis.axline((0,0),(1,1),ls='--',c='grey')
+    #axis.set_ylabel(r'-Integrated K1+K5 Flux $\left[ TW\right]$')
+    axis.set_ylabel(r'Dayside Reconnection Rate $\left[Wb/s\right]$')
+    axis.set_xlabel(r'Int. Energy Flux $\left[TW\right]$')
+    axis.legend()
+    scatter_rxn.tight_layout(pad=1)
+    figurename = path+'/scatter_rxn.png'
+    scatter_rxn.savefig(figurename)
+    plt.close(scatter_rxn)
+    print('\033[92m Created\033[00m',figurename)
 
 def scatter_Ein_compare(tave):
     #############
@@ -889,7 +925,7 @@ def energy_vs_polarcap(ev,event,path):
                                                   sharex=True)
     #Plot
     Ulobe.plot(ev['times'],ev['Ulobes']/1e15,label='Utot')
-    PCflux.plot(ev['ie_times'],ev['ie_allFlux']/1e9,label='PCFlux')
+    PCflux.plot(ev['ie_times'],ev['ie_flux']/1e9,label='PCFlux')
     K3.plot(ev['times'],ev['Ks3']/1e12,label='K3')
     #Decorate
     for interv in interval_list:
@@ -930,10 +966,8 @@ def mpflux_vs_rxn(ev,event,path):
     #Plot
     K5_K1.plot(ev['times'],ev['K5']/1e12,label='K5')
     K5_K1.plot(ev['times'],ev['K1']/1e12,label='K1')
-    DayRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
-                                ev['rxnDay_north'])/1e3,label='Day')
-    NightRxn.plot(ev['ie_times'],(ev['rxnNight_south']+
-                                  ev['rxnNight_north'])/1e3,label='Night')
+    DayRxn.plot(ev['ie_times'],ev['RXN_Day']/1e3,label='Day')
+    NightRxn.plot(ev['ie_times'],ev['RXN_Night']/1e3,label='Night')
     #Decorate
     for interv in interval_list:
         K5_K1.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
@@ -950,9 +984,11 @@ def mpflux_vs_rxn(ev,event,path):
                           timedelta=True)
     general_plot_settings(DayRxn,do_xlabel=False,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
+                          ylim=[-700,700],
                           timedelta=True)
     general_plot_settings(NightRxn,do_xlabel=True,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
+                          ylim=[-700,700],
                           timedelta=True)
     K5_K1.margins(x=0.01)
     DayRxn.margins(x=0.01)
@@ -964,58 +1000,93 @@ def mpflux_vs_rxn(ev,event,path):
     plt.close(Kmp_rxn)
     print('\033[92m Created\033[00m',figurename)
 
-def internalflux_vs_rxn(ev,event,path):
+def internalflux_vs_rxn(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
                                         ev['mp'].index)
     #############
     #setup figure
-    Kinternal_rxn,(K2a_K2b,DayRxn,NightRxn,NetRxn) = plt.subplots(4,1,
-                                                              figsize=[20,20],
+    Kinternal_rxn,(K15,K2a_K2b,DayRxn,NightRxn,NetRxn,al) = plt.subplots(6,1,
+                                                              figsize=[20,28],
                                                               sharex=True)
+    inddelta = [t-T0 for t in dataset[event]['obs']['swmf_index'].index]
+    indtimes = [float(n.to_numpy()) for n in inddelta]
+    al_values = dataset[event]['obs']['swmf_index']['AL']
+    if 'zoom' in kwargs:
+        #zoom
+        zoom = kwargs.get('zoom')
+        zoomed = {}
+        for key in ev.keys():
+            if len(zoom)==len(ev[key]):
+                zoomed[key] = np.array(ev[key])[zoom]
+        ev = zoomed
+        inddelta = [t-T0 for t in dataset[event]['obs']['swmf_index'].index if
+                 (t>dt.datetime(2022,6,7,8,0))and(t<dt.datetime(2022,6,7,10))]
+        indtimes = [float(n.to_numpy()) for n in inddelta]
+        al_values = dataset[event]['obs']['swmf_index']['AL']
+        al_values = al_values[(al_values.index>dt.datetime(2022,6,7,8))&
+                              (al_values.index<dt.datetime(2022,6,7,10))]
     #Plot
-    K2a_K2b.plot(ev['times'],ev['K2a']/1e12,label='K2a')
-    K2a_K2b.plot(ev['times'],ev['K2b']/1e12,label='K2b')
-    DayRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
-                                ev['rxnDay_north'])/1e3,label='Day')
-    NightRxn.plot(ev['ie_times'],(ev['rxnNight_south']+
-                                  ev['rxnNight_north'])/1e3,label='Night')
-    NetRxn.plot(ev['ie_times'],(ev['rxnDay_south']+
-                                ev['rxnDay_north']+
-                                ev['rxnNight_south']+
-                                ev['rxnNight_north'])/1e3,label='NetRxn')
+    K15.plot(ev['times'],ev['K5']/1e12,label='K5 (ClosedMP)')
+    K15.plot(ev['times'],ev['K1']/1e12,label='K1 (OpenMP)')
+    K2a_K2b.plot(ev['times'],ev['K2a']/1e12,label='K2a (Cusp)')
+    K2a_K2b.plot(ev['times'],ev['K2b']/1e12,label='K2b (Plasmasheet)')
+    DayRxn.fill_between(ev['ie_times'],ev['RXN_Day']/1e3,label='Day',color='dimgrey')
+    NightRxn.fill_between(ev['ie_times'],ev['RXN_Night']/1e3,label='Night',color='purple')
+    NetRxn.fill_between(ev['ie_times'],ev['RXN']/1e3,label='NetRxn',color='black')
+    al.plot(indtimes,al_values,label=event)
     #Decorate
-    for interv in interval_list:
-        K2a_K2b.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
-                      c='grey')
-        DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
-                      c='grey')
-        NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
-                      c='grey')
-        NetRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
-                      c='grey')
-        K2a_K2b.axhline(0,c='black')
-        DayRxn.axhline(0,c='black')
-        NightRxn.axhline(0,c='black')
-        NetRxn.axhline(0,c='black')
+    if 'zoom' not in kwargs:
+        for interv in interval_list:
+            K15.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                            c='grey')
+            K2a_K2b.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                            c='grey')
+            DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                            c='grey')
+            NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                            c='grey')
+            NetRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                            c='grey')
+            al.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                            c='grey')
+    K15.axhline(0,c='black')
+    K2a_K2b.axhline(0,c='black')
+    DayRxn.axhline(0,c='black')
+    NightRxn.axhline(0,c='black')
+    NetRxn.axhline(0,c='black')
+    al.axhline(0,c='black')
+    general_plot_settings(K15,do_xlabel=False,legend=True,
+                          ylabel=r'Int. Energy Flux $\left[TW\right]$',
+                          timedelta=True,legend_loc='upper left')
     general_plot_settings(K2a_K2b,do_xlabel=False,legend=True,
                           ylabel=r'Int. Energy Flux $\left[TW\right]$',
                           timedelta=True)
     general_plot_settings(DayRxn,do_xlabel=False,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
+                          ylim=[-500,400],
                           timedelta=True)
     general_plot_settings(NightRxn,do_xlabel=False,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
+                          ylim=[-1000,1000],
                           timedelta=True)
-    general_plot_settings(NetRxn,do_xlabel=True,legend=True,
+    general_plot_settings(NetRxn,do_xlabel=False,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
+                          ylim=[-1000,1000],
                           timedelta=True)
+    general_plot_settings(al,do_xlabel=True,legend=True,
+                          ylabel=r'AL $\left[nT\right]$',
+                          timedelta=True)
+    K15.margins(x=0.01)
     K2a_K2b.margins(x=0.01)
     DayRxn.margins(x=0.01)
     NightRxn.margins(x=0.01)
     NetRxn.margins(x=0.01)
     Kinternal_rxn.tight_layout(pad=1)
     #Save
-    figurename = path+'/Kinternal_rxn_'+event+'.png'
+    if 'zoom' in kwargs:
+        figurename = path+'/Kinternal_rxn_'+event+'_zoomed.png'
+    else:
+        figurename = path+'/Kinternal_rxn_'+event+'.png'
     Kinternal_rxn.savefig(figurename)
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
@@ -1043,8 +1114,8 @@ def initial_figures(dataset):
     for i,event in enumerate(dataset.keys()):
         ev = refactor(dataset[event],dt.datetime(2022,6,6,0))
         tave[event] = interval_average(ev)
-        if '/ionosphere_north_surface' in dataset[event].keys():
-            ev2 = ie_refactor(dataset[event],dt.datetime(2022,6,6,0))
+        if 'iedict' in dataset[event].keys():
+            ev2 = ie_refactor(dataset[event]['iedict'],dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
         #TODO- decide how to stich the average values together
@@ -1084,17 +1155,26 @@ def initial_figures(dataset):
         #   subsotrm phases
         # Then take new scatter averages split by substorm phases and see if 
         #  that organizes the data in a nice way
-        if '/ionosphere_north_surface' in dataset[event].keys():
-            energy_vs_polarcap(ev,event,path)
-            mpflux_vs_rxn(ev,event,path)
-            internalflux_vs_rxn(ev,event,path)
+        if 'iedict' in dataset[event].keys():
+            #energy_vs_polarcap(ev,event,path)
+            #mpflux_vs_rxn(ev,event,path)
+            #internalflux_vs_rxn(ev,event,path)
+            #Zoomed versions
+            window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
+                      (ev['mp'].index<dt.datetime(2022,6,7,10,0)))
+            #energy_vs_polarcap(ev,event,path,zoom=window)
+            #mpflux_vs_rxn(ev,event,path,zoom=window)
+            internalflux_vs_rxn(ev,event,path,zoom=window)
+        #TODO look into a zoomed in single 2hour session to put on the plots
+    #indices(dataset,path)
+    #scatter_rxn_energy(ev)
+    #test_matrix(event,ev,path)
     '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)
     scatter_externalFlux(tave)
     #scatter_internalFlux(tave)
     energies(dataset,path)
-    indices(dataset,path)
     couplers(dataset,path)
     scatters(tave)
     scatter_Ein_compare(tave)
@@ -1120,21 +1200,24 @@ if __name__ == "__main__":
     #setting pyplot configurations
     plt.rcParams.update(pyplotsetup(mode='print'))
 
+    # Event list
+    events = ['MEDnHIGHu']
+
     ## Analysis Data
     dataset = {}
-    for event in ['LOWnLOWu','HIGHnHIGHu','LOWnHIGHu','HIGHnLOWu',
-                  'MEDnMEDu','MEDnHIGHu']:
+    for event in events:
         GMfile = os.path.join(inAnalysis,event+'.h5')
-        IEfile = os.path.join(inAnalysis,'IE','ie_'+event+'.h5')
+        #IEfile = os.path.join(inAnalysis,'IE','ie_'+event+'.h5')
         # GM data
         if os.path.exists(GMfile):
             dataset[event] = load_hdf_sort(GMfile)
         # IE data
-        if os.path.exists(IEfile):
-            with pd.HDFStore(IEfile) as store:
-                for key in store.keys():
-                    dataset[event][key] = store[key]
+        #if os.path.exists(IEfile):
+        #    with pd.HDFStore(IEfile) as store:
+        #        for key in store.keys():
+        #            dataset[event][key] = store[key]
 
+    '''
     #HOTFIX duplicate LOWLOW values
     M5 = dataset['LOWnLOWu']['mpdict']['ms_full']['UtotM5 [W]'].copy()/1e12
     drops = np.where(abs(M5)>15)
@@ -1148,8 +1231,13 @@ if __name__ == "__main__":
     for key in keylist:
         df = dataset['LOWnLOWu']['mpdict'][key]
         dataset['LOWnLOWu']['mpdict'][key] = df.drop(index=droptimes)
+    '''
 
     ## Log Data
+    for event in events:
+        dataset[event]['obs'] = read_indices(inLogs,prefix=event+'_',
+                                             read_supermag=False)
+    '''
     dataset['LOWnLOWu']['obs'] = read_indices(inLogs, prefix='LOWnLOWu_',
                                               read_supermag=False)
     dataset['HIGHnHIGHu']['obs'] = read_indices(inLogs, prefix='HIGHnHIGHu_',
@@ -1162,6 +1250,7 @@ if __name__ == "__main__":
                                               read_supermag=False)
     dataset['MEDnHIGHu']['obs'] = read_indices(inLogs, prefix='MEDnHIGHu_',
                                               read_supermag=False)
+    '''
     ######################################################################
     ##Quicklook timeseries figures
     initial_figures(dataset)

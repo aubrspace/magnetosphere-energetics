@@ -39,7 +39,7 @@ def load_hdf_sort(hdf, **kwargs):
                 gmdict[key].drop(columns=['Time [UTC]'],inplace=True)
             else:
                 gmdict[key] = store[key]
-        if 'ie' in key:
+        if 'ie' in key or 'ionosphere' in key:
             iedict[key] = store[key]
         if 'ua' in key:
             uadict[key] = store[key]
@@ -97,8 +97,15 @@ def load_hdf_sort(hdf, **kwargs):
         data.update({'inner_mp': inner_mp})
 
     if iedict!={}:
+        #clean up entry names and interpolate out any timing gaps
+        cleaned_iedict = {}
+        for key in iedict.keys():
+            cleaned = check_timing(iedict[key],times)
+            cleaned_iedict.update({key.replace('/',''):cleaned})
         #repackage in dictionary
-        data.update({'iedict': iedict})
+        data.update({'iedict': cleaned_iedict})
+        #repackage in dictionary
+        #data.update({'iedict': iedict})
 
     if uadict!={}:
         #repackage in dictionary
