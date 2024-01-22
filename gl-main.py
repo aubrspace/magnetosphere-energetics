@@ -117,7 +117,6 @@ def energetics_analysis(infiles,outpath):
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
     outputname = infiles[0].split('e')[-1].split('.plt')[0]
-    '''
     field_data.zone(0).name = 'global_field'
     if len(field_data.zone_names)>1:
         field_data.zone(1).name = 'future'
@@ -156,12 +155,11 @@ def energetics_analysis(infiles,outpath):
                                       truegridfile=oggridfile,
                                       extract_flowline=False,
                                       outputpath=outpath)
-    '''
     # IE data
-    inpath = 'run_MEDnHIGHu/IE/ionosphere/'
+    #inpath = 'run_MEDnHIGHu/IE/ionosphere/'
+    inpath = '/'.join([f for f in infiles[0].split('/')][0:-3])+'/IE/ionosphere/'
     iedatafile, success = find_IE_matched_file(inpath,filetime)
-    print(inpath,infiles,iedatafile,success)
-    '''
+    #print(inpath,infiles,iedatafile,success)
     if os.path.exists(iedatafile):
         dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
@@ -186,13 +184,14 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     if True:
-        save_gm_multi(['front_iso_status.sty','tail_iso_status.sty',
-                       'front_iso_Knet.sty','north_eq_Kx.sty'],
+        save_gm_multi(['status_forward.sty',
+                       'energy_forward.sty',
+                       'daynight_closed_side.sty',
+                       'north_pc_rxn_busy.sty'],
                        outpath,outputname,filetime)
     else:
         with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
             png.close()
-    '''
 
 if __name__ == "__main__":
     start_time = time.time()

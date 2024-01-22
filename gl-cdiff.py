@@ -116,7 +116,7 @@ def energetics_analysis(infiles,outpath):
                                       extract_flowline=False,
                                       outputpath=outpath)
     # IE data
-    inpath = '/'.join([f for f in infiles[0].split('/')])[0:-1]+'/'
+    inpath = '/'.join([f for f in infiles[0].split('/')][0:-3])+'/IE/ionosphere/'
     iedatafile, success = find_IE_matched_file(inpath,filetime)
     future_iefile, _ = find_IE_matched_file(inpath,futuretime)
     if os.path.exists(iedatafile):

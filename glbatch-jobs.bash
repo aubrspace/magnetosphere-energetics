@@ -83,7 +83,6 @@ do
                                   -f ${file:${#INPUTDIR}}    \
     #                              -s $satpath
 
-    exit
     #if you only want to process one file use this
     #i=$((i+1))
     #if [ $i == 3 ]
