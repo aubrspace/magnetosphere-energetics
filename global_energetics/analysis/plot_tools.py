@@ -536,14 +536,12 @@ def refactor(event,t0):
     #K1,5 from mp
     ev['Ks1'] = ev['mp']['K_netK1 [W]']
     ev['Ks5'] = ev['mp']['K_netK5 [W]']
-    #K2,3,4 from lobes
-    ev['Ks2al'] = ev['lobes']['K_netK2a [W]']
-    ev['Ks2bl'] = ev['lobes']['K_netK2b [W]']
+    #K3,4 from lobes
     ev['Ks3'] = ev['lobes']['K_netK3 [W]']
     ev['Ks4'] = ev['lobes']['K_netK4 [W]']
     #K2,6,7 from closed
-    ev['Ks2ac'] = ev['closed']['K_netK2a [W]']
-    ev['Ks2bc'] = ev['closed']['K_netK2b [W]']
+    ev['Ks2a'] = ev['closed']['K_netK2a [W]']
+    ev['Ks2b'] = ev['closed']['K_netK2b [W]']
     ev['Ks6'] = ev['closed']['K_netK6 [W]']
     ev['Ks7'] = ev['closed']['K_netK7 [W]']
 
@@ -551,14 +549,12 @@ def refactor(event,t0):
     #H1,5 from mp
     ev['Hs1'] = ev['mp']['P0_netK1 [W]']
     ev['Hs5'] = ev['mp']['P0_netK5 [W]']
-    #H2,3,4 from lobes
-    ev['Hs2al'] = ev['lobes']['P0_netK2a [W]']
-    ev['Hs2bl'] = ev['lobes']['P0_netK2b [W]']
+    #H3,4 from lobes
     ev['Hs3'] = ev['lobes']['P0_netK3 [W]']
     ev['Hs4'] = ev['lobes']['P0_netK4 [W]']
     #H2,6,7 from closed
-    ev['Hs2ac'] = ev['closed']['P0_netK2a [W]']
-    ev['Hs2bc'] = ev['closed']['P0_netK2b [W]']
+    ev['Hs2a'] = ev['closed']['P0_netK2a [W]']
+    ev['Hs2b'] = ev['closed']['P0_netK2b [W]']
     ev['Hs6'] = ev['closed']['P0_netK6 [W]']
     ev['Hs7'] = ev['closed']['P0_netK7 [W]']
 
@@ -566,14 +562,12 @@ def refactor(event,t0):
     #S1,5 from mp
     ev['Ss1'] = ev['mp']['ExB_netK1 [W]']
     ev['Ss5'] = ev['mp']['ExB_netK5 [W]']
-    #S2,3,4 from lobes
-    ev['Ss2al'] = ev['lobes']['ExB_netK2a [W]']
-    ev['Ss2bl'] = ev['lobes']['ExB_netK2b [W]']
+    #S3,4 from lobes
     ev['Ss3'] = ev['lobes']['ExB_netK3 [W]']
     ev['Ss4'] = ev['lobes']['ExB_netK4 [W]']
     #S2,6,7 from closed
-    ev['Ss2ac'] = ev['closed']['ExB_netK2a [W]']
-    ev['Ss2bc'] = ev['closed']['ExB_netK2b [W]']
+    ev['Ss2a'] = ev['closed']['ExB_netK2a [W]']
+    ev['Ss2b'] = ev['closed']['ExB_netK2b [W]']
     ev['Ss6'] = ev['closed']['ExB_netK6 [W]']
     ev['Ss7'] = ev['closed']['ExB_netK7 [W]']
 
@@ -583,63 +577,16 @@ def refactor(event,t0):
     ev['M5'] = ev['mp']['UtotM5 [W]'].fillna(value=0)
     ev['M'] = ev['mp']['UtotM [W]'].fillna(value=0)
     ev['MM'] = ev['mp']['MM [kg/s]'].fillna(value=0)
-    #M1a,1b,2b,il from lobes
-    ev['M1a'] = ev['lobes']['UtotM1a [W]'].fillna(value=0)
-    ev['M1b'] = ev['lobes']['UtotM1b [W]'].fillna(value=0)
-    ev['M2b'] = ev['lobes']['UtotM2b [W]'].fillna(value=0)
-    ev['M2d'] = ev['lobes']['UtotM2d [W]'].fillna(value=0)
-    ev['Mil'] = ev['lobes']['UtotMil [W]'].fillna(value=0)
-    #M5a,5b,2a,ic from closed
+    #M5a,5b,2a,2b,ic from closed
     ev['M5a'] = ev['closed']['UtotM5a [W]'].fillna(value=0)
     ev['M5b'] = ev['closed']['UtotM5b [W]'].fillna(value=0)
     ev['M2a'] = ev['closed']['UtotM2a [W]'].fillna(value=0)
-    ev['M2c'] = ev['closed']['UtotM2c [W]'].fillna(value=0)
+    ev['M2b'] = ev['closed']['UtotM2b [W]'].fillna(value=0)
     ev['Mic'] = ev['closed']['UtotMic [W]'].fillna(value=0)
 
-    ev['M_lobes'] = ev['M1a']+ev['M1b']-ev['M2a']+ev['M2b']-ev['M2c']+ev['M2d']
-    ev['M_closed'] = ev['M5a']+ev['M5b']+ev['M2a']-ev['M2b']+ev['M2c']-ev['M2d']
+    ev['M_lobes'] = ev['M1']
+    ev['M_closed'] = ev['M5a']+ev['M5b']+ev['M2a']+ev['M2b']
 
-    ## HYDRO
-    #HM1,5,total from mp
-    ev['HM1'] = ev['mp']['uHydroM1 [W]'].fillna(value=0)
-    ev['HM5'] = ev['mp']['uHydroM5 [W]'].fillna(value=0)
-    ev['HM'] = ev['mp']['uHydroM [W]'].fillna(value=0)
-    #HM1a,1b,2b,il from lobes
-    ev['HM1a'] = ev['lobes']['uHydroM1a [W]'].fillna(value=0)
-    ev['HM1b'] = ev['lobes']['uHydroM1b [W]'].fillna(value=0)
-    ev['HM2b'] = ev['lobes']['uHydroM2b [W]'].fillna(value=0)
-    ev['HM2d'] = ev['lobes']['uHydroM2d [W]'].fillna(value=0)
-    ev['HMil'] = ev['lobes']['uHydroMil [W]'].fillna(value=0)
-    #HM5a,5b,2a,ic from closed
-    ev['HM5a'] = ev['closed']['uHydroM5a [W]'].fillna(value=0)
-    ev['HM5b'] = ev['closed']['uHydroM5b [W]'].fillna(value=0)
-    ev['HM2a'] = ev['closed']['uHydroM2a [W]'].fillna(value=0)
-    ev['HM2c'] = ev['closed']['uHydroM2c [W]'].fillna(value=0)
-    ev['HMic'] = ev['closed']['uHydroMic [W]'].fillna(value=0)
-
-    ev['HM_lobes'] = ev['HM1a']+ev['HM1b']-ev['HM2a']+ev['HM2b']-ev['HM2c']+ev['HM2d']
-    ev['HM_closed'] = ev['HM5a']+ev['HM5b']+ev['HM2a']-ev['HM2b']+ev['HM2c']-ev['HM2d']
-
-    ## MAG
-    #SM1,5,total from mp
-    ev['SM1'] = ev['mp']['uBM1 [W]'].fillna(value=0)
-    ev['SM5'] = ev['mp']['uBM5 [W]'].fillna(value=0)
-    ev['SM'] = ev['mp']['uBM [W]'].fillna(value=0)
-    #HM1a,1b,2b,il from lobes
-    ev['SM1a'] = ev['lobes']['uBM1a [W]'].fillna(value=0)
-    ev['SM1b'] = ev['lobes']['uBM1b [W]'].fillna(value=0)
-    ev['SM2b'] = ev['lobes']['uBM2b [W]'].fillna(value=0)
-    ev['SM2d'] = ev['lobes']['uBM2d [W]'].fillna(value=0)
-    ev['SMil'] = ev['lobes']['uBMil [W]'].fillna(value=0)
-    #SM5a,5b,2a,ic from closed
-    ev['SM5a'] = ev['closed']['uBM5a [W]'].fillna(value=0)
-    ev['SM5b'] = ev['closed']['uBM5b [W]'].fillna(value=0)
-    ev['SM2a'] = ev['closed']['uBM2a [W]'].fillna(value=0)
-    ev['SM2c'] = ev['closed']['uBM2c [W]'].fillna(value=0)
-    ev['SMic'] = ev['closed']['uBMic [W]'].fillna(value=0)
-
-    ev['SM_lobes'] = ev['SM1a']+ev['SM1b']-ev['SM2a']+ev['SM2b']-ev['SM2c']+ev['SM2d']
-    ev['SM_closed'] = ev['SM5a']+ev['SM5b']+ev['SM2a']-ev['SM2b']+ev['SM2c']-ev['SM2d']
 
     ev['Uclosed'] = ev['closed']['Utot [J]']
     ev['Ulobes'] = ev['lobes']['Utot [J]']
@@ -661,23 +608,29 @@ def refactor(event,t0):
 
     ev['K1'] = ev['Ks1']+ev['M1']
     ev['K5'] = ev['Ks5']+ev['M5']
-    ev['K2a'] = ev['Ks2ac']+ev['M2a']+ev['M2c']
-    ev['K2b'] = ev['Ks2bc']-ev['M2b']-ev['M2d']
+    ev['K2a'] = ev['Ks2a']+ev['M2a']
+    ev['K2b'] = ev['Ks2b']+ev['M2b']
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
 
-    ev['dt'] = [(t1-t0)/1e9 for t0,t1 in zip(ev['times'][0:-1],ev['times'][1::])]
+    ev['dt'] = [(t1-t0)/1e9 for t0,t1 in
+                zip(ev['times'][0:-1],ev['times'][1::])]
     ev['dt'].append(ev['dt'][-1])
     return ev
 
 def ie_refactor(event,t0):
     # Name the top level
     ev = {}
-    ev['ie_surface_north'] = event['/ionosphere_north_surface']
-    ev['ie_surface_south'] = event['/ionosphere_south_surface']
-    ev['term_north'] = event['/terminatornorth']
-    ev['term_south'] = event['/terminatorsouth']
-    timedelta = [t-t0 for t in ev['term_north'].index]
+    ev['ie_surface_north'] = event['ionosphere_north_surface']
+    ev['ie_surface_south'] = event['ionosphere_south_surface']
+    ev['ocflb_north'] = event['ionosphere_north_line']
+    ev['ocflb_south'] = event['ionosphere_south_line']
+    # Data collected piece wise so it doesn't always stack up time-wise
+    surf_index = ev['ie_surface_north'].index
+    line_index = ev['ocflb_north'].index
+    if not len(surf_index)==len(line_index):
+        from IPython import embed; embed()
+    timedelta = [t-t0 for t in ev['ocflb_north'].index]
     ev['ie_times']=[float(n.to_numpy()) for n in timedelta]
     #TODO if not already in
     '''
@@ -688,26 +641,43 @@ def ie_refactor(event,t0):
     '''
     #ev['ielogt = dataset[event]['obs']['ie_log'].index
     # Name more specific stuff
-    ev['ie_dayFlux_north']=ev['ie_surface_north']['Bf_injectionPolesDayN [Wb]']
-    ev['ie_dayFlux_south']=ev['ie_surface_south']['Bf_escapePolesDayS [Wb]']
-    ev['ie_nightFlux_north'] = ev['ie_surface_north'][
-                                             'Bf_injectionPolesNightN [Wb]']
-    ev['ie_nightFlux_south'] = ev['ie_surface_south'][
-                                             'Bf_escapePolesNightS [Wb]']
-    ev['ie_night2dayNet_north'] = ev['term_north']['dPhidt_net [Wb/s]']
-    ev['ie_night2dayNet_south'] = ev['term_south']['dPhidt_net [Wb/s]']
-    ev['ie_allFlux']=(abs(ev['ie_dayFlux_north'])+abs(ev['ie_dayFlux_south'])+
-                  abs(ev['ie_nightFlux_north'])+abs(ev['ie_nightFlux_south']))
-    # Derive some things
-    ev['dphidt_day_north'] = central_diff(abs(ev['ie_dayFlux_north']))
-    ev['dphidt_day_south'] = central_diff(abs(ev['ie_dayFlux_south']))
-    ev['dphidt_night_north'] = central_diff(abs(ev['ie_nightFlux_north']))
-    ev['dphidt_night_south'] = central_diff(abs(ev['ie_nightFlux_south']))
-    ev['dphidt'] = central_diff(ev['ie_allFlux'])
-    ev['rxnDay_north'] = -ev['dphidt_day_north']+ev['ie_night2dayNet_north']
-    ev['rxnDay_south'] = -ev['dphidt_day_south']+ev['ie_night2dayNet_south']
-    ev['rxnNight_north']= -ev['dphidt_night_north']-ev['ie_night2dayNet_north']
-    ev['rxnNight_south']= -ev['dphidt_night_south']-ev['ie_night2dayNet_south']
+    # Flux
+    ev['ie_flux_north']=ev['ie_surface_north']['Bf_injectionOpenN [Wb]']
+    ev['ie_flux_south']=ev['ie_surface_south']['Bf_escapeOpenS [Wb]']
+    ev['ie_flux'] = (abs(ev['ie_surface_north']['Bf_escapeOpenN [Wb]'])+
+                     abs(ev['ie_surface_south']['Bf_escapeOpenS [Wb]']))
+    # Motional reconnection
+    ev['RXNm_northDay'] = ev['ie_surface_north']['Bf_netDay [Wb/s]']
+    ev['RXNm_northNight'] = ev['ie_surface_north']['Bf_netNight [Wb/s]']
+    ev['RXNm_southDay'] = ev['ie_surface_south']['Bf_netDay [Wb/s]']
+    ev['RXNm_southNight'] = ev['ie_surface_south']['Bf_netNight [Wb/s]']
+    ev['RXNm_north'] = ev['RXNm_northDay']+ev['RXNm_northNight']
+    ev['RXNm_south'] = ev['RXNm_southDay']+ev['RXNm_southNight']
+    ev['RXNm_Day'] = ev['RXNm_northDay']+ev['RXNm_southDay']
+    ev['RXNm_Night'] = ev['RXNm_northNight']+ev['RXNm_southNight']
+    ev['RXNm'] = ev['RXNm_Day']+ev['RXNm_Night']
+    # Static reconnection
+    ev['RXNs_northDay'] = ev['ocflb_north']['dPhidtDay_net [Wb/s]']
+    ev['RXNs_northNight'] = ev['ocflb_north']['dPhidtNight_net [Wb/s]']
+    ev['RXNs_southDay'] = ev['ocflb_south']['dPhidtDay_net [Wb/s]']
+    ev['RXNs_southNight'] = ev['ocflb_south']['dPhidtNight_net [Wb/s]']
+    ev['RXNs_north'] = ev['RXNs_northDay']+ev['RXNs_northNight']
+    ev['RXNs_south'] = ev['RXNs_southDay']+ev['RXNs_southNight']
+    ev['RXNs_Day'] = ev['RXNs_northDay']+ev['RXNs_southDay']
+    ev['RXNs_Night'] = ev['RXNs_northNight']+ev['RXNs_southNight']
+    ev['RXNs'] = ev['RXNs_Day']+ev['RXNs_Night']
+    # Combined
+    for combo in ['RXN_northDay','RXN_northNight',
+                  'RXN_southDay','RXN_southNight',
+                  'RXN_north','RXN_south',
+                  'RXN_Day','RXN_Night','RXN']:
+        ev[combo] = (ev[combo.replace('RXN','RXNs')]+
+                     ev[combo.replace('RXN','RXNm')])
+
+    # Finite differences
+    ev['dphidt_north'] = central_diff(abs(ev['ie_flux_north']))
+    ev['dphidt_south'] = central_diff(abs(ev['ie_flux_south']))
+    ev['dphidt'] = central_diff(ev['ie_flux'])
     return ev
 
 if __name__ == "__main__":
