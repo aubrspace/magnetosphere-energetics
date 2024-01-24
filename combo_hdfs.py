@@ -39,59 +39,48 @@ def timesort(store,*,timekey='Time [UTC]'):
         store[key] = df
 
 def combine_hdfs(storelist,outputname):
-    #timesort(storelist[0])
     storelist[0].copy(outputname)#Start with the first store in the list
     outstore = pd.HDFStore(outputname)
     #Get a full list of all DataFrames between all stores
     alldfs = outstore.keys()
     for store in storelist[1::]:
         store.open()
-        #timesort(store)
         alldfs = np.union1d(alldfs,store.keys())
         store.close()
     for dfname in alldfs:
+        #Check the lower level columns of the dataframe
         if dfname in storelist[0]:
-            #Check the lower level columns of the dataframe
             outdf = storelist[0][dfname]
-            print('Checking '+dfname+' in '+
-                storelist[0].filename.split('/')[-1]+'...')
-            for nextstore in storelist[1::]:
-                nextstore.open()
-                if dfname in nextstore.keys():
-                    nextdf = nextstore[dfname]
-                    #Create full set of all columns
-                    allcols = np.union1d(outdf.keys(),nextdf.keys())
-                    #Iterate over full set and replace if necessary
-                    #for col in [c for c in allcols if c in nextdf.keys()]:
-                    print('{:<35}{:<20}{:<20}'.format('Term',
-                               nextstore.filename.split('/')[-1],
-                            storelist[0].filename.split('/')[-1]))
-                    for col in allcols:
-                        innext = col in nextdf.keys()
-                        innow = col in outdf.keys()
-                        if ((col in nextdf.keys()) and
-                            (col not in outdf.keys())):
-                            print('{:<35}'.format(col)+trueColor(innext)
+        else:
+            outdf = pd.DataFrame()
+        print('Checking '+dfname+' in '+
+            storelist[0].filename.split('/')[-1]+'...')
+        for nextstore in storelist[1::]:
+            nextstore.open()
+            if dfname in nextstore.keys():
+                nextdf = nextstore[dfname]
+                #Create full set of all columns
+                allcols = np.union1d(outdf.keys(),nextdf.keys())
+                #Iterate over full set and replace if necessary
+                print('{:<35}{:<20}{:<20}'.format('Term',
+                            nextstore.filename.split('/')[-1],
+                        storelist[0].filename.split('/')[-1]))
+                for col in allcols:
+                    innext = col in nextdf.keys()
+                    innow = col in outdf.keys()
+                    if ((col in nextdf.keys()) and
+                        (col not in outdf.keys())):
+                        print('{:<35}'.format(col)+trueColor(innext)
                                                       +prCyan('->')
                                                       +trueColor(innow))
-                            outdf[col] = nextstore[dfname][col]
-                        else:
-                            print('{:<35}'.format(col)+trueColor(innext)
+                        outdf[col] = nextstore[dfname][col]
+                    else:
+                        print('{:<35}'.format(col)+trueColor(innext)
                                                       +prCyan('')
                                                       +trueColor(innow))
-                    #Put the combined DataFrame back in the HDF file
-                    outstore[dfname] = outdf
-                nextstore.close()
-        else:
-            #Add the DataFrame Wholesale
-            for nextstore in storelist[1::]:
-                nextstore.open()
-                if dfname in nextstore.keys():
-                    outstore[dfname] = nextstore[dfname]
-                    print('Adding '+dfname+' from '+
-                          nextstore.filename.split('/')[-1]+' -> '+
-                          outputname)
-                nextstore.close()
+                #Put the combined DataFrame back in the HDF file
+                outstore[dfname] = outdf
+            nextstore.close()
     outstore.close()
 
 def read_args(args):
