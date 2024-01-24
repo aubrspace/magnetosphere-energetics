@@ -26,8 +26,8 @@
 #INPUTDIR=./run_LOWnLOWu/GM/IO2/
 #OUTPUTDIR=./outputs_LOWnLOWu/
 
-#INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
-#OUTPUTDIR=./outputs_HIGHnHIGHu/
+INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
+OUTPUTDIR=./outputs_HIGHnHIGHu/
 
 #INPUTDIR=./run_LOWnHIGHu/GM/IO2/
 #OUTPUTDIR=./outputs_LOWnHIGHu/
@@ -38,10 +38,10 @@
 #INPUTDIR=./run_MEDnMEDu/GM/IO2/
 #OUTPUTDIR=./outputs_MEDnMEDu/
 
-INPUTDIR=./run_MEDnHIGHu/GM/IO2/
-#INPUTDIR=./run_MEDnMEDu/IE/ionosphere/
-#OUTPUTDIR=./outputs_DAYNIGHTMAP/
-OUTPUTDIR=./outputs_MEDnHIGHu/
+#DONE#INPUTDIR=./run_MEDnHIGHu/GM/IO2/
+    #INPUTDIR=./run_MEDnMEDu/IE/ionosphere/
+    #OUTPUTDIR=./outputs_DAYNIGHTMAP/
+    #OUTPUTDIR=./outputs_MEDnHIGHu/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/
