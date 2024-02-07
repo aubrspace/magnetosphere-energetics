@@ -126,35 +126,47 @@ def general_plot_settings(ax, **kwargs):
             ax.set_xlabel(kwargs.get('xlabel',''))
     if kwargs.get('timedelta',False):
         tmin,tmax = ax.get_xlim()
-        def timedelta_ticks(x,pos):
+        def timedelta_hours(x,pos):
+            if type(x)==type(dt.timedelta):
+                hrs = x.days*24+t1.seconds/3600
+            else:
+                hrs = x/(1e9*3600)
+            hours = int(hrs)
+            #minutes = (int(abs(hrs*60)%60))
+            return "{:d}".format(hours)
+        def timedelta_hour_min(x,pos):
             if type(x)==type(dt.timedelta):
                 hrs = x.days*24+t1.seconds/3600
             else:
                 hrs = x/(1e9*3600)
             hours = int(hrs)
             minutes = (int(abs(hrs*60)%60))
-            #return "{:d}:{:02d}".format(hours,minutes)
-            return "{:d}".format(hours)
+            #from IPython import embed; embed()
+            #import time
+            #time.sleep(3)
+            return "{:1}".format(hours+minutes/60)
         #Get original limits
         xlims = ax.get_xlim()
-        if (xlims[1]-xlims[0])*1e-9/3600 > 4.5:
+        islong = (xlims[1]-xlims[0])*1e-9/3600 > 10
+        if islong:
             #Manually adjust the xticks
-            '''
-            n = 3600*4.5/1e-9
-            locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
-            '''
             n = 3600*4/1e-9
             locs = [i*n for i in range(-100,100)]
-            #locs = [-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n,4*n,5*n,6*n]
         else:
             n = 3600*0.5/1e-9
-            locs = [-8*n,-7*n,-6*n,-5*n,-4*n,-3*n,-2*n,-n,0,n,2*n,3*n]
+            locs = [i*n for i in range(-100,100)]
         locs = [np.round(l/1e10)*1e10 for l in locs]
         ax.xaxis.set_ticks(locs)
-        formatter = FuncFormatter(timedelta_ticks)
+        if islong:
+            formatter = FuncFormatter(timedelta_hours)
+        else:
+            formatter = FuncFormatter(timedelta_hour_min)
         ax.xaxis.set_major_formatter(formatter)
         #ax.xaxis.set_minor_locator(AutoMinorLocator(3))
-        ax.xaxis.set_minor_locator(AutoMinorLocator(4))
+        if islong:
+            ax.xaxis.set_minor_locator(AutoMinorLocator(4))
+        else:
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
         #Get original limits
         ax.set_xlim(xlims)
         if kwargs.get('do_xlabel',True):

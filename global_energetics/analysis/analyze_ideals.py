@@ -49,6 +49,29 @@ def interval_average(ev):
             tave_ev.loc[i,key] = ev[key][interv].mean()
     return tave_ev
 
+def interval_totalvariation(ev):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                       ev['Ks1'].index)
+    tv_ev = pd.DataFrame()
+    for i,(start,end) in enumerate(interval_list):
+        interv = (ev['Ks1'].index>start)&(ev['Ks1'].index<end)
+        siminterv = (ev['sim'].index>start)&(ev['sim'].index<end)
+        banlist = ['lobes','closed','mp','inner',
+                   'sim','sw','times','simt','swt','dDstdt_sim',
+                   'ie_surface_north','ie_surface_south',
+                   'term_north','term_south','ie_times']
+        keylist = [k for k in ev.keys() if k not in banlist]
+        for key in[k for k in keylist if type(ev[k])is not type([])]:
+            dt = [t.seconds for t in ev[key][interv].index[1::]-
+                                     ev[key][interv].index[0:-1]]
+            difference = abs(ev[key][interv].diff())
+            variation = (difference[1::]*dt).sum()
+            tv_ev.loc[i,key] = variation/abs(ev[key][interv]).mean()
+            if key=='K1':
+                if variation/abs(ev[key][interv]).mean()>3000:
+                    print('\t',i,variation/abs(ev[key][interv]).mean())
+    return tv_ev
+
 def build_interval_list(tstart,tlength,tjump,alltimes):
     interval_list = []
     tend = tstart+tlength
@@ -255,6 +278,34 @@ def segments(event,ev,**kwargs):
     figurename = path+'/segments'+event+'.png'
     segments.savefig(figurename)
     plt.close(segments)
+    print('\033[92m Created\033[00m',figurename)
+
+def interv_x_bar(variations,averages,event):
+    #############
+    #setup figure
+    interv_xbar,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24],
+                                                 sharey=True)
+    #Plot
+    y1s = variations['K1'].values
+    y2s = variations['K5'].values
+    y3s = variations['K2b'].values
+    for i,(y1,y2,y3) in enumerate(zip(y1s,y2s,y3s)):
+        axis.bar(i, y1, label=i)
+        axis2.bar(i, y2, label=i)
+        axis3.bar(i, y3, label=i)
+    axis.set_ylabel(r'Tot. Variation K1 $\left[s\right]$')
+    axis2.set_ylabel(r'Tot. Variation K5 $\left[s\right]$')
+    axis3.set_ylabel(r'Tot. Variation K2b $\left[s\right]$')
+    axis3.set_xlabel('Step ID')
+    axis3.set_ylim([0,600])
+    axis.margins(x=0.01)
+    axis2.margins(x=0.01)
+    axis3.margins(x=0.01)
+    #Save
+    interv_xbar.tight_layout(pad=1)
+    figurename = path+'/interv_xbar_'+event+'.png'
+    interv_xbar.savefig(figurename)
+    plt.close(interv_xbar)
     print('\033[92m Created\033[00m',figurename)
 
 def common_x_bar(event,ev,**kwargs):
@@ -700,6 +751,47 @@ def scatter_internalFlux(tave):
     plt.close(scatterAL)
     print('\033[92m Created\033[00m',figurename)
 
+def scatter_TVexternal(tv,tave):
+    #############
+    #setup figure
+    scatterK1,(axis) =plt.subplots(1,1,figsize=[20,20])
+    #Plot
+    shapes=['o','<','X','+','>','^']
+    all_X = np.array([])
+    all_Y = np.array([])
+    for i,case in enumerate(tv.keys()):
+        print(case, shapes[i])
+        cond = tv[case]<1000
+        variation = tv[case]
+        average = tave[case]
+        sc = axis.scatter(average['Ulobes']/1e15,(variation['K2b']),
+                          label=case,
+                          marker=shapes[i],
+                          s=200)
+                          #cmap='twilight',
+                          #c=(np.rad2deg(ev['clock'])+360)%360)
+        all_X = np.append(all_X,average['U'].values/1e15)
+        all_Y = np.append(all_Y,variation['K1'].values)
+    #axis.set_ylim(0,1000)
+    slope,intercept,r,p,stderr = linregress(all_X,all_Y)
+    linelabel = (f'K2b Flux Total Variation [s]:{slope:.2f}U [PJ], r={r:.2f}')
+    axis.plot(all_X,(intercept+all_X*slope),
+                      label=linelabel,color='grey', ls='--')
+
+    #cbar = plt.colorbar(sc)
+    #cbar.set_label(r' $\theta_{c}\left[ deg\right]$')
+    #Decorations
+    axis.legend()
+    axis.axhline(0,c='black')
+    #axis.axvline(0,c='black')
+    axis.set_xlabel(r'Integrated Energy $U \left[ PJ\right]$')
+    axis.set_ylabel(r'TotalVariation LobeSheath Flux K1 $\left[ s\right]$')
+    scatterK1.tight_layout(pad=1)
+    figurename = path+'/scatter_K1_TV.png'
+    scatterK1.savefig(figurename)
+    plt.close(scatterK1)
+    print('\033[92m Created\033[00m',figurename)
+
 def scatter_externalFlux(tave):
     #############
     #setup figure
@@ -1110,10 +1202,12 @@ def tab_ranges(dataset):
 
 def initial_figures(dataset):
     path = unfiled
-    tave = {}
+    tave,tv = {},{}
     for i,event in enumerate(dataset.keys()):
         ev = refactor(dataset[event],dt.datetime(2022,6,6,0))
         tave[event] = interval_average(ev)
+        print(event)
+        tv[event] = interval_totalvariation(ev)
         if 'iedict' in dataset[event].keys():
             ev2 = ie_refactor(dataset[event]['iedict'],dt.datetime(2022,6,6,0))
             for key in ev2.keys():
@@ -1128,6 +1222,8 @@ def initial_figures(dataset):
                                       ev['M1'], ev['Ks1'], ev['M5'],ev['Ks5'],
                                       ev['Ks5'],ev['Ks6'],ev['Ks3'],ev['Ks7'],
                                  path)
+        interv_x_bar(tv[event],tave[event],event)
+        #common_x_bar(event,ev)
         #explorer(event,ev,path)
         #common_x_bar(event,ev)
         #common_x_lineup(event,ev)
@@ -1158,17 +1254,17 @@ def initial_figures(dataset):
         if 'iedict' in dataset[event].keys():
             #energy_vs_polarcap(ev,event,path)
             #mpflux_vs_rxn(ev,event,path)
-            #internalflux_vs_rxn(ev,event,path)
+            internalflux_vs_rxn(ev,event,path)
             #Zoomed versions
             window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
                       (ev['mp'].index<dt.datetime(2022,6,7,10,0)))
             #energy_vs_polarcap(ev,event,path,zoom=window)
             #mpflux_vs_rxn(ev,event,path,zoom=window)
             internalflux_vs_rxn(ev,event,path,zoom=window)
-        #TODO look into a zoomed in single 2hour session to put on the plots
     #indices(dataset,path)
     #scatter_rxn_energy(ev)
     #test_matrix(event,ev,path)
+    #scatter_TVexternal(tv,tave)
     '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)
@@ -1201,7 +1297,7 @@ if __name__ == "__main__":
     plt.rcParams.update(pyplotsetup(mode='print'))
 
     # Event list
-    events = ['MEDnHIGHu']
+    events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu']
 
     ## Analysis Data
     dataset = {}
