@@ -93,7 +93,8 @@ def read_station_paraview(nowtime,*,n=379,file_in='stations.csv',
         partial_read = ProgFilt(registrationName='stations_input',
                                 Input=None)
         partial_read.OutputDataSetType = 'vtkPolyData'
-        partial_read.Script = update_stationHead(nowtime,n=n,**kwargs)
+        partial_read.Script = update_stationHead(nowtime,n=n,file_in=file_in,
+                                                 **kwargs)
         pipeline = partial_read
         success = True
     else:
@@ -105,9 +106,12 @@ def update_stationHead(nowtime,*,n=379,file_in='stations.csv',**kwargs):
     """This is a PARAVIEW function, string at the end populates a programmable
         filter
     """
-    station_range = '[0:'+str(n)+']'
-    #station_range = '[26:27]'
-    #station_range = '[282:283]'
+    if n=='all':
+        station_range = ''
+    else:
+        station_range = '[0:'+str(n)+']'
+        #station_range = '[26:27]'
+        #station_range = '[282:283]'
     tshift = str(nowtime.hour+nowtime.minute/60+nowtime.second/3600)
     return """
     from vtk.numpy_interface import algorithms as algs

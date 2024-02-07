@@ -34,6 +34,7 @@ def get_magnetopause_filter(pipeline,**kwargs):
     assert FindSource('beta_star') != None
     betastar_max = kwargs.get('betastar_max',0.7)
     closed_value = kwargs.get('status_closed',3)
+    tail_x = kwargs.get('tail_x',-20)
     mp_state =ProgrammableFilter(registrationName='mp_state',Input=pipeline)
     mp_state.Script = """
     from paraview.vtk.numpy_interface import dataset_adapter as dsa
@@ -45,9 +46,11 @@ def get_magnetopause_filter(pipeline,**kwargs):
     x = data.PointData['x']
 
     #Compute magnetopause as logical combination
-    mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&(x>-20)
+    mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&
+                            (x>"""+str(tail_x)+""")
                 |
-                (status=="""+str(closed_value)+""")&(x>-20)).astype(int)
+                (status=="""+str(closed_value)+""")&
+                            (x>"""+str(tail_x)+""")).astype(int)
 
     #Assign to output
     output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
@@ -88,12 +91,18 @@ def setup_pipeline(infile,**kwargs):
     #pipelinehead = sourcedata
     #pipeline = sourcedata
 
+    if 'convert' in kwargs:
+        if kwargs.get('convert')=='eci':
+            pipeline = pv_tools.gsm_to_eci(pipeline,kwargs.get('ut',0))
+        elif kwargs.get('convert')=='gsm':
+            # Figure out what were dealing with
+            #NOTE for now assuming gse
+            pipeline = pv_tools.gse_to_gsm(pipeline,kwargs.get('ut',0))
     if kwargs.get('repair_status',False):
         pipeline = pv_input_tools.status_repair(pipeline,**kwargs)
     ###Check if unitless variables are present
     if kwargs.get('dimensionless',False):
         pipeline = pv_input_tools.todimensional(pipeline,**kwargs)
-
     else:
         ###Rename some tricky variables
         pipeline = pv_input_tools.fix_names(pipeline,**kwargs)
@@ -103,6 +112,41 @@ def setup_pipeline(infile,**kwargs):
     pipeline = pv_tools.eqeval(alleq['basic_physics'],pipeline)
     if 'aux' in kwargs:
         pipeline = pv_tools.eqeval(alleq['dipole_coord'],pipeline)
+    ###Fix tracing
+    if (pipeline.PointData['Status'].GetRange()[0] == -3 and
+        'theta_1_deg' in pipeline.PointData.keys()):
+        # Status -3 implies the tracing has failed somewhere, if we have
+        #   the theta mapping variables then we have the tools to fix it
+        pipeline =ProgrammableFilter(registrationName='fixStatus',
+                                     Input=pipeline)
+        pipeline.Script = """
+        # Get input
+        data = inputs[0]
+        theta_1 = data.PointData['theta_1_deg']
+        theta_2 = data.PointData['theta_2_deg']
+        Status = data.PointData['Status']
+        newStatus = Status #Don't change non -3 values
+        closedCondition = ((Status==-3) & (theta_1>=0) &
+                                          (theta_2>=-90))
+        openSCondition = ((Status==-3) & (theta_1<0) &
+                                         (theta_2>=-90))
+        openNCondition = ((Status==-3) & (theta_1>=0) &
+                                         (theta_2<-90))
+        newStatus[closedCondition] = 3
+        newStatus[openSCondition] = 1
+        newStatus[openNCondition] = 2
+        output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+        output.PointData.append(newStatus,'Status')
+        """
+    ###Daynight mapping
+    if kwargs.get('do_daynight',False):
+        #TODO finish this:
+        #       Add shared_tools & pv_mapping to the paraview build
+        #       Test
+        #       double check the preconditions (what "state_var" is needed)
+        #eq('{trace_limits}=if({Status}==3 && '+
+        #                    '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
+        pipeline = pv_mapping.reversed_mapping(pipeline,'trace_limits')
     ###Energy flux variables
     if kwargs.get('doEnergyFlux',False):
         pipeline = pv_tools.eqeval(alleq['energy_flux'],pipeline)
@@ -162,7 +206,7 @@ def setup_pipeline(infile,**kwargs):
         pipeline = pv_fte.load_fte(pipeline)
 
     # Magnetopause
-    pipeline = get_magnetopause_filter(pipeline)
+    pipeline = get_magnetopause_filter(pipeline,**kwargs)
 
     ###Now that last variable is done set 'field' for visualizer and a View
     field = pipeline
@@ -177,9 +221,11 @@ def setup_pipeline(infile,**kwargs):
     ###Field line seeding or Field line projected flux volumes
     fluxResults = None
     if(kwargs.get('doFieldlines',False)or kwargs.get('doFluxVol',False)):
+        print(kwargs.get('station_file'))
         station_MAG, success = read_station_paraview(
                                     kwargs.get('localtime'),
                                     n=kwargs.get('n',379),
+                        file_in=kwargs.get('station_file','stations.csv'),
                                     path=kwargs.get('path'))
         if success and 'localtime' in kwargs and 'tilt' in kwargs:
             stations = pv_tools.magPoints2Gsm(station_MAG,
@@ -196,6 +242,7 @@ def setup_pipeline(infile,**kwargs):
             clip1.Invert = 0
             clip1.ClipType.Center = [0.0, 0.0, 0.0]
             clip1.ClipType.Radius = 0.99
+            '''
             #Blank outside the magnetosphere (as in 0.7 beta*)
             clip2 = Clip(registrationName='Clip2', Input=clip1)
             clip2.ClipType = 'Scalar'
@@ -203,8 +250,9 @@ def setup_pipeline(infile,**kwargs):
             clip2.Value = 1
             clip2.Invert = 0
             #clip2=clip1
+            '''
             if kwargs.get('doFieldlines',False):
-                pv_visuals.add_fieldlines(clip2)
+                pv_visuals.add_fieldlines(clip1)
             if kwargs.get('doFluxVol',False):
                 clip1.ClipType.Radius = 2.5
                 obj, fluxResults = pv_volume_tools.add_fluxVolume(clip2,

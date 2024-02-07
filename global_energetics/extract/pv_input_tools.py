@@ -17,7 +17,10 @@ def read_aux(infile):
     data = {}
     with open(infile,'r') as f:
         for line in f.readlines():
-            data[line.split(':')[0]]=line.split(':')[-1].replace(
+            if 'TIME' in line:
+                data[line.split(':')[0]] = ':'.join(line.split(':')[1::])
+            else:
+                data[line.split(':')[0]]=line.split(':')[-1].replace(
                                                  ' ','').replace('\n','')
     return data
 
@@ -123,6 +126,7 @@ def fix_names(pipeline,**kwargs):
         jx = data.PointData["J_x_`mA_m^2"]
         jy = data.PointData["J_y_`mA_m^2"]
         jz = data.PointData["J_z_`mA_m^2"]
+        volume = data.PointData["dvol_R^3"]
         #Copy input to output so we don't lose any data
         output.ShallowCopy(inputs[0].VTKObject)#maintaining other variables
         #Now append the copies of the variables with better names
@@ -130,6 +134,7 @@ def fix_names(pipeline,**kwargs):
         output.PointData.append(jx,'J_x_uA_m2')
         output.PointData.append(jy,'J_y_uA_m2')
         output.PointData.append(jz,'J_z_uA_m2')
+        output.PointData.append(volume,'dvol_R3')
     """
     pipeline = names
     return pipeline

@@ -6,6 +6,7 @@ import numpy as np
 from numpy import sin,cos,pi
 #### import the simple module from paraview
 from paraview.simple import *
+from geopack import geopack as gp
 #from equations import rotation
 
 def tec2para(instr):
@@ -19,7 +20,7 @@ def tec2para(instr):
     badchars = ['{','}','[',']']
     replacements = {' [':'_','**':'^','1e':'10^','pi':'3.14159',#generic
           '/Re':'_Re', 'amu/cm':'amu_cm','km/s':'km_s','/m':'_m',#specific
-                    'm^':'m','e^':'e'}#very specific, for units only
+                    'm^':'m','e^':'e','^3':'3'}#very specific, for units only
             #'/':'_',
     coords = {'X_R':'x','Y_R':'y','Z_R':'z'}
     outstr = instr
@@ -215,6 +216,27 @@ def update_datacube(**kwargs):
                                 betastar=BS,mp=MP,ffj=FFJ,
                                 dims=shape_xyz)
                     """
+
+def extract_field(pipeline,**kwargs):
+    extractFilter = ProgrammableFilter(registrationName='extract_field',
+                                        Input=pipeline)
+    extractFilter.Script = update_extraction(**kwargs)
+    return extractFilter
+
+def update_extraction(**kwargs):
+    """Function the script in the prog filter for 'extract_field'
+    Inputs
+        kwargs:
+            path
+            filename
+    Returns
+        (str) NOTE this is really a small self-contained python function!!
+    """
+    return """
+    for var in """+str(kwargs.get('varlist',['x','y','z']))+""":
+        #Assign to output
+        output.PointData.append(inputs[0].PointData[var],var)
+    """
 
 def point2cell(inputsource, fluxes):
     """Function creates a point to cell conversion filter
@@ -480,3 +502,98 @@ def get_pressure_gradient(pipeline,**kwargs):
     pipeline = gradP
     return pipeline
 
+def gsm_to_eci(pipeline,ut):
+    gp.recalc(ut)
+    # Do the coord transform in a programmable filter
+    eci =ProgrammableFilter(registrationName='eci',Input=pipeline)
+    eci.Script = """
+    import numpy as np
+    from geopack import geopack as gp
+    # Get input
+    data = inputs[0]
+    # Pull the XYZgsm,Bxyz coordinates from the paraview objects
+    x = data.PointData['x']
+    y = data.PointData['y']
+    z = data.PointData['z']
+    bx = data.PointData['B_x_nT']
+    by = data.PointData['B_y_nT']
+    bz = data.PointData['B_z_nT']
+    # Convert GSM -> ECI using geopack functions
+    x_eci = np.zeros(len(x))
+    y_eci = np.zeros(len(y))
+    z_eci = np.zeros(len(z))
+    bx_eci = np.zeros(len(bx))
+    by_eci = np.zeros(len(by))
+    bz_eci = np.zeros(len(bz))
+    for i,(xi,yi,zi,bxi,byi,bzi) in enumerate(zip(x,y,z,bx,by,bz)):
+        geopos = gp.geogsm(xi,yi,zi,-1)
+        geipos = gp.geigeo(*geopos,-1)
+        x_eci[i],y_eci[i],z_eci[i] = geipos
+        # B field
+        geoB = gp.geogsm(bxi,byi,bzi,-1)
+        geiB = gp.geigeo(*geoB,-1)
+        bx_eci[i],by_eci[i],bz_eci[i] = geiB
+    # Load the data back into the output of the Paraview filter
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(x_eci,'x_eci')
+    output.PointData.append(y_eci,'y_eci')
+    output.PointData.append(z_eci,'z_eci')
+    output.PointData.append(bx_eci,'Bx_eci')
+    output.PointData.append(by_eci,'By_eci')
+    output.PointData.append(bz_eci,'Bz_eci')
+    """
+    return eci
+
+def gse_to_gsm(pipeline,ut):
+    gp.recalc(ut)
+    # Do the coord transform in a programmable filter
+    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
+    gsm.Script = update_gse_to_gsm()
+    return gsm
+
+def update_gse_to_gsm():
+    return """
+    import numpy as np
+    from geopack import geopack as gp
+    # Get input
+    data = inputs[0]
+    done = []
+    # Loop through all variables that need to be converted
+    for var in data.PointData.keys():
+        if ((var=='x' or var=='y' or var=='z' or
+             '_x' in var or '_y' in var or '_z' in var) and
+             var not in done):
+            if '_x' in var:
+                gse_xvar = var
+                gse_yvar = var.replace('_x','_y')
+                gse_zvar = var.replace('_x','_z')
+            elif '_y' in var:
+                gse_xvar = var.replace('_y','_x')
+                gse_yvar = var
+                gse_zvar = var.replace('_y','_z')
+            elif '_z' in var:
+                gse_xvar = var.replace('_z','_x')
+                gse_yvar = var.replace('_z','_y')
+                gse_zvar = var
+            else:
+                break #Means its not a directional variable
+            # Convert GSE -> GSM using geopack functions
+            x = data.PointData[gse_xvar]
+            y = data.PointData[gse_yvar]
+            z = data.PointData[gse_zvar]
+            gsm_x = np.zeros(len(x))
+            gsm_y = np.zeros(len(y))
+            gsm_z = np.zeros(len(z))
+            for i,(xi,yi,zi) in enumerate(zip(x,y,z)):
+                gsm_x[i],gsm_y[i],gsm_z[i] = gp.gsmgse(xi,yi,zi,-1)
+            # Overwrite the gse variable names with the gsm data
+            data.PointData[gse_xvar] = gsm_x
+            data.PointData[gse_yvar] = gsm_y
+            data.PointData[gse_zvar] = gsm_z
+            # Mark all three as done so we dont duplicate effort
+            done.append(gse_xvar)
+            done.append(gse_yvar)
+            done.append(gse_zvar)
+    # Load the data back into the output of the Paraview filter
+    output.ShallowCopy(data.VTKObject)#So rest of inputs flow
+    """

@@ -75,7 +75,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         '''
 
         # Properties modified on slice1Display
-        mpDisplay.Opacity = 1
+        mpDisplay.Opacity = kwargs.get('opacity',1)
         #mpDisplay.Opacity = 0.3
 
     if kwargs.get('show_fte', False):

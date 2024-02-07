@@ -25,7 +25,9 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
 from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
+from global_energetics.extract.shared_tools import check_bin
 
+'''MOVED TO SHAREDTOOLS
 def check_bin(x,theta_1,phi_1,inbin,state):
     """Function checks 4 quadrants of bin to determine contestation (daynight)
     Inputs
@@ -68,6 +70,7 @@ def check_bin(x,theta_1,phi_1,inbin,state):
     else:
         contested = True
     return quadbins, contested
+'''
 
 def reversed_mapping(gmzone,state_var,**kwargs):
     # Convert theta/phi mapping variable into cartesian footpoint values
