@@ -1,22 +1,20 @@
 In this tutorial we will be usind the paraview python scripts to:\
     -> fix tecplot .tec binary output so it will load in paraview\
     -> load a file\
-    -> call the setup_pipeline core function from pv_magnetopause.py\
+    -> call the setup_pipeline core function from pv_magnetopause.py
 
-You will need\
+You will need
 =============
-    -> Working installation of paraview with built in python
-    -> Linked global_energetics package to paraview
-    -> 3D output file fixed for paraview (see util/pltfixer.py)
+-> Working installation of paraview with built in python\
+-> Linked global_energetics package to paraview\
+-> 3D output file fixed for paraview (see util/pltfixer.py)
 
 Option 1- interactive
 =====================
 1.Open python-paraview in interactive mode
 ------------------------------------------
 **In the directory swmf-energetics/** launch pvpython
-```
-pvpython
-```
+    pvpython
 2.Load in the paraview simple module
 ------------------------------------
 ```
