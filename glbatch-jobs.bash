@@ -23,25 +23,23 @@
 #INPUTDIR=./ideal_refined/GM/IO2/
 #OUTPUTDIR=./ideal_refined_sp10-3/
 
-#INPUTDIR=./run_LOWnLOWu/GM/IO2/
-#OUTPUTDIR=./outputs_LOWnLOWu/
+#DONE#INPUTDIR=./run_LOWnLOWu/GM/IO2/
+     #OUTPUTDIR=./outputs_LOWnLOWu/
 
-INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
-OUTPUTDIR=./outputs_HIGHnHIGHu/
+#DONE#INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
+     #OUTPUTDIR=./outputs_HIGHnHIGHu/
 
-#INPUTDIR=./run_LOWnHIGHu/GM/IO2/
-#OUTPUTDIR=./outputs_LOWnHIGHu/
+INPUTDIR=./run_LOWnHIGHu/GM/IO2/
+OUTPUTDIR=./outputs_LOWnHIGHu/
 
-#INPUTDIR=./run_HIGHnLOWu/GM/IO2/
-#OUTPUTDIR=./outputs_HIGHnLOWu/
+#DONE#INPUTDIR=./run_HIGHnLOWu/GM/IO2/
+     #OUTPUTDIR=./outputs_HIGHnLOWu/
 
 #INPUTDIR=./run_MEDnMEDu/GM/IO2/
 #OUTPUTDIR=./outputs_MEDnMEDu/
 
 #DONE#INPUTDIR=./run_MEDnHIGHu/GM/IO2/
-    #INPUTDIR=./run_MEDnMEDu/IE/ionosphere/
-    #OUTPUTDIR=./outputs_DAYNIGHTMAP/
-    #OUTPUTDIR=./outputs_MEDnHIGHu/
+     #OUTPUTDIR=./outputs_MEDnHIGHu/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/
@@ -84,10 +82,10 @@ do
     #                              -s $satpath
 
     #if you only want to process one file use this
-    #i=$((i+1))
-    #if [ $i == 3 ]
-    #then
-    #    exit
-    #fi
+    i=$((i+1))
+    if [ $i == 1 ]
+    then
+        exit
+    fi
 done
 
