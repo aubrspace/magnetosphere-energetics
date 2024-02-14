@@ -1,8 +1,9 @@
 #/usr/bin/env python
 """script for calculating integrated quantities from mp and cps
 """
-import sys
-import os
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import time
 import logging
 import glob

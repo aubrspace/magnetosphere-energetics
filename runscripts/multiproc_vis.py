@@ -1,9 +1,12 @@
 #/usr/bin/env python
 """Multiprocessing BATSRUS data primarily for visualization
 """
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import time
 import logging
-import os, multiprocessing, sys, warnings
+import multiprocessing, warnings
 import numpy as np
 import datetime as dt
 import glob

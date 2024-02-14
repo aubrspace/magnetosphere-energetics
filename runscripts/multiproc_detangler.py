@@ -1,9 +1,12 @@
 #/usr/bin/env python
 """Example from the pytecplot documentation
 """
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import time
 import logging
-import atexit, os, multiprocessing, sys
+import atexit, multiprocessing
 import numpy as np
 from numpy import pi
 import datetime as dt

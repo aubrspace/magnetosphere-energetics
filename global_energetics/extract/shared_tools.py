@@ -1,6 +1,8 @@
 """Tools that **DONT USE TECPLOT or PARAVIEW** that each can leverage
 """
 
+from numpy import sign
+
 def check_bin(x,theta_1,phi_1,inbin,state):
     """Function checks 4 quadrants of bin to determine contestation (daynight)
     Inputs

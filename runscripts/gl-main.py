@@ -1,8 +1,9 @@
 #/usr/bin/env python
 """script for calculating integrated quantities from mp and cps
 """
-import sys
-import os
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import time
 import logging
 import glob
@@ -52,7 +53,7 @@ def find_IE_matched_file(path,filetime):
 def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Quickly duplicate date across 4 frames
     tp.macro.execute_command('$!LoadColorMap  '+
-                 '"'+os.path.join(os.getcwd(),'energetics.map')+'"')
+                 '"'+os.path.join(os.getcwd(),'cosmetic/energetics.map')+'"')
     tp.macro.execute_extended_command(
                         command_processor_id='Multi Frame Manager',
                         command='MAKEFRAMES3D ARRANGE=TILE SIZE=50')
@@ -184,10 +185,10 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     if True:
-        save_gm_multi(['status_forward.sty',
-                       'energy_forward.sty',
-                       'daynight_closed_side.sty',
-                       'north_pc_rxn_busy.sty'],
+        save_gm_multi(['cosmetic/status_forward.sty',
+                       'cosmetic/energy_forward.sty',
+                       'cosmetic/daynight_closed_side.sty',
+                       'cosmetic/north_pc_rxn_busy.sty'],
                        outpath,outputname,filetime)
     else:
         with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
