@@ -114,7 +114,7 @@ def display_visuals(field,mp,renderView,**kwargs):
         isoFFJdisplay.DiffuseColor = [0.0, 1.0, 0.0]
         isoFFJdisplay.Opacity = 0.4
 
-    if kwargs.get('timestamp',True):
+    if kwargs.get('timestamp',False):
         simtime = kwargs.get('localtime')-kwargs.get('tstart')
         #timestamp
         stamp1 = Text(registrationName='tstamp')

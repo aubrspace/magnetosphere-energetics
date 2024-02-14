@@ -531,10 +531,10 @@ def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
 def refactor(event,t0):
     # Gather segments of the event to pass directly to figure functions
     ev = {}
-    ev['lobes'] = event['msdict']['lobes']
-    ev['closed'] = event['msdict']['closed']
-    ev['mp'] = event['mpdict']['ms_full']
-    ev['inner'] = event['inner_mp']
+    ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
+    ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
+    ev['mp'] = event['mpdict']['ms_full'].resample('60S').ffill()
+    ev['inner'] = event['inner_mp'].resample('60S').ffill()
     ev['sim'] = event['obs']['swmf_log']
     ev['sw'] = event['obs']['swmf_sw']
     timedelta = [t-t0 for t in event['time']]
@@ -543,6 +543,14 @@ def refactor(event,t0):
     ev['times']=[float(n.to_numpy()) for n in timedelta]
     ev['simt']=[float(n.to_numpy()) for n in simtdelta]
     ev['swt']=[float(n.to_numpy()) for n in swtdelta]
+
+    #TODO
+    # Calc dt and then fill gaps S.T. values fill forward to keep const dt
+    ev['dt'] = [(t1-t0)/1e9 for t0,t1 in
+                zip(ev['times'][0:-1],ev['times'][1::])]
+    ev['dt'].append(ev['dt'][-1])
+    from IPython import embed; embed()
+    time.sleep(3)
 
     ## TOTAL
     #K1,5 from mp
@@ -625,9 +633,6 @@ def refactor(event,t0):
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
 
-    ev['dt'] = [(t1-t0)/1e9 for t0,t1 in
-                zip(ev['times'][0:-1],ev['times'][1::])]
-    ev['dt'].append(ev['dt'][-1])
     return ev
 
 def ie_refactor(event,t0):

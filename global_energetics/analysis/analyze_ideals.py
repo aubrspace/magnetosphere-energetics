@@ -4,6 +4,7 @@
 import os,sys,glob,time
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
+from scipy import signal
 from scipy.stats import linregress
 import datetime as dt
 import pandas as pd
@@ -65,12 +66,34 @@ def interval_totalvariation(ev):
             dt = [t.seconds for t in ev[key][interv].index[1::]-
                                      ev[key][interv].index[0:-1]]
             difference = abs(ev[key][interv].diff())
-            variation = (difference[1::]*dt).sum()
-            tv_ev.loc[i,key] = variation/abs(ev[key][interv]).mean()
+            variation = (difference[1::]).sum()
+            #variation = (difference[1::]*dt).sum()
+            tv_ev.loc[i,key] = variation
+            #/abs(ev[key][interv]).mean()
             if key=='K1':
                 if variation/abs(ev[key][interv]).mean()>3000:
                     print('\t',i,variation/abs(ev[key][interv]).mean())
     return tv_ev
+
+def interval_correlation(ev,xkey,ykey,**kwargs):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                       ev[xkey].index)
+    for i,(start,end) in enumerate(interval_list):
+        interv = (ev[xkey].index>start)&(ev[xkey].index<end)
+        dt = [t.seconds for t in ev[xkey][interv].index[1::]-
+                                 ev[xkey][interv].index[0:-1]]
+        x = ev[xkey][interv].values/kwargs.get('xfactor',1)
+        y = ev[ykey][interv].values/kwargs.get('yfactor',1)
+        correlation = signal.correlate(x,y,mode="full")
+        lags = signal.correlation_lags(x.size,y.size,mode="full")
+        lag = lags[np.argmax(correlation)]
+        if i==0:
+            corr_ev = np.ndarray([len(interval_list),len(correlation)])
+        #TODO
+        from IPython import embed; embed()
+        corr_ev[i] = correlation
+    from IPython import embed; embed()
+    return corr_ev
 
 def build_interval_list(tstart,tlength,tjump,alltimes):
     interval_list = []
@@ -587,15 +610,16 @@ def scatter_rxn_energy(ev):
     scatter_rxn,(axis) =plt.subplots(1,1,figsize=[20,20])
     #Plot
     X = ev['RXN_Day']/1e3
-    Y = ev['K1']/1e12
+    Y = ev['K5']/1e12
+    #from IPython import embed; embed()
     axis.scatter(X,Y,s=200)
     slope,intercept,r,p,stderr = linregress(X,Y)
     R2 = r**2
-    linelabel = (f'-K1 Flux [TW]:{slope:.2f}Ein [TW], R2={R2:.2f}')
+    linelabel = (f'K5 Flux [TW]:{slope:.2f}Eout [TW], R2={R2:.2f}')
     axis.plot(X,(intercept+X*slope),
                       label=linelabel,color='grey', ls='--')
     #Decorations
-    #axis.set_ylim([-5,25])
+    axis.set_ylim([0,15])
     #axis.set_xlim([-5,25])
     axis.axhline(0,c='black')
     axis.axvline(0,c='black')
@@ -605,7 +629,7 @@ def scatter_rxn_energy(ev):
     axis.set_xlabel(r'Int. Energy Flux $\left[TW\right]$')
     axis.legend()
     scatter_rxn.tight_layout(pad=1)
-    figurename = path+'/scatter_rxn.png'
+    figurename = path+'/scatter_rxn_day.png'
     scatter_rxn.savefig(figurename)
     plt.close(scatter_rxn)
     print('\033[92m Created\033[00m',figurename)
@@ -751,7 +775,7 @@ def scatter_internalFlux(tave):
     plt.close(scatterAL)
     print('\033[92m Created\033[00m',figurename)
 
-def scatter_TVexternal(tv,tave):
+def scatter_TVexternal_K1(tv,tave,path):
     #############
     #setup figure
     scatterK1,(axis) =plt.subplots(1,1,figsize=[20,20])
@@ -760,36 +784,73 @@ def scatter_TVexternal(tv,tave):
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(tv.keys()):
-        print(case, shapes[i])
-        cond = tv[case]<1000
-        variation = tv[case]
-        average = tave[case]
-        sc = axis.scatter(average['Ulobes']/1e15,(variation['K2b']),
+        #Trim > 2std fromt the mean for each case
+        mean = tv[case]['K1'][tv[case]['K1']<tv[case]['K1'].max()].mean()
+        std  = tv[case]['K1'][tv[case]['K1']<tv[case]['K1'].max()].std()
+        cond = tv[case]['K1']<(mean+2*std)
+        variation = tv[case][cond]
+        average = tave[case][cond]
+        sc = axis.scatter(variation['Ulobes']/1e15,(variation['K1']/1e12),
                           label=case,
                           marker=shapes[i],
                           s=200)
-                          #cmap='twilight',
-                          #c=(np.rad2deg(ev['clock'])+360)%360)
-        all_X = np.append(all_X,average['U'].values/1e15)
-        all_Y = np.append(all_Y,variation['K1'].values)
-    #axis.set_ylim(0,1000)
+        all_X = np.append(all_X,variation['Ulobes'].values/1e15)
+        all_Y = np.append(all_Y,variation['K1'].values/1e12)
+    #axis.set_ylim(0,100)
     slope,intercept,r,p,stderr = linregress(all_X,all_Y)
-    linelabel = (f'K2b Flux Total Variation [s]:{slope:.2f}U [PJ], r={r:.2f}')
+    linelabel = (f'K1 T.V.:{slope:.2f}Ulobes T.V., r={r:.2f}')
     axis.plot(all_X,(intercept+all_X*slope),
                       label=linelabel,color='grey', ls='--')
 
-    #cbar = plt.colorbar(sc)
-    #cbar.set_label(r' $\theta_{c}\left[ deg\right]$')
     #Decorations
     axis.legend()
     axis.axhline(0,c='black')
     #axis.axvline(0,c='black')
-    axis.set_xlabel(r'Integrated Energy $U \left[ PJ\right]$')
-    axis.set_ylabel(r'TotalVariation LobeSheath Flux K1 $\left[ s\right]$')
+    axis.set_xlabel(r'T.V. Lobe Energy $U \left[ PJ\right]$')
+    axis.set_ylabel(r'T.V. LobeSheath Flux K1 $\left[ TW\right]$')
     scatterK1.tight_layout(pad=1)
     figurename = path+'/scatter_K1_TV.png'
     scatterK1.savefig(figurename)
     plt.close(scatterK1)
+    print('\033[92m Created\033[00m',figurename)
+
+def scatter_TVexternal_K5(tv,tave,path):
+    #############
+    #setup figure
+    scatterK5,(axis) =plt.subplots(1,1,figsize=[20,20])
+    #Plot
+    shapes=['o','<','X','+','>','^']
+    all_X = np.array([])
+    all_Y = np.array([])
+    for i,case in enumerate(tv.keys()):
+        #Trim > 2std fromt the mean for each case
+        mean = tv[case]['K1'][tv[case]['K1']<tv[case]['K1'].max()].mean()
+        std  = tv[case]['K1'][tv[case]['K1']<tv[case]['K1'].max()].std()
+        cond = tv[case]['K1']<(mean+2*std)
+        variation = tv[case][cond]
+        average = tave[case][cond]
+        sc = axis.scatter(variation['Ulobes']/1e15,(variation['K1'])/1e12,
+                          label=case,
+                          marker=shapes[i],
+                          s=200)
+        all_X = np.append(all_X,variation['Ulobes'].values/1e15)
+        all_Y = np.append(all_Y,variation['K5'].values/1e12)
+    #axis.set_ylim(0,100)
+    slope,intercept,r,p,stderr = linregress(all_X,all_Y)
+    linelabel = (f'K1 T.V.:{slope:.2f}Ulobes T.V., r={r:.2f}')
+    axis.plot(all_X,(intercept+all_X*slope),
+                      label=linelabel,color='grey', ls='--')
+
+    #Decorations
+    axis.legend()
+    axis.axhline(0,c='black')
+    #axis.axvline(0,c='black')
+    axis.set_xlabel(r'T.V. Lobe Energy $U \left[ PJ\right]$')
+    axis.set_ylabel(r'T.V. ClosedSheath Flux K5 $\left[ TW\right]$')
+    scatterK5.tight_layout(pad=1)
+    figurename = path+'/scatter_K5_TV.png'
+    scatterK5.savefig(figurename)
+    plt.close(scatterK5)
     print('\033[92m Created\033[00m',figurename)
 
 def scatter_externalFlux(tave):
@@ -936,6 +997,108 @@ def innerLobeFlux(tave):
     plt.close(scatterLobe)
     print('\033[92m Created\033[00m',figurename)
     #############
+
+def corr_alldata_K1(corr,path):
+    #############
+    #setup figures
+    allscatter,(axis) =plt.subplots(1,1,figsize=[20,20])
+    gridscatter = plt.figure(figsize=[28,28])
+    grid = plt.GridSpec(3,3,hspace=0.10,top=0.95,figure=gridscatter)
+    #Plot
+    shapes=['o','<','X','+','>','^']
+    all_X = np.array([])
+    all_Y = np.array([])
+    for i,case in enumerate(corr.keys()):
+        if case=='LOWnLOWu':
+            ev = {}
+            banlist = ['lobes','closed','mp','inner','dt',
+                       'sim','sw','times','simt','swt','dDstdt_sim',
+                       'ie_surface_north','ie_surface_south',
+                       'term_north','term_south','ie_times']
+            keylist = [k for k in raw[case].keys() if k not in banlist]
+            for key in keylist:
+                cond = raw[case][key].index>dt.datetime(2022,6,6,5)
+                ev[key] = raw[case][key][cond]
+        else:
+            ev = raw[case]
+        from IPython import embed; embed()
+        sc_color = list(plt.rcParams['axes.prop_cycle'])[i]['color']
+
+def scatter_alldata_K1(raw,path):
+    #############
+    #setup figures
+    allscatter,(axis) =plt.subplots(1,1,figsize=[20,20])
+    gridscatter = plt.figure(figsize=[28,28])
+    grid = plt.GridSpec(3,3,hspace=0.10,top=0.95,figure=gridscatter)
+    #Plot
+    shapes=['o','<','X','+','>','^']
+    all_X = np.array([])
+    all_Y = np.array([])
+    for i,case in enumerate(raw.keys()):
+        if case=='LOWnLOWu':
+            ev = {}
+            banlist = ['lobes','closed','mp','inner','dt',
+                       'sim','sw','times','simt','swt','dDstdt_sim',
+                       'ie_surface_north','ie_surface_south',
+                       'term_north','term_south','ie_times']
+            keylist = [k for k in raw[case].keys() if k not in banlist]
+            for key in keylist:
+                cond = raw[case][key].index>dt.datetime(2022,6,6,5)
+                ev[key] = raw[case][key][cond]
+        else:
+            ev = raw[case]
+        sc = axis.scatter(ev['RXN_Day']/1e3,(ev['K1'])/1e12,
+                          label=case,
+                          marker=shapes[i],
+                          s=200)
+        sc_color = list(plt.rcParams['axes.prop_cycle'])[i]['color']
+        all_X = np.append(all_X,ev['RXN_Day'].values/1e3)
+        all_Y = np.append(all_Y,ev['K1'].values/1e12)
+        # Individual grid plot
+        grid_axis = gridscatter.add_subplot(grid[i])
+        grid_axis.scatter(ev['RXN_Day']/1e3,(ev['K1'])/1e12,
+                          label=case,
+                          marker=shapes[i],
+                          c=sc_color,
+                          s=200)
+        # Individual grid stats
+        slope,intercept,r,p,stderr = linregress(ev['RXN_Day']/1e3,
+                                                ev['K1']/1e12)
+        linelabel = (f'DayRXN: {slope:.2f}K1, r={r:.2f}')
+        grid_axis.plot(ev['RXN_Day']/1e3,(intercept+ev['RXN_Day']/1e3*slope),
+                      label=linelabel,color='grey', ls='--')
+        # Individual grid decorations
+        grid_axis.legend()
+        grid_axis.axhline(0,c='black')
+        grid_axis.axvline(0,c='black')
+        grid_axis.set_ylim(-20,3)
+        grid_axis.set_xlim(-750,750)
+    # Save the Grid result
+    figurename = path+'/gridscatter_alldata_K1.png'
+    gridscatter.savefig(figurename)
+    plt.close(gridscatter)
+    print('\033[92m Created\033[00m',figurename)
+    # Global fits
+    slope,intercept,r,p,stderr = linregress(all_X,all_Y)
+    linelabel = (f'DayRXN: {slope:.2f}K1, r={r:.2f}')
+    axis.plot(all_X,(intercept+all_X*slope),
+                      label=linelabel,color='grey', ls='--')
+
+    #Global Decorations
+    axis.legend()
+    axis.axhline(0,c='black')
+    axis.axvline(0,c='black')
+    axis.set_ylim(-20,3)
+    axis.set_xlim(-750,750)
+    axis.set_xlabel(r'Day Reconnection $\frac{d\phi}{dt} \left[ kWb/s\right]$')
+    axis.set_ylabel(r'LobeSheath Flux K1 $\left[ TW\right]$')
+    #Global Save
+    allscatter.tight_layout(pad=1)
+    figurename = path+'/scatter_alldata_K1.png'
+    allscatter.savefig(figurename)
+    plt.close(allscatter)
+    print('\033[92m Created\033[00m',figurename)
+
 
 def scatters(tave):
     #############
@@ -1202,7 +1365,7 @@ def tab_ranges(dataset):
 
 def initial_figures(dataset):
     path = unfiled
-    tave,tv = {},{}
+    tave,tv,corr,raw = {},{},{},{}
     for i,event in enumerate(dataset.keys()):
         ev = refactor(dataset[event],dt.datetime(2022,6,6,0))
         tave[event] = interval_average(ev)
@@ -1212,6 +1375,9 @@ def initial_figures(dataset):
             ev2 = ie_refactor(dataset[event]['iedict'],dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
+        corr[event] = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
+                                           yfactor=1e12)
+        raw[event] = ev
         #TODO- decide how to stich the average values together
         if False:
             external_flux_timeseries(event,ev['times'],
@@ -1222,7 +1388,7 @@ def initial_figures(dataset):
                                       ev['M1'], ev['Ks1'], ev['M5'],ev['Ks5'],
                                       ev['Ks5'],ev['Ks6'],ev['Ks3'],ev['Ks7'],
                                  path)
-        interv_x_bar(tv[event],tave[event],event)
+        #interv_x_bar(tv[event],tave[event],event)
         #common_x_bar(event,ev)
         #explorer(event,ev,path)
         #common_x_bar(event,ev)
@@ -1254,17 +1420,33 @@ def initial_figures(dataset):
         if 'iedict' in dataset[event].keys():
             #energy_vs_polarcap(ev,event,path)
             #mpflux_vs_rxn(ev,event,path)
-            internalflux_vs_rxn(ev,event,path)
+            #internalflux_vs_rxn(ev,event,path)
             #Zoomed versions
-            window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
-                      (ev['mp'].index<dt.datetime(2022,6,7,10,0)))
+            #window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
+            #          (ev['mp'].index<dt.datetime(2022,6,7,10,0)))
             #energy_vs_polarcap(ev,event,path,zoom=window)
             #mpflux_vs_rxn(ev,event,path,zoom=window)
-            internalflux_vs_rxn(ev,event,path,zoom=window)
+            #internalflux_vs_rxn(ev,event,path,zoom=window)
+            pass
     #indices(dataset,path)
     #scatter_rxn_energy(ev)
     #test_matrix(event,ev,path)
-    #scatter_TVexternal(tv,tave)
+    scatter_TVexternal_K1(tv,tave,path)
+    scatter_TVexternal_K5(tv,tave,path)
+    #scatter_alldata_K1(raw,path)
+    corr_alldata_K1(raw,path)
+    #TODO
+    #   similar to the other TODO above, iterate through the potential combos
+    #       - For each combo:
+    #           x State expected relationship and strength of correlation
+    #           x RAW data plots 1 and 2
+    #           x Average scatter plot
+    #           x Total variation scatter plot
+    #           x Review result and compare with hypothesis
+    #       - Shortlist 2 or three of these results
+    #       - Discuss with Mike and/or Tuija
+    #       - Put the best existing version into overleaf and move forward w
+    #           writing initial draft
     '''
     test_matrix(event,ev,path)
     scatter_cuspFlux(tave)
@@ -1297,7 +1479,7 @@ if __name__ == "__main__":
     plt.rcParams.update(pyplotsetup(mode='print'))
 
     # Event list
-    events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu']
+    events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
 
     ## Analysis Data
     dataset = {}
