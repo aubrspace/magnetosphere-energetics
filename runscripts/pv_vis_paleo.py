@@ -1,6 +1,9 @@
 #/usr/bin/env python
-import os,time
+import time
 import glob
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 from dateutil import parser
 import numpy as np
 import datetime as dt

@@ -1,8 +1,10 @@
 import paraview
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 
-import os
 import time
 import glob
 import numpy as np
