@@ -779,6 +779,41 @@ def calc_integral(term, zone, **kwargs):
     result = {term[1]:[value]}
     return result
 
+#TODO: see if this can be wrapped with numba @jit
+def np_calc_integral(terms, volumes, scalars, **kwargs):
+    """Calls numpy integration for S(term*volume)
+    Inputs
+        term(tuple(str:str))- name pre:post integration
+        volumes
+        scalars
+        kwargs:
+            None
+    Outputs
+        result(dict{str:float})
+    """
+    result = {term[1]:[value]}
+    if kwargs.get('VariableOption','Scalar')=='Scalar':
+        if '[' in term[0]:
+            variable_name = term[0].split('[')[0]+'*'
+        else:
+            variable_name = term[0]
+        variable = zone.dataset.variable(variable_name)
+    else:
+        variable = None
+        if kwargs.get('useNumpy',False):
+            volumes = zone.values('trueCellVolume').as_numpy_array()
+            value = np.sum(volumes)
+    if (kwargs.get('useNumpy',False) and
+        kwargs.get('VariableOption','Scalar')=='Scalar'):
+        scalars = zone.values(term[0]).as_numpy_array()
+        volumes = zone.values('trueCellVolume').as_numpy_array()
+        value = np.dot(scalars,volumes)
+    else:
+        value = integrate_tecplot(variable, zone,
+                      VariableOption=kwargs.get('VariableOption','Scalar'))
+    result = {term[1]:[value]}
+    return result
+
 def get_mag_dict(**kwargs):
     """Creates dictionary of terms to be integrated for magnetic flux
     Inputs

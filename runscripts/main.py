@@ -32,6 +32,8 @@ def save_ie_image(ie_stylehead_north, ie_stylehead_south):
     # Create and save an image
     northsheet = os.getcwd()+'/'+ie_stylehead_north
     southsheet = os.getcwd()+'/'+ie_stylehead_south
+    path = os.getcwd()+'/cosmetic/energetics.map'
+    tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
     if os.path.exists(northsheet) or os.path.exists(southsheet):
         tp.macro.execute_extended_command(
                             command_processor_id='Multi Frame Manager',
@@ -74,6 +76,8 @@ def find_IE_matched_file(path,filetime):
     return iedatafile, success
 
 def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
+    path = os.getcwd()+'/cosmetic/energetics.map'
+    tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
     # Quickly duplicate date across 4 frames
     tp.macro.execute_extended_command(
                         command_processor_id='Multi Frame Manager',
@@ -203,11 +207,11 @@ if __name__ == "__main__":
                                               do_central_diff=False,
                                               outputpath=outpath)
                 if True:
-                    save_gm_multi(['status_forward.sty',
-                                   'energy_forward.sty',
-                                   'daynight_closed_side.sty',
-                                   'north_pc_rxn_busy.sty'],outpath,OUTPUTNAME,
-                                   filetime)
+                    save_gm_multi(['cosmetic/status_forward.sty',
+                                   'cosmetic/energy_forward.sty',
+                                   'cosmetic/daynight_closed_side.sty',
+                                   'cosmetic/north_pc_rxn_busy.sty'],
+                                   outpath,OUTPUTNAME,filetime)
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')

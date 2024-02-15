@@ -720,7 +720,7 @@ def display_single_iso(frame, filename, *, mode='iso_day', **kwargs):
         cpsslice- number of x slices in cps surface
     """
     ###Always included
-    path = os.getcwd()+'/energetics.map'
+    path = os.getcwd()+'/cosmetic/energetics.map'
     tp.macro.execute_command('$!LOADCOLORMAP "'+path+'"')
     frame.background_color = Color.Custom46 #dark blueish
     #frame.background_color = Color.Black
