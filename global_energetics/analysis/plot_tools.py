@@ -531,26 +531,25 @@ def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
 def refactor(event,t0):
     # Gather segments of the event to pass directly to figure functions
     ev = {}
+    #NOTE fill gaps S.T. values fill forward to keep const dt
     ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
     ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
     ev['mp'] = event['mpdict']['ms_full'].resample('60S').ffill()
+    times =  ev['mp'].index
     ev['inner'] = event['inner_mp'].resample('60S').ffill()
     ev['sim'] = event['obs']['swmf_log']
     ev['sw'] = event['obs']['swmf_sw']
-    timedelta = [t-t0 for t in event['time']]
+    timedelta = [t-t0 for t in times]
     simtdelta = [t-t0 for t in ev['sim'].index]
     swtdelta = [t-t0 for t in ev['sw'].index]
     ev['times']=[float(n.to_numpy()) for n in timedelta]
     ev['simt']=[float(n.to_numpy()) for n in simtdelta]
     ev['swt']=[float(n.to_numpy()) for n in swtdelta]
 
-    #TODO
-    # Calc dt and then fill gaps S.T. values fill forward to keep const dt
-    ev['dt'] = [(t1-t0)/1e9 for t0,t1 in
-                zip(ev['times'][0:-1],ev['times'][1::])]
-    ev['dt'].append(ev['dt'][-1])
-    from IPython import embed; embed()
-    time.sleep(3)
+    # Calc dt
+    ev['dt'] = [(t1-t0).seconds for t0,t1 in
+                zip(times[0:-1],times[1::])]
+    ev['dt'].append(times[-1])
 
     ## TOTAL
     #K1,5 from mp
@@ -638,10 +637,10 @@ def refactor(event,t0):
 def ie_refactor(event,t0):
     # Name the top level
     ev = {}
-    ev['ie_surface_north'] = event['ionosphere_north_surface']
-    ev['ie_surface_south'] = event['ionosphere_south_surface']
-    ev['ocflb_north'] = event['ionosphere_north_line']
-    ev['ocflb_south'] = event['ionosphere_south_line']
+    ev['ie_surface_north'] = event['ionosphere_north_surface'].resample('60S').ffill()
+    ev['ie_surface_south'] = event['ionosphere_south_surface'].resample('60S').ffill()
+    ev['ocflb_north'] = event['ionosphere_north_line'].resample('60S').ffill()
+    ev['ocflb_south'] = event['ionosphere_south_line'].resample('60S').ffill()
     # Data collected piece wise so it doesn't always stack up time-wise
     surf_index = ev['ie_surface_north'].index
     line_index = ev['ocflb_north'].index
