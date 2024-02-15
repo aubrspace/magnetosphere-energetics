@@ -89,11 +89,8 @@ def interval_correlation(ev,xkey,ykey,**kwargs):
         lag = lags[np.argmax(correlation)]
         if i==0:
             corr_ev = np.ndarray([len(interval_list),len(correlation)])
-        #TODO
-        from IPython import embed; embed()
         corr_ev[i] = correlation
-    from IPython import embed; embed()
-    return corr_ev
+    return corr_ev,lags
 
 def build_interval_list(tstart,tlength,tjump,alltimes):
     interval_list = []
@@ -998,18 +995,19 @@ def innerLobeFlux(tave):
     print('\033[92m Created\033[00m',figurename)
     #############
 
-def corr_alldata_K1(corr,path):
+def corr_alldata_K1(corr,lags,path):
     #############
     #setup figures
     allscatter,(axis) =plt.subplots(1,1,figsize=[20,20])
-    gridscatter = plt.figure(figsize=[28,28])
-    grid = plt.GridSpec(3,3,hspace=0.10,top=0.95,figure=gridscatter)
+    gridmultiplot = plt.figure(figsize=[28,28])
+    grid = plt.GridSpec(3,3,hspace=0.10,top=0.95,figure=gridmultiplot)
     #Plot
     shapes=['o','<','X','+','>','^']
     all_X = np.array([])
     all_Y = np.array([])
     for i,case in enumerate(corr.keys()):
-        if case=='LOWnLOWu':
+        if False:#ignore this for now
+        #if case=='LOWnLOWu':
             ev = {}
             banlist = ['lobes','closed','mp','inner','dt',
                        'sim','sw','times','simt','swt','dDstdt_sim',
@@ -1020,9 +1018,26 @@ def corr_alldata_K1(corr,path):
                 cond = raw[case][key].index>dt.datetime(2022,6,6,5)
                 ev[key] = raw[case][key][cond]
         else:
-            ev = raw[case]
-        from IPython import embed; embed()
+            ev = corr[case]
+        '''
+        sc = axis.scatter(ev['RXN_Day']/1e3,(ev['K1'])/1e12,
+                          label=case,
+                          marker=shapes[i],
+                          s=200)
         sc_color = list(plt.rcParams['axes.prop_cycle'])[i]['color']
+        '''
+        # Individual grid plot
+        grid_axis = gridmultiplot.add_subplot(grid[i])
+        for i,interv in enumerate(ev):
+            grid_axis.plot(lags,interv,label=i)
+        # Individual grid decorations
+        grid_axis.axvline(0,c='black')
+        grid_axis.title.set_text(case)
+    # Save the Grid result
+    figurename = path+'/gridmultiplot_correlation_K1.png'
+    gridmultiplot.savefig(figurename)
+    plt.close(gridmultiplot)
+    print('\033[92m Created\033[00m',figurename)
 
 def scatter_alldata_K1(raw,path):
     #############
@@ -1375,8 +1390,8 @@ def initial_figures(dataset):
             ev2 = ie_refactor(dataset[event]['iedict'],dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
-        corr[event] = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
-                                           yfactor=1e12)
+        corr[event],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
+                                                yfactor=1e12)
         raw[event] = ev
         #TODO- decide how to stich the average values together
         if False:
@@ -1434,7 +1449,7 @@ def initial_figures(dataset):
     scatter_TVexternal_K1(tv,tave,path)
     scatter_TVexternal_K5(tv,tave,path)
     #scatter_alldata_K1(raw,path)
-    corr_alldata_K1(raw,path)
+    corr_alldata_K1(corr,lags,path)
     #TODO
     #   similar to the other TODO above, iterate through the potential combos
     #       - For each combo:
