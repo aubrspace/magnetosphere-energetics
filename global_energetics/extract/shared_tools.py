@@ -2,7 +2,10 @@
 """
 
 from numpy import sign
+from numba import jit
+import numpy as np
 
+@jit#NOTE this restricts the types and methods available so take care
 def check_bin(x,theta_1,phi_1,inbin,state):
     """Function checks 4 quadrants of bin to determine contestation (daynight)
     Inputs
@@ -35,13 +38,14 @@ def check_bin(x,theta_1,phi_1,inbin,state):
           (phi_1<phHigh)&(phi_1>phMid))
     quadbins = []
     for q in [q1,q2,q3,q4]:
-        if any(q):
+        if np.any(q):
             quadbins.append(q)
-    signs = [sign(x[q].mean()) for q in quadbins]
-    if (len(signs)==0):
-        contested = False
-    elif (len(signs)==signs.count(signs[0])):
-        contested = False
+    signs = np.array([sign(x[q].mean()) for q in quadbins])
+    contested = np.zeros(1,dtype=np.bool_)
+    if signs.size == 0:
+        contested[0] = 0
+    elif (signs.all()) or (signs.max()==0):
+        contested[0] = 0
     else:
-        contested = True
-    return quadbins, contested
+        contested[0] = 1
+    return quadbins, contested[0]

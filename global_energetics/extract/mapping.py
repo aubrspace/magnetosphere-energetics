@@ -9,6 +9,7 @@ import glob
 from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt,sign
+from numba import jit
 import datetime as dt
 import tecplot as tp
 from tecplot.constant import *
@@ -71,6 +72,69 @@ def check_bin(x,theta_1,phi_1,inbin,state):
         contested = True
     return quadbins, contested
 '''
+@jit(forceobj=True, looplift=True)
+def calc_map(state,ntheta,nphi,x,theta_1,phi_1,daynight):
+    # Create an initial set of coarse bins
+    theta_bins = np.linspace(0,90,ntheta)
+    phi_bins = np.linspace(0,360,nphi)
+    k=0
+    # Iterate through each bin
+    for i,thHigh in enumerate(theta_bins[1::]):
+        for j,phHigh in enumerate(phi_bins[1::]):
+            thLow = theta_bins[i-1]
+            phLow = phi_bins[j-1]
+            inbins = ((state==1)&
+                      (theta_1<thHigh)&
+                      (theta_1>thLow)&
+                      (phi_1<phHigh)&
+                      (phi_1>phLow))
+            if np.any(inbins):
+                # Subdivide bin until 4 subquadrants agree
+                finished_bins = []
+                contested_bins = [inbins]
+                i=0
+                while len(contested_bins)>0:
+                    i+=1
+                    old_contested_bins = contested_bins
+                    contested_bins = []
+                    for b in old_contested_bins:
+                        qs, contested = check_bin(x,theta_1,phi_1,b,state)
+                        if not contested:
+                            finished_bins.append(b)
+                        else:
+                            for q in qs:
+                                contested_bins.append(q)
+                    #if i>1 and kwargs.get('verbose',False):
+                    #    print(i)
+                    if i>5:
+                        for q in qs:
+                            finished_bins.append(q)
+                        contested_bins = []
+                # Now actually set the values using the finished_bin list
+                for inbin in finished_bins:
+                    dayside,nightside,split = 0,0,False
+                    k+=1
+                    #if kwargs.get('debug',False):
+                    #    mapID[inbins] = k
+                    if x[inbin].mean()>0:
+                        dayside = 1
+                    if x[inbin].mean()<0:
+                        nightside = 1
+                    if dayside*nightside>0:
+                        split = True
+                    if not split:
+                        if dayside:
+                            daynight[inbin] = 1
+                        elif nightside:
+                            daynight[inbin] = -1
+                    else:
+                        daynight[inbins] = -999
+                    #if kwargs.get('verbose',False):
+                    #    print(k,thLow,thHigh,
+                    #      phLow,phHigh,
+                    #      x[inbins].min(),x[inbins].max(),
+                    #      '\tday:',dayside,'\tnight:',nightside)
+    return daynight
 
 def reversed_mapping(gmzone,state_var,**kwargs):
     # Convert theta/phi mapping variable into cartesian footpoint values
@@ -92,6 +156,8 @@ def reversed_mapping(gmzone,state_var,**kwargs):
             gmzone.dataset.add_variable('mapID')
         mapID = gmzone.values('mapID').as_numpy_array()
     daynight = gmzone.values('daynight').as_numpy_array()
+    daynight = calc_map(state,10,37,x,theta_1,phi_1,daynight)
+    '''
     # Create an initial set of coarse bins
     theta_bins = np.linspace(0,90,10)
     phi_bins = np.linspace(0,360,37)
@@ -152,6 +218,7 @@ def reversed_mapping(gmzone,state_var,**kwargs):
                           phLow,phHigh,
                           x[inbins].min(),x[inbins].max(),
                           '\tday:',dayside,'\tnight:',nightside)
+        '''
     # Set the values in Tecplot from our numpy array
     gmzone.values('daynight')[::] = daynight
     if kwargs.get('debug',False):

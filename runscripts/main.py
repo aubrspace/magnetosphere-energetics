@@ -168,7 +168,7 @@ if __name__ == "__main__":
                                     inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
-                                    #tail_cap=-100,
+                                    tail_cap=-120,
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     truegridfile=oggridfile,
@@ -206,7 +206,7 @@ if __name__ == "__main__":
                                               do_cms=False,
                                               do_central_diff=False,
                                               outputpath=outpath)
-                if True:
+                if False:
                     save_gm_multi(['cosmetic/status_forward.sty',
                                    'cosmetic/energy_forward.sty',
                                    'cosmetic/daynight_closed_side.sty',
