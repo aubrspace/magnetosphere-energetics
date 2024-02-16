@@ -29,8 +29,8 @@
 #DONE#INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
      #OUTPUTDIR=./outputs_HIGHnHIGHu/
 
-INPUTDIR=./run_LOWnHIGHu/GM/IO2/
-OUTPUTDIR=./outputs_LOWnHIGHu/
+#DONE#INPUTDIR=./run_LOWnHIGHu/GM/IO2/
+     #OUTPUTDIR=./outputs_LOWnHIGHu/
 
 #DONE#INPUTDIR=./run_HIGHnLOWu/GM/IO2/
      #OUTPUTDIR=./outputs_HIGHnLOWu/
@@ -40,6 +40,9 @@ OUTPUTDIR=./outputs_LOWnHIGHu/
 
 #DONE#INPUTDIR=./run_MEDnHIGHu/GM/IO2/
      #OUTPUTDIR=./outputs_MEDnHIGHu/
+
+INPUTDIR=./run_MEDnHIGHu/GM/IO2/
+OUTPUTDIR=./outputs_stretched_MEDnHIGHu/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/
@@ -82,10 +85,10 @@ do
     #                              -s $satpath
 
     #if you only want to process one file use this
-    #i=$((i+1))
-    #if [ $i == 1 ]
-    #then
-    #    exit
-    #fi
+    i=$((i+1))
+    if [ $i == 4 ]
+    then
+        exit
+    fi
 done
 

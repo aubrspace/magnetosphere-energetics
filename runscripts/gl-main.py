@@ -140,6 +140,7 @@ def energetics_analysis(infiles,outpath):
                                       do_central_diff=False,
                                       do_1Dsw=False,
                                       analysis_type='energy_mass_mag',
+                                      tail_cap=-120,
                                       #modes=['sphere'],
                                       #sp_rmax=10,
                                       #sp_rmin=3,
@@ -185,10 +186,11 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     if True:
-        save_gm_multi(['cosmetic/status_forward.sty',
-                       'cosmetic/energy_forward.sty',
-                       'cosmetic/daynight_closed_side.sty',
-                       'cosmetic/north_pc_rxn_busy.sty'],
+        save_gm_multi(['cosmetic/stretched_longtail_fieldlines.sty'],
+        #'cosmetic/status_forward.sty',
+        #               'cosmetic/energy_forward.sty',
+        #               'cosmetic/daynight_closed_side.sty',
+        #               'cosmetic/north_pc_rxn_busy.sty'],
                        outpath,outputname,filetime)
     else:
         with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:

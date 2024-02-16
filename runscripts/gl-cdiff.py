@@ -99,6 +99,7 @@ def energetics_analysis(infiles,outpath):
                                       do_central_diff=True,
                                       do_1Dsw=False,
                                       analysis_type='energy_mass_mag',
+                                      tail_cap=-120,
                                       #modes=['sphere'],
                                       #sp_rmax=10,
                                       #sp_rmin=3,

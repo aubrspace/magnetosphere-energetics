@@ -72,7 +72,7 @@ def check_bin(x,theta_1,phi_1,inbin,state):
         contested = True
     return quadbins, contested
 '''
-@jit(forceobj=True, looplift=True)
+#@jit(forceobj=True, looplift=True)
 def calc_map(state,ntheta,nphi,x,theta_1,phi_1,daynight):
     # Create an initial set of coarse bins
     theta_bins = np.linspace(0,90,ntheta)
