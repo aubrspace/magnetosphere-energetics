@@ -80,11 +80,11 @@ def obtain_vGSM(solarwind,**kwargs):
 #Main program
 if __name__ == '__main__':
     #############################USER INPUTS HERE##########################
-    start = dt.datetime(2000,6,24,2,0)
-    end = dt.datetime(2000,6,24,8,0)
+    start = dt.datetime(2022,2,2,5,0)
+    end = dt.datetime(2022,2,5,12,0)
     #end = dt.datetime.now()
     outpath = './'
-    use_cda = False
+    use_cda = True
     #Use "cdas.get_variables('WI_H1_SWE')" to see options,
     #  K0=>realtime, SWE=>solarwindexperiment, MFI=>magneticfieldinstrument
     #######################################################################
@@ -92,6 +92,7 @@ if __name__ == '__main__':
     #print(cdas.get_variables('WI_K0_SWE'))
     if use_cda:
         from cdasws import CdasWs
+        #TODO: figure out why this import fails on the RHEL machine
         cdas = CdasWs()
         swvars = ['V_GSM', 'THERMAL_SPD', 'Np','SC_pos_GSM','QF_V']
         magvars = ['BGSMc']

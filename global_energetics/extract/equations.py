@@ -401,10 +401,7 @@ def equations(**kwargs):
         '{W [km/s/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
                               '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
                               '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)'}
-    equations['devB'] = {
-        '{curlB [nT/Re]}=sqrt((ddy({U_z [km/s]})-ddz({U_y [km/s]}))**2+'+
-                              '(ddz({U_x [km/s]})-ddx({U_z [km/s]}))**2+'+
-                              '(ddx({U_y [km/s]})-ddy({U_x [km/s]}))**2)'}
+    equations['plasmasheet']={'{curl_unitb_y}':'ddz({unitbx})-ddx({unitbz})'}
     ######################################################################
     return equations
 
