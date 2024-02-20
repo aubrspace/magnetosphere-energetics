@@ -1,0 +1,5058 @@
+#!MC 1410
+$!SetStyleBase Factory
+$!PlotType  = Cartesian3D
+$!FrameLayout 
+  ShowHeader = No
+  BackgroundColor = Black
+  HeaderColor = Red
+  XYPos
+    {
+    X = 0.2125
+    Y = 0.2125
+    }
+  Width = 10.575
+  Height = 8.075
+$!ThreeDAxis 
+  AspectRatioLimit = 25
+  BoxAspectRatioLimit = 25
+$!GlobalTime 
+  SolutionTime = 0
+$!ActiveFieldMaps  =  [1,3,8]
+$!GlobalRGB 
+  RedChannelVar = 4
+  GreenChannelVar = 4
+  BlueChannelVar = 8
+  RangeMin = 0
+  RangeMax = 1
+$!GlobalContour  1
+  Var = 15
+  ColorMapName = 'cmocean - thermal'
+  DefNumLevels = 5
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 12.195
+      Y = 97.567
+      }
+    Box
+      {
+      BoxType = Filled
+      }
+    }
+  ColorCutoff
+    {
+    RangeMin = 0
+    RangeMax = 2
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = -1
+      CMax = 3
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 1
+  RawData
+5
+-1
+0
+1
+2
+3
+$!GlobalContour  2
+  Var = 13
+  ColorMapName = 'Doppler'
+  DefNumLevels = 11
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 97.974
+      Y = 41.673
+      }
+    Box
+      {
+      BoxType = Filled
+      }
+    }
+  ColorCutoff
+    {
+    RangeMin = -0.0457193175
+    RangeMax = 0.0146017675
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = -0.07587986
+      CMax = 0.04476231
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 2
+  RawData
+11
+-0.0005
+-0.0004
+-0.0003
+-0.0002
+-0.0001
+0
+0.0001
+0.0002
+0.0003
+0.0004
+0.0005
+$!GlobalContour  3
+  Var = 5
+  ColorMapName = 'Diverging - Blue/Red'
+  DefNumLevels = 21
+  Labels
+    {
+    AutoLevelSkip = 2
+    }
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 14.978
+      Y = 98.609
+      }
+    Box
+      {
+      BoxType = Filled
+      }
+    }
+  ColorCutoff
+    {
+    RangeMin = -795.22115
+    RangeMax = 270.62055
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = 0
+      CMax = 1
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 3
+  RawData
+21
+-600
+-540
+-480
+-420
+-360
+-300
+-240
+-180
+-120
+-60
+0
+60
+120
+180
+240
+300
+360
+420
+480
+540
+600
+$!GlobalContour  4
+  Var = 6
+  ColorMapName = 'Diverging - Blue/Red'
+  DefNumLevels = 11
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 95
+      }
+    }
+  ColorCutoff
+    {
+    RangeMin = -420.10855
+    RangeMax = 387.67595
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = 0
+      CMax = 1
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 4
+  RawData
+11
+-450
+-360
+-270
+-180
+-90
+0
+90
+180
+270
+360
+450
+$!GlobalContour  5
+  Var = 7
+  ColorMapName = 'Sequential - Viridis'
+  DefNumLevels = 10
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 95
+      }
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = 0
+      CMax = 1
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 5
+  RawData
+10
+-250
+-200
+-150
+-100
+-50
+0
+50
+100
+150
+200
+$!GlobalContour  6
+  Var = 8
+  ColorMapName = 'Sequential - Viridis'
+  DefNumLevels = 12
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 95
+      }
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = 0
+      CMax = 1
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 6
+  RawData
+12
+-160
+-140
+-120
+-100
+-80
+-60
+-40
+-20
+0
+20
+40
+60
+$!GlobalContour  7
+  Var = 9
+  ColorMapName = 'Sequential - Viridis'
+  DefNumLevels = 11
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 95
+      }
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = 0
+      CMax = 1
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 7
+  RawData
+11
+-100
+-80
+-60
+-40
+-20
+0
+20
+40
+60
+80
+100
+$!GlobalContour  8
+  Var = 10
+  ColorMapName = 'Sequential - Viridis'
+  DefNumLevels = 13
+  Legend
+    {
+    Show = Yes
+    XYPos
+      {
+      X = 95
+      }
+    }
+  ColorMapFilter
+    {
+    ContinuousColor
+      {
+      CMin = 0
+      CMax = 1
+      }
+    }
+$!ContourLevels New
+  ContourGroup = 8
+  RawData
+13
+-120
+-100
+-80
+-60
+-40
+-20
+0
+20
+40
+60
+80
+100
+120
+$!GlobalThreeDVector 
+  UVar = 8
+  VVar = 9
+  WVar = 10
+  RelativeLength = 1.5E-07
+$!GlobalScatter 
+  Legend
+    {
+    XYPos
+      {
+      X = 95
+      }
+    }
+  RefScatSymbol
+    {
+    Color = Red
+    FillColor = Red
+    }
+$!FieldMap  [1]
+  Mesh
+    {
+    Color = Black
+    }
+  Contour
+    {
+    ContourType = Flood
+    Color = Black
+    UseLightingEffect = Yes
+    }
+  Vector
+    {
+    Color = Black
+    }
+  Scatter
+    {
+    Color = Black
+    }
+  Shade
+    {
+    Color = Custom2
+    }
+  EdgeLayer
+    {
+    Show = Yes
+    Color = Black
+    LineThickness = 0.1
+    }
+  Points
+    {
+    PointsToPlot = SurfaceNodes
+    }
+  Surfaces
+    {
+    SurfacesToPlot = None
+    IRange
+      {
+      Max = 1
+      }
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    UseTranslucency = No
+    }
+$!FieldMap  [2]
+  Mesh
+    {
+    Color = Black
+    }
+  Contour
+    {
+    ContourType = Flood
+    Color = Black
+    UseLightingEffect = Yes
+    }
+  Vector
+    {
+    Color = Black
+    }
+  Scatter
+    {
+    Color = Black
+    }
+  Shade
+    {
+    Color = Custom2
+    }
+  EdgeLayer
+    {
+    Show = Yes
+    Color = Black
+    LineThickness = 0.1
+    }
+  Points
+    {
+    PointsToPlot = SurfaceNodes
+    }
+  Surfaces
+    {
+    SurfacesToPlot = KPlanes
+    IRange
+      {
+      Max = 1
+      }
+    }
+  VolumeMode
+    {
+    VolumeObjectsToPlot
+      {
+      ShowIsosurfaces = No
+      ShowSlices = No
+      ShowStreamtraces = No
+      }
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    UseTranslucency = No
+    }
+$!FieldMap  [3]
+  Mesh
+    {
+    Color = Black
+    }
+  Contour
+    {
+    Show = No
+    ContourType = Flood
+    Color = Black
+    UseLightingEffect = Yes
+    }
+  Vector
+    {
+    Color = Black
+    }
+  Scatter
+    {
+    Color = Black
+    }
+  Shade
+    {
+    Color = Custom2
+    }
+  EdgeLayer
+    {
+    Show = Yes
+    Color = Black
+    LineThickness = 0.1
+    }
+  Points
+    {
+    PointsToPlot = SurfaceNodes
+    }
+  Surfaces
+    {
+    SurfacesToPlot = KPlanes
+    IRange
+      {
+      Max = 1
+      }
+    }
+  VolumeMode
+    {
+    VolumeObjectsToPlot
+      {
+      ShowIsosurfaces = No
+      ShowSlices = No
+      ShowStreamtraces = No
+      }
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 80
+    }
+$!FieldMap  [4-7]
+  Mesh
+    {
+    Color = Black
+    }
+  Contour
+    {
+    ContourType = Flood
+    Color = Black
+    UseLightingEffect = Yes
+    }
+  Vector
+    {
+    Color = Black
+    }
+  Scatter
+    {
+    Color = Black
+    }
+  Shade
+    {
+    Color = Custom2
+    }
+  EdgeLayer
+    {
+    Show = Yes
+    Color = Black
+    LineThickness = 0.1
+    }
+  Points
+    {
+    PointsToPlot = SurfaceNodes
+    }
+  Surfaces
+    {
+    SurfacesToPlot = KPlanes
+    IRange
+      {
+      Max = 1
+      }
+    }
+  VolumeMode
+    {
+    VolumeObjectsToPlot
+      {
+      ShowIsosurfaces = No
+      ShowSlices = No
+      ShowStreamtraces = No
+      }
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    UseTranslucency = No
+    }
+$!FieldMap  [8]
+  Mesh
+    {
+    Color = Black
+    }
+  Contour
+    {
+    ContourType = Flood
+    FloodColoring = Group3
+    Color = Black
+    UseLightingEffect = Yes
+    }
+  Vector
+    {
+    Color = Black
+    }
+  Scatter
+    {
+    Color = Black
+    }
+  Shade
+    {
+    Color = Custom2
+    }
+  EdgeLayer
+    {
+    Show = Yes
+    Color = Black
+    LineThickness = 0.1
+    }
+  Points
+    {
+    PointsToPlot = SurfaceNodes
+    }
+  Surfaces
+    {
+    SurfacesToPlot = KPlanes
+    IRange
+      {
+      Max = 1
+      }
+    }
+  VolumeMode
+    {
+    VolumeObjectsToPlot
+      {
+      ShowIsosurfaces = No
+      ShowSlices = No
+      ShowStreamtraces = No
+      }
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    UseTranslucency = No
+    }
+$!ThreeDAxis 
+  XDetail
+    {
+    VarNum = 1
+    }
+  YDetail
+    {
+    VarNum = 2
+    }
+  ZDetail
+    {
+    VarNum = 3
+    }
+$!View Fit
+$!ThreeDAxis 
+  AxisMode = XYZDependent
+  XYDepXToYRatio = 1
+  DepXToYRatio = 1
+  DepXToZRatio = 1
+  GridArea
+    {
+    IsFilled = No
+    }
+  PreserveAxisScale = Yes
+  FrameAxis
+    {
+    Color = White
+    XYPos
+      {
+      X = 87.231
+      Y = 10.095
+      }
+    }
+$!ThreeDAxis 
+  XDetail
+    {
+    RangeMin = -120
+    RangeMax = 0
+    GRSpacing = 50
+    TickLabel
+      {
+      Color = White
+      }
+    Gridlines
+      {
+      Color = White
+      }
+    AxisLine
+      {
+      Color = White
+      Edge = 1
+      }
+    }
+$!ThreeDAxis 
+  YDetail
+    {
+    RangeMin = -20
+    RangeMax = 20
+    GRSpacing = 10
+    TickLabel
+      {
+      Color = White
+      }
+    Gridlines
+      {
+      Color = White
+      }
+    AxisLine
+      {
+      Color = White
+      Edge = 1
+      }
+    }
+$!ThreeDAxis 
+  ZDetail
+    {
+    RangeMin = -20
+    RangeMax = 20
+    GRSpacing = 5
+    TickLabel
+      {
+      Color = White
+      }
+    Gridlines
+      {
+      Color = White
+      }
+    AxisLine
+      {
+      Color = White
+      Edge = 3
+      }
+    }
+$!IsoSurfaceAttributes  1
+  IsoSurfaceSelection = OneSpecificValue
+  Isovalue1 = 0
+  Isovalue2 = 1
+  Isovalue3 = 2
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  2
+  DefinitionContourGroup = 2
+  IsoSurfaceSelection = OneSpecificValue
+  Isovalue1 = -0.0457193175
+  Isovalue2 = -0.015558775
+  Isovalue3 = 0.0146017675
+  Contour
+    {
+    LineContourGroup = 2
+    FloodColoring = Group2
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  3
+  DefinitionContourGroup = 3
+  IsoSurfaceSelection = OneSpecificValue
+  Isovalue1 = -795.22115
+  Isovalue2 = -262.3003
+  Isovalue3 = 270.62055
+  Contour
+    {
+    LineContourGroup = 3
+    FloodColoring = Group3
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  4
+  DefinitionContourGroup = 4
+  IsoSurfaceSelection = OneSpecificValue
+  Isovalue1 = -420.10855
+  Isovalue2 = -16.2163
+  Isovalue3 = 387.67595
+  Contour
+    {
+    LineContourGroup = 4
+    FloodColoring = Group4
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  5
+  DefinitionContourGroup = 5
+  IsoSurfaceSelection = OneSpecificValue
+  Contour
+    {
+    LineContourGroup = 5
+    FloodColoring = Group5
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  6
+  DefinitionContourGroup = 6
+  IsoSurfaceSelection = OneSpecificValue
+  Contour
+    {
+    LineContourGroup = 6
+    FloodColoring = Group6
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  7
+  DefinitionContourGroup = 7
+  IsoSurfaceSelection = OneSpecificValue
+  Contour
+    {
+    LineContourGroup = 7
+    FloodColoring = Group7
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!IsoSurfaceAttributes  8
+  DefinitionContourGroup = 8
+  IsoSurfaceSelection = OneSpecificValue
+  Contour
+    {
+    LineContourGroup = 8
+    FloodColoring = Group8
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    }
+$!SliceAttributes  1
+  SliceSurface = YPlanes
+  PrimaryPosition
+    {
+    X = 0
+    Y = 0
+    Z = 0
+    I = 1
+    J = 1
+    K = 1
+    }
+  StartPosition
+    {
+    X = -112.659375
+    Y = -17.6125
+    Z = -15.9
+    }
+  EndPosition
+    {
+    X = 1.471875
+    Y = 20.8625
+    Z = 17.4
+    }
+  Contour
+    {
+    FloodColoring = Group2
+    }
+  Shade
+    {
+    Show = Yes
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 60
+    UseTranslucency = Yes
+    }
+  SliceConstraint
+    {
+    Include = No
+    Origin
+      {
+      X = 0
+      Y = 0
+      Z = 0
+      }
+    BoxDimension
+      {
+      X = 0
+      Y = 0
+      Z = 0
+      }
+    }
+$!SliceAttributes  2
+  SliceSurface = YPlanes
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!SliceAttributes  3
+  SliceSurface = ZPlanes
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!SliceAttributes  4
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!SliceAttributes  5
+  SliceSurface = YPlanes
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!SliceAttributes  6
+  SliceSurface = ZPlanes
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!SliceAttributes  7
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!SliceAttributes  8
+  SliceSurface = YPlanes
+  PrimaryPosition
+    {
+    X = -94.25
+    }
+  StartPosition
+    {
+    X = -207.425
+    Y = -113.4
+    Z = -113.4
+    }
+  EndPosition
+    {
+    X = 18.925
+    Y = 113.4
+    Z = 113.4
+    }
+  EdgeLayer
+    {
+    Show = No
+    }
+  Effects
+    {
+    LightingEffect = Gouraud
+    SurfaceTranslucency = 10
+    }
+  SliceConstraint
+    {
+    Origin
+      {
+      X = -94.25
+      Z = 1
+      }
+    BoxDimension
+      {
+      X = 125.75
+      Y = 126
+      Z = 126
+      }
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -2.557240411519703
+    Z = 0.9718777502491482
+    }
+  AltStartPos
+    {
+    X = -2.561315857647734
+    Y = 0
+    Z = 0.9724228253942765
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -3.010067759078717
+    Z = 1.0324416552634
+    }
+  AltStartPos
+    {
+    X = -3.014143205206748
+    Y = 0
+    Z = 1.032986730408528
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -3.46289510663773
+    Z = 1.093005560277652
+    }
+  AltStartPos
+    {
+    X = -3.466970552765761
+    Y = 0
+    Z = 1.09355063542278
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -3.915722454196744
+    Z = 1.153569465291904
+    }
+  AltStartPos
+    {
+    X = -3.919797900324776
+    Y = 0
+    Z = 1.154114540437032
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -4.368549801755758
+    Z = 1.214133370306155
+    }
+  AltStartPos
+    {
+    X = -4.372625247883789
+    Y = 0
+    Z = 1.214678445451283
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -4.821377149314772
+    Z = 1.274697275320407
+    }
+  AltStartPos
+    {
+    X = -4.825452595442803
+    Y = 0
+    Z = 1.275242350465535
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -5.274204496873786
+    Z = 1.335261180334659
+    }
+  AltStartPos
+    {
+    X = -5.278279943001817
+    Y = 0
+    Z = 1.335806255479787
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -5.727031844432799
+    Z = 1.39582508534891
+    }
+  AltStartPos
+    {
+    X = -5.73110729056083
+    Y = 0
+    Z = 1.396370160494039
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -6.179859191991813
+    Z = 1.456388990363162
+    }
+  AltStartPos
+    {
+    X = -6.183934638119844
+    Y = 0
+    Z = 1.45693406550829
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -6.632686539550827
+    Z = 1.516952895377414
+    }
+  AltStartPos
+    {
+    X = -6.636761985678858
+    Y = 0
+    Z = 1.517497970522542
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -7.413091117258915
+    Z = 1.852363415974313
+    }
+  AltStartPos
+    {
+    X = -7.418727372542363
+    Y = 0
+    Z = 1.853492443215339
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -8.039341704308614
+    Z = 1.977810887199519
+    }
+  AltStartPos
+    {
+    X = -8.04497795959206
+    Y = 0
+    Z = 1.978939914440546
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -8.665592291358312
+    Z = 2.103258358424725
+    }
+  AltStartPos
+    {
+    X = -8.67122854664176
+    Y = 0
+    Z = 2.104387385665752
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -9.291842878408012
+    Z = 2.228705829649932
+    }
+  AltStartPos
+    {
+    X = -9.297479133691459
+    Y = 0
+    Z = 2.229834856890959
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -9.91809346545771
+    Z = 2.354153300875138
+    }
+  AltStartPos
+    {
+    X = -9.923729720741157
+    Y = 0
+    Z = 2.355282328116165
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -10.54434405250741
+    Z = 2.479600772100345
+    }
+  AltStartPos
+    {
+    X = -10.54998030779086
+    Y = 0
+    Z = 2.480729799341371
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -11.17059463955711
+    Z = 2.605048243325551
+    }
+  AltStartPos
+    {
+    X = -11.17623089484055
+    Y = 0
+    Z = 2.606177270566578
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -11.79684522660681
+    Z = 2.730495714550758
+    }
+  AltStartPos
+    {
+    X = -11.80248148189025
+    Y = 0
+    Z = 2.731624741791784
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -12.42309581365651
+    Z = 2.855943185775963
+    }
+  AltStartPos
+    {
+    X = -12.42873206893995
+    Y = 0
+    Z = 2.85707221301699
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -13.0493464007062
+    Z = 2.98139065700117
+    }
+  AltStartPos
+    {
+    X = -13.05498265598965
+    Y = 0
+    Z = 2.982519684242197
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -14.43673231663169
+    Z = 3.394286031328015
+    }
+  AltStartPos
+    {
+    X = -14.4449699205075
+    Y = 0
+    Z = 3.395374841033762
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -15.35202163616587
+    Z = 3.515264887522148
+    }
+  AltStartPos
+    {
+    X = -15.36025924004167
+    Y = 0
+    Z = 3.516353697227895
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -16.26731095570004
+    Z = 3.636243743716282
+    }
+  AltStartPos
+    {
+    X = -16.27554855957585
+    Y = 0
+    Z = 3.637332553422029
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -17.18260027523422
+    Z = 3.757222599910416
+    }
+  AltStartPos
+    {
+    X = -17.19083787911003
+    Y = 0
+    Z = 3.758311409616163
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -18.0978895947684
+    Z = 3.878201456104549
+    }
+  AltStartPos
+    {
+    X = -18.10612719864421
+    Y = 0
+    Z = 3.879290265810296
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -19.01317891430257
+    Z = 3.999180312298683
+    }
+  AltStartPos
+    {
+    X = -19.02141651817838
+    Y = 0
+    Z = 4.00026912200443
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -19.92846823383675
+    Z = 4.120159168492816
+    }
+  AltStartPos
+    {
+    X = -19.93670583771256
+    Y = 0
+    Z = 4.121247978198563
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -20.84375755337093
+    Z = 4.241138024686951
+    }
+  AltStartPos
+    {
+    X = -20.85199515724673
+    Y = 0
+    Z = 4.242226834392698
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -21.7590468729051
+    Z = 4.362116880881084
+    }
+  AltStartPos
+    {
+    X = -21.76728447678091
+    Y = 0
+    Z = 4.363205690586831
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -22.67433619243928
+    Z = 4.483095737075217
+    }
+  AltStartPos
+    {
+    X = -22.68257379631509
+    Y = 0
+    Z = 4.484184546780964
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -24.84212668607286
+    Z = 4.883925850818166
+    }
+  AltStartPos
+    {
+    X = -24.85001744346969
+    Y = 0
+    Z = 4.884411940244884
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -25.71887750794244
+    Z = 4.937935787120177
+    }
+  AltStartPos
+    {
+    X = -25.72676826533927
+    Y = 0
+    Z = 4.938421876546895
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -26.59562832981202
+    Z = 4.991945723422189
+    }
+  AltStartPos
+    {
+    X = -26.60351908720884
+    Y = 0
+    Z = 4.992431812848907
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -27.4723791516816
+    Z = 5.0459556597242
+    }
+  AltStartPos
+    {
+    X = -27.48026990907842
+    Y = 0
+    Z = 5.046441749150918
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -28.34912997355118
+    Z = 5.099965596026212
+    }
+  AltStartPos
+    {
+    X = -28.357020730948
+    Y = 0
+    Z = 5.10045168545293
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -29.22588079542076
+    Z = 5.153975532328223
+    }
+  AltStartPos
+    {
+    X = -29.23377155281758
+    Y = 0
+    Z = 5.154461621754941
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -30.10263161729033
+    Z = 5.207985468630235
+    }
+  AltStartPos
+    {
+    X = -30.11052237468716
+    Y = 0
+    Z = 5.208471558056953
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -30.97938243915992
+    Z = 5.261995404932246
+    }
+  AltStartPos
+    {
+    X = -30.98727319655674
+    Y = 0
+    Z = 5.262481494358965
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -31.8561332610295
+    Z = 5.316005341234257
+    }
+  AltStartPos
+    {
+    X = -31.86402401842632
+    Y = 0
+    Z = 5.316491430660975
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -32.73288408289908
+    Z = 5.370015277536269
+    }
+  AltStartPos
+    {
+    X = -32.7407748402959
+    Y = 0
+    Z = 5.370501366962987
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -34.98738619627798
+    Z = 5.074553244408302
+    }
+  AltStartPos
+    {
+    X = -34.99666433959073
+    Y = 0
+    Z = 5.075104753428167
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -36.01829100880595
+    Z = 5.135832024393207
+    }
+  AltStartPos
+    {
+    X = -36.0275691521187
+    Y = 0
+    Z = 5.136383533413071
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -37.04919582133392
+    Z = 5.197110804378112
+    }
+  AltStartPos
+    {
+    X = -37.05847396464667
+    Y = 0
+    Z = 5.197662313397976
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -38.08010063386188
+    Z = 5.258389584363018
+    }
+  AltStartPos
+    {
+    X = -38.08937877717464
+    Y = 0
+    Z = 5.258941093382882
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -39.11100544638985
+    Z = 5.319668364347923
+    }
+  AltStartPos
+    {
+    X = -39.1202835897026
+    Y = 0
+    Z = 5.320219873367787
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -40.14191025891782
+    Z = 5.380947144332827
+    }
+  AltStartPos
+    {
+    X = -40.15118840223057
+    Y = 0
+    Z = 5.381498653352692
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -41.17281507144579
+    Z = 5.442225924317732
+    }
+  AltStartPos
+    {
+    X = -41.18209321475854
+    Y = 0
+    Z = 5.442777433337596
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -42.20371988397375
+    Z = 5.503504704302638
+    }
+  AltStartPos
+    {
+    X = -42.21299802728651
+    Y = 0
+    Z = 5.504056213322501
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -43.23462469650173
+    Z = 5.564783484287543
+    }
+  AltStartPos
+    {
+    X = -43.24390283981447
+    Y = 0
+    Z = 5.565334993307407
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -44.26552950902969
+    Z = 5.626062264272448
+    }
+  AltStartPos
+    {
+    X = -44.27480765234244
+    Y = 0
+    Z = 5.626613773292312
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -44.35224112877502
+    Z = 5.450983789172727
+    }
+  AltStartPos
+    {
+    X = -44.35900463511516
+    Y = 0
+    Z = 5.450966092526295
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -45.10374183323466
+    Z = 5.449017495124737
+    }
+  AltStartPos
+    {
+    X = -45.1105053395748
+    Y = 0
+    Z = 5.448999798478305
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -45.8552425376943
+    Z = 5.447051201076747
+    }
+  AltStartPos
+    {
+    X = -45.86200604403444
+    Y = 0
+    Z = 5.447033504430316
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -46.60674324215394
+    Z = 5.445084907028758
+    }
+  AltStartPos
+    {
+    X = -46.61350674849407
+    Y = 0
+    Z = 5.445067210382327
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -47.35824394661358
+    Z = 5.443118612980768
+    }
+  AltStartPos
+    {
+    X = -47.36500745295372
+    Y = 0
+    Z = 5.443100916334337
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -48.10974465107322
+    Z = 5.441152318932779
+    }
+  AltStartPos
+    {
+    X = -48.11650815741336
+    Y = 0
+    Z = 5.441134622286347
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -48.86124535553286
+    Z = 5.439186024884789
+    }
+  AltStartPos
+    {
+    X = -48.86800886187299
+    Y = 0
+    Z = 5.439168328238357
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -49.6127460599925
+    Z = 5.4372197308368
+    }
+  AltStartPos
+    {
+    X = -49.61950956633264
+    Y = 0
+    Z = 5.437202034190367
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -50.36424676445214
+    Z = 5.43525343678881
+    }
+  AltStartPos
+    {
+    X = -50.37101027079228
+    Y = 0
+    Z = 5.435235740142378
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -51.11574746891178
+    Z = 5.43328714274082
+    }
+  AltStartPos
+    {
+    X = -51.12251097525191
+    Y = 0
+    Z = 5.433269446094388
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -52.76326824407329
+    Z = 5.7552918182445
+    }
+  AltStartPos
+    {
+    X = -52.77185269442808
+    Y = 0
+    Z = 5.755506576159259
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -53.71709606127206
+    Z = 5.77915380877316
+    }
+  AltStartPos
+    {
+    X = -53.72568051162685
+    Y = 0
+    Z = 5.779368566687917
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -54.67092387847083
+    Z = 5.803015799301818
+    }
+  AltStartPos
+    {
+    X = -54.67950832882562
+    Y = 0
+    Z = 5.803230557216576
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -55.62475169566961
+    Z = 5.826877789830477
+    }
+  AltStartPos
+    {
+    X = -55.6333361460244
+    Y = 0
+    Z = 5.827092547745235
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -56.57857951286838
+    Z = 5.850739780359136
+    }
+  AltStartPos
+    {
+    X = -56.58716396322317
+    Y = 0
+    Z = 5.850954538273894
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -57.53240733006715
+    Z = 5.874601770887795
+    }
+  AltStartPos
+    {
+    X = -57.54099178042194
+    Y = 0
+    Z = 5.874816528802553
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -58.48623514726592
+    Z = 5.898463761416454
+    }
+  AltStartPos
+    {
+    X = -58.49481959762071
+    Y = 0
+    Z = 5.898678519331212
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -59.4400629644647
+    Z = 5.922325751945113
+    }
+  AltStartPos
+    {
+    X = -59.44864741481949
+    Y = 0
+    Z = 5.92254050985987
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -60.39389078166347
+    Z = 5.946187742473771
+    }
+  AltStartPos
+    {
+    X = -60.40247523201826
+    Y = 0
+    Z = 5.94640250038853
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -61.34771859886224
+    Z = 5.970049733002431
+    }
+  AltStartPos
+    {
+    X = -61.35630304921703
+    Y = 0
+    Z = 5.970264490917189
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -50.68218937018506
+    Z = 5.526859010582629
+    }
+  AltStartPos
+    {
+    X = -50.68687179765131
+    Y = 0
+    Z = 5.527307832690897
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -51.20245908865712
+    Z = 5.576728133723497
+    }
+  AltStartPos
+    {
+    X = -51.20714151612337
+    Y = 0
+    Z = 5.577176955831765
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -51.72272880712918
+    Z = 5.626597256864365
+    }
+  AltStartPos
+    {
+    X = -51.72741123459543
+    Y = 0
+    Z = 5.627046078972633
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -52.24299852560124
+    Z = 5.676466380005233
+    }
+  AltStartPos
+    {
+    X = -52.24768095306749
+    Y = 0
+    Z = 5.6769152021135
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -52.76326824407329
+    Z = 5.726335503146101
+    }
+  AltStartPos
+    {
+    X = -52.76795067153954
+    Y = 0
+    Z = 5.726784325254369
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -53.28353796254536
+    Z = 5.776204626286969
+    }
+  AltStartPos
+    {
+    X = -53.2882203900116
+    Y = 0
+    Z = 5.776653448395236
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -53.80380768101742
+    Z = 5.826073749427836
+    }
+  AltStartPos
+    {
+    X = -53.80849010848366
+    Y = 0
+    Z = 5.826522571536104
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -54.32407739948948
+    Z = 5.875942872568705
+    }
+  AltStartPos
+    {
+    X = -54.32875982695573
+    Y = 0
+    Z = 5.876391694676973
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -54.84434711796153
+    Z = 5.925811995709572
+    }
+  AltStartPos
+    {
+    X = -54.84902954542778
+    Y = 0
+    Z = 5.92626081781784
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -55.36461683643359
+    Z = 5.97568111885044
+    }
+  AltStartPos
+    {
+    X = -55.36929926389984
+    Y = 0
+    Z = 5.976129940958709
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -62.04141155682499
+    Z = 5.090635603975866
+    }
+  AltStartPos
+    {
+    X = -62.0467876772492
+    Y = 0
+    Z = 5.091508046134535
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -62.63875827062624
+    Z = 5.187573621605781
+    }
+  AltStartPos
+    {
+    X = -62.64413439105046
+    Y = 0
+    Z = 5.18844606376445
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -63.23610498442749
+    Z = 5.284511639235695
+    }
+  AltStartPos
+    {
+    X = -63.24148110485171
+    Y = 0
+    Z = 5.285384081394364
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -63.83345169822875
+    Z = 5.38144965686561
+    }
+  AltStartPos
+    {
+    X = -63.83882781865296
+    Y = 0
+    Z = 5.382322099024279
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -64.43079841203
+    Z = 5.478387674495524
+    }
+  AltStartPos
+    {
+    X = -64.43617453245422
+    Y = 0
+    Z = 5.479260116654193
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -65.02814512583126
+    Z = 5.575325692125439
+    }
+  AltStartPos
+    {
+    X = -65.03352124625546
+    Y = 0
+    Z = 5.576198134284108
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -65.6254918396325
+    Z = 5.672263709755353
+    }
+  AltStartPos
+    {
+    X = -65.63086796005672
+    Y = 0
+    Z = 5.673136151914023
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -66.22283855343376
+    Z = 5.769201727385268
+    }
+  AltStartPos
+    {
+    X = -66.22821467385796
+    Y = 0
+    Z = 5.770074169543937
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -66.820185267235
+    Z = 5.866139745015182
+    }
+  AltStartPos
+    {
+    X = -66.82556138765922
+    Y = 0
+    Z = 5.867012187173852
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -67.41753198103626
+    Z = 5.963077762645097
+    }
+  AltStartPos
+    {
+    X = -67.42290810146048
+    Y = 0
+    Z = 5.963950204803766
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -67.24410874154563
+    Z = 5.878889986368371
+    }
+  AltStartPos
+    {
+    X = -67.24896459225137
+    Y = 0
+    Z = 5.878641175745258
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -67.78364770884998
+    Z = 5.851244361578102
+    }
+  AltStartPos
+    {
+    X = -67.78850355955572
+    Y = 0
+    Z = 5.850995550954989
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -68.32318667615434
+    Z = 5.823598736787833
+    }
+  AltStartPos
+    {
+    X = -68.32804252686009
+    Y = 0
+    Z = 5.82334992616472
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -68.8627256434587
+    Z = 5.795953111997563
+    }
+  AltStartPos
+    {
+    X = -68.86758149416444
+    Y = 0
+    Z = 5.795704301374451
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -69.40226461076305
+    Z = 5.768307487207294
+    }
+  AltStartPos
+    {
+    X = -69.40712046146879
+    Y = 0
+    Z = 5.768058676584181
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -69.94180357806741
+    Z = 5.740661862417025
+    }
+  AltStartPos
+    {
+    X = -69.94665942877315
+    Y = 0
+    Z = 5.740413051793912
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -70.48134254537176
+    Z = 5.713016237626756
+    }
+  AltStartPos
+    {
+    X = -70.4861983960775
+    Y = 0
+    Z = 5.712767427003643
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -71.02088151267613
+    Z = 5.685370612836486
+    }
+  AltStartPos
+    {
+    X = -71.02573736338186
+    Y = 0
+    Z = 5.685121802213374
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -71.56042047998048
+    Z = 5.657724988046217
+    }
+  AltStartPos
+    {
+    X = -71.56527633068622
+    Y = 0
+    Z = 5.657476177423105
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -72.09995944728483
+    Z = 5.630079363255948
+    }
+  AltStartPos
+    {
+    X = -72.10481529799057
+    Y = 0
+    Z = 5.629830552632836
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -73.40063374346498
+    Z = 5.957446376796916
+    }
+  AltStartPos
+    {
+    X = -73.40574972902995
+    Y = 0
+    Z = 5.957280413365571
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -73.96907658401778
+    Z = 5.939005995536339
+    }
+  AltStartPos
+    {
+    X = -73.97419256958275
+    Y = 0
+    Z = 5.938840032104995
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -74.53751942457059
+    Z = 5.920565614275763
+    }
+  AltStartPos
+    {
+    X = -74.54263541013556
+    Y = 0
+    Z = 5.920399650844418
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -75.1059622651234
+    Z = 5.902125233015187
+    }
+  AltStartPos
+    {
+    X = -75.11107825068837
+    Y = 0
+    Z = 5.901959269583841
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -75.6744051056762
+    Z = 5.88368485175461
+    }
+  AltStartPos
+    {
+    X = -75.67952109124117
+    Y = 0
+    Z = 5.883518888323264
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -76.24284794622899
+    Z = 5.865244470494034
+    }
+  AltStartPos
+    {
+    X = -76.24796393179398
+    Y = 0
+    Z = 5.865078507062688
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -76.8112907867818
+    Z = 5.846804089233457
+    }
+  AltStartPos
+    {
+    X = -76.81640677234678
+    Y = 0
+    Z = 5.846638125802111
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -77.3797336273346
+    Z = 5.82836370797288
+    }
+  AltStartPos
+    {
+    X = -77.38484961289959
+    Y = 0
+    Z = 5.828197744541535
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -77.94817646788741
+    Z = 5.809923326712304
+    }
+  AltStartPos
+    {
+    X = -77.95329245345238
+    Y = 0
+    Z = 5.809757363280958
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -78.51661930844021
+    Z = 5.791482945451727
+    }
+  AltStartPos
+    {
+    X = -78.52173529400518
+    Y = 0
+    Z = 5.791316982020382
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -81.03125628105518
+    Z = 6.621295447633383
+    }
+  AltStartPos
+    {
+    X = -81.03654568985965
+    Y = 0
+    Z = 6.62164801670479
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -81.61896837044029
+    Z = 6.660469788900866
+    }
+  AltStartPos
+    {
+    X = -81.62425777924474
+    Y = 0
+    Z = 6.660822357972274
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -82.20668045982538
+    Z = 6.69964413016835
+    }
+  AltStartPos
+    {
+    X = -82.21196986862985
+    Y = 0
+    Z = 6.699996699239757
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -82.79439254921049
+    Z = 6.738818471435834
+    }
+  AltStartPos
+    {
+    X = -82.79968195801494
+    Y = 0
+    Z = 6.739171040507241
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -83.38210463859558
+    Z = 6.777992812703317
+    }
+  AltStartPos
+    {
+    X = -83.38739404740005
+    Y = 0
+    Z = 6.778345381774725
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -83.96981672798069
+    Z = 6.8171671539708
+    }
+  AltStartPos
+    {
+    X = -83.97510613678514
+    Y = 0
+    Z = 6.817519723042208
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -84.55752881736578
+    Z = 6.856341495238284
+    }
+  AltStartPos
+    {
+    X = -84.56281822617025
+    Y = 0
+    Z = 6.856694064309691
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -85.14524090675089
+    Z = 6.895515836505767
+    }
+  AltStartPos
+    {
+    X = -85.15053031555534
+    Y = 0
+    Z = 6.895868405577175
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -85.73295299613598
+    Z = 6.934690177773251
+    }
+  AltStartPos
+    {
+    X = -85.73824240494045
+    Y = 0
+    Z = 6.935042746844658
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -86.32066508552109
+    Z = 6.973864519040735
+    }
+  AltStartPos
+    {
+    X = -86.32595449432554
+    Y = 0
+    Z = 6.974217088112142
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -88.9220136778814
+    Z = 6.67304014787549
+    }
+  AltStartPos
+    {
+    X = -88.92608912400942
+    Y = 0
+    Z = 6.672977140403551
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -89.3748410254404
+    Z = 6.666039317660142
+    }
+  AltStartPos
+    {
+    X = -89.37891647156844
+    Y = 0
+    Z = 6.665976310188205
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -89.82766837299943
+    Z = 6.659038487444795
+    }
+  AltStartPos
+    {
+    X = -89.83174381912745
+    Y = 0
+    Z = 6.658975479972857
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -90.28049572055843
+    Z = 6.652037657229447
+    }
+  AltStartPos
+    {
+    X = -90.28457116668648
+    Y = 0
+    Z = 6.651974649757509
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -90.73332306811746
+    Z = 6.645036827014099
+    }
+  AltStartPos
+    {
+    X = -90.73739851424548
+    Y = 0
+    Z = 6.644973819542161
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -91.18615041567647
+    Z = 6.638035996798752
+    }
+  AltStartPos
+    {
+    X = -91.19022586180449
+    Y = 0
+    Z = 6.637972989326814
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -91.63897776323549
+    Z = 6.631035166583405
+    }
+  AltStartPos
+    {
+    X = -91.64305320936352
+    Y = 0
+    Z = 6.630972159111466
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -92.0918051107945
+    Z = 6.624034336368057
+    }
+  AltStartPos
+    {
+    X = -92.09588055692252
+    Y = 0
+    Z = 6.623971328896118
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -92.54463245835352
+    Z = 6.617033506152709
+    }
+  AltStartPos
+    {
+    X = -92.54870790448155
+    Y = 0
+    Z = 6.616970498680771
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -92.99745980591253
+    Z = 6.610032675937362
+    }
+  AltStartPos
+    {
+    X = -93.00153525204055
+    Y = 0
+    Z = 6.609969668465423
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -94.90511544031006
+    Z = 6.406801926141882
+    }
+  AltStartPos
+    {
+    X = -94.91040484911453
+    Y = 0
+    Z = 6.406807019432109
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -95.49282752969516
+    Z = 6.407367847278167
+    }
+  AltStartPos
+    {
+    X = -95.49811693849962
+    Y = 0
+    Z = 6.407372940568393
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -96.08053961908026
+    Z = 6.407933768414452
+    }
+  AltStartPos
+    {
+    X = -96.08582902788473
+    Y = 0
+    Z = 6.407938861704678
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -96.66825170846536
+    Z = 6.408499689550736
+    }
+  AltStartPos
+    {
+    X = -96.67354111726982
+    Y = 0
+    Z = 6.408504782840963
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -97.25596379785046
+    Z = 6.409065610687022
+    }
+  AltStartPos
+    {
+    X = -97.26125320665493
+    Y = 0
+    Z = 6.409070703977248
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -97.84367588723556
+    Z = 6.409631531823306
+    }
+  AltStartPos
+    {
+    X = -97.84896529604002
+    Y = 0
+    Z = 6.409636625113533
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -98.43138797662066
+    Z = 6.410197452959592
+    }
+  AltStartPos
+    {
+    X = -98.43667738542513
+    Y = 0
+    Z = 6.410202546249818
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -99.01910006600576
+    Z = 6.410763374095876
+    }
+  AltStartPos
+    {
+    X = -99.02438947481022
+    Y = 0
+    Z = 6.410768467386103
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -99.60681215539086
+    Z = 6.411329295232162
+    }
+  AltStartPos
+    {
+    X = -99.61210156419533
+    Y = 0
+    Z = 6.411334388522388
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -100.194524244776
+    Z = 6.411895216368446
+    }
+  AltStartPos
+    {
+    X = -100.1998136535804
+    Y = 0
+    Z = 6.411900309658673
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -102.0154682594282
+    Z = 6.296873996377489
+    }
+  AltStartPos
+    {
+    X = -102.0221450541486
+    Y = 0
+    Z = 6.297813198713813
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -102.7573343394717
+    Z = 6.401229811524666
+    }
+  AltStartPos
+    {
+    X = -102.764011134192
+    Y = 0
+    Z = 6.402169013860991
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -103.4992004195151
+    Z = 6.505585626671844
+    }
+  AltStartPos
+    {
+    X = -103.5058772142355
+    Y = 0
+    Z = 6.506524829008169
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -104.2410664995586
+    Z = 6.609941441819021
+    }
+  AltStartPos
+    {
+    X = -104.247743294279
+    Y = 0
+    Z = 6.610880644155346
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -104.9829325796021
+    Z = 6.714297256966199
+    }
+  AltStartPos
+    {
+    X = -104.9896093743225
+    Y = 0
+    Z = 6.715236459302524
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -105.7247986596456
+    Z = 6.818653072113377
+    }
+  AltStartPos
+    {
+    X = -105.731475454366
+    Y = 0
+    Z = 6.819592274449701
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -106.4666647396891
+    Z = 6.923008887260554
+    }
+  AltStartPos
+    {
+    X = -106.4733415344095
+    Y = 0
+    Z = 6.923948089596879
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -107.2085308197326
+    Z = 7.027364702407731
+    }
+  AltStartPos
+    {
+    X = -107.215207614453
+    Y = 0
+    Z = 7.028303904744057
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -107.9503968997761
+    Z = 7.13172051755491
+    }
+  AltStartPos
+    {
+    X = -107.9570736944965
+    Y = 0
+    Z = 7.132659719891234
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -108.6922629798196
+    Z = 7.236076332702087
+    }
+  AltStartPos
+    {
+    X = -108.69893977454
+    Y = 0
+    Z = 7.237015535038411
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -108.5188397403289
+    Z = 7.846840118787078
+    }
+  AltStartPos
+    {
+    X = -108.5282045952614
+    Y = 0
+    Z = 7.845652908316529
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -109.559379177273
+    Z = 7.714927844281618
+    }
+  AltStartPos
+    {
+    X = -109.5687440322055
+    Y = 0
+    Z = 7.713740633811069
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -110.5999186142171
+    Z = 7.583015569776157
+    }
+  AltStartPos
+    {
+    X = -110.6092834691496
+    Y = 0
+    Z = 7.581828359305609
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -111.6404580511613
+    Z = 7.451103295270697
+    }
+  AltStartPos
+    {
+    X = -111.6498229060938
+    Y = 0
+    Z = 7.449916084800148
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -112.6809974881054
+    Z = 7.319191020765238
+    }
+  AltStartPos
+    {
+    X = -112.6903623430379
+    Y = 0
+    Z = 7.318003810294688
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -113.7215369250495
+    Z = 7.187278746259777
+    }
+  AltStartPos
+    {
+    X = -113.730901779982
+    Y = 0
+    Z = 7.186091535789227
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -114.7620763619936
+    Z = 7.055366471754317
+    }
+  AltStartPos
+    {
+    X = -114.7714412169261
+    Y = 0
+    Z = 7.054179261283767
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -115.8026157989377
+    Z = 6.923454197248857
+    }
+  AltStartPos
+    {
+    X = -115.8119806538702
+    Y = 0
+    Z = 6.922266986778308
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -116.8431552358818
+    Z = 6.791541922743397
+    }
+  AltStartPos
+    {
+    X = -116.8525200908143
+    Y = 0
+    Z = 6.790354712272848
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -117.883694672826
+    Z = 6.659629648237936
+    }
+  AltStartPos
+    {
+    X = -117.8930595277585
+    Y = 0
+    Z = 6.658442437767387
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -118.5773876307887
+    Z = 6.996380753344157
+    }
+  AltStartPos
+    {
+    X = -118.5845846952276
+    Y = 0
+    Z = 6.996095746939293
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -119.3770614573291
+    Z = 6.964713375025922
+    }
+  AltStartPos
+    {
+    X = -119.3842585217679
+    Y = 0
+    Z = 6.964428368621058
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -120.1767352838695
+    Z = 6.933045996707687
+    }
+  AltStartPos
+    {
+    X = -120.1839323483083
+    Y = 0
+    Z = 6.932760990302823
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -120.9764091104098
+    Z = 6.901378618389452
+    }
+  AltStartPos
+    {
+    X = -120.9836061748487
+    Y = 0
+    Z = 6.901093611984588
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -121.7760829369502
+    Z = 6.869711240071217
+    }
+  AltStartPos
+    {
+    X = -121.7832800013891
+    Y = 0
+    Z = 6.869426233666353
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -122.5757567634906
+    Z = 6.838043861752983
+    }
+  AltStartPos
+    {
+    X = -122.5829538279295
+    Y = 0
+    Z = 6.837758855348119
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -123.375430590031
+    Z = 6.806376483434748
+    }
+  AltStartPos
+    {
+    X = -123.3826276544699
+    Y = 0
+    Z = 6.806091477029883
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -124.1751044165714
+    Z = 6.774709105116512
+    }
+  AltStartPos
+    {
+    X = -124.1823014810103
+    Y = 0
+    Z = 6.774424098711648
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -124.9747782431118
+    Z = 6.743041726798277
+    }
+  AltStartPos
+    {
+    X = -124.9819753075506
+    Y = 0
+    Z = 6.742756720393413
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -125.7744520696522
+    Z = 6.711374348480042
+    }
+  AltStartPos
+    {
+    X = -125.781649134091
+    Y = 0
+    Z = 6.711089342075178
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -127.3352612250684
+    Z = 7.642802225559432
+    }
+  AltStartPos
+    {
+    X = -127.3429785592257
+    Y = 0
+    Z = 7.642596044592807
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -128.1927427981056
+    Z = 7.619893229267783
+    }
+  AltStartPos
+    {
+    X = -128.200460132263
+    Y = 0
+    Z = 7.619687048301158
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -129.0502243711429
+    Z = 7.596984232976133
+    }
+  AltStartPos
+    {
+    X = -129.0579417053002
+    Y = 0
+    Z = 7.596778052009508
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -129.9077059441802
+    Z = 7.574075236684483
+    }
+  AltStartPos
+    {
+    X = -129.9154232783375
+    Y = 0
+    Z = 7.573869055717858
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -130.7651875172175
+    Z = 7.551166240392834
+    }
+  AltStartPos
+    {
+    X = -130.7729048513748
+    Y = 0
+    Z = 7.550960059426209
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -131.6226690902548
+    Z = 7.528257244101184
+    }
+  AltStartPos
+    {
+    X = -131.6303864244121
+    Y = 0
+    Z = 7.528051063134559
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -132.480150663292
+    Z = 7.505348247809534
+    }
+  AltStartPos
+    {
+    X = -132.4878679974494
+    Y = 0
+    Z = 7.505142066842909
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -133.3376322363293
+    Z = 7.482439251517885
+    }
+  AltStartPos
+    {
+    X = -133.3453495704866
+    Y = 0
+    Z = 7.48223307055126
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -134.1951138093666
+    Z = 7.459530255226235
+    }
+  AltStartPos
+    {
+    X = -134.2028311435239
+    Y = 0
+    Z = 7.459324074259611
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -135.0525953824039
+    Z = 7.436621258934585
+    }
+  AltStartPos
+    {
+    X = -135.0603127165612
+    Y = 0
+    Z = 7.43641507796796
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -133.318362987497
+    Z = 8.245253456777757
+    }
+  AltStartPos
+    {
+    X = -133.3256467635556
+    Y = 0
+    Z = 8.245140847678973
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -134.1276714384535
+    Z = 8.232741334690752
+    }
+  AltStartPos
+    {
+    X = -134.1349552145122
+    Y = 0
+    Z = 8.232628725591969
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -134.9369798894101
+    Z = 8.220229212603748
+    }
+  AltStartPos
+    {
+    X = -134.9442636654687
+    Y = 0
+    Z = 8.220116603504966
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -135.7462883403666
+    Z = 8.207717090516745
+    }
+  AltStartPos
+    {
+    X = -135.7535721164252
+    Y = 0
+    Z = 8.207604481417961
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -136.5555967913232
+    Z = 8.19520496842974
+    }
+  AltStartPos
+    {
+    X = -136.5628805673817
+    Y = 0
+    Z = 8.195092359330957
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -137.3649052422797
+    Z = 8.182692846342736
+    }
+  AltStartPos
+    {
+    X = -137.3721890183383
+    Y = 0
+    Z = 8.182580237243952
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -138.1742136932362
+    Z = 8.170180724255731
+    }
+  AltStartPos
+    {
+    X = -138.1814974692948
+    Y = 0
+    Z = 8.170068115156949
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -138.9835221441927
+    Z = 8.157668602168728
+    }
+  AltStartPos
+    {
+    X = -138.9908059202513
+    Y = 0
+    Z = 8.157555993069945
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -139.7928305951493
+    Z = 8.145156480081724
+    }
+  AltStartPos
+    {
+    X = -139.8001143712079
+    Y = 0
+    Z = 8.14504387098294
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -140.6021390461058
+    Z = 8.132644357994719
+    }
+  AltStartPos
+    {
+    X = -140.6094228221644
+    Y = 0
+    Z = 8.132531748895936
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -143.1167760187208
+    Z = 7.659422680748392
+    }
+  AltStartPos
+    {
+    X = -143.1266611433717
+    Y = 0
+    Z = 7.659356723059624
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -144.2151232021618
+    Z = 7.652094048663114
+    }
+  AltStartPos
+    {
+    X = -144.2250083268127
+    Y = 0
+    Z = 7.652028090974348
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -145.3134703856028
+    Z = 7.644765416577838
+    }
+  AltStartPos
+    {
+    X = -145.3233555102537
+    Y = 0
+    Z = 7.64469945888907
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -146.4118175690438
+    Z = 7.63743678449256
+    }
+  AltStartPos
+    {
+    X = -146.4217026936948
+    Y = 0
+    Z = 7.637370826803792
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -147.5101647524848
+    Z = 7.630108152407283
+    }
+  AltStartPos
+    {
+    X = -147.5200498771358
+    Y = 0
+    Z = 7.630042194718516
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -148.6085119359258
+    Z = 7.622779520322005
+    }
+  AltStartPos
+    {
+    X = -148.6183970605768
+    Y = 0
+    Z = 7.622713562633238
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -149.7068591193668
+    Z = 7.615450888236729
+    }
+  AltStartPos
+    {
+    X = -149.7167442440178
+    Y = 0
+    Z = 7.615384930547961
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -150.8052063028078
+    Z = 7.608122256151451
+    }
+  AltStartPos
+    {
+    X = -150.8150914274588
+    Y = 0
+    Z = 7.608056298462683
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -151.9035534862489
+    Z = 7.600793624066174
+    }
+  AltStartPos
+    {
+    X = -151.9134386108998
+    Y = 0
+    Z = 7.600727666377407
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -153.0019006696899
+    Z = 7.593464991980897
+    }
+  AltStartPos
+    {
+    X = -153.0117857943408
+    Y = 0
+    Z = 7.593399034292129
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -123.7800848155093
+    Z = 6.394732011013593
+    }
+  AltStartPos
+    {
+    X = -123.784246973257
+    Y = 0
+    Z = 6.395623221355393
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -124.2425467874844
+    Z = 6.493755382324675
+    }
+  AltStartPos
+    {
+    X = -124.2467089452322
+    Y = 0
+    Z = 6.494646592666474
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -124.7050087594596
+    Z = 6.592778753635757
+    }
+  AltStartPos
+    {
+    X = -124.7091709172074
+    Y = 0
+    Z = 6.593669963977557
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -125.1674707314348
+    Z = 6.691802124946839
+    }
+  AltStartPos
+    {
+    X = -125.1716328891825
+    Y = 0
+    Z = 6.692693335288639
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -125.6299327034099
+    Z = 6.790825496257921
+    }
+  AltStartPos
+    {
+    X = -125.6340948611577
+    Y = 0
+    Z = 6.791716706599721
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -126.0923946753851
+    Z = 6.889848867569003
+    }
+  AltStartPos
+    {
+    X = -126.0965568331329
+    Y = 0
+    Z = 6.890740077910802
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -126.5548566473603
+    Z = 6.988872238880085
+    }
+  AltStartPos
+    {
+    X = -126.559018805108
+    Y = 0
+    Z = 6.989763449221885
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -127.0173186193354
+    Z = 7.087895610191167
+    }
+  AltStartPos
+    {
+    X = -127.0214807770832
+    Y = 0
+    Z = 7.088786820532967
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -127.4797805913106
+    Z = 7.186918981502249
+    }
+  AltStartPos
+    {
+    X = -127.4839427490584
+    Y = 0
+    Z = 7.187810191844049
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -127.9422425632857
+    Z = 7.285942352813331
+    }
+  AltStartPos
+    {
+    X = -127.9464047210335
+    Y = 0
+    Z = 7.28683356315513
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -116.3228855174098
+    Z = 7.204973841176866
+    }
+  AltStartPos
+    {
+    X = -116.3268742519181
+    Y = 0
+    Z = 7.204738436398847
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -116.7660782405526
+    Z = 7.178817754730288
+    }
+  AltStartPos
+    {
+    X = -116.7700669750609
+    Y = 0
+    Z = 7.178582349952269
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -117.2092709636955
+    Z = 7.152661668283709
+    }
+  AltStartPos
+    {
+    X = -117.2132596982038
+    Y = 0
+    Z = 7.15242626350569
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -117.6524636868384
+    Z = 7.126505581837131
+    }
+  AltStartPos
+    {
+    X = -117.6564524213467
+    Y = 0
+    Z = 7.126270177059112
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -118.0956564099812
+    Z = 7.100349495390553
+    }
+  AltStartPos
+    {
+    X = -118.0996451444895
+    Y = 0
+    Z = 7.100114090612534
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -118.5388491331241
+    Z = 7.074193408943975
+    }
+  AltStartPos
+    {
+    X = -118.5428378676324
+    Y = 0
+    Z = 7.073958004165956
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -118.982041856267
+    Z = 7.048037322497397
+    }
+  AltStartPos
+    {
+    X = -118.9860305907752
+    Y = 0
+    Z = 7.047801917719378
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -119.4252345794098
+    Z = 7.021881236050818
+    }
+  AltStartPos
+    {
+    X = -119.4292233139181
+    Y = 0
+    Z = 7.021645831272799
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -119.8684273025527
+    Z = 6.99572514960424
+    }
+  AltStartPos
+    {
+    X = -119.872416037061
+    Y = 0
+    Z = 6.995489744826221
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -120.3116200256956
+    Z = 6.969569063157662
+    }
+  AltStartPos
+    {
+    X = -120.3156087602038
+    Y = 0
+    Z = 6.969333658379643
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -76.69567529378824
+    Z = 6.253979946623269
+    }
+  AltStartPos
+    {
+    X = -76.70001087477551
+    Y = 0
+    Z = 6.254347262124279
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -77.1774065145957
+    Z = 6.294792780068813
+    }
+  AltStartPos
+    {
+    X = -77.18174209558296
+    Y = 0
+    Z = 6.295160095569823
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -77.65913773540316
+    Z = 6.335605613514358
+    }
+  AltStartPos
+    {
+    X = -77.66347331639042
+    Y = 0
+    Z = 6.335972929015368
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -78.14086895621062
+    Z = 6.376418446959903
+    }
+  AltStartPos
+    {
+    X = -78.14520453719788
+    Y = 0
+    Z = 6.376785762460913
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -78.62260017701809
+    Z = 6.417231280405447
+    }
+  AltStartPos
+    {
+    X = -78.62693575800535
+    Y = 0
+    Z = 6.417598595906457
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -79.10433139782553
+    Z = 6.458044113850992
+    }
+  AltStartPos
+    {
+    X = -79.10866697881281
+    Y = 0
+    Z = 6.458411429352002
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -79.58606261863299
+    Z = 6.498856947296536
+    }
+  AltStartPos
+    {
+    X = -79.59039819962027
+    Y = 0
+    Z = 6.499224262797546
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -80.06779383944045
+    Z = 6.539669780742082
+    }
+  AltStartPos
+    {
+    X = -80.07212942042773
+    Y = 0
+    Z = 6.540037096243091
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -80.54952506024792
+    Z = 6.580482614187626
+    }
+  AltStartPos
+    {
+    X = -80.55386064123519
+    Y = 0
+    Z = 6.580849929688636
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -81.03125628105538
+    Z = 6.62129544763317
+    }
+  AltStartPos
+    {
+    X = -81.03559186204265
+    Y = 0
+    Z = 6.62166276313418
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -50.68218937018528
+    Z = 4.745038502925518
+    }
+  AltStartPos
+    {
+    X = -50.68609139307382
+    Y = 0
+    Z = 4.745238783458484
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -51.11574746891201
+    Z = 4.767291895477308
+    }
+  AltStartPos
+    {
+    X = -51.11964949180054
+    Y = 0
+    Z = 4.767492176010275
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -51.54930556763872
+    Z = 4.789545288029099
+    }
+  AltStartPos
+    {
+    X = -51.55320759052726
+    Y = 0
+    Z = 4.789745568562065
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -51.98286366636544
+    Z = 4.811798680580889
+    }
+  AltStartPos
+    {
+    X = -51.98676568925398
+    Y = 0
+    Z = 4.811998961113855
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -52.41642176509215
+    Z = 4.834052073132679
+    }
+  AltStartPos
+    {
+    X = -52.42032378798069
+    Y = 0
+    Z = 4.834252353665645
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -52.84997986381887
+    Z = 4.85630546568447
+    }
+  AltStartPos
+    {
+    X = -52.85388188670741
+    Y = 0
+    Z = 4.856505746217437
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -53.28353796254559
+    Z = 4.878558858236261
+    }
+  AltStartPos
+    {
+    X = -53.28743998543413
+    Y = 0
+    Z = 4.878759138769227
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -53.71709606127231
+    Z = 4.900812250788051
+    }
+  AltStartPos
+    {
+    X = -53.72099808416085
+    Y = 0
+    Z = 4.901012531321017
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -54.15065415999902
+    Z = 4.923065643339841
+    }
+  AltStartPos
+    {
+    X = -54.15455618288757
+    Y = 0
+    Z = 4.923265923872807
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -54.58421225872574
+    Z = 4.945319035891631
+    }
+  AltStartPos
+    {
+    X = -54.58811428161428
+    Y = 0
+    Z = 4.945519316424598
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -9.060611892420663
+    Z = 7.039029028008791
+    }
+  AltStartPos
+    {
+    X = -9.067115263901565
+    Y = 0
+    Z = 7.034237561124651
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -9.783208723631855
+    Z = 6.506643818659917
+    }
+  AltStartPos
+    {
+    X = -9.789712095112755
+    Y = 0
+    Z = 6.501852351775777
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -10.50580555484305
+    Z = 5.974258609311043
+    }
+  AltStartPos
+    {
+    X = -10.51230892632395
+    Y = 0
+    Z = 5.969467142426903
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -11.22840238605424
+    Z = 5.441873399962169
+    }
+  AltStartPos
+    {
+    X = -11.23490575753514
+    Y = 0
+    Z = 5.437081933078029
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -11.95099921726543
+    Z = 4.909488190613295
+    }
+  AltStartPos
+    {
+    X = -11.95750258874633
+    Y = 0
+    Z = 4.904696723729154
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -12.67359604847662
+    Z = 4.377102981264421
+    }
+  AltStartPos
+    {
+    X = -12.68009941995752
+    Y = 0
+    Z = 4.37231151438028
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -13.39619287968781
+    Z = 3.844717771915547
+    }
+  AltStartPos
+    {
+    X = -13.40269625116871
+    Y = 0
+    Z = 3.839926305031407
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -14.118789710899
+    Z = 3.312332562566672
+    }
+  AltStartPos
+    {
+    X = -14.1252930823799
+    Y = 0
+    Z = 3.307541095682533
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -14.84138654211019
+    Z = 2.779947353217798
+    }
+  AltStartPos
+    {
+    X = -14.84788991359109
+    Y = 0
+    Z = 2.775155886333659
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -15.56398337332138
+    Z = 2.247562143868924
+    }
+  AltStartPos
+    {
+    X = -15.57048674480228
+    Y = 0
+    Z = 2.242770676984785
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -58.91979324599288
+    Z = 10.78537809049905
+    }
+  AltStartPos
+    {
+    X = -58.9314993146585
+    Y = 0
+    Z = 10.78241730534085
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -60.22046754217302
+    Z = 10.45640196180963
+    }
+  AltStartPos
+    {
+    X = -60.23217361083864
+    Y = 0
+    Z = 10.45344117665142
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -61.52114183835317
+    Z = 10.1274258331202
+    }
+  AltStartPos
+    {
+    X = -61.53284790701878
+    Y = 0
+    Z = 10.124465047962
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -62.82181613453331
+    Z = 9.79844970443078
+    }
+  AltStartPos
+    {
+    X = -62.83352220319892
+    Y = 0
+    Z = 9.795488919272575
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -64.12249043071346
+    Z = 9.469473575741356
+    }
+  AltStartPos
+    {
+    X = -64.13419649937907
+    Y = 0
+    Z = 9.466512790583151
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -65.42316472689359
+    Z = 9.140497447051931
+    }
+  AltStartPos
+    {
+    X = -65.43487079555922
+    Y = 0
+    Z = 9.137536661893726
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -66.72383902307374
+    Z = 8.811521318362507
+    }
+  AltStartPos
+    {
+    X = -66.73554509173935
+    Y = 0
+    Z = 8.808560533204304
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -68.02451331925388
+    Z = 8.482545189673083
+    }
+  AltStartPos
+    {
+    X = -68.0362193879195
+    Y = 0
+    Z = 8.479584404514878
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -69.32518761543402
+    Z = 8.15356906098366
+    }
+  AltStartPos
+    {
+    X = -69.33689368409965
+    Y = 0
+    Z = 8.150608275825455
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -70.62586191161417
+    Z = 7.824592932294236
+    }
+  AltStartPos
+    {
+    X = -70.63756798027978
+    Y = 0
+    Z = 7.821632147136031
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -53.54367282178161
+    Z = 9.65232909594422
+    }
+  AltStartPos
+    {
+    X = -53.55113002107971
+    Y = 0
+    Z = 9.649781475208153
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -54.37225052157045
+    Z = 9.369260125270081
+    }
+  AltStartPos
+    {
+    X = -54.37970772086855
+    Y = 0
+    Z = 9.366712504534014
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -55.20082822135928
+    Z = 9.086191154595944
+    }
+  AltStartPos
+    {
+    X = -55.20828542065738
+    Y = 0
+    Z = 9.083643533859878
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -56.02940592114812
+    Z = 8.803122183921806
+    }
+  AltStartPos
+    {
+    X = -56.03686312044621
+    Y = 0
+    Z = 8.800574563185739
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -56.85798362093695
+    Z = 8.520053213247669
+    }
+  AltStartPos
+    {
+    X = -56.86544082023505
+    Y = 0
+    Z = 8.517505592511602
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -57.68656132072579
+    Z = 8.236984242573531
+    }
+  AltStartPos
+    {
+    X = -57.69401852002389
+    Y = 0
+    Z = 8.234436621837464
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -58.51513902051462
+    Z = 7.953915271899394
+    }
+  AltStartPos
+    {
+    X = -58.52259621981272
+    Y = 0
+    Z = 7.951367651163326
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -59.34371672030345
+    Z = 7.670846301225255
+    }
+  AltStartPos
+    {
+    X = -59.35117391960155
+    Y = 0
+    Z = 7.668298680489189
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -60.17229442009229
+    Z = 7.387777330551119
+    }
+  AltStartPos
+    {
+    X = -60.17975161939039
+    Y = 0
+    Z = 7.385229709815051
+    }
+$!Streamtrace Add
+  StreamType = VolumeLine
+  StreamDirection = Both
+  StartPos
+    {
+    X = -61.00087211988112
+    Z = 7.10470835987698
+    }
+  AltStartPos
+    {
+    X = -61.00832931917923
+    Y = 0
+    Z = 7.102160739140913
+    }
+$!StreamAttributes 
+  StreamTiming
+    {
+    MarkSize = 1
+    TimeDelta = 7.0447169765E-07
+    MarkSymbol
+      {
+      GeomShape = Sphere
+      }
+    }
+  RodRibbon
+    {
+    Width = 0.905486938666
+    Mesh
+      {
+      Color = Multi
+      }
+    Effects
+      {
+      LightingEffect = Gouraud
+      }
+    }
+  MaxSteps = 10000
+  Color = Multi
+$!GlobalThreeD 
+  AxisScaleFact
+    {
+    X = 1
+    Y = 1
+    Z = 1
+    }
+  RotateOrigin
+    {
+    X = 0
+    Y = 0
+    Z = 0
+    }
+  LightSource
+    {
+    XYZDirection
+      {
+      X = -0.2
+      Y = -0.2
+      Z = 0.9591663046625438
+      }
+    Intensity = 75
+    BackgroundLight = 25
+    IncludeSpecular = Yes
+    SpecularIntensity = 40
+    SpecularShininess = 60
+    }
+  LineLiftFraction = 0.2
+  SymbolLiftFraction = 0.6
+  VectorLiftFraction = 0.7
+  NearPlaneFraction = 0.1
+$!ThreeDView 
+  PSIAngle = 61.4087
+  ThetaAngle = 51.4782
+  AlphaAngle = -2.45964E-19
+  ViewerPosition
+    {
+    X = -1728.810030122663
+    Y = -1330.237168852908
+    Z = 1163.255121364188
+    }
+  ViewWidth = 95.8462
+$!FieldLayers 
+  ShowMesh = No
+  ShowContour = Yes
+  ShowShade = Yes
+  ShowEdge = No
+  UseTranslucency = Yes
+$!StreamtraceLayers 
+  Show = No
+$!AttachText 
+  AnchorPos
+    {
+    X = 2.001380262249825
+    Y = 1.863354037267095
+    }
+  TextShape
+    {
+    IsBold = No
+    }
+  Color = White
+  Text = '&(AUXZONE[1]:TIMEEVENT)'
+$!AttachText 
+  AnchorPos
+    {
+    X = 2
+    Y = 4
+    }
+  Color = White
+  Box
+    {
+    Margin = 0.2
+    LineThickness = 0.001
+    }
+  Text = 'Test Phase: 0'
+$!SetAuxData 
+  AuxDataLocation = Frame
+  Name = 'CFDA.INTEGRATION_TOTAL'
+  ValueString = '6.28297059976318'
+$!SetStyleBase Config

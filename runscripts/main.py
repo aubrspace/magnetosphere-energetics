@@ -126,26 +126,25 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-                                key=makevideo.time_sort)[0::]
+                      key=makevideo.time_sort)[10:11]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 
     i=0
-    #for k,f in enumerate(filelist[0:1]):
+    for k,f in enumerate(filelist):
     #k=0
     #f='febstorm/3d__var_1_e20140219-055500-008.plt'
-    if True:
-        filetime = makevideo.get_time(filelist[0])
+        filetime = makevideo.get_time(f)
         #futuretime = makevideo.get_time(filelist[1])
-        OUTPUTNAME = filelist[0].split('e')[-1].split('.')[0]
+        OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            #mhddatafile = filelist
+            mhddatafile = f
             #python objects
-            #field_data = tp.data.load_tecplot(mhddatafile)
-            field_data = tp.data.load_tecplot(filelist[0:1])
+            field_data = tp.data.load_tecplot(mhddatafile)
+            #field_data = tp.data.load_tecplot(filelist[0:1])
             field_data.zone(0).name = 'global_field'
             if len(field_data.zone_names)>1:
                 field_data.zone(1).name = 'future'
@@ -164,7 +163,7 @@ if __name__ == "__main__":
                                     do_central_diff=False,
                                     analysis_type='energy_mass_mag',
                                     modes=['iso_betastar','closed',
-                                           'nlobe','slobe'],
+                                           'nlobe','slobe','plasmasheet'],
                                     inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
@@ -175,6 +174,7 @@ if __name__ == "__main__":
                                     outputpath=outpath)
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
+                do_north, do_south = False, False
                 if os.path.exists(iedatafile):
                     # IE data
                     dataset = tp.data.load_tecplot(iedatafile,
@@ -206,11 +206,12 @@ if __name__ == "__main__":
                                               do_cms=False,
                                               do_central_diff=False,
                                               outputpath=outpath)
-                if False:
-                    save_gm_multi(['cosmetic/status_forward.sty',
-                                   'cosmetic/energy_forward.sty',
-                                   'cosmetic/daynight_closed_side.sty',
-                                   'cosmetic/north_pc_rxn_busy.sty'],
+                if True:
+                    save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
+                    #save_gm_multi(['cosmetic/status_forward.sty',
+                    #               'cosmetic/energy_forward.sty',
+                    #               'cosmetic/daynight_closed_side.sty',
+                    #               'cosmetic/north_pc_rxn_busy.sty'],
                                    outpath,OUTPUTNAME,filetime)
 
     if '-c' in sys.argv:

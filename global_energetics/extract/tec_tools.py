@@ -1813,6 +1813,9 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     #specific entropy
     if 'bs' in kwargs.get('modes',[]):
         eqeval(alleq['entropy'],value_location=cc)
+    #plasmasheet
+    if 'plasmasheet' in kwargs.get('modes',[]):
+        eqeval(alleq['plasmasheet'],value_location=nodal)
     #user_selected
     if 'add_eqset' in kwargs:
         for eq in [eq for eq in alleq if eq in kwargs.get('add_eqset')]:
@@ -2079,6 +2082,22 @@ def calc_state(mode, zones, **kwargs):
         else:
             state_index = calc_lobe_state(mpvar.name, 'both',
                                           zones,**kwargs)
+    elif 'plasmasheet' in mode:
+        assert 'ms_closed' in zones[0].dataset.zone_names, ('No'+
+                                       ' ms_closed zone present!'+
+                                       ' Cant do plasmasheet')
+        zonename = 'ms_'+mode
+        # Get the bounds from the closed region nightmapped extents
+        closed = zones[0].dataset.zone('ms_closed')
+        isnight = closed.values('daynight').as_numpy_array()==-1
+        xnight = closed.values('X *').as_numpy_array()[isnight]
+        ynight = closed.values('Y *').as_numpy_array()[isnight]
+        znight = closed.values('Z *').as_numpy_array()[isnight]
+        xlims = [kwargs.get('tail_cap',-20),xnight.max()]
+        ylims = [ynight.min(),ynight.max()]
+        zlims = [znight.min(),znight.max()]
+        # Cacluate
+        state_index = calc_plasmasheet_state(zones,xlims,ylims,zlims,**kwargs)
     elif 'rc' in mode:
         assert closed_zone is not None, ('No'+
                                        ' closed_zone present! Cant do rc')
@@ -2770,6 +2789,31 @@ def calc_rc_state(closed_var, lshellmax, zones, *,
                            '{r [R]}>='+str(kwargs.get('inner_r',3))+'&&'+
                                     '{'+Lvar+'}<'+lshellmax+',1,0)',
                                     zones=zones)
+    return zones[0].dataset.variable(state).index
+
+def calc_plasmasheet_state(zones,xlims,ylims,zlims,**kwargs):
+    """Function creates equation for the plasmasheet which is constricted to
+        xyz limits
+    Inputs
+        closed_var
+        zones
+        xlims,ylims,zlims
+        kwargs:
+            None
+    Return
+        index- index of the created state variable
+    """
+    eq = tp.data.operate.execute_equation
+    threshold = str(kwargs.get('plasmasheet_value',0.3))
+    variable = kwargs.get('plasmasheet_var','curl_unitb_y')
+    state = 'plasmasheet_'+threshold
+    eqstr = ('{'+state+'}=if({'+variable+'}>'+threshold+
+                      '&&{X [R]}>'+str(xlims[0])+' && {X [R]}<'+str(xlims[1])+
+                      '&&{Y [R]}>'+str(ylims[0])+' && {Y [R]}<'+str(ylims[1])+
+                      '&&{Z [R]}>'+str(zlims[0])+' && {Z [R]}<'+str(zlims[1])+
+                          ',1,0)')
+    print(eqstr)
+    eq(eqstr, zones=zones)
     return zones[0].dataset.variable(state).index
 
 def calc_lobe_state(mp_var, northsouth, zones, **kwargs):

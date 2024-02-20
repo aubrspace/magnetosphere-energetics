@@ -699,12 +699,12 @@ if __name__ == '__main__':
     start = dt.datetime(2022,2,2,5)
     end = dt.datetime(2022,2,5,12)
     outpath = './'
-    plot_data = False
+    plot_data = True
     #######################################################################
 
     #wind = collect_wind(start, end)
     #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
-    mms_pos, mms_b,mms_plasma = collect_mms(start, end)
+    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
     #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
     #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
 
@@ -725,7 +725,7 @@ if __name__ == '__main__':
             plot_comparison(ori_df, df, outpath)
     if plot_data:
         try:
-            from plotSW import plot_solarwind as plotsw
+            from util.plotSW import plot_solarwind as plotsw
         except ModuleNotFoundError:
             print("Unable to plot, can't find plotSW.py!")
         else:
