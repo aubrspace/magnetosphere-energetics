@@ -770,6 +770,7 @@ def calc_integral(term, zone, **kwargs):
             value = np.sum(volumes)
     if (kwargs.get('useNumpy',False) and
         kwargs.get('VariableOption','Scalar')=='Scalar'):
+        print(term[0])
         scalars = zone.values(term[0]).as_numpy_array()
         volumes = zone.values('trueCellVolume').as_numpy_array()
         value = np.dot(scalars,volumes)
