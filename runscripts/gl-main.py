@@ -134,8 +134,8 @@ def energetics_analysis(infiles,outpath):
     mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       save_mesh=False,
                                       write_data=True,
-                                      disp_result=False,
-                                      verbose=False,
+                                      disp_result=True,
+                                      verbose=True,
                                       do_cms=False,
                                       do_central_diff=False,
                                       do_1Dsw=False,
@@ -146,7 +146,7 @@ def energetics_analysis(infiles,outpath):
                                       #sp_rmin=3,
                                       #keep_zones='all',
                                       modes=['iso_betastar','closed',
-                                             'nlobe','slobe'],
+                                             'nlobe','slobe','plasmasheet'],
                                       #modes=['xslice'],
                                       inner_r=4,
                                       customTerms={'test':'TestArea [Re^2]'},
@@ -186,7 +186,7 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     if True:
-        save_gm_multi(['cosmetic/stretched_longtail_fieldlines.sty'],
+        save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
         #'cosmetic/status_forward.sty',
         #               'cosmetic/energy_forward.sty',
         #               'cosmetic/daynight_closed_side.sty',

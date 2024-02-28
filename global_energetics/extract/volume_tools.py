@@ -261,7 +261,8 @@ def get_volume_trades(zone,integrands,**kwargs):
                  '({SLobe}==1)   )')
         lobeN = '({NLobe}==1)'
         lobeS = '({SLobe}==1)'
-        plasmasheet = '({plasmasheet_0.3}==1)'
+    plasmasheet = '({plasmasheet_0.3}==1)'
+    not_plasmasheet = '({plasmasheet_0.3}!=1)'
     # Closed
     if ('lcb' in state_name and 'lcb' in zone.dataset.variable_names and
          not skip_daynightmapping):
@@ -306,8 +307,8 @@ def get_volume_trades(zone,integrands,**kwargs):
         #tradelist.append(make_trade_eq(daylobeS,nightlobeS,'Mil',tdelta))
     # Plasmasheet
     if 'plasmasheet_0.3' in zone.dataset.variable_names:
-        #M    from  plasmasheet     ->  ext
-        tradelist.append(make_trade_eq(plasmasheet,ext,'M',tdelta))
+        #M    from  plasmasheet     ->  not_plasmasheet
+        tradelist.append(make_trade_eq(plasmasheet,not_plasmasheet,'M',tdelta))
     # Debug trades (linear combinations of above, for testing only!)
     if 'mp' in state_name:
         lobes = '({NLobe}==1 || {SLobe}==1)'
