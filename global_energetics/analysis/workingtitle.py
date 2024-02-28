@@ -4529,6 +4529,15 @@ if __name__ == "__main__":
                                      read_supermag=False,
                                      end=dataset['star4']['msdict']['closed'].index[-1],
                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    dataset['star4']['obs2'] = read_indices(inLogs, prefix='fresh_',
+                                     read_supermag=False,
+                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    dataset['star4']['obs3'] = read_indices(inLogs, prefix='windy_',
+                                     read_supermag=False,
+                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                 magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    from IPython import embed; embed()
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
     #                                       read_supermag=True)

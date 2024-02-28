@@ -8,6 +8,7 @@ from scipy import signal
 from scipy.stats import linregress
 import datetime as dt
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib import ticker, colors
@@ -540,67 +541,6 @@ def explorer(event,ev,path):
     print('\033[92m Created\033[00m',figurename)
 
 
-def external_flux_timeseries(event,times,
-                             HM1,Hs1,HM5,Hs5,Hs4,Hs6,Hs3,Hs7,
-                             SM1,Ss1,SM5,Ss5,Ss4,Ss6,Ss3,Ss7,
-                              M1,Ks1, M5,Ks5,Ks4,Ks6,Ks3,Ks7,
-                             path):
-    #############
-    #setup figure
-    flavors_external,(axis,axis2,axis3) =plt.subplots(3,1,figsize=[20,24])
-    #Plot
-    axis.plot(times,(HM1+Hs1)/1e12,label='1')
-    axis.plot(times,(HM5+Hs5)/1e12,label='5')
-    axis.plot(times,Hs4/1e12,label='4')
-    axis.plot(times,Hs6/1e12,label='6')
-    axis.plot(times,Hs3/1e12,label='3')
-    axis.plot(times,Hs7/1e12,label='7')
-
-    axis2.plot(times,(SM1+Ss1)/1e12,label='S1')
-    axis2.plot(times,(SM5+Ss5)/1e12,label='S5')
-    axis2.plot(times,Ss4/1e12,label='S4')
-    axis2.plot(times,Ss6/1e12,label='S6')
-    axis2.plot(times,Ss3/1e12,label='S3')
-    axis2.plot(times,Ss7/1e12,label='S7')
-
-    axis3.plot(times,(M1+Ks1)/1e12,label='K1')
-    axis3.plot(times,(M5+Ks5)/1e12,label='K5')
-    axis3.plot(times,Ks4/1e12,label='K4')
-    axis3.plot(times,Ks6/1e12,label='K6')
-    axis3.plot(times,Ks3/1e12,label='K3')
-    axis3.plot(times,Ks7/1e12,label='K7')
-
-    #Decorations
-    powerlabel=['Hydro.','Poynting','Tot. Energy']
-    for i,ax in enumerate([axis,axis2,axis3]):
-        general_plot_settings(ax,do_xlabel=(i==2),legend=False,
-                                ylabel='Integrated '+powerlabel[i]+
-                                    r' Flux $\left[ TW\right]$',
-                                  legend_loc='lower left',
-                                  ylim=[-15,5],
-                                  timedelta=True)
-        #ax.axvspan((moments['impact']-
-        #            moments['peak2']).total_seconds()*1e9,0,
-        #            fc='lightgrey')
-        ax.margins(x=0.01)
-    axis.fill_between(times,(HM1+HM5+Hs1+Hs5+Hs4+Hs6+Hs3+Hs7)/1e12,
-                        label='Total',fc='dimgray')
-    axis2.fill_between(times,(SM1+SM5+Ss1+Ss5+Ss4+Ss6+Ss3+Ss7)/1e12,
-                        label='Total',fc='dimgray')
-    axis3.fill_between(times,(M1+M5+Ks1+Ks5+Ks4+Ks6+Ks3+Ks7)/1e12,
-                        label='Total',fc='dimgray')
-    axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
-                    ncol=7, fancybox=True, shadow=True)
-    #save
-    #flavors_external.suptitle(moments['peak1'].strftime(
-    #                                                 "%b %Y, t0=%d-%H:%M:%S"),
-    #                                  ha='left',x=0.01,y=0.99)
-    flavors_external.tight_layout(pad=1)
-    figurename = path+'/external_flux_'+event+'.png'
-    flavors_external.savefig(figurename)
-    plt.close(flavors_external)
-    print('\033[92m Created\033[00m',figurename)
-    #############
 
 def scatter_rxn_energy(ev):
     #setup figure
@@ -608,7 +548,6 @@ def scatter_rxn_energy(ev):
     #Plot
     X = ev['RXN_Day']/1e3
     Y = ev['K5']/1e12
-    #from IPython import embed; embed()
     axis.scatter(X,Y,s=200)
     slope,intercept,r,p,stderr = linregress(X,Y)
     R2 = r**2
@@ -1361,6 +1300,235 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
 
+def build_events(ev,run,**kwargs):
+    events = pd.DataFrame()
+    # ID types of events
+    events['DIP'] = ID_dipolarizations(ev,**kwargs)
+    events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
+    events['plasmoids_mass'] = ID_plasmoids(ev,mode='mass')
+    events['plasmoids'] = events['plasmoids_mass']*events['plasmoids_volume']
+    events['ALbays'] = ID_ALbays(ev)
+    # ID AL negative bays
+    # ID MPBs
+    # ID substorm
+    # other combos
+    events.index = ev['mp'].index
+    return events
+
+def ID_ALbays(ev,**kwargs):
+    from IPython import embed; embed()
+    id_by2017s = np.zeros([len(volume)])
+    if kwargs.get('criteria','BandY2017')=='BandY2017':
+        # see BOROVSKY AND YAKYMENKO 2017 doi:10.1002/2016JA023625
+        #   find period where SML decreases by >=150nT in 15min
+        #   onset if:
+        #       drops by >10nT in 2min AND
+        #       >15min from last onset time
+        #       Then for each onset:
+        #           integrate SML for 45min forward
+        #           integrate SML for 45min pior
+        #           if fwd < 1.5*prior:
+        #               reject as true onset
+        #           NOTE (my addition)else:
+        #               mark as psuedobreakup instead
+        #       Keep only the first onset
+        pass
+        # Take in 'MGL' magnetometer grid lower
+        #   using full grid of virtual magnetometer stations
+    pass
+
+def ID_plasmoids(ev,**kwargs):
+    """Function finds plasmoid release events in timeseries
+    Inputs
+        ev
+        kwargs:
+            plasmoid_lookahead (int)- number of points to look ahead
+            volume_reduction_percent (float)-
+            mass_reduction_percent (float)-
+    Returns
+        list(bools)
+    """
+    lookahead = kwargs.get('plasmoid_ahead',10)
+    volume = ev['closed']['Volume [Re^3]'].copy(deep=True).reset_index(
+                                                                    drop=True)
+    mass = ev['closed']['M [kg]'].copy(deep=True).reset_index(drop=True)
+    R1 = kwargs.get('volume_reduction_percent',18)
+    R2 = kwargs.get('mass_reduction_percent',18)
+    # 1st measure: closed_nightside volume timeseries
+    # R1% reduction in volume
+    volume_reduction = np.zeros([len(volume)])
+    if 'volume' in kwargs.get('mode','volume_mass'):
+        for i,testpoint in enumerate(volume.values[0:-10]):
+            v = volume[i]
+            # Skip point if we've already got it or the volume isnt shrinking
+            if not volume_reduction[i] and volume[i+1]<volume[i]:
+                # Check xmin loc against lookahead points
+                if (v-volume[i:i+lookahead].min())/(v)>(R1/100):
+                    # If we've got one need to see how far it extends
+                    i_min = volume[i:i+lookahead].idxmin()
+                    volume_reduction[i:i_min+1] = 1
+                    # If it's at the end of the window, check if its continuing
+                    if i_min==i+lookahead-1:
+                        found_min = False
+                    else:
+                        found_min = True
+                    while not found_min:
+                        if volume[i_min+1]<volume[i_min]:
+                            volume_reduction[i_min+1] = 1
+                            i_min +=1
+                            if i_min==len(volume):
+                                found_min = True
+                        else:
+                            found_min = True
+    # 2nd measure: volume integral of density (mass) on nightside timeseries
+    # R2% reduction in mass
+    mass_reduction = np.zeros([len(mass)])
+    if 'mass' in kwargs.get('mode','volume_mass'):
+        for i,testpoint in enumerate(mass.values[0:-10]):
+            m = mass[i]
+            # Skip point if we've already got it or the mass isnt shrinking
+            if not mass_reduction[i] and mass[i+1]<mass[i]:
+                # Check xmin loc against lookahead points
+                if (m-mass[i:i+lookahead].min())/(m)>(R2/100):
+                    # If we've got one need to see how far it extends
+                    i_min = mass[i:i+lookahead].idxmin()
+                    mass_reduction[i:i_min+1] = 1
+                    # If it's at the end of the window, check if its continuing
+                    if i_min==i+lookahead-1:
+                        found_min = False
+                    else:
+                        found_min = True
+                    while not found_min:
+                        if mass[i_min+1]<mass[i_min]:
+                            mass_reduction[i_min+1] = 1
+                            i_min +=1
+                            if i_min==len(mass):
+                                found_min = True
+                        else:
+                            found_min = True
+    return [y1 or y2 for y1,y2 in zip(volume_reduction,mass_reduction)]
+
+def ID_dipolarizations(ev,**kwargs):
+    """Function finds dipolarizations in timeseries
+    Inputs
+        ev
+        kwargs:
+            DIP_ahead (int)- number of points to look ahead
+            xline_reduction_percent (float)-
+            B1_reduction_percent (float)-
+    Returns
+        list(bools)
+    """
+    lookahead = kwargs.get('DIP_ahead',10)
+    xline = ev['mp']['X_NEXL [Re]'].copy(deep=True).reset_index(drop=True)
+    R1 = kwargs.get('xline_reduction_percent',18)
+    R2 = kwargs.get('B1_reduction_percent',18)
+    # 1st measure: closed[X].min() timeseries
+    # R1% reduction in -X_min distance at ANY point in the interval
+    xline_reduction = np.zeros([len(xline)])
+    for i,testpoint in enumerate(xline.values[0:-10]):
+        x = xline[i]
+        # Skip point if we've already got it or the distance isnt moving in
+        if not xline_reduction[i] and xline[i+1]>xline[i]:
+            # Check xmin loc against lookahead points
+            if (-x+xline[i:i+lookahead].max())/(-x)>(R1/100):
+                # If we've got one need to see how far it extends
+                i_max = xline[i:i+lookahead].idxmax()
+                xline_reduction[i:i_max+1] = 1
+                # If it's at the end of the window, check if its continuing
+                if i_max==i+lookahead-1:
+                    found_max = False
+                else:
+                    found_max = True
+                while not found_max:
+                    if xline[i_max+1]>xline[i_max]:
+                        xline_reduction[i_max+1] = 1
+                        i_max +=1
+                        if i_max==len(xline):
+                            found_max = True
+                    else:
+                        found_max = True
+    # 2nd measure: volume_int{(B-Bdipole)} on nightside timeseries
+    # R2% reduction in volume_int{B-Bd} at ANY point in the interval
+    #TODO
+    b1_reduction = np.zeros([len(xline)])
+    return [yes1 or yes2 for yes1,yes2 in zip(xline_reduction,b1_reduction)]
+
+def show_events(ev,run,events,path):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
+    sw_intervals =build_interval_list(T0,dt.timedelta(hours=2),
+                                         dt.timedelta(hours=2),ev['mp'].index)
+    #############
+    #setup figure
+    fig1,(dips) = plt.subplots(1,1,figsize=[24,8],
+                               sharex=True)
+    fig2,(v_moids,m_moids) = plt.subplots(2,1,figsize=[24,20],
+                               sharex=True)
+    #Plot
+    dips.plot(ev['times'],ev['mp']['X_NEXL [Re]'],color='black')
+    dips.scatter(ev['times'],ev['mp']['X_NEXL [Re]'],
+                 c=mpl.cm.viridis(events[run]['DIP'].values))
+    v_moids.plot(ev['times'],ev['closed']['Volume [Re^3]'],color='black')
+    v_moids.scatter(ev['times'],ev['closed']['Volume [Re^3]'],
+                 c=mpl.cm.viridis(events[run]['plasmoids_volume'].values))
+    m_moids.plot(ev['times'],ev['closed']['M [kg]']/1e3,color='black')
+    m_moids.scatter(ev['times'],ev['closed']['M [kg]']/1e3,
+                 c=mpl.cm.viridis(events[run]['plasmoids_mass'].values))
+    #Decorate
+    for i,(start,end) in enumerate(interval_list):
+        interv = (ev['mp'].index>start)&(ev['mp'].index<end)
+        tstart = float(pd.Timedelta(start-T0).to_numpy())
+        tend = float(pd.Timedelta(end-T0).to_numpy())
+        if any(events[run].loc[interv,'DIP']):
+            dips.axvline(tstart,c='blue')
+            dips.axvspan(tstart,tend,alpha=0.2,fc='green')
+            dips.axvline(tend,c='lightblue')
+        if any(events[run].loc[interv,'plasmoids_volume']):
+            v_moids.axvline(tstart,c='darkorange')
+            v_moids.axvline(tend,c='orange')
+        if any(events[run].loc[interv,'plasmoids_mass']):
+            m_moids.axvline(tstart,c='darkorange')
+            m_moids.axvline(tend,c='orange')
+        if (any(events[run].loc[interv,'plasmoids_volume'])and
+            any(events[run].loc[interv,'plasmoids_mass'])):
+            v_moids.axvspan(tstart,tend,alpha=0.2,fc='grey')
+            m_moids.axvspan(tstart,tend,alpha=0.2,fc='grey')
+        elif any(events[run].loc[interv,'plasmoids_volume']):
+            v_moids.axvspan(tstart,tend,alpha=0.2,fc='blue')
+            #m_moids.axvspan(tstart,tend,alpha=0.2,fc='red')
+        elif any(events[run].loc[interv,'plasmoids_mass']):
+            #v_moids.axvspan(tstart,tend,alpha=0.2,fc='red')
+            m_moids.axvspan(tstart,tend,alpha=0.2,fc='blue')
+    for i,(start,end) in enumerate(sw_intervals):
+        tstart = float(pd.Timedelta(start-T0).to_numpy())
+        dips.axvline(tstart,c='grey',ls='--')
+        v_moids.axvline(tstart,c='grey',ls='--')
+        m_moids.axvline(tstart,c='grey',ls='--')
+    general_plot_settings(dips,do_xlabel=True,legend=False,
+                          ylabel=r'Near Earth X Line $\left[R_e\right]$',
+                          timedelta=True)
+    general_plot_settings(v_moids,do_xlabel=False,legend=False,
+                          ylabel=r'Closed Region Volume $\left[R_e^3\right]$',
+                          timedelta=True)
+    general_plot_settings(m_moids,do_xlabel=True,legend=False,
+                          ylabel=r'Closed Region Mass $\left[Mg\right]$',
+                          timedelta=True)
+    dips.margins(x=0.1)
+    v_moids.margins(x=0.1)
+    m_moids.margins(x=0.1)
+    #Save
+    fig1.tight_layout(pad=1)
+    figurename = path+'/vis_events_'+run+'.png'
+    fig1.savefig(figurename)
+    plt.close(fig1)
+    print('\033[92m Created\033[00m',figurename)
+
+    fig2.tight_layout(pad=1)
+    figurename = path+'/vis_events2_'+run+'.png'
+    fig2.savefig(figurename)
+    plt.close(fig2)
+    print('\033[92m Created\033[00m',figurename)
+
 def tab_ranges(dataset):
     events = dataset.keys()
     results_min = {}
@@ -1380,107 +1548,35 @@ def tab_ranges(dataset):
 
 def initial_figures(dataset):
     path = unfiled
-    tave,tv,corr,raw = {},{},{},{}
-    for i,event in enumerate(dataset.keys()):
-        ev = refactor(dataset[event],dt.datetime(2022,6,6,0))
-        tave[event] = interval_average(ev)
-        print(event)
-        tv[event] = interval_totalvariation(ev)
-        if 'iedict' in dataset[event].keys():
-            ev2 = ie_refactor(dataset[event]['iedict'],dt.datetime(2022,6,6,0))
+    tave,tv,corr,raw,events = {},{},{},{},{}
+    for i,run in enumerate(dataset.keys()):
+        print(run)
+        ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
+        if 'iedict' in dataset[run].keys():
+            ev2 = ie_refactor(dataset[run]['iedict'],dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
-        corr[event],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
-                                                yfactor=1e12)
-        raw[event] = ev
-        #TODO- decide how to stich the average values together
-        if False:
-            external_flux_timeseries(event,ev['times'],
-                                      ev['HM1'],ev['Hs1'],ev['HM5'],ev['Hs5'],
-                                      ev['Hs4'],ev['Hs6'],ev['Hs3'],ev['Hs7'],
-                                      ev['SM1'],ev['Ss1'],ev['SM5'],ev['Ss5'],
-                                      ev['Ss4'],ev['Ss6'],ev['Ss3'],ev['Ss7'],
-                                      ev['M1'], ev['Ks1'], ev['M5'],ev['Ks5'],
-                                      ev['Ks5'],ev['Ks6'],ev['Ks3'],ev['Ks7'],
-                                 path)
-        #interv_x_bar(tv[event],tave[event],event)
-        #common_x_bar(event,ev)
-        #explorer(event,ev,path)
-        #common_x_bar(event,ev)
-        #common_x_lineup(event,ev)
-        #segments(event,ev)
-        #series_segments(event,ev)
-        #TODO:
-        #   Read in the arguments
-        #   Plot total energy vs total polar cap flux
-        #   xUlobe vs PCF
-        #   xInner open flux vs PCF
-        #   xDayRxn vs K5
-        #   xDayRxn vs K1
-        #   NightRxn vs 2b
-        #   NightRxn vs Inner open flux
-        #   NightRxn vs Inner closed flux
-        #   
-        #   Try to suss out if there are clear relationships between IE
-        #    and GM results. Especially if we can find a substorm cycle
-
-        # Look at the CPCP and SML together to get another perspective on substorm phase
-        # READ up some on what a *clear* substorm looks like so it can be
-        #  properly called out
-
-        # Think about ways in which the timeseries can be split up into the
-        #   subsotrm phases
-        # Then take new scatter averages split by substorm phases and see if 
-        #  that organizes the data in a nice way
-        if 'iedict' in dataset[event].keys():
-            #energy_vs_polarcap(ev,event,path)
-            #mpflux_vs_rxn(ev,event,path)
-            #internalflux_vs_rxn(ev,event,path)
+        events[run] = build_events(ev,run)
+        #tave[run] = interval_average(ev)
+        #tv[run] = interval_totalvariation(ev)
+        #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
+        #                                        yfactor=1e12)
+        #raw[run] = ev
+        if 'iedict' in dataset[run].keys():
             #Zoomed versions
             #window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
             #          (ev['mp'].index<dt.datetime(2022,6,7,10,0)))
-            #energy_vs_polarcap(ev,event,path,zoom=window)
-            #mpflux_vs_rxn(ev,event,path,zoom=window)
-            #internalflux_vs_rxn(ev,event,path,zoom=window)
+            #energy_vs_polarcap(ev,run,path,zoom=window)
+            #mpflux_vs_rxn(ev,run,path,zoom=window)
+            #internalflux_vs_rxn(ev,run,path,zoom=window)
             pass
-    #indices(dataset,path)
-    #scatter_rxn_energy(ev)
-    #test_matrix(event,ev,path)
-    scatter_TVexternal_K1(tv,tave,path)
-    scatter_TVexternal_K5(tv,tave,path)
-    #scatter_alldata_K1(raw,path)
-    corr_alldata_K1(corr,lags,path)
-    #TODO
-    #   similar to the other TODO above, iterate through the potential combos
-    #       - For each combo:
-    #           x State expected relationship and strength of correlation
-    #           x RAW data plots 1 and 2
-    #           x Average scatter plot
-    #           x Total variation scatter plot
-    #           x Review result and compare with hypothesis
-    #       - Shortlist 2 or three of these results
-    #       - Discuss with Mike and/or Tuija
-    #       - Put the best existing version into overleaf and move forward w
-    #           writing initial draft
-    '''
-    test_matrix(event,ev,path)
-    scatter_cuspFlux(tave)
-    scatter_externalFlux(tave)
-    #scatter_internalFlux(tave)
-    energies(dataset,path)
-    couplers(dataset,path)
-    scatters(tave)
-    scatter_Ein_compare(tave)
-    scatter_Pstorm(tave)
-    innerLobeFlux(tave)
-    tab_ranges(dataset)
-    '''
+        show_events(ev,run,events,path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
-    TSTART = dt.datetime(2022,6,6,0,59)
-    DT = dt.timedelta(minutes=60)
-    TJUMP = dt.timedelta(hours=2)
+    TSTART = dt.datetime(2022,6,6,0,30)
+    DT = dt.timedelta(minutes=15)
+    TJUMP = dt.timedelta(minutes=15)
     #Need input path, then create output dir's
     inBase = sys.argv[-1]
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
@@ -1494,21 +1590,16 @@ if __name__ == "__main__":
     plt.rcParams.update(pyplotsetup(mode='print'))
 
     # Event list
-    events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
+    #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
+    events = ['stretched_MEDnHIGHu']
 
     ## Analysis Data
     dataset = {}
     for event in events:
         GMfile = os.path.join(inAnalysis,event+'.h5')
-        #IEfile = os.path.join(inAnalysis,'IE','ie_'+event+'.h5')
         # GM data
         if os.path.exists(GMfile):
             dataset[event] = load_hdf_sort(GMfile)
-        # IE data
-        #if os.path.exists(IEfile):
-        #    with pd.HDFStore(IEfile) as store:
-        #        for key in store.keys():
-        #            dataset[event][key] = store[key]
 
     '''
     #HOTFIX duplicate LOWLOW values
@@ -1528,22 +1619,9 @@ if __name__ == "__main__":
 
     ## Log Data
     for event in events:
-        dataset[event]['obs'] = read_indices(inLogs,prefix=event+'_',
+        prefix = event.split('_')[-1]+'_'
+        dataset[event]['obs'] = read_indices(inLogs,prefix=prefix,
                                              read_supermag=False)
-    '''
-    dataset['LOWnLOWu']['obs'] = read_indices(inLogs, prefix='LOWnLOWu_',
-                                              read_supermag=False)
-    dataset['HIGHnHIGHu']['obs'] = read_indices(inLogs, prefix='HIGHnHIGHu_',
-                                              read_supermag=False)
-    dataset['LOWnHIGHu']['obs'] = read_indices(inLogs, prefix='LOWnHIGHu_',
-                                              read_supermag=False)
-    dataset['HIGHnLOWu']['obs'] = read_indices(inLogs, prefix='HIGHnLOWu_',
-                                              read_supermag=False)
-    dataset['MEDnMEDu']['obs'] = read_indices(inLogs, prefix='MEDnMEDu_',
-                                              read_supermag=False)
-    dataset['MEDnHIGHu']['obs'] = read_indices(inLogs, prefix='MEDnHIGHu_',
-                                              read_supermag=False)
-    '''
     ######################################################################
     ##Quicklook timeseries figures
     initial_figures(dataset)

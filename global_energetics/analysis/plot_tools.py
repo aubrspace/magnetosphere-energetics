@@ -539,6 +539,7 @@ def refactor(event,t0):
     ev['inner'] = event['inner_mp'].resample('60S').ffill()
     ev['sim'] = event['obs']['swmf_log']
     ev['sw'] = event['obs']['swmf_sw']
+    ev['index'] = event['obs']['swmf_index']
     timedelta = [t-t0 for t in times]
     simtdelta = [t-t0 for t in ev['sim'].index]
     swtdelta = [t-t0 for t in ev['sw'].index]

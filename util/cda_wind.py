@@ -8,6 +8,8 @@ import time
 import datetime as dt
 import numpy as np
 import matplotlib.pyplot as plt
+os.environ["CDF_LIB"] = "~/CDF/lib"
+from spacepy import pycdf
 from swmfpy.io import write_imf_input
 
 def toTimestamp(d):
@@ -80,8 +82,8 @@ def obtain_vGSM(solarwind,**kwargs):
 #Main program
 if __name__ == '__main__':
     #############################USER INPUTS HERE##########################
-    start = dt.datetime(2022,2,2,5,0)
-    end = dt.datetime(2022,2,5,12,0)
+    start = dt.datetime(2022,2,2,4,52)
+    end = dt.datetime(2022,2,5,11,59)
     #end = dt.datetime.now()
     outpath = './'
     use_cda = True
