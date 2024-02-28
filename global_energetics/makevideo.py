@@ -17,7 +17,6 @@ def get_time(infile,**kwargs):
     Output
         time- spacepy Ticktock object
     """
-    from IPython import embed; embed()
     try:#looking for typically BATSRUS 3D output
         if '_t' in infile and '_n' in infile:
             date_string=infile.split('/')[-1].split('_t')[-1].split('_')[0]
@@ -32,8 +31,11 @@ def get_time(infile,**kwargs):
         else:
             date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
             print(date_string)
-            time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
-            time_dt = time_dt.replace(microsecond=0)
+            if len(date_string)==19:
+                time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
+                time_dt = time_dt.replace(microsecond=0)
+            elif len(date_string)==15:
+                time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S')
     except ValueError:
         try:#looking for typical IE output
             date_string=infile.split('/')[-1].split('it')[-1].split('.')[0]

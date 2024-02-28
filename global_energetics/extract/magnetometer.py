@@ -348,53 +348,50 @@ def read_MGL(datapath,**kwargs):
     # Check that files are present
     filelist = glob.glob(os.path.join(datapath,
                                       kwargs.get('filehead','mag_grid_')+'*'))
-    # Initialize dataframe and arrays
-    MGL = pd.DataFrame()
     t0 = dt.datetime(1970,1,1)
-    dBmin = np.zeros([len(filelist)])
+    # Initialize dataframe and arrays
+    MGL    = pd.DataFrame()
+    dBmin  = np.zeros([len(filelist)])
     geoLat = np.zeros([len(filelist)])
     geoLon = np.zeros([len(filelist)])
-    smLat = np.zeros([len(filelist)])
-    smLon = np.zeros([len(filelist)])
-    gsmLat = np.zeros([len(filelist)])
-    gsmLon = np.zeros([len(filelist)])
-    dBMhd = np.zeros([len(filelist)])
-    dBFac = np.zeros([len(filelist)])
-    dBPed = np.zeros([len(filelist)])
-    dBHal = np.zeros([len(filelist)])
-    times = np.zeros([len(filelist)])
+    smLat  = np.zeros([len(filelist)])
+    smLon  = np.zeros([len(filelist)])
+    gsmX   = np.zeros([len(filelist)])
+    gsmY   = np.zeros([len(filelist)])
+    gsmZ   = np.zeros([len(filelist)])
+    dBMhd  = np.zeros([len(filelist)])
+    dBFac  = np.zeros([len(filelist)])
+    dBPed  = np.zeros([len(filelist)])
+    dBHal  = np.zeros([len(filelist)])
+    times  = np.zeros([len(filelist)],dtype='object')
     for i,f in enumerate(filelist):
         ftime = get_time(f)
         ut = (ftime-t0).total_seconds()
         gp.recalc(ut)
         grid = pd.read_csv(f,sep='\s+',skiprows=[0,1,2])
-        min_point = grid['dBn'].idxmin()
+        min_point = grid.iloc[grid['dBn'].idxmin()]
         dBmin[i] = min_point['dBn']
         geoLat[i] = min_point['Lat']
         geoLon[i] = min_point['Lon']
         smLat[i] = min_point['LatSm']
         smLon[i] = min_point['LonSm']
-        #gsmLat[i] = min_point['
-        #gsmLon[i] = min_point['
+        x,y,z = gp.sphcar(1,min_point['Lat'],min_point['Lon'],1)
+        gsmX[i],gsmY[i],gsmZ[i] = gp.geogsm(x,y,z,1)
         dBMhd[i] = min_point['dBnMhd']
         dBFac[i] = min_point['dBnFac']
         dBPed[i] = min_point['dBnPed']
         dBHal[i] = min_point['dBnHal']
         times[i] = ftime
-        from IPython import embed; embed()
-    # For each file
-        # Read in datafile
-        # Get the time
-        # Get the minimum value of dB horizontal = sqrt(dBn**2+dBe**2)
-        # Get the gridpoint LAT and LON GEO
-        # Get the gridpoint LAT and LON SM
-        # Get the gridpoint LAT and LON GSM
-        # Get contribution from Mhd
-        # Get contribution from Fac
-        # Get contribution from Hall
-        # Get contribution from Ped
-    # Sort files by time
-    # Return
+    # Gather arrays and sort by time
+    for key,arr in [['dBmin',dBmin],['geoLat',geoLat],['geoLon',geoLon],
+                    ['smLat',smLat],['smLon',smLon],
+                    ['gsmX',gsmX],['gsmY',gsmY],['gsmZ',gsmZ],
+                    ['dBMhd',dBMhd],['dBFac',dBFac],
+                    ['dBPed',dBPed],['dBHal',dBHal]]:
+        MGL[key] = arr
+    MGL.index = times
+    MGL.sort_index()
+    return MGL
 
 def read_SML(datafile):
     """Function reads SML .txt file downloaded from the supermag site
@@ -425,8 +422,10 @@ if __name__ == "__main__":
     #smldata = read_SML(sml_file)
     #vsmldata = read_virtual_SML(file_in)
     datapath = './'
-    read_MGL(datapath)
-    gml_file = 'test_outputs/MGL_out.txt'
+    MGL = read_MGL(datapath)
+    mgl_file = 'test_outputs/MGL_test.h5'
+    MGL.to_hdf(mgl_file,key='gridMin')
+    print('Created ',mgl_file)
     #aux_data_path = 'localdbug/febstorm/station_data/'
     #test_time = get_time('localdbug/febstorm/3d__var_1_e20140218-060400-033.plt')
     #IDs, station_df = get_stations_now(file_in,test_time,tilt=20.9499)
