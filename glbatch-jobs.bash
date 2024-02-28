@@ -42,7 +42,7 @@
      #OUTPUTDIR=./outputs_MEDnHIGHu/
 
 INPUTDIR=./run_MEDnHIGHu/GM/IO2/
-OUTPUTDIR=./outputs_stretched_MEDnHIGHu/
+OUTPUTDIR=./outputs_stretched2_MEDnHIGHu/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/

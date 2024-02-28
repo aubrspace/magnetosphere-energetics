@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """Extracting data related to ground based magnetometers (obs and virtual)
 """
+import os,sys
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import glob
-import os
 import numpy as np
 from numpy import (sin,cos,deg2rad,pi)
 import datetime as dt
 import pandas as pd
-#import spacepy
-#from spacepy import coordinates as coord
-#from spacepy import time as spt
-#from global_energetics.extract.tec_tools import(mag2gsm,mag2cart)
-#from global_energetics.makevideo import(get_time)
+from global_energetics.makevideo import get_time
+from geopack import geopack as gp
 
 def sph_to_cart(radius, lat, lon):
     """Function converts spherical coordinates to cartesian coordinates
@@ -336,6 +335,67 @@ def read_virtual_SML(datafile):
         vsmldata.loc[timestamp,'mLon'] = locations.loc[station,'MLTshift']
     return vsmldata
 
+def read_MGL(datapath,**kwargs):
+    """Function calculates 'MGL' index using the minimum dB from the whole
+    set of mag_grid files located at the provided path
+    Inputs
+        datapath
+        kwargs:
+            fileheader
+    Returns
+        MGL
+    """
+    # Check that files are present
+    filelist = glob.glob(os.path.join(datapath,
+                                      kwargs.get('filehead','mag_grid_')+'*'))
+    # Initialize dataframe and arrays
+    MGL = pd.DataFrame()
+    t0 = dt.datetime(1970,1,1)
+    dBmin = np.zeros([len(filelist)])
+    geoLat = np.zeros([len(filelist)])
+    geoLon = np.zeros([len(filelist)])
+    smLat = np.zeros([len(filelist)])
+    smLon = np.zeros([len(filelist)])
+    gsmLat = np.zeros([len(filelist)])
+    gsmLon = np.zeros([len(filelist)])
+    dBMhd = np.zeros([len(filelist)])
+    dBFac = np.zeros([len(filelist)])
+    dBPed = np.zeros([len(filelist)])
+    dBHal = np.zeros([len(filelist)])
+    times = np.zeros([len(filelist)])
+    for i,f in enumerate(filelist):
+        ftime = get_time(f)
+        ut = (ftime-t0).total_seconds()
+        gp.recalc(ut)
+        grid = pd.read_csv(f,sep='\s+',skiprows=[0,1,2])
+        min_point = grid['dBn'].idxmin()
+        dBmin[i] = min_point['dBn']
+        geoLat[i] = min_point['Lat']
+        geoLon[i] = min_point['Lon']
+        smLat[i] = min_point['LatSm']
+        smLon[i] = min_point['LonSm']
+        #gsmLat[i] = min_point['
+        #gsmLon[i] = min_point['
+        dBMhd[i] = min_point['dBnMhd']
+        dBFac[i] = min_point['dBnFac']
+        dBPed[i] = min_point['dBnPed']
+        dBHal[i] = min_point['dBnHal']
+        times[i] = ftime
+        from IPython import embed; embed()
+    # For each file
+        # Read in datafile
+        # Get the time
+        # Get the minimum value of dB horizontal = sqrt(dBn**2+dBe**2)
+        # Get the gridpoint LAT and LON GEO
+        # Get the gridpoint LAT and LON SM
+        # Get the gridpoint LAT and LON GSM
+        # Get contribution from Mhd
+        # Get contribution from Fac
+        # Get contribution from Hall
+        # Get contribution from Ped
+    # Sort files by time
+    # Return
+
 def read_SML(datafile):
     """Function reads SML .txt file downloaded from the supermag site
     Inputs
@@ -361,9 +421,12 @@ if __name__ == "__main__":
     #file_in = ('/home/aubr/Code/swmf-energetics/febstorm/'+
     #           'magnetometers_e20140218-060000.mag')
     file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
-    sml_file = 'localdbug/mod_supermag_starlink.txt'
+    #sml_file = 'localdbug/mod_supermag_starlink.txt'
     #smldata = read_SML(sml_file)
-    vsmldata = read_virtual_SML(file_in)
+    #vsmldata = read_virtual_SML(file_in)
+    datapath = './'
+    read_MGL(datapath)
+    gml_file = 'test_outputs/MGL_out.txt'
     #aux_data_path = 'localdbug/febstorm/station_data/'
     #test_time = get_time('localdbug/febstorm/3d__var_1_e20140218-060400-033.plt')
     #IDs, station_df = get_stations_now(file_in,test_time,tilt=20.9499)

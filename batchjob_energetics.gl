@@ -14,7 +14,7 @@
 #SBATCH --ntasks-per-node=1
 
 # Number of cores or threads per node
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=4
 
 # Memory per cpu
 #SBATCH --mem-per-cpu=7g
@@ -49,6 +49,6 @@ echo "Submitting using path:$input output:$output file:$file"
 printf "START TIME: `date +%Y%m%d`\n"
 # Run a script with global_energetics (the number of processors is already specified above)
 tec360-env -- python3 runscripts/gl-main.py -i $input -o $output\main/ -f $file
-#tec360-env -- python3 runscripts/gl-cdiff.py -i $input -o $output\cdiff/ -f $file
+tec360-env -- python3 runscripts/gl-cdiff.py -i $input -o $output\cdiff/ -f $file
 #tec360-env -- python3 gl-ie.py -i $input -o $output\ie/ -f $file
 #tec360-env -- python3 gl-maptest.py -i $input -o $output\maptest/ -f $file

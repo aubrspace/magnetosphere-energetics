@@ -94,7 +94,7 @@ def energetics_analysis(infiles,outpath):
     mesh, data = magnetosphere.get_magnetosphere(field_data,
                                       save_mesh=False,
                                       write_data=True,
-                                      disp_result=False,
+                                      disp_result=True,
                                       do_cms=True,
                                       do_central_diff=True,
                                       do_1Dsw=False,
@@ -105,7 +105,7 @@ def energetics_analysis(infiles,outpath):
                                       #sp_rmin=3,
                                       #keep_zones='all',
                                       modes=['iso_betastar','closed',
-                                             'nlobe','slobe'],
+                                             'nlobe','slobe','plasmasheet'],
                                       #modes=['xslice'],
                                       inner_r=4,
                                       customTerms={'test':'TestArea [Re^2]'},
@@ -114,7 +114,7 @@ def energetics_analysis(infiles,outpath):
                                       integrate_surface=False,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
-                                      verbose=False,
+                                      verbose=True,
                                       extract_flowline=False,
                                       outputpath=outpath)
     # IE data

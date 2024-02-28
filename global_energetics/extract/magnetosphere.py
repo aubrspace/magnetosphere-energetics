@@ -509,6 +509,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         >Blanking
             do_blank, blank_variable, blank_value- use tp blank feature
     """
+    start_time = time.time()
     #Setup default values based on any given kwargs
     outputpath = kwargs.get('outputpath', 'output/')
     source = kwargs.get('source', 'swmf')
@@ -564,6 +565,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                                       do_cms, verbose,
                                               kwargs.get('do_trace',False),
                                               kwargs.get('tshift',0))
+    #timestamp
+    ltime = time.time()-start_time
+    print('PREPROC--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
     if do_trace:
         lon_bounds = kwargs.get('lon_bounds', 10)
         n_fieldlines = kwargs.get('n_fieldlines', 5)
@@ -573,6 +578,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         tol = kwargs.get('tol', 0.1)
     #prepare field data
     aux, closed_zone = prep_field_data(field_data,**kwargs)
+    #timestamp
+    ltime = time.time()-start_time
+    print('PREP:--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
     # !!! kwargs updated !!!
     kwargs.update({'x_subsolar':float(aux['x_subsolar'])})
     kwargs.update({'x_nexl':float(aux['x_nexl'])})
@@ -585,6 +594,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     kwargs = generate_3Dobj(globalzone, **kwargs)
     zonelist = kwargs.get('zonelist')
     state_indices = kwargs.get('state_indices')
+    #timestamp
+    ltime = time.time()-start_time
+    print('GEN3D--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
 
     #perform integration for surface and volume quantities
     mp_mesh = {}
@@ -656,6 +669,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         #quick post_proc, saves on number of integration calls
         data_to_write = surface_tools.post_proc(data_to_write,
                          do_interfacing=kwargs.get('do_interfacing',False))
+    #timestamp
+    ltime = time.time()-start_time
+    print('SURF--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
     ################################################################
     if integrate_volume:
         for i,state_index in enumerate(state_indices):
@@ -732,6 +749,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                     eq('{'+usename+'}={'+var+'}',zones=[region],
                             value_location=ValueLocation.CellCentered)
                     savemeshvars[kwargs.get('modes')[i]].append(usename)
+    #timestamp
+    ltime = time.time()-start_time
+    print('VOL--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
     ################################################################
     if integrate_line:
         for zone in kwargs.get('zonelist1D'):
@@ -785,6 +806,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                             outputpath+'/energeticsdata/GM/energetics_'+
                             datestring+'.h5',
                             data_to_write.keys())
+    #timestamp
+    ltime = time.time()-start_time
+    print('WRAPUP--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
     return mp_mesh, data_to_write
 
 if __name__ == "__main__":
