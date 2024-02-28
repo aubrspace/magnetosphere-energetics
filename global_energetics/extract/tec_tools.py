@@ -1815,7 +1815,8 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eqeval(alleq['entropy'],value_location=cc)
     #plasmasheet
     if 'plasmasheet' in kwargs.get('modes',[]):
-        eqeval(alleq['plasmasheet'],value_location=nodal)
+        pass
+        #eqeval(alleq['local_curv'],value_location=nodal)
     #user_selected
     if 'add_eqset' in kwargs:
         for eq in [eq for eq in alleq if eq in kwargs.get('add_eqset')]:
@@ -2011,6 +2012,8 @@ def calc_state(mode, zones, **kwargs):
     #####################################################################
     #Call calc_XYZ_state and return state_index and create zonename
     closed_zone = kwargs.get('closed_zone')
+    clean_blanks = False #flag to clear out blanks if get used here
+    iso_value = 1 #default is state==1 for isosurface creation
     if 'iso_betastar' in mode:
         zonename = 'mp_'+mode
         state_index = calc_betastar_state(zonename,zones,**kwargs)
@@ -2026,7 +2029,6 @@ def calc_state(mode, zones, **kwargs):
                                 kwargs.get('sp_z',0),
                                 kwargs.get('sp_rmax',3), zones,
                                 rmin=kwargs.get('sp_rmin',0))
-        #iso_value = kwargs.get('sp_rmax',3)
     elif mode == 'terminator':
         zonename = mode+str(kwargs.get('sp_rmax',3))
         assert zones[0].dataset.zone('sphere*') is not None, (
@@ -2083,21 +2085,23 @@ def calc_state(mode, zones, **kwargs):
             state_index = calc_lobe_state(mpvar.name, 'both',
                                           zones,**kwargs)
     elif 'plasmasheet' in mode:
-        assert 'ms_closed' in zones[0].dataset.zone_names, ('No'+
-                                       ' ms_closed zone present!'+
+        assert 'daynight' in zones[0].dataset.variable_names, ('No'+
+                                       ' daynightmapping present!'+
                                        ' Cant do plasmasheet')
+        #Br=0, NOTE this makes a flat 2D planar surface (0 captured volume)
         zonename = 'ms_'+mode
-        # Get the bounds from the closed region nightmapped extents
-        closed = zones[0].dataset.zone('ms_closed')
-        isnight = closed.values('daynight').as_numpy_array()==-1
-        xnight = closed.values('X *').as_numpy_array()[isnight]
-        ynight = closed.values('Y *').as_numpy_array()[isnight]
-        znight = closed.values('Z *').as_numpy_array()[isnight]
-        xlims = [kwargs.get('tail_cap',-20),xnight.max()]
-        ylims = [ynight.min(),ynight.max()]
-        zlims = [znight.min(),znight.max()]
-        # Cacluate
-        state_index = calc_plasmasheet_state(zones,xlims,ylims,zlims,**kwargs)
+        state_index = zones[0].dataset.variable('Br *').index
+        iso_value = 0
+        # Blank daynight>-1 implies both closed and mapped to nightside
+        tp.active_frame().plot().value_blanking.active = True
+        tp.active_frame().plot().value_blanking.cell_mode = (
+                                               ValueBlankCellMode.PrimaryValue)
+        blank = tp.active_frame().plot().value_blanking.constraint(7)
+        blank.active = True
+        blank.variable = zones[0].dataset.variable('daynight')
+        blank.comparison_operator = RelOp.GreaterThan
+        blank.comparison_value = -1
+        clean_blanks = True
     elif 'rc' in mode:
         assert closed_zone is not None, ('No'+
                                        ' closed_zone present! Cant do rc')
@@ -2244,8 +2248,6 @@ def calc_state(mode, zones, **kwargs):
             print('x_subsolar updated to {}'.format(new_subsolar))
             zones[0].aux_data['x_subsolar'] = new_subsolar
     elif kwargs.get('create_zone',True):
-        if 'perfectsphere' not in mode:
-            iso_value = 1
         if kwargs.get('keep_zones')=='all':
             newzones = setup_isosurface(iso_value, state_index,
                                     zonename,
@@ -2287,6 +2289,10 @@ def calc_state(mode, zones, **kwargs):
     else:
         zone = None
         innerzone = None
+    if clean_blanks:
+        # loop through and deactivate any blanking conditions used in creation
+        for i in range(0,8):
+            tp.active_frame().plot().value_blanking.constraint(i).active=False
     return zone, innerzone, state_index
 
 def extrema(array,factor):

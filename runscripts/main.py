@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-                      key=makevideo.time_sort)[10:11]
+                      key=makevideo.time_sort)[0:1]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 

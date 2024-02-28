@@ -676,20 +676,43 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if integrate_volume:
         for i,state_index in enumerate(state_indices):
-            region = zonelist[i]
-            print('\nWorking on: '+region.name+' volume')
-            energies = volume_analysis(field_data.variable(state_index),
+            if not 'Br ' in field_data.variable(state_index).name:
+                region = zonelist[i]
+                print('\nWorking on: '+region.name+' volume')
+                energies = volume_analysis(field_data.variable(state_index),
                                        **kwargs)
-            if kwargs.get('do_central_diff',False):
-                # Drop the non-motional terms
-                motion_keys = [k for k in energies.keys() if ('[W]' in k) or
+                if kwargs.get('do_central_diff',False):
+                    # Drop the non-motional terms
+                    motion_keys=[k for k in energies.keys() if ('[W]' in k) or
                                                              ('[kg/s]' in k)]
-                energies = energies[motion_keys]
-                energies['Time [UTC]'] = (eventtime+dt.timedelta(seconds=
+                    energies = energies[motion_keys]
+                    energies['Time [UTC]'] = (eventtime+dt.timedelta(seconds=
                                                     kwargs.get('tdelta',60)))
-            else:
-                energies['Time [UTC]'] = eventtime
-            data_to_write.update({region.name+'_volume':energies})
+                else:
+                    energies['Time [UTC]'] = eventtime
+                data_to_write.update({region.name+'_volume':energies})
+            elif not kwargs.get('do_central_diff',False):
+                region = zonelist[i]
+                print('\nWorking on: '+region.name+' averages')
+                #Save the average Ux velocities on the plasmasheet
+                plasmasheet = field_data.zone('ms_plasmasheet')
+                ux = plasmasheet.values('U_x *').as_numpy_array()
+                betastar = plasmasheet.values('beta_star').as_numpy_array()
+                L = plasmasheet.values('Lshell').as_numpy_array()
+                area = plasmasheet.values('Cell Area').as_numpy_array()
+                averages = pd.DataFrame()
+                # Ux
+                averages['ux_positive'] = [np.sum(ux[ux>0]*area[ux>0])/
+                                           np.sum(area[ux>0])]
+                averages['ux'] = [np.sum(ux*area)/np.sum(area)]
+                averages['ux_negative'] = [np.sum(ux[ux<0]*area[ux<0])/
+                                           np.sum(area[ux<0])]
+                averages['positive_coverage']=[np.sum(area[ux>0])/np.sum(area)]
+                # beta*
+                averages['betastar_L>10'] = [np.sum(betastar[L>10]*area[L>10])/
+                                             np.sum(area[L>10])]
+                averages['Time [UTC]'] = eventtime
+                data_to_write.update({region.name+'_averages':averages})
         if kwargs.get('do_interfacing',False):
             #Combine north and south lobes into single 'lobes'
             #North
