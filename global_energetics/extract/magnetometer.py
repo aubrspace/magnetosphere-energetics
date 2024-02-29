@@ -335,6 +335,18 @@ def read_virtual_SML(datafile):
         vsmldata.loc[timestamp,'mLon'] = locations.loc[station,'MLTshift']
     return vsmldata
 
+def readgrid(infile):
+    with open(infile,'r')as f:
+        title = f.readline()# 1st
+        simtime_string = f.readline()# 2nd
+        grid_info = f.readline()# 3rd
+        nlon,nlat = [int(n) for n in grid_info[0:-1].split()]
+        headers = f.readline()[0:-1].split()
+        grid = np.zeros([nlon*nlat,len(headers)])
+        for k,line in enumerate(f.readlines()):
+            grid[k,:] = [float(n) for n in line[0:-1].split()]
+    return grid,headers
+
 def read_MGL(datapath,**kwargs):
     """Function calculates 'MGL' index using the minimum dB from the whole
     set of mag_grid files located at the provided path
@@ -347,7 +359,7 @@ def read_MGL(datapath,**kwargs):
     """
     # Check that files are present
     filelist = glob.glob(os.path.join(datapath,
-                                      kwargs.get('filehead','mag_grid_')+'*'))
+                                  kwargs.get('filehead','mag_grid_')+'*'))
     t0 = dt.datetime(1970,1,1)
     # Initialize dataframe and arrays
     MGL    = pd.DataFrame()
@@ -364,25 +376,29 @@ def read_MGL(datapath,**kwargs):
     dBPed  = np.zeros([len(filelist)])
     dBHal  = np.zeros([len(filelist)])
     times  = np.zeros([len(filelist)],dtype='object')
-    for i,f in enumerate(filelist):
-        ftime = get_time(f)
+    for i,infile in enumerate(filelist):
+        print('reading: ',infile)
+        ftime = get_time(infile)
         ut = (ftime-t0).total_seconds()
-        gp.recalc(ut)
-        grid = pd.read_csv(f,sep='\s+',skiprows=[0,1,2])
-        min_point = grid.iloc[grid['dBn'].idxmin()]
-        dBmin[i] = min_point['dBn']
-        geoLat[i] = min_point['Lat']
-        geoLon[i] = min_point['Lon']
-        smLat[i] = min_point['LatSm']
-        smLon[i] = min_point['LonSm']
-        x,y,z = gp.sphcar(1,min_point['Lat'],min_point['Lon'],1)
-        gsmX[i],gsmY[i],gsmZ[i] = gp.geogsm(x,y,z,1)
-        dBMhd[i] = min_point['dBnMhd']
-        dBFac[i] = min_point['dBnFac']
-        dBPed[i] = min_point['dBnPed']
-        dBHal[i] = min_point['dBnHal']
+        #gp.recalc(ut)
+        grid,headers = readgrid(infile)
+        #grid = pd.read_csv(f,sep='\s+',skiprows=[0,1,2])
+        min_point = np.argmin(grid[:,headers.index('dBn')])
+        dBmin[i] = grid[min_point,headers.index('dBn')]
+        geoLat[i] = grid[min_point,headers.index('Lat')]
+        geoLon[i] = grid[min_point,headers.index('Lon')]
+        smLat[i] = grid[min_point,headers.index('LatSm')]
+        smLon[i] = grid[min_point,headers.index('LonSm')]%360
+        #x,y,z = gp.sphcar(1,grid[min_point,headers.index('Lat')],
+        #                    grid[min_point,headers.index('Lon')],1)
+        #gsmX[i],gsmY[i],gsmZ[i] = gp.geogsm(x,y,z,1)
+        dBMhd[i] = grid[min_point,headers.index('dBnMhd')]
+        dBFac[i] = grid[min_point,headers.index('dBnFac')]
+        dBPed[i] = grid[min_point,headers.index('dBnPed')]
+        dBHal[i] = grid[min_point,headers.index('dBnHal')]
         times[i] = ftime
     # Gather arrays and sort by time
+    print('sorting...')
     for key,arr in [['dBmin',dBmin],['geoLat',geoLat],['geoLon',geoLon],
                     ['smLat',smLat],['smLon',smLon],
                     ['gsmX',gsmX],['gsmY',gsmY],['gsmZ',gsmZ],
@@ -390,7 +406,7 @@ def read_MGL(datapath,**kwargs):
                     ['dBPed',dBPed],['dBHal',dBHal]]:
         MGL[key] = arr
     MGL.index = times
-    MGL.sort_index()
+    MGL.sort_index(inplace=True)
     return MGL
 
 def read_SML(datafile):
@@ -421,7 +437,7 @@ if __name__ == "__main__":
     #sml_file = 'localdbug/mod_supermag_starlink.txt'
     #smldata = read_SML(sml_file)
     #vsmldata = read_virtual_SML(file_in)
-    datapath = './'
+    datapath = 'run_MEDnHIGHu/GM/IO2/'
     MGL = read_MGL(datapath)
     mgl_file = 'test_outputs/MGL_test.h5'
     MGL.to_hdf(mgl_file,key='gridMin')
