@@ -1307,8 +1307,7 @@ def build_events(ev,run,**kwargs):
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
     events['plasmoids_mass'] = ID_plasmoids(ev,mode='mass')
     events['plasmoids'] = events['plasmoids_mass']*events['plasmoids_volume']
-    events['ALbays'] = ID_ALbays(ev)
-    # ID AL negative bays
+    events['ALbays'],events['onsets'],events['psuedos'] = ID_ALbays(ev)
     # ID MPBs
     # ID substorm
     # other combos
@@ -1316,8 +1315,6 @@ def build_events(ev,run,**kwargs):
     return events
 
 def ID_ALbays(ev,**kwargs):
-    from IPython import embed; embed()
-    id_by2017s = np.zeros([len(volume)])
     if kwargs.get('criteria','BandY2017')=='BandY2017':
         # see BOROVSKY AND YAKYMENKO 2017 doi:10.1002/2016JA023625
         #   find period where SML decreases by >=150nT in 15min
@@ -1332,10 +1329,58 @@ def ID_ALbays(ev,**kwargs):
         #           NOTE (my addition)else:
         #               mark as psuedobreakup instead
         #       Keep only the first onset
-        pass
+        al_series = ev['index']['AL'].copy(deep=True).reset_index(drop=True)
+        lookahead = kwargs.get('al_lookahead',15)
+        fwd_period= kwargs.get('al_fwdperiod',45)
+        prior_period= fwd_period
+        albay  = np.zeros(len(al_series))
+        onset  = np.zeros(len(al_series))
+        psuedo = np.zeros(len(al_series))
+        k=0
+        last_i = 0
+        for i,testpoint in enumerate(al_series.values[prior_period:-
+                                                      fwd_period]):
+            al = al_series[i]
+            # find period where SML decreases by >=150nT in 15min
+            if (al-al_series[i:i+lookahead].min())>150:
+                # drops by >10nT in 2min AND >15min from last onset time
+                if (not any(onset[i-15:i-1]) and
+                    (al-al_series[i:i+2].min()>10)):
+                    # integrate SML for 45min forward
+                    fwd = np.trapz(al_series[i:i+fwd_period])/60
+                    # integrate SML for 45min pior
+                    prior = np.trapz(al_series[i-prior_period:i])/60
+                    if fwd > 1.5*prior:
+                        onset[i] = 1
+                        isonset=True
+                    else:
+                        psuedo[i] = 1#NOTE
+                        isonset=False
+                    k+=1
+                    print('index: ',i,'onset: ',k,'delta_i: ',i-last_i,
+                          'counted: ',isonset)
+                    last_i = i
+                    #TODO: check if the wait 15min is being followed
+                    # If we've got one need to see how far it extends
+                    i_min = al_series[i:i+lookahead].idxmin()
+                    albay[i:i_min+1] = 1
+                    # If it's at the end of the window, check if its continuing
+                    if i_min==i+lookahead-1:
+                        found_min = False
+                    else:
+                        found_min = True
+                    while not found_min:
+                        if al_series[i_min+1]<al_series[i_min]:
+                            albay[i_min+1] = 1
+                            i_min +=1
+                            if i_min==len(al_series):
+                                found_min = True
+                        else:
+                            found_min = True
+        #TODO
         # Take in 'MGL' magnetometer grid lower
         #   using full grid of virtual magnetometer stations
-    pass
+    return albay,onset,psuedo
 
 def ID_plasmoids(ev,**kwargs):
     """Function finds plasmoid release events in timeseries
@@ -1464,6 +1509,7 @@ def show_events(ev,run,events,path):
                                sharex=True)
     fig2,(v_moids,m_moids) = plt.subplots(2,1,figsize=[24,20],
                                sharex=True)
+    fig3,(albays) = plt.subplots(1,1,figsize=[24,8],sharex=True)
     #Plot
     dips.plot(ev['times'],ev['mp']['X_NEXL [Re]'],color='black')
     dips.scatter(ev['times'],ev['mp']['X_NEXL [Re]'],
@@ -1474,6 +1520,19 @@ def show_events(ev,run,events,path):
     m_moids.plot(ev['times'],ev['closed']['M [kg]']/1e3,color='black')
     m_moids.scatter(ev['times'],ev['closed']['M [kg]']/1e3,
                  c=mpl.cm.viridis(events[run]['plasmoids_mass'].values))
+    albays.plot(ev['times'],ev['index']['AL'],color='black')
+    albays.scatter(ev['times'],ev['index']['AL'],
+                   c=mpl.cm.viridis(events[run]['ALbays'].values))
+    i_onsets = (events[run]['onsets']==1).values
+    i_psuedos = (events[run]['psuedos']==1).values
+    onsets = ev['index'].loc[i_onsets,'AL']
+    psuedos = ev['index'].loc[i_psuedos,'AL']
+    onsettdelta = [t-T0 for t in onsets.index]
+    onset_times = [float(n.to_numpy()) for n in onsettdelta]
+    psuedotdelta = [t-T0 for t in psuedos.index]
+    psuedo_times = [float(n.to_numpy()) for n in psuedotdelta]
+    albays.scatter(onset_times,onsets,marker='X',s=200)
+    albays.scatter(psuedo_times,psuedos,marker='+',s=200)
     #Decorate
     for i,(start,end) in enumerate(interval_list):
         interv = (ev['mp'].index>start)&(ev['mp'].index<end)
@@ -1499,11 +1558,16 @@ def show_events(ev,run,events,path):
         elif any(events[run].loc[interv,'plasmoids_mass']):
             #v_moids.axvspan(tstart,tend,alpha=0.2,fc='red')
             m_moids.axvspan(tstart,tend,alpha=0.2,fc='blue')
+        if any(events[run].loc[interv,'ALbays']):
+            dips.axvline(tstart,c='blue')
+            dips.axvspan(tstart,tend,alpha=0.2,fc='green')
+            dips.axvline(tend,c='lightblue')
     for i,(start,end) in enumerate(sw_intervals):
         tstart = float(pd.Timedelta(start-T0).to_numpy())
         dips.axvline(tstart,c='grey',ls='--')
         v_moids.axvline(tstart,c='grey',ls='--')
         m_moids.axvline(tstart,c='grey',ls='--')
+        albays.axvline(tstart,c='grey',ls='--')
     general_plot_settings(dips,do_xlabel=True,legend=False,
                           ylabel=r'Near Earth X Line $\left[R_e\right]$',
                           timedelta=True)
@@ -1513,9 +1577,13 @@ def show_events(ev,run,events,path):
     general_plot_settings(m_moids,do_xlabel=True,legend=False,
                           ylabel=r'Closed Region Mass $\left[Mg\right]$',
                           timedelta=True)
+    general_plot_settings(albays,do_xlabel=True,legend=False,
+                          ylabel=r'AL $\left[nT\right]$',
+                          timedelta=True)
     dips.margins(x=0.1)
     v_moids.margins(x=0.1)
     m_moids.margins(x=0.1)
+    albays.margins(x=0.1)
     #Save
     fig1.tight_layout(pad=1)
     figurename = path+'/vis_events_'+run+'.png'
@@ -1527,6 +1595,12 @@ def show_events(ev,run,events,path):
     figurename = path+'/vis_events2_'+run+'.png'
     fig2.savefig(figurename)
     plt.close(fig2)
+    print('\033[92m Created\033[00m',figurename)
+
+    fig3.tight_layout(pad=1)
+    figurename = path+'/vis_events3_'+run+'.png'
+    fig3.savefig(figurename)
+    plt.close(fig3)
     print('\033[92m Created\033[00m',figurename)
 
 def tab_ranges(dataset):
@@ -1621,6 +1695,8 @@ if __name__ == "__main__":
     for event in events:
         prefix = event.split('_')[-1]+'_'
         dataset[event]['obs'] = read_indices(inLogs,prefix=prefix,
+                                        start=dataset[event]['time'][0],
+                 end=dataset[event]['time'][-1]+dt.timedelta(seconds=1),
                                              read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures
