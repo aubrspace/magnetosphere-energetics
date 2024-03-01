@@ -20,7 +20,7 @@
 #SBATCH --mem-per-cpu=7g
 
 # Wall time HH:MM:SS (max 2 weeks)
-#SBATCH --time=01:20:00
+#SBATCH --time=02:20:00
 
 # Either debug, standard, largemem, or gpu
 #SBATCH --partition=standard
@@ -46,4 +46,4 @@ done
 echo "Submitting using path:$input output:$output file:$file"
 printf "START TIME: `date +%Y%m%d`\n"
 # Run a script with global_energetics (the number of processors is already specified above)
-python3 runscripts/gl-maggrid.py -i $input -o $output
+python runscripts/gl-maggrid.py -i $input -o $output
