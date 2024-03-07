@@ -934,7 +934,7 @@ def innerLobeFlux(tave):
     print('\033[92m Created\033[00m',figurename)
     #############
 
-def corr_alldata_K1(corr,lags,path):
+def corr_alldata_K1(raw,path):
     #############
     #setup figures
     allscatter,(axis) =plt.subplots(1,1,figsize=[20,20])
@@ -957,7 +957,7 @@ def corr_alldata_K1(corr,lags,path):
                 cond = raw[case][key].index>dt.datetime(2022,6,6,5)
                 ev[key] = raw[case][key][cond]
         else:
-            ev = corr[case]
+            ev = raw[case]
         '''
         sc = axis.scatter(ev['RXN_Day']/1e3,(ev['K1'])/1e12,
                           label=case,
@@ -1304,7 +1304,7 @@ def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
     ## ID types of events
     # Construction (test matrix) signatures
-    events['imf_change'] = ID_imftransient(ev,**kwargs)
+    events['imf_transients'] = ID_imftransient(ev,**kwargs)
     # Internal process signatures
     events['DIP'] = ID_dipolarizations(ev,**kwargs)
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
@@ -1325,21 +1325,25 @@ def build_events(ev,run,**kwargs):
     # other combos
     return events
 
-def ID_imftransient(ev,**kwargs):
+def ID_imftransient(ev,window=30,**kwargs):
     """Function that puts a flag for when the imf change is affecting the
         integrated results
     Inputs
         ev
+        window (float) - default 30min
         kwargs:
-            lag (float) - default 30min
+            None
     """
-    #TODO
     # find the times when imf change has occured
-    #   build_interval_list(tstart,tlength,tjump,alltimes)
+    times = ev['mp'].index
+    intervals = build_interval_list(TSTART,dt.timedelta(minutes=window),TJUMP,
+                                    times)
     #   add time lag from kwargs
-    #   mark all these as "change times"
-    from IPython import embed; embed()
-    return imftransient
+    imftransients = np.zeros(len(times))
+    for start,end in intervals:
+        # mark all these as "change times"
+        imftransients[(times>start) & (times<end)] = 1
+    return imftransients
 
 def ID_variability(in_signal,**kwargs):
     dt = [t.seconds for t in in_signal.index[1::]-in_signal.index[0:-1]]
@@ -1719,16 +1723,10 @@ def tab_contingency(events,path):
                           ['plasmoids','K1unsteady'],
                           ['DIP','K1unsteady'],
                           ['substorm','K1unsteady'],
-                          ['substorm','K5unsteady'],
-                          ['notsubstorm','notK5unsteady']]:
-            if 'not' in xkey:
-                X = -1*(events[run][xkey.split('not')[-1]].values-1)
-            else:
-                X = events[run][xkey].values
-            if 'not' in ykey:
-                Y = -1*(events[run][ykey.split('not')[-1]].values-1)
-            else:
-                Y = events[run][ykey].values
+                          ['substorm','K5unsteady']]:
+            #NOTE trying 'clean' version
+            X = events[run][xkey].values*-1*(events[run]['imf_transients']-1)
+            Y = events[run][ykey].values*-1*(events[run]['imf_transients']-1)
             best_skill = -1e12
             best_lag = -30
             for lag in range(-30,90):
@@ -1792,6 +1790,12 @@ def initial_figures(dataset):
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
         #                                        yfactor=1e12)
         #raw[run] = ev
+        #TODO plot and corellate ALL K1vsGridL, K1vsClosedMass, etc.
+        # use this to justify the ~0.2 range for the "skill" result
+        # Are there clear signatures for:
+        #   Which one affects it most?
+        #   Which one affects it least?
+        #   How does the total event count affect this?
         if 'iedict' in dataset[run].keys():
             #Zoomed versions
             #window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
