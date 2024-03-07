@@ -1302,7 +1302,10 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
 
 def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
-    # ID types of events
+    ## ID types of events
+    # Construction (test matrix) signatures
+    events['imf_change'] = ID_imftransient(ev,**kwargs)
+    # Internal process signatures
     events['DIP'] = ID_dipolarizations(ev,**kwargs)
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
     events['plasmoids_mass'] = ID_plasmoids(ev,mode='mass')
@@ -1310,20 +1313,33 @@ def build_events(ev,run,**kwargs):
     events['ALbays'],events['ALonsets'],events['ALpsuedos'] = ID_ALbays(ev)
     events['MGLbays'],events['MGLonsets'],events['MGLpsuedos'] = ID_ALbays(ev,
                                                               al_series='MGL')
+    # ID MPBs
     events['substorm'] = np.ceil((events['DIP']+
                                   events['plasmoids_volume']+
                                   events['plasmoids_mass']+
                                   events['MGLbays'])/4)
-    # ID MPBs
-    # ID substorm
-    # external energy flux variability
-    #   K1 (injection)
-    #   K5 (escape)
+    # Coupling variability signatures
     events['K1var'],events['K1unsteady'] = ID_variability(ev['K1'])
     events['K5var'],events['K5unsteady'] = ID_variability(ev['K5'])
     events['K15var'],events['K15unsteady'] = ID_variability(ev['K1']+ev['K5'])
     # other combos
     return events
+
+def ID_imftransient(ev,**kwargs):
+    """Function that puts a flag for when the imf change is affecting the
+        integrated results
+    Inputs
+        ev
+        kwargs:
+            lag (float) - default 30min
+    """
+    #TODO
+    # find the times when imf change has occured
+    #   build_interval_list(tstart,tlength,tjump,alltimes)
+    #   add time lag from kwargs
+    #   mark all these as "change times"
+    from IPython import embed; embed()
+    return imftransient
 
 def ID_variability(in_signal,**kwargs):
     dt = [t.seconds for t in in_signal.index[1::]-in_signal.index[0:-1]]
@@ -1702,9 +1718,17 @@ def tab_contingency(events,path):
         for xkey,ykey in [['MGLbays','K1unsteady'],
                           ['plasmoids','K1unsteady'],
                           ['DIP','K1unsteady'],
-                          ['substorm','K1unsteady']]:
-            X = events[run][xkey].values
-            Y = events[run][ykey].values
+                          ['substorm','K1unsteady'],
+                          ['substorm','K5unsteady'],
+                          ['notsubstorm','notK5unsteady']]:
+            if 'not' in xkey:
+                X = -1*(events[run][xkey.split('not')[-1]].values-1)
+            else:
+                X = events[run][xkey].values
+            if 'not' in ykey:
+                Y = -1*(events[run][ykey.split('not')[-1]].values-1)
+            else:
+                Y = events[run][ykey].values
             best_skill = -1e12
             best_lag = -30
             for lag in range(-30,90):
