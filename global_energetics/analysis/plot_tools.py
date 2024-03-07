@@ -546,6 +546,8 @@ def refactor(event,t0):
     ev['times']=[float(n.to_numpy()) for n in timedelta]
     ev['simt']=[float(n.to_numpy()) for n in simtdelta]
     ev['swt']=[float(n.to_numpy()) for n in swtdelta]
+    use_i = ev['index'].index
+    ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
 
     # Calc dt
     ev['dt'] = [(t1-t0).seconds for t0,t1 in

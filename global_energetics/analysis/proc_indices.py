@@ -481,6 +481,23 @@ def get_supermag_data(start, end, datapath):
         return pd.DataFrame().append(
                 pd.Series({'name':'supermag'}),ignore_index=True)
 
+def get_maggrid_data(datapath,**kwargs):
+    """Function reads in swmf maggrid log (processed set of maggrid files)
+    Inputs
+        datapath- path where files are
+    Outputs
+        data (dict{str:dataframe})
+    """
+    data = {}
+    #read files
+    maggrid_path = os.path.join(datapath,kwargs.get('prefix','')+'maggrid.h5')
+    if glob.glob(maggrid_path) != []:
+        magstore = pd.HDFStore(glob.glob(maggrid_path)[0])
+        for key in magstore:
+            data[key[1::]] = magstore[key]
+        magstore.close()
+    return data
+
 def get_swmf_data(datapath,**kwargs):
     """Function reads in swmf geoindex log and log
     Inputs
@@ -765,11 +782,11 @@ def read_indices(data_path, **kwargs):
     Returns
         data (dict{DataFrame})- swmf_indices, swmf_log, swmf_sw, supermag, omni
     """
+    data = {}
     if kwargs.get('read_swmf',True):
-        data = get_swmf_data(data_path,**kwargs)
-        #data.update({'swmf_index':swmf_index})
-        #data.update({'swmf_log':swmf_log})
-        #data.update({'swmf_sw':swmf_sw})
+        swmfdata = get_swmf_data(data_path,**kwargs)
+        for key in swmfdata:
+            data[key] = swmfdata[key]
         #find new start/end times, will have been trimmed already if needed
         anykey = [k for k in data.keys()][0]
         kwargs.update({'start':data[anykey].index[0]})
@@ -822,6 +839,10 @@ def read_indices(data_path, **kwargs):
                            kwargs.get('end',dt.datetime(2014,2,20,0,0)))
             omni['sym_h']=omni2['sym_h']
         data.update({'omni':omni})
+    if kwargs.get('read_maggrid',True):
+        maggrid = get_maggrid_data(data_path,**kwargs)
+        for key in maggrid:
+            data.update({key:maggrid[key]})
     return data
 
 if __name__ == "__main__":

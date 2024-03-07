@@ -1307,12 +1307,41 @@ def build_events(ev,run,**kwargs):
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
     events['plasmoids_mass'] = ID_plasmoids(ev,mode='mass')
     events['plasmoids'] = events['plasmoids_mass']*events['plasmoids_volume']
-    events['ALbays'],events['onsets'],events['psuedos'] = ID_ALbays(ev)
+    events['ALbays'],events['ALonsets'],events['ALpsuedos'] = ID_ALbays(ev)
+    events['MGLbays'],events['MGLonsets'],events['MGLpsuedos'] = ID_ALbays(ev,
+                                                              al_series='MGL')
+    events['substorm'] = np.ceil((events['DIP']+
+                                  events['plasmoids_volume']+
+                                  events['plasmoids_mass']+
+                                  events['MGLbays'])/4)
     # ID MPBs
     # ID substorm
+    # external energy flux variability
+    #   K1 (injection)
+    #   K5 (escape)
+    events['K1var'],events['K1unsteady'] = ID_variability(ev['K1'])
+    events['K5var'],events['K5unsteady'] = ID_variability(ev['K5'])
+    events['K15var'],events['K15unsteady'] = ID_variability(ev['K1']+ev['K5'])
     # other combos
-    events.index = ev['mp'].index
     return events
+
+def ID_variability(in_signal,**kwargs):
+    dt = [t.seconds for t in in_signal.index[1::]-in_signal.index[0:-1]]
+    signal = in_signal.copy(deep=True).reset_index(drop=True)
+    lookahead = kwargs.get('lookahead',5)
+    lookbehind = kwargs.get('lookbehind',5)
+    threshold = kwargs.get('threshold',50)
+    unsteady = np.zeros(len(signal))
+    var = np.zeros(len(signal))
+    relvar = np.zeros(len(signal))
+    for i in range(lookbehind+1,len(signal)-lookahead-1):
+        # Measure the variability within a given window for each point
+        var[i] = np.sum([abs(signal[k+1]-signal[k-1])/120 for k in
+                                        range(i-lookbehind,i+lookahead+1)])*60
+        relvar[i] = var[i]/abs(signal[i])*100
+        # Assign 1/0 to if the window variability is > threshold
+        unsteady[i] = var[i]>abs(signal[i])*(threshold/100)
+    return relvar,unsteady
 
 def ID_ALbays(ev,**kwargs):
     if kwargs.get('criteria','BandY2017')=='BandY2017':
@@ -1329,14 +1358,18 @@ def ID_ALbays(ev,**kwargs):
         #           NOTE (my addition)else:
         #               mark as psuedobreakup instead
         #       Keep only the first onset
-        al_series = ev['index']['AL'].copy(deep=True).reset_index(drop=True)
+
+        if kwargs.get('al_series','AL')=='AL':
+            al_series=ev['index']['AL'].copy(deep=True).reset_index(drop=True)
+        elif kwargs.get('al_series','AL')=='MGL':
+            al_series=ev['maggrid']['dBmin'].copy(deep=True).reset_index(
+                                                                    drop=True)
         lookahead = kwargs.get('al_lookahead',15)
         fwd_period= kwargs.get('al_fwdperiod',45)
         prior_period= fwd_period
         albay  = np.zeros(len(al_series))
         onset  = np.zeros(len(al_series))
         psuedo = np.zeros(len(al_series))
-        k=0
         last_i = 0
         for i,testpoint in enumerate(al_series.values[prior_period:-
                                                       fwd_period]):
@@ -1344,23 +1377,18 @@ def ID_ALbays(ev,**kwargs):
             # find period where SML decreases by >=150nT in 15min
             if (al-al_series[i:i+lookahead].min())>150:
                 # drops by >10nT in 2min AND >15min from last onset time
-                if (not any(onset[i-15:i-1]) and
+                if (not any(onset[i-15:i]) and
                     (al-al_series[i:i+2].min()>10)):
                     # integrate SML for 45min forward
-                    fwd = np.trapz(al_series[i:i+fwd_period])/60
+                    fwd = np.trapz(al_series[i:i+fwd_period],dx=60)
                     # integrate SML for 45min pior
-                    prior = np.trapz(al_series[i-prior_period:i])/60
-                    if fwd > 1.5*prior:
+                    prior = np.trapz(al_series[i-prior_period:i],dx=60)
+                    if fwd < 1.5*prior:
                         onset[i] = 1
                         isonset=True
                     else:
                         psuedo[i] = 1#NOTE
                         isonset=False
-                    k+=1
-                    print('index: ',i,'onset: ',k,'delta_i: ',i-last_i,
-                          'counted: ',isonset)
-                    last_i = i
-                    #TODO: check if the wait 15min is being followed
                     # If we've got one need to see how far it extends
                     i_min = al_series[i:i+lookahead].idxmin()
                     albay[i:i_min+1] = 1
@@ -1377,9 +1405,6 @@ def ID_ALbays(ev,**kwargs):
                                 found_min = True
                         else:
                             found_min = True
-        #TODO
-        # Take in 'MGL' magnetometer grid lower
-        #   using full grid of virtual magnetometer stations
     return albay,onset,psuedo
 
 def ID_plasmoids(ev,**kwargs):
@@ -1500,16 +1525,17 @@ def ID_dipolarizations(ev,**kwargs):
     return [yes1 or yes2 for yes1,yes2 in zip(xline_reduction,b1_reduction)]
 
 def show_events(ev,run,events,path):
-    interval_list = build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
-    sw_intervals =build_interval_list(T0,dt.timedelta(hours=2),
-                                         dt.timedelta(hours=2),ev['mp'].index)
+    sw_intervals = build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
+    interval_list =build_interval_list(T0,dt.timedelta(minutes=15),
+                                      dt.timedelta(minutes=15),ev['mp'].index)
     #############
     #setup figure
     fig1,(dips) = plt.subplots(1,1,figsize=[24,8],
                                sharex=True)
     fig2,(v_moids,m_moids) = plt.subplots(2,1,figsize=[24,20],
                                sharex=True)
-    fig3,(albays) = plt.subplots(1,1,figsize=[24,8],sharex=True)
+    fig3,(albays) = plt.subplots(1,1,figsize=[24,20],sharex=True)
+    fig4,(k1,k5) = plt.subplots(2,1,figsize=[24,20],sharex=True)
     #Plot
     dips.plot(ev['times'],ev['mp']['X_NEXL [Re]'],color='black')
     dips.scatter(ev['times'],ev['mp']['X_NEXL [Re]'],
@@ -1523,16 +1549,47 @@ def show_events(ev,run,events,path):
     albays.plot(ev['times'],ev['index']['AL'],color='black')
     albays.scatter(ev['times'],ev['index']['AL'],
                    c=mpl.cm.viridis(events[run]['ALbays'].values))
-    i_onsets = (events[run]['onsets']==1).values
-    i_psuedos = (events[run]['psuedos']==1).values
-    onsets = ev['index'].loc[i_onsets,'AL']
-    psuedos = ev['index'].loc[i_psuedos,'AL']
-    onsettdelta = [t-T0 for t in onsets.index]
-    onset_times = [float(n.to_numpy()) for n in onsettdelta]
-    psuedotdelta = [t-T0 for t in psuedos.index]
-    psuedo_times = [float(n.to_numpy()) for n in psuedotdelta]
-    albays.scatter(onset_times,onsets,marker='X',s=200)
-    albays.scatter(psuedo_times,psuedos,marker='+',s=200)
+    albays.plot(ev['times'],ev['maggrid']['dBmin'],color='black')
+    albays.scatter(ev['times'],ev['maggrid']['dBmin'],
+                   c=mpl.cm.cool(events[run]['MGLbays'].values))
+    k1.plot(ev['times'],ev['K1']/1e12,color='black')
+    k1.scatter(ev['times'],ev['K1']/1e12,
+                   c=mpl.cm.viridis(events[run]['K1unsteady'].values))
+    k1rax = k1.twinx()
+    k1rax.set_ylim([0,200])
+    k1rax.axhline(50,c='red')
+    k1rax.plot(ev['times'],events[run]['K1var'],color='grey',ls='--')
+    k1rax.set_ylabel(r'10min Total Variation $\left[\%\right]$')
+    k5.plot(ev['times'],ev['K5']/1e12,color='black')
+    k5.scatter(ev['times'],ev['K5']/1e12,
+                   c=mpl.cm.viridis(events[run]['K5unsteady'].values))
+    k5rax = k5.twinx()
+    k5rax.plot(ev['times'],events[run]['K5var'],color='grey',ls='--')
+    k5rax.set_ylim([0,200])
+    k5rax.axhline(50,c='red')
+    k5rax.set_ylabel(r'10min Total Variation $\left[\%\right]$')
+    # Mark onset and psuedobreakup times- AL
+    i_ALonsets = (events[run]['ALonsets']==1).values
+    i_ALpsuedos = (events[run]['ALpsuedos']==1).values
+    ALonsets = ev['index'].loc[i_ALonsets,'AL']
+    ALpsuedos = ev['index'].loc[i_ALpsuedos,'AL']
+    ALonsettdelta = [t-T0 for t in ALonsets.index]
+    ALonset_times = [float(n.to_numpy()) for n in ALonsettdelta]
+    ALpsuedotdelta = [t-T0 for t in ALpsuedos.index]
+    ALpsuedo_times = [float(n.to_numpy()) for n in ALpsuedotdelta]
+    albays.scatter(ALonset_times,ALonsets,marker='X',s=200)
+    albays.scatter(ALpsuedo_times,ALpsuedos,marker='+',s=200)
+    # Mark onset and psuedobreakup times- AL
+    i_MGLonsets = (events[run]['MGLonsets']==1).values
+    i_MGLpsuedos = (events[run]['MGLpsuedos']==1).values
+    MGLonsets = ev['maggrid'].loc[i_MGLonsets,'dBmin']
+    MGLpsuedos = ev['maggrid'].loc[i_MGLpsuedos,'dBmin']
+    MGLonsettdelta = [t-T0 for t in MGLonsets.index]
+    MGLonset_times = [float(n.to_numpy()) for n in MGLonsettdelta]
+    MGLpsuedotdelta = [t-T0 for t in MGLpsuedos.index]
+    MGLpsuedo_times = [float(n.to_numpy()) for n in MGLpsuedotdelta]
+    albays.scatter(MGLonset_times,MGLonsets,marker='X',s=200)
+    albays.scatter(MGLpsuedo_times,MGLpsuedos,marker='+',s=200)
     #Decorate
     for i,(start,end) in enumerate(interval_list):
         interv = (ev['mp'].index>start)&(ev['mp'].index<end)
@@ -1558,16 +1615,33 @@ def show_events(ev,run,events,path):
         elif any(events[run].loc[interv,'plasmoids_mass']):
             #v_moids.axvspan(tstart,tend,alpha=0.2,fc='red')
             m_moids.axvspan(tstart,tend,alpha=0.2,fc='blue')
-        if any(events[run].loc[interv,'ALbays']):
-            dips.axvline(tstart,c='blue')
-            dips.axvspan(tstart,tend,alpha=0.2,fc='green')
-            dips.axvline(tend,c='lightblue')
+        if (any(events[run].loc[interv,'ALbays'])and
+            any(events[run].loc[interv,'MGLbays'])):
+            albays.axvspan(tstart,tend,alpha=0.1,fc='grey')
+            #mglbays.axvspan(tstart,tend,alpha=0.1,fc='grey')
+        elif any(events[run].loc[interv,'ALbays']):
+            #albays.axvspan(tstart,tend,alpha=0.1,fc='blue')
+            pass
+        elif any(events[run].loc[interv,'MGLbays']):
+            albays.axvspan(tstart,tend,alpha=0.1,fc='blue')
+        '''
+        if any(events[run].loc[interv,'K1unsteady']):
+            k1.axvline(tstart,c='blue')
+            k1.axvspan(tstart,tend,alpha=0.2,fc='green')
+            k1.axvline(tend,c='lightblue')
+        if any(events[run].loc[interv,'K5unsteady']):
+            k5.axvline(tstart,c='blue')
+            k5.axvspan(tstart,tend,alpha=0.2,fc='green')
+            k5.axvline(tend,c='lightblue')
+        '''
     for i,(start,end) in enumerate(sw_intervals):
         tstart = float(pd.Timedelta(start-T0).to_numpy())
         dips.axvline(tstart,c='grey',ls='--')
         v_moids.axvline(tstart,c='grey',ls='--')
         m_moids.axvline(tstart,c='grey',ls='--')
         albays.axvline(tstart,c='grey',ls='--')
+        k1.axvline(tstart,c='grey')
+        k5.axvline(tstart,c='grey')
     general_plot_settings(dips,do_xlabel=True,legend=False,
                           ylabel=r'Near Earth X Line $\left[R_e\right]$',
                           timedelta=True)
@@ -1580,10 +1654,22 @@ def show_events(ev,run,events,path):
     general_plot_settings(albays,do_xlabel=True,legend=False,
                           ylabel=r'AL $\left[nT\right]$',
                           timedelta=True)
+    general_plot_settings(k1,do_xlabel=True,legend=False,
+                          ylabel=r'Int. E. Flux$\left[TW\right]$',
+                          timedelta=True)
+    general_plot_settings(k5,do_xlabel=True,legend=False,
+                          ylabel=r'Int. E. Flux$\left[TW\right]$',
+                          timedelta=True)
+    #general_plot_settings(mglbays,do_xlabel=True,legend=False,
+    #                      ylabel=r'MGL $\left[nT\right]$',
+    #                      timedelta=True)
     dips.margins(x=0.1)
     v_moids.margins(x=0.1)
     m_moids.margins(x=0.1)
     albays.margins(x=0.1)
+    k1.margins(x=0.1)
+    k5.margins(x=0.1)
+    #mglbays.margins(x=0.1)
     #Save
     fig1.tight_layout(pad=1)
     figurename = path+'/vis_events_'+run+'.png'
@@ -1602,6 +1688,52 @@ def show_events(ev,run,events,path):
     fig3.savefig(figurename)
     plt.close(fig3)
     print('\033[92m Created\033[00m',figurename)
+
+    fig4.tight_layout(pad=1)
+    figurename = path+'/vis_events4_'+run+'.png'
+    fig4.savefig(figurename)
+    plt.close(fig4)
+    print('\033[92m Created\033[00m',figurename)
+
+def tab_contingency(events,path):
+    for run in events.keys():
+        # count for all events
+        n = len(events[run])
+        for xkey,ykey in [['MGLbays','K1unsteady'],
+                          ['plasmoids','K1unsteady'],
+                          ['DIP','K1unsteady'],
+                          ['substorm','K1unsteady']]:
+            X = events[run][xkey].values
+            Y = events[run][ykey].values
+            best_skill = -1e12
+            best_lag = -30
+            for lag in range(-30,90):
+                if lag>0:
+                    x = X[lag::]
+                    y = Y[0:-lag]
+                elif lag<0:
+                    x = X[0:lag]
+                    y = Y[-lag::]
+                hit = np.sum(x*y)
+                miss = np.sum(x*abs(y-1))
+                false = np.sum(abs(x-1)*y)
+                no = np.sum(abs(x-1)*abs(y-1))
+                skill = (2*(hit*no-false*miss)/
+                                ((hit+miss)*(miss+no)+(hit+false)*(false+no)))
+                if skill>best_skill:
+                    best_skill = skill
+                    best_lag = lag
+            # print results
+            print('{:<15}{:<15}{:<15}{:<15}'.format('',xkey,'',''))
+            print('{:<15}{:<15}{:<15}{:<15}'.format(ykey,'Yes','No',''))
+            print('{:<15}{:<15}{:<15}{:<15}'.format('Yes',hit,false,hit+false))
+            print('{:<15}{:<15}{:<15}{:<15}'.format('No',miss,no,miss+no))
+            print('{:<15}{:<15}{:<15}{:<15}'.format('',hit+miss,false+no,n))
+            print('\nHSS: ',best_skill,'\nLag: ',best_lag,'\n')
+    #TODO:
+    #   Consider how to automate the threshold of detection to improve scores?
+    #   Also look into baselining what a 'good' skill is
+    from IPython import embed; embed()
 
 def tab_ranges(dataset):
     events = dataset.keys()
@@ -1644,13 +1776,16 @@ def initial_figures(dataset):
             #mpflux_vs_rxn(ev,run,path,zoom=window)
             #internalflux_vs_rxn(ev,run,path,zoom=window)
             pass
+        mpflux_vs_rxn(ev,run,path)
+        internalflux_vs_rxn(ev,run,path)
         show_events(ev,run,events,path)
+    tab_contingency(events,path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
-    TSTART = dt.datetime(2022,6,6,0,30)
-    DT = dt.timedelta(minutes=15)
-    TJUMP = dt.timedelta(minutes=15)
+    TSTART = dt.datetime(2022,6,6,0,0)
+    DT = dt.timedelta(hours=2)
+    TJUMP = dt.timedelta(hours=2)
     #Need input path, then create output dir's
     inBase = sys.argv[-1]
     inLogs = os.path.join(sys.argv[-1],'data/logs/')
