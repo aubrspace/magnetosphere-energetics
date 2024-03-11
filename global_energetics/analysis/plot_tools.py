@@ -532,22 +532,30 @@ def refactor(event,t0):
     # Gather segments of the event to pass directly to figure functions
     ev = {}
     #NOTE fill gaps S.T. values fill forward to keep const dt
-    ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
-    ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
     ev['mp'] = event['mpdict']['ms_full'].resample('60S').ffill()
+    use_i = ev['mp'].index
+    ev['lobes'] = event['msdict']['lobes'].reindex(use_i,method='ffill')
+    ev['closed'] = event['msdict']['closed'].reindex(use_i,method='ffill')
+    #ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
+    #ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
     times =  ev['mp'].index
-    ev['inner'] = event['inner_mp'].resample('60S').ffill()
-    ev['sim'] = event['obs']['swmf_log'].resample('60S').ffill()
-    ev['sw'] = event['obs']['swmf_sw'].resample('60S').ffill()
-    ev['index'] = event['obs']['swmf_index'].resample('60S').ffill()
+    ev['inner'] = event['inner_mp'].reindex(use_i,method='ffill')
+    ev['sim'] = event['obs']['swmf_log'].reindex(use_i,method='ffill')
+    ev['sw'] = event['obs']['swmf_sw'].reindex(use_i,method='ffill')
+    ev['index'] = event['obs']['swmf_index'].reindex(use_i,method='ffill')
+    #ev['inner'] = event['inner_mp'].resample('60S').ffill()
+    #ev['sim'] = event['obs']['swmf_log'].resample('60S').ffill()
+    #ev['sw'] = event['obs']['swmf_sw'].resample('60S').ffill()
+    #ev['index'] = event['obs']['swmf_index'].resample('60S').ffill()
     timedelta = [t-t0 for t in times]
     simtdelta = [t-t0 for t in ev['sim'].index]
     swtdelta = [t-t0 for t in ev['sw'].index]
     ev['times']=[float(n.to_numpy()) for n in timedelta]
     ev['simt']=[float(n.to_numpy()) for n in simtdelta]
     ev['swt']=[float(n.to_numpy()) for n in swtdelta]
-    use_i = ev['index'].index
     ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
+    ev['GridL'] = ev['maggrid']['dBmin']
+    ev['closedVolume'] = ev['closed']['Volume [Re^3]']
 
     # Calc dt
     ev['dt'] = [(t1-t0).seconds for t0,t1 in

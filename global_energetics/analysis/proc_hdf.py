@@ -169,11 +169,17 @@ def gather_magnetopause(outersurface, volume, times):
         combined(DataFrame)
     """
     combined = pd.DataFrame()
-    for df in [outersurface, volume]:
-        for key in df.keys():
-            if not all(df[key].isna()):
-                combined[key] = df[key]
-    return combined
+    if volume.index.name in volume.keys():
+        volume.drop(columns=[volume.index.name],inplace=True)
+    return pd.merge(outersurface,volume,left_on='Time [UTC]',
+                                          right_on='Time [UTC]')
+
+    #for df in [outersurface, volume]:
+    #    pd.concat([combined,df])
+        #for key in df.keys():
+        #    if not all(df[key].isna()):
+        #        combined[key] = df[key]
+    #return combined
 
 
 def check_timing(df,times):

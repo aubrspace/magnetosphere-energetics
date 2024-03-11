@@ -159,6 +159,26 @@ def get_virial_integrands(state_var):
             virialdict.update({name+state:name+' '+units})
     return virialdict
 
+def get_plasmoid_integrands(state_var):
+    """Creates dictionary of terms to be integrated for plasmoid analysis
+    Inputs
+        state_var(Variable)- variable used to determine spatial limits
+    Outputs
+        moiddict(dict{str:str})- dictionary of terms w/ pre:post integral
+    """
+    state, moiddict  = state_var.name, {}
+    eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    existing_variables = state_var.dataset.variable_names
+    night = '{daynight}==-1'
+    weights = ['M [kg/Re^3]','u_db [J/Re^3]']
+    for weight in weights:
+        name = weight.split(' ')[0]+'_night'
+        unit = ' '+weight.split(' ')[-1].replace('/Re^3','')
+        mystr = '{'+name+'}=if('+night+',{'+weight+'},0)'
+        eq('{'+name+'}=if('+night+',{'+weight+'},0)')
+        moiddict.update({name:name+unit})
+    return moiddict
+
 def get_energy_integrands(state_var):
     """Creates dictionary of terms to be integrated for energy analysis
     Inputs
@@ -508,6 +528,8 @@ def volume_analysis(state_var, **kwargs):
         integrands.update(get_virial_integrands(state_var))
     if 'energy' in analysis_type:
         integrands.update(get_energy_integrands(state_var))
+    if 'plasmoid' in analysis_type and 'lcb' in state_var.name:
+        integrands.update(get_plasmoid_integrands(state_var))
     if 'mass' in analysis_type:
         integrands.update(get_mass_integrands(state_var))
     if 'biotsavart' in analysis_type:

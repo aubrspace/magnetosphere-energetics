@@ -1299,6 +1299,7 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     Kinternal_rxn.savefig(figurename)
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
+    from IPython import embed; embed()
 
 def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
@@ -1544,6 +1545,78 @@ def ID_dipolarizations(ev,**kwargs):
     b1_reduction = np.zeros([len(xline)])
     return [yes1 or yes2 for yes1,yes2 in zip(xline_reduction,b1_reduction)]
 
+def tshift_scatter(ev,xkey,ykey,run,path):
+    X = ev[xkey]
+    Y = ev[ykey]/1e12
+    slope,intercept,r,p,stderr = linregress(X,Y)
+    # Find time lag
+    best_lag = -30
+    best_corr = 0
+    corr = np.zeros(len(range(-30,90)))
+    for i,lag in enumerate(range(-30,90)):
+        if lag>0:
+            x = X[lag::]
+            y = Y[0:-lag]
+        elif lag<0:
+            x = X[0:lag]
+            y = Y[-lag::]
+        slope,intercept,r,p,stderr = linregress(x,y)
+        corr[i] = r**2
+        if r**2>best_corr**2:
+            best_corr = r
+            best_lag = lag
+            best_x = x
+            best_y = y
+            best_intercept = intercept
+            best_slope = slope
+    #setup figure
+    #scatter,(shifted,unshifted) =plt.subplots(1,2,figsize=[30,20])
+    scatter = plt.figure(figsize=[20,20],layout="constrained")
+    spec = scatter.add_gridspec(3,2)
+    unshifted = scatter.add_subplot(spec[0:2,0])
+    shifted = scatter.add_subplot(spec[0:2,1])
+    corrs = scatter.add_subplot(spec[2,0:2])
+    #Plot
+    # original
+    unshifted.scatter(X,Y,s=200,c='magenta',alpha=0.3)
+    uR2 = r**2
+    linelabel = (f'Slope={slope:.2e} [TW/nT]\n r2={uR2:.2f},'+
+                 f'shift=0min')
+    unshifted.plot(X,(intercept+X*slope),
+                      label=linelabel,color='grey', ls='--')
+    # shifted
+    shifted.scatter(best_x,best_y,s=200,c='blue',alpha=0.3)
+    R2 = best_corr**2
+    linelabel = (f'Slope={best_slope:.2e} [TW/nT]\n r2={R2:.2f},'+
+                 f'shift={best_lag:.0f}min')
+    shifted.plot(best_x,(best_intercept+best_x*best_slope),
+                      label=linelabel,color='grey', ls='--')
+    # R2 correlations
+    corrs.plot(range(-30,90),corr,c='black')
+
+    #Decorations
+    unshifted.axhline(0,c='black')
+    unshifted.axvline(0,c='black')
+    unshifted.set_xlabel(xkey)
+    unshifted.set_ylabel(ykey)
+    unshifted.legend()
+    shifted.axhline(0,c='black')
+    shifted.axvline(0,c='black')
+    shifted.set_xlabel(xkey)
+    shifted.set_ylabel(ykey)
+    shifted.legend()
+    corrs.axvline(0,c='magenta',ls='--')
+    corrs.axvline(best_lag,c='blue',ls='--')
+    corrs.set_xlabel(r'Timeshift $\left[min\right]$')
+    corrs.set_ylabel(r'$r^2$')
+
+    # Save
+    #scatter.tight_layout(pad=1)
+    figurename = path+'/'+xkey+ykey+'scatter'+run+'.png'
+    scatter.savefig(figurename)
+    plt.close(scatter)
+    print('\033[92m Created\033[00m',figurename)
+
 def show_events(ev,run,events,path):
     sw_intervals = build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
     interval_list =build_interval_list(T0,dt.timedelta(minutes=15),
@@ -1656,12 +1729,10 @@ def show_events(ev,run,events,path):
         '''
     for i,(start,end) in enumerate(sw_intervals):
         tstart = float(pd.Timedelta(start-T0).to_numpy())
-        dips.axvline(tstart,c='grey',ls='--')
-        v_moids.axvline(tstart,c='grey',ls='--')
-        m_moids.axvline(tstart,c='grey',ls='--')
-        albays.axvline(tstart,c='grey',ls='--')
-        k1.axvline(tstart,c='grey')
-        k5.axvline(tstart,c='grey')
+        for ax in [dips,v_moids,m_moids,albays,k1,k5]:
+            ax.axvline(tstart,c='grey',ls='--')
+            window = dt.timedelta(minutes=30).seconds*1e9
+            ax.axvspan(tstart,tstart+window,fc='red')
     general_plot_settings(dips,do_xlabel=True,legend=False,
                           ylabel=r'Near Earth X Line $\left[R_e\right]$',
                           timedelta=True)
@@ -1723,13 +1794,17 @@ def tab_contingency(events,path):
                           ['plasmoids','K1unsteady'],
                           ['DIP','K1unsteady'],
                           ['substorm','K1unsteady'],
-                          ['substorm','K5unsteady']]:
+                          ['substorm','K5unsteady'],
+                          ['imf_transients','K1unsteady']]:
             #NOTE trying 'clean' version
-            X = events[run][xkey].values*-1*(events[run]['imf_transients']-1)
-            Y = events[run][ykey].values*-1*(events[run]['imf_transients']-1)
+            #X = events[run][xkey].values*-1*(events[run]['imf_transients']-1)
+            #Y = events[run][ykey].values*-1*(events[run]['imf_transients']-1)
+            X = events[run][xkey].values
+            Y = events[run][ykey].values
             best_skill = -1e12
             best_lag = -30
-            for lag in range(-30,90):
+            skills = np.zeros(len(range(-30,90)))-1e12
+            for i,lag in enumerate(range(-30,90)):
                 if lag>0:
                     x = X[lag::]
                     y = Y[0:-lag]
@@ -1742,6 +1817,7 @@ def tab_contingency(events,path):
                 no = np.sum(abs(x-1)*abs(y-1))
                 skill = (2*(hit*no-false*miss)/
                                 ((hit+miss)*(miss+no)+(hit+false)*(false+no)))
+                skills[i] = skill
                 if skill>best_skill:
                     best_skill = skill
                     best_lag = lag
@@ -1804,10 +1880,13 @@ def initial_figures(dataset):
             #mpflux_vs_rxn(ev,run,path,zoom=window)
             #internalflux_vs_rxn(ev,run,path,zoom=window)
             pass
-        mpflux_vs_rxn(ev,run,path)
+        #mpflux_vs_rxn(ev,run,path)
         internalflux_vs_rxn(ev,run,path)
-        show_events(ev,run,events,path)
-    tab_contingency(events,path)
+        #show_events(ev,run,events,path)
+        #tshift_scatter(ev,'GridL','K1',run,path)
+        #tshift_scatter(ev,'closedVolume','K1',run,path)
+        #tshift_scatter(ev,'K5','K1',run,path)
+    #tab_contingency(events,path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)

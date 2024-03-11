@@ -826,6 +826,40 @@ def get_surf_geom_variables(zone,**kwargs):
                zones=[zone.index], value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
                zones=[zone.index], value_location=CC)
+    elif 'ms_closed' in zone.name:
+        #Look at forward set of points which should be roughly planar
+        if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)]) >
+            len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)])):
+            eq('{surface_normal_x} = {X Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+        else:
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+    elif 'ms_plasmasheet' in zone.name:
+        #Look to see if things point "up" generally
+        ynormals = zone.values('X GRID K Unit Normal').as_numpy_array()
+        if (len(df[(df['y_cc']>0)]) > len(df[(df['y_cc']<0)])):
+            eq('{surface_normal_x} = {X Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_y} = {Y Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+            eq('{surface_normal_z} = {Z Grid K Unit Normal}',
+               zones=[zone.index], value_location=CC)
+        else:
+            eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+            eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
+            eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
+               zones=[zone], value_location=CC)
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >

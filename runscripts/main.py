@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-                      key=makevideo.time_sort)[0:1]
+                      key=makevideo.time_sort)[1:2]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 
@@ -161,7 +161,7 @@ if __name__ == "__main__":
                                     verbose=True,
                                     do_cms=False,
                                     do_central_diff=False,
-                                    analysis_type='energy_mass_mag',
+                                    analysis_type='energy_mass_mag_plasmoid',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe','plasmasheet'],
                                     inner_r=4,
