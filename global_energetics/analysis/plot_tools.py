@@ -705,6 +705,12 @@ def ie_refactor(event,t0):
     ev['dphidt_north'] = central_diff(abs(ev['ie_flux_north']))
     ev['dphidt_south'] = central_diff(abs(ev['ie_flux_south']))
     ev['dphidt'] = central_diff(ev['ie_flux'])
+    #TODO: stack of -ev['ie_surface_north']['Bf_netNight [Wb/s]']
+    #       and the day one
+    #   How is this calculated?
+    #   It matches the total flux change => then the other peice is unessesary
+    #   Does the other piece match too?
+    from IPython import embed; embed()
     return ev
 
 if __name__ == "__main__":
