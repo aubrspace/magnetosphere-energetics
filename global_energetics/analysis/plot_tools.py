@@ -707,11 +707,54 @@ def ie_refactor(event,t0):
     ev['dphidt'] = central_diff(ev['ie_flux'])
     #TODO: stack of -ev['ie_surface_north']['Bf_netNight [Wb/s]']
     #       and the day one
-    #   How is this calculated?
+    #   = cdiff integral of changed flux.
     #   It matches the total flux change => then the other peice is unessesary
     #   Does the other piece match too?
+    #
+    #   Seems like there is non-zero closed_int(Edl)
+    #       verify that it should theoeretically be zero
+    #       Can there be a "source" term as in the slowdown of u?
+    #       If so then there must be a way to calc an effective heating rate
+    #   For now the partial flux rates are correct
+    #       In terms of how open flux changes over time
+    #       Only have full dayside and full nightside
+    #       Nothing about how much is exchanged externally vs internally
+    #       Do we track was Open Night -> is Open Day? etc???
+    #           This would recover at least the day, night, internal pieces
+    #   Why is the dayside rate so lame?
+    #       It doesn't cause flux growth as expected
+    #       Should be opposing nightside and similar magnitude
+    t = ev['ie_flux'].index
+    daym = ev['RXNm_northDay']
+    nightm = ev['RXNm_northNight']
+    days = ev['RXNs_northDay']
+    nights = ev['RXNs_northNight']
+    motion = daym+nightm
+    static = days+nights
+    fig,(ax1,ax2,ax3) = plt.subplots(3,layout="constrained",
+                                 sharex=True,
+                                 sharey=True)
+    ax1.plot(t,daym/1e3,label='day_motion',c='blue')
+    ax1.plot(t,nightm/1e3,label='night_motion',c='purple')
+    ax1.fill_between(t,motion/1e3,label='motion',fc='grey')
+    #ax1.legend()
+
+    ax2.plot(t,days/1e3,label='day_static [kV]',c='red')
+    ax2.plot(t,nights/1e3,label='night_static [kV]',c='orange')
+    ax2.fill_between(t,static/1e3,label='static [kV]',fc='grey')
+    #ax2.legend()
+    #ax1.set_ylim([-200,200])
+
+    ax3.fill_between(t,ev['ie_flux_north']/2e6,label='openFlux [MWb]',
+                     fc='skyblue')
+    ax3.plot(t,(motion+static)/1e3,label='combined [kV]',c='red')
+    ax3.plot(t,(static.cumsum()*60+ev['ie_flux_north'][0])/2e6,
+                label='static_integrated [MWb]',c='blue')
+    ax3.plot(t,(motion.cumsum()*60+ev['ie_flux_north'][0])/2e6,
+                label='motion_integrated [MWb]',c='black')
+    #TODO
     from IPython import embed; embed()
-    return ev
+    #return ev
 
 if __name__ == "__main__":
     print('this module only contains helper functions and other useful '+

@@ -113,11 +113,11 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'localdbug/parameter_study/MEDHIGH/'
-    #inpath = 'run_HIGHnHIGHu/GM/IO2/'
+    #inpath = 'localdbug/parameter_study/MEDHIGH/'
+    inpath = 'localdbug/starlink/'
     #outpath = 'parameter_study/'
     #outpath = 'localdbug/MAST/test_output/'
-    outpath = 'localdbug/parameter_study/'
+    outpath = 'localdbug/starlink/'
     head = '3d__var_1_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
@@ -126,7 +126,7 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-                      key=makevideo.time_sort)[1:2]
+                      key=makevideo.time_sort)[0:1]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 
