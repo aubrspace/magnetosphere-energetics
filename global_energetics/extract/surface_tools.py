@@ -456,7 +456,7 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
             try:
                 eq(new_eq,zones=[zone],value_location=value_location)
                 mods.update({name+modname:outputname+modname+units})
-            except TecplotLogicError as err:
+            except TecplotSystemError as err:
                 print('Equation eval failed!\n',new_eq,'\n')
     return mods
 

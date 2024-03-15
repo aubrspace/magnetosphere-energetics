@@ -146,7 +146,10 @@ def reversed_mapping(gmzone,state_var,**kwargs):
         state = gmzone.values(state_var).as_numpy_array()
     theta_1 = gmzone.values('theta_1 *').as_numpy_array()
     phi_1 = gmzone.values('phi_1 *').as_numpy_array()
-    volume = gmzone.values('dvol *').as_numpy_array()
+    if 'dvol [R]^3' in gmzone.dataset.variable_names:
+        volume = gmzone.values('dvol *').as_numpy_array()
+    else:
+        volume = np.zeros(len(theta_1))+1
     x = gmzone.values('X *').as_numpy_array()*volume #NOTE volume weighted
     # Make a new set of variables
     if 'daynight' not in gmzone.dataset.variable_names:

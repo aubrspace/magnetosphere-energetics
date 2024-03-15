@@ -844,9 +844,9 @@ def get_surf_geom_variables(zone,**kwargs):
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
                zones=[zone], value_location=CC)
     elif 'ms_plasmasheet' in zone.name:
+        y_cc =zone.values('y_cc').as_numpy_array()
         #Look to see if things point "up" generally
-        ynormals = zone.values('X GRID K Unit Normal').as_numpy_array()
-        if (len(df[(df['y_cc']>0)]) > len(df[(df['y_cc']<0)])):
+        if (len(y_cc[y_cc>0]) > len(y_cc[y_cc<0])):
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
                zones=[zone.index], value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',

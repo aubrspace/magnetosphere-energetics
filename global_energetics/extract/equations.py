@@ -75,7 +75,7 @@ def equations(**kwargs):
     #Useful spatial variables
     equations['basic3d'] = {
                        '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
-                       '{Cell Size [Re]}':'{dvol [R]^3}**(1/3)',
+                       #'{Cell Size [Re]}':'{dvol [R]^3}**(1/3)',
                        '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
     #2D versions of spatial variables
     equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}

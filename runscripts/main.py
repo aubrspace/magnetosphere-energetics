@@ -153,6 +153,14 @@ if __name__ == "__main__":
 
             #Perform data extraction
             with tp.session.suspend():
+                #TODO: trace down issue with using starlink file
+                #       From brief look, it seems the plasma sheet is super kinked
+                #       View ideas
+                #           plasmasheet with Ux plotted
+                #           plasmasheet with Kx plotted
+                #           plasmasheet with Knormal plotted
+                #           translucent lobes and closed region to get a sense of shape
+                #               with FFJ green blobs to see what the X line is doing
                 # GM data
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
@@ -170,7 +178,7 @@ if __name__ == "__main__":
                                     tail_cap=-120,
                                     integrate_surface=True,
                                     integrate_volume=True,
-                                    truegridfile=oggridfile,
+                                    #truegridfile=oggridfile,
                                     outputpath=outpath)
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
