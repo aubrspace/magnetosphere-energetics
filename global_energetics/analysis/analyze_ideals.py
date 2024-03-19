@@ -1731,8 +1731,8 @@ def show_events(ev,run,events,path):
         tstart = float(pd.Timedelta(start-T0).to_numpy())
         for ax in [dips,v_moids,m_moids,albays,k1,k5]:
             ax.axvline(tstart,c='grey',ls='--')
-            window = dt.timedelta(minutes=30).seconds*1e9
-            ax.axvspan(tstart,tstart+window,fc='red')
+            #window = dt.timedelta(minutes=30).seconds*1e9
+            #ax.axvspan(tstart,tstart+window,fc='red')
     general_plot_settings(dips,do_xlabel=True,legend=False,
                           ylabel=r'Near Earth X Line $\left[R_e\right]$',
                           timedelta=True)

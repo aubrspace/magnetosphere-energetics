@@ -754,7 +754,7 @@ def ie_refactor(event,t0):
                 label='motion_integrated [MWb]',c='black')
     #TODO
     from IPython import embed; embed()
-    #return ev
+    return ev
 
 if __name__ == "__main__":
     print('this module only contains helper functions and other useful '+

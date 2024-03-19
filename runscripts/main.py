@@ -93,8 +93,9 @@ def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     # Stamp one of the frames with the 'test phase'
     t0 = dt.datetime(2022,6,6,0,0)#NOTE
     reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
-    phase = int(np.floor((reltime/3600)%2))
-    text =tp.active_frame().add_text('Test Phase: '+str(phase))
+    #phase = int(np.floor((reltime/3600)%2))
+    #text =tp.active_frame().add_text('Test Phase: '+str(phase))
+    text = tp.active_frame().add_text('&(AUXZONE[1]:TIMEEVENT)')
     if tp.active_frame().background_color == Color.Black:
         text.color = Color.White
     else:
@@ -126,7 +127,7 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-                      key=makevideo.time_sort)[0:1]
+            key=makevideo.time_sort)[0::]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 
@@ -215,12 +216,23 @@ if __name__ == "__main__":
                                               do_central_diff=False,
                                               outputpath=outpath)
                 if True:
-                    save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
+                    for i,style in enumerate([
+                                  #['cosmetic/plasmasheet_transparent_closed_mp.sty'],
+                                  #['cosmetic/ps_kX_topRight.sty'],
+                                  #['cosmetic/closed_topRight.sty'],
+                                  #['cosmetic/mp_topRight.sty'],
+                                  #['cosmetic/closed_mp_topRight.sty'],
+                                  ['cosmetic/zplane_Jy_equitorial.sty'],
+                                  ['cosmetic/zplane_rho_equitorial.sty']
+                                  #['cosmetic/plasmasheet_transparent_closed_mp2.sty']
+                                  ]):
+                        save_gm_multi(style,outpath,OUTPUTNAME+'_'+str(i),
+                                      filetime)
+                    #save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
                     #save_gm_multi(['cosmetic/status_forward.sty',
                     #               'cosmetic/energy_forward.sty',
                     #               'cosmetic/daynight_closed_side.sty',
                     #               'cosmetic/north_pc_rxn_busy.sty'],
-                                   outpath,OUTPUTNAME,filetime)
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')

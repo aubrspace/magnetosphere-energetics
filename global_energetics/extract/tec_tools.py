@@ -1766,6 +1766,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
     alleq = equations(aux=kwargs.get('aux'))
     cc = ValueLocation.CellCentered
     nodal = ValueLocation.Nodal
+    eq = tp.data.operate.execute_equation
     #Testing variables
     if kwargs.get('verbose',False)or('test'in
                                      kwargs.get('customTerms',{}).keys()):
@@ -1787,6 +1788,16 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         else:
             aux = field_data.zone('global_field').aux_data
         eqeval(alleq['basic3d'])
+        if 'dvol [R]^3' in field_data.variable_names:
+            eq('{Cell Size [Re]}={dvol [R]^3}**(1/3)',
+                                 zones=[field_data.zone(0)],value_location=cc)
+        else:
+            tp.macro.execute_extended_command('CFDAnalyzer3',
+                                      'CALCULATE FUNCTION = '+
+                                      'CELLVOLUME VALUELOCATION = '+
+                                      'CELLCENTERED')
+            eq('{Cell Size [Re]}={Cell Volume}**(1/3)',
+                                 zones=[field_data.zone(0)],value_location=cc)
         eqeval(alleq['dipole_coord'])
         eqeval(alleq['dipole'])
         #eqeval(alleq['dipole'],value_location=cc)
