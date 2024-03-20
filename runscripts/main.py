@@ -114,11 +114,11 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    #inpath = 'localdbug/parameter_study/MEDHIGH/'
-    inpath = 'localdbug/starlink/'
-    #outpath = 'parameter_study/'
+    inpath = 'localdbug/parameter_study/MEDHIGH/'
+    #inpath = 'localdbug/starlink/'
+    outpath = 'parameter_study/'
     #outpath = 'localdbug/MAST/test_output/'
-    outpath = 'localdbug/starlink/'
+    #outpath = 'localdbug/starlink/'
     head = '3d__var_1_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-            key=makevideo.time_sort)[0::]
+            key=makevideo.time_sort)[0:1]
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 
@@ -179,7 +179,7 @@ if __name__ == "__main__":
                                     tail_cap=-120,
                                     integrate_surface=True,
                                     integrate_volume=True,
-                                    #truegridfile=oggridfile,
+                                    truegridfile=oggridfile,
                                     outputpath=outpath)
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
                                               do_cms=False,
                                               do_central_diff=False,
                                               outputpath=outpath)
-                if True:
+                if False:
                     for i,style in enumerate([
                                   #['cosmetic/plasmasheet_transparent_closed_mp.sty'],
                                   #['cosmetic/ps_kX_topRight.sty'],
