@@ -9,7 +9,6 @@ import numpy as np
 from numpy import (sin,cos,deg2rad,pi)
 import datetime as dt
 import pandas as pd
-from global_energetics.makevideo import get_time
 from geopack import geopack as gp
 
 def sph_to_cart(radius, lat, lon):
@@ -357,6 +356,7 @@ def read_MGL(datapath,**kwargs):
     Returns
         MGL
     """
+    from global_energetics.makevideo import get_time
     # Check that files are present
     filelist = glob.glob(os.path.join(datapath,
                                   kwargs.get('filehead','mag_grid_')+'*'))

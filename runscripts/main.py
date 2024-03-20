@@ -222,8 +222,9 @@ if __name__ == "__main__":
                                   #['cosmetic/closed_topRight.sty'],
                                   #['cosmetic/mp_topRight.sty'],
                                   #['cosmetic/closed_mp_topRight.sty'],
-                                  ['cosmetic/zplane_Jy_equitorial.sty'],
-                                  ['cosmetic/zplane_rho_equitorial.sty']
+                                  ['cosmetic/ps_jpar_wiso.sty'],
+                                  #['cosmetic/zplane_Jy_equitorial.sty'],
+                                  #['cosmetic/zplane_rho_equitorial.sty']
                                   #['cosmetic/plasmasheet_transparent_closed_mp2.sty']
                                   ]):
                         save_gm_multi(style,outpath,OUTPUTNAME+'_'+str(i),

@@ -252,9 +252,9 @@ def display_visuals(field,mp,renderView,**kwargs):
         # Properties modified on slice1Display
         slice1Display.Opacity = 1
         # set scalar coloring
-        ColorBy(slice1Display, ('POINTS', 'u_db_J_Re3'))
+        ColorBy(slice1Display, ('POINTS', 'Status'))
         # get color transfer function/color map for 'Rho_amu_cm3'
-        bzLUT = GetColorTransferFunction('u_db_J_Re3')
+        bzLUT = GetColorTransferFunction('Status')
         #bzLUT.RescaleTransferFunction(-10.0, 10.0)
         #bzLUT.ApplyPreset('Gray and Red', True)
         #bzLUT.InvertTransferFunction()

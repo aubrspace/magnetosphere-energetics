@@ -18,6 +18,7 @@ import pv_surface_tools
 import pv_volume_tools
 import pv_tabular_tools
 import pv_visuals
+import pv_fte
 
 def get_magnetopause_filter(pipeline,**kwargs):
     """Function calculates a magnetopause variable, NOTE:will still need to

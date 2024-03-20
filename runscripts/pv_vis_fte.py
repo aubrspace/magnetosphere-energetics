@@ -1,3 +1,5 @@
+"""loads, analyzes, and plots file with an FTE in it (hopefully)
+"""
 import paraview
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
@@ -12,70 +14,58 @@ import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
 #import global_energetics.extract.pv_magnetopause
-import pv_magnetopause
-from pv_input_tools import (get_time, time_sort, read_aux, read_tecplot)
-from pv_magnetopause import (setup_pipeline,display_visuals,update_rotation,
-                             update_fluxVolume,update_fluxResults)
+from makevideo import (get_time, time_sort)
+from pv_tools import (update_rotation)
+from pv_input_tools import (read_aux, read_tecplot)
 import pv_surface_tools
+from pv_magnetopause import (setup_pipeline)
 import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
+from pv_visuals import (display_visuals)
 
 #if __name__ == "__main__":
 if True:
     start_time = time.time()
-    if 'Users' in os.getcwd():
-        path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
-        outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
-        herepath=os.getcwd()
-    elif 'aubr' in os.getcwd():
-        path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
-        herepath=os.getcwd()
-    elif os.path.exists('/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'):
-        path='/Users/ngpdl/Code/swmf-energetics/localdbug/vis/'
-        outpath='/Users/ngpdl/Code/swmf-energetics/vis_com_pv/'
-        herepath='/Users/ngpdl/Code/swmf-energetics/'
-    elif os.path.exists('/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'):
-        path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-        outpath='/home/aubr/Code/swmf-energetics/output_hyperwall3_redo/'
-        herepath='/home/aubr/Code/swmf-energetics/'
-    #Overwrite
-    #path='/nfs/solsticedisk/tuija/amr_fte/thirdrun/GM/IO2/'
-    #path = '/home/aubr/Code/swmf-energetics/localdbug/fte/'
-    #outpath='/nfs/solsticedisk/tuija/amr_fte/thirdrun/'
-    path='/home/aubr/Code/swmf-energetics/ccmc_2022-02-02/copy_paraview/'
-    outpath='/home/aubr/Code/swmf-energetics/output_ffj/'
+    #NOTE execute script (or start program) from "swmf-energetics"
+    herepath = os.getcwd()
+    path=os.path.join(herepath,'localdbug/fte/')
+    outpath=os.path.join(path,'png/')
     filelist = sorted(glob.glob(path+'*paraview*.plt'),
                       key=time_sort)
+    print(path)
+    print(outpath)
+    print(filelist)
     renderView1 = GetActiveViewOrCreate('RenderView')
 
-    #filelist = [f for f in filelist if ('020500' in f)]
-    filelist = [f for f in filelist if ('03-070300' in f)]
-    #or ('02200' in f)]
     for infile in filelist[0:1]:
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
-        tstart = dt.datetime(2015,11,18,1,50,0)
+        tstart = dt.datetime(2015,11,18,0,2,5)
         outfile = 'fronton'+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
                                                        localtime=localtime,
                                                        path=herepath,
-                                                       ffj=True,
-                                                       doEnergyFlux=True)
+                                                       ffj=False,
+                                                       doFTE=True,
+                                                       doEnergyFlux=False)
+        #TODO Create the following static images:
+        #   1. Image of the grid next to identified FTE in slice
+        #   2. Image of 3D field line traces of FTE next to iso volume of FTE
+        #   3. Image of Energy transport on MP surface
         #get_surface_flux(mp, 'B_nT','Bnormal_net')
         #mp_Bnorm = FindSource('Bnormal_net')
         # Adjust visuals
         SetActiveView(renderView1)
-        display_visuals(field,mp,renderView1,doSlice=False,doFluxVol=False,
+        display_visuals(field,mp,renderView1,doSlice=True,doFluxVol=False,
                         fontsize=20,localtime=localtime,
-                        mpContourBy='B_x_nT',
-                            contourMin=-5,
-                            contourMax=5,
-                        fteContourBy='K_W_Re2',
-                            ftecontourMin=-3e8,
-                            ftecontourMax=3e8,
-                        tstart=tstart,doFFJ=True,
+                        #mpContourBy='B_x_nT',
+                        #    contourMin=-5,
+                        #    contourMax=5,
+                        #fteContourBy='K_W_Re2',
+                        #    ftecontourMin=-3e8,
+                        #    ftecontourMax=3e8,
+                        tstart=tstart,doFFJ=False,
                         show_fte=True,
                         show_mp=True,timestamp=True)
         # Save screenshot
