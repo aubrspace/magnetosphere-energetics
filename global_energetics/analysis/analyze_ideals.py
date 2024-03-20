@@ -402,16 +402,17 @@ def test_matrix(event,ev,path):
     interval_list =build_interval_list(TSTART,DT,TJUMP,dataset[event]['time'])
     #############
     #setup figure
-    matrix,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
-    axis.plot(ev['swt'],ev['sw']['by'],label='by')
-    axis.plot(ev['swt'],ev['sw']['bz'],label='bz')
+    #matrix,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
+    matrix,(axis) =plt.subplots(1,1,figsize=[20,8],sharex=True)
+    axis.plot(ev['swt'],ev['sw']['by'],label='by',color='magenta')
+    axis.plot(ev['swt'],ev['sw']['bz'],label='bz',color='blue')
     axis.fill_between(ev['swt'],np.sqrt(ev['sw']['by']**2+ev['sw']['bz']**2),
-                                        fc='grey',label='B')
-    axis2.plot(times,dataset[event]['obs']['swmf_log']['dst_sm'],label=event)
-    general_plot_settings(axis,do_xlabel=False,legend=True,
+                                        fc='grey',label='B',alpha=0.5)
+    #axis2.plot(times,dataset[event]['obs']['swmf_log']['dst_sm'],label=event)
+    general_plot_settings(axis,do_xlabel=True,legend=True,
                           ylabel=r'IMF $\left[nT\right]$',timedelta=True)
-    general_plot_settings(axis2,do_xlabel=True,legend=True,
-                          ylabel=r'Dst $\left[nT\right]$',timedelta=True)
+    #general_plot_settings(axis2,do_xlabel=True,legend=True,
+    #                      ylabel=r'Dst $\left[nT\right]$',timedelta=True)
     axis.margins(x=0.01)
     matrix.tight_layout(pad=1)
     figurename = path+'/matrix'+event+'.png'
@@ -1881,8 +1882,9 @@ def initial_figures(dataset):
             #internalflux_vs_rxn(ev,run,path,zoom=window)
             pass
         #mpflux_vs_rxn(ev,run,path)
+        test_matrix(event,ev,path)
         internalflux_vs_rxn(ev,run,path)
-        #show_events(ev,run,events,path)
+        show_events(ev,run,events,path)
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
