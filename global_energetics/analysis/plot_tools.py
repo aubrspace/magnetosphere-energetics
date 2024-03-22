@@ -753,7 +753,7 @@ def ie_refactor(event,t0):
     ax3.plot(t,(motion.cumsum()*60+ev['ie_flux_north'][0])/2e6,
                 label='motion_integrated [MWb]',c='black')
     #TODO
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
     return ev
 
 if __name__ == "__main__":

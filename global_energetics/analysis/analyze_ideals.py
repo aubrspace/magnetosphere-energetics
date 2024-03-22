@@ -1300,7 +1300,115 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     Kinternal_rxn.savefig(figurename)
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
+
+def all_fluxes(ev,event,path,**kwargs):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    #############
+    #setup figure
+    Fluxes,(Kexternal,Kinternal,Energy_dst,al) = plt.subplots(4,1,
+                                                              figsize=[24,28],
+                                                              sharex=True)
+    # Tighten up the window
+    al_values = dataset[event]['obs']['swmf_index']['AL']
+    dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
+    if 'zoom' in kwargs:
+        #zoom
+        zoom = kwargs.get('zoom')
+        mp_window = ((ev['mp'].index>zoom[0])&(ev['mp'].index<zoom[1]))
+        index_window = (
+                (dataset[event]['obs']['swmf_index']['AL'].index>zoom[0])&
+                (dataset[event]['obs']['swmf_index']['AL'].index<zoom[1]))
+        log_window = (
+                (dataset[event]['obs']['swmf_log']['dst_sm'].index>zoom[0])&
+                (dataset[event]['obs']['swmf_log']['dst_sm'].index<zoom[1]))
+        zoomed = {}
+        for key in ev.keys():
+            if len(mp_window)==len(ev[key]):
+                zoomed[key] = np.array(ev[key])[mp_window]
+        ev = zoomed
+        al_values = dataset[event]['obs']['swmf_index']['AL'][index_window]
+        dst_values = dataset[event]['obs']['swmf_log']['dst_sm'][log_window]
+    # Get time markings that match the format
+    inddelta = [t-T0 for t in al_values.index]
+    indtimes = [float(n.to_numpy()) for n in inddelta]
+    logdelta = [t-T0 for t in dst_values.index]
+    logtimes = [float(n.to_numpy()) for n in logdelta]
+    #Plot
+    # External Energy Flux
+    Kexternal.fill_between(ev['times'],ev['K1']/1e12,label='K1 (OpenMP)',
+                   fc='blue')
+    Kexternal.fill_between(ev['times'],ev['K5']/1e12,label='K5 (ClosedMP)',
+                   fc='red')
+    Kexternal.plot(ev['times'],ev['Ks4']/1e12,label='K4 (OpenTail)',
+                   color='grey')
+    Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
+                   color='black')
+    # Internal Energy Flux
+    Kinternal.plot(ev['times'],ev['K2a']/1e12,label='K2a (Cusp)',
+                   color='magenta')
+    Kinternal.plot(ev['times'],ev['K2b']/1e12,label='K2b (Plasmasheet)',
+                   color='dodgerblue')
+    Kinternal.plot(ev['times'],ev['Ks3']/1e12,label='K3 (OpenIB)',
+                   color='darkslategrey')
+    Kinternal.plot(ev['times'],ev['Ks7']/1e12,label='K7 (ClosedIB)',
+                   color='brown')
+    # Energy and Dst
+    Energy_dst.fill_between(ev['times'],-ev['U']/1e15,
+                            label=r'-$\int_VU\left[\frac{J}{m^3}\right]$',
+                            fc='blue',alpha=0.4)
+    rax = Energy_dst.twinx()
+    rax.plot(logtimes,dst_values,label='Dst (simulated)',color='black')
+    # AL and GridL
+    al.plot(indtimes,al_values,label='AL (simulated)',color='black')
+    al.plot(ev['times'],ev['GridL'],label='GridL',color='purple')
+    #Decorations
+    general_plot_settings(Kexternal,do_xlabel=False,legend=True,
+                          ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
+                          ylim=[-23,17],
+                          timedelta=True,legend_loc='lower left')
+    general_plot_settings(Kinternal,do_xlabel=False,legend=True,
+                          ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
+                          ylim=[-30,10],
+                          timedelta=True,legend_loc='lower left')
+    general_plot_settings(Energy_dst,do_xlabel=False,legend=True,
+                          ylabel=r'Energy $\left[PJ\right]$',
+                          timedelta=True,legend_loc='lower left')
+    general_plot_settings(al,do_xlabel=True,legend=True,
+                          ylabel=r'$\Delta B \left[nT\right]$',
+                          timedelta=True,legend_loc='lower left')
+    rax.set_ylabel(r'$\Delta B \left[nT\right]$')
+    rax.legend(loc='lower right')
+    if 'zoom' in kwargs:
+        rax.set_ylim([dst_values.min(),0])
+    for interv in interval_list:
+        Kexternal.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                          c='grey')
+        Kinternal.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                          c='grey')
+        Energy_dst.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                          c='grey')
+        al.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                          c='grey')
+    Kexternal.axhline(0,c='black')
+    Kinternal.axhline(0,c='black')
+    Energy_dst.axhline(0,c='black')
+    al.axhline(0,c='black')
+    Kexternal.margins(x=0.01)
+    Kinternal.margins(x=0.01)
+    Energy_dst.margins(x=0.01)
+    al.margins(x=0.01)
+    Fluxes.tight_layout()
+    #Save
+    if 'zoom' in kwargs:
+        figurename = (path+'/Fluxes_'+event+'_'+
+                      kwargs.get('tag','zoomed')+'.png')
+    else:
+        figurename = path+'/Fluxes_'+event+'.png'
+    Fluxes.savefig(figurename)
+    plt.close(Fluxes)
+    print('\033[92m Created\033[00m',figurename)
 
 def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
@@ -1319,11 +1427,12 @@ def build_events(ev,run,**kwargs):
     events['substorm'] = np.ceil((events['DIP']+
                                   events['plasmoids_volume']+
                                   events['plasmoids_mass']+
-                                  events['MGLbays'])/4)
+                                  events['ALbays'])/4)
     # Coupling variability signatures
     events['K1var'],events['K1unsteady'] = ID_variability(ev['K1'])
     events['K5var'],events['K5unsteady'] = ID_variability(ev['K5'])
     events['K15var'],events['K15unsteady'] = ID_variability(ev['K1']+ev['K5'])
+    events['both'] = np.ceil((events['substorm']+events['imf_transients'])/2)
     # other combos
     return events
 
@@ -1730,8 +1839,10 @@ def show_events(ev,run,events,path):
         '''
     for i,(start,end) in enumerate(sw_intervals):
         tstart = float(pd.Timedelta(start-T0).to_numpy())
-        for ax in [dips,v_moids,m_moids,albays,k1,k5]:
+        for ax in [dips,v_moids,m_moids,albays]:
             ax.axvline(tstart,c='grey',ls='--')
+        for ax in [k1,k5]:
+            ax.axvline(tstart,c='grey')
             #window = dt.timedelta(minutes=30).seconds*1e9
             #ax.axvspan(tstart,tstart+window,fc='red')
     general_plot_settings(dips,do_xlabel=True,legend=False,
@@ -1747,10 +1858,10 @@ def show_events(ev,run,events,path):
                           ylabel=r'AL $\left[nT\right]$',
                           timedelta=True)
     general_plot_settings(k1,do_xlabel=True,legend=False,
-                          ylabel=r'Int. E. Flux$\left[TW\right]$',
+                          ylabel=r'$\int_S$K1(OpenMP) Flux$\left[TW\right]$',
                           timedelta=True)
     general_plot_settings(k5,do_xlabel=True,legend=False,
-                          ylabel=r'Int. E. Flux$\left[TW\right]$',
+                          ylabel=r'$\int_S$K5(ClosedMP) Flux$\left[TW\right]$',
                           timedelta=True)
     #general_plot_settings(mglbays,do_xlabel=True,legend=False,
     #                      ylabel=r'MGL $\left[nT\right]$',
@@ -1792,14 +1903,17 @@ def tab_contingency(events,path):
         # count for all events
         n = len(events[run])
         for xkey,ykey in [['MGLbays','K1unsteady'],
+                          ['ALbays','K1unsteady'],
                           ['plasmoids','K1unsteady'],
                           ['DIP','K1unsteady'],
                           ['substorm','K1unsteady'],
                           ['substorm','K5unsteady'],
-                          ['imf_transients','K1unsteady']]:
+                          ['imf_transients','K1unsteady'],
+                          ['both','K1unsteady']]:
             #NOTE trying 'clean' version
             #X = events[run][xkey].values*-1*(events[run]['imf_transients']-1)
             #Y = events[run][ykey].values*-1*(events[run]['imf_transients']-1)
+            #TODO: combine transient and substorm for "best case"
             X = events[run][xkey].values
             Y = events[run][ykey].values
             best_skill = -1e12
@@ -1832,7 +1946,7 @@ def tab_contingency(events,path):
     #TODO:
     #   Consider how to automate the threshold of detection to improve scores?
     #   Also look into baselining what a 'good' skill is
-    from IPython import embed; embed()
+    #from IPython import embed; embed()
 
 def tab_ranges(dataset):
     events = dataset.keys()
@@ -1882,13 +1996,24 @@ def initial_figures(dataset):
             #internalflux_vs_rxn(ev,run,path,zoom=window)
             pass
         #mpflux_vs_rxn(ev,run,path)
-        test_matrix(event,ev,path)
-        internalflux_vs_rxn(ev,run,path)
+        #test_matrix(event,ev,path)
+        #internalflux_vs_rxn(ev,run,path)
+        #mpflux_vs_rxn(ev,event,path)
+        '''
+        all_fluxes(ev,event,path)
+        #Zoomed versions
+        steady_window = (dt.datetime(2022,6,6,16,0),
+                         dt.datetime(2022,6,6,18,0))
+        unsteady_window = (dt.datetime(2022,6,7,0,0),
+                           dt.datetime(2022,6,7,2,0))
+        all_fluxes(ev,event,path,zoom=steady_window,tag='steady')
+        all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
+        '''
         show_events(ev,run,events,path)
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
-    #tab_contingency(events,path)
+    tab_contingency(events,path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
