@@ -160,7 +160,7 @@ def energetics_analysis(infiles,outpath):
                                       outputpath=outpath)
     # MAG data
     ionosphere.read_maggrid_tec(
-                infiles[0].replace('plt','tec').replace('3d__var_1','mag_grid'))
+                       infiles[0].replace('3d__var_1','mag_grid')[0:-8]+'.tec')
     # IE data
     #inpath = 'run_MEDnHIGHu/IE/ionosphere/'
     inpath = '/'.join([f for f in infiles[0].split('/')][0:-3])+'/IE/ionosphere/'
