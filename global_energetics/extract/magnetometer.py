@@ -427,16 +427,52 @@ def read_SML(datafile):
                         data[['year','month','day','hour','min','sec']].values]
     return data
 
+def out_to_tec(filein):
+    """Converts mag_grid_TIME.out to mag_grid_TIME.tec
+    Inputs
+        filein
+    Returns
+        fileout
+    """
+    fileout = filein.replace('out','tec')
+    with open(filein, 'r') as f:
+        # Save the title as one line
+        titleline1 = f.readline()
+        titleline2 = f.readline()
+        titleline = titleline1.replace('\n','')+titleline2
+        title = 'TITLE="'+titleline.replace('\n','"\n')
+        # Get the structure from lat/lon numbers
+        structureline = f.readline()
+        nlon,nlat = structureline.split()
+        # Create tecplot 'ZONE' line
+        zone=f'ZONE T="MagGrid"\n I=  {nlon} J=  {nlat} F=POINT\n'
+        # Create tecplot 'VARIABLES' line
+        variableline = f.readline()
+        variables = ('VARIABLES="'+
+                           variableline.replace(' ','","').replace('\n','"\n'))
+        # Save rest of the data as one big string
+        data = f.readlines()
+    with open(fileout,'w') as fout:
+        fout.write(title)
+        fout.write(variables)
+        fout.write(zone)
+        fout.writelines(data)
+    print(f'Created {fileout}')
+    return fileout
 
 
 if __name__ == "__main__":
     #Read the first station location
     #file_in = ('/home/aubr/Code/swmf-energetics/febstorm/'+
     #           'magnetometers_e20140218-060000.mag')
-    file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
+    #file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
+    #file_in=('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.out')
+    for file_in in glob.glob('run_MEDnHIGHu/GM/IO2/mag_grid*.out'):
+        file_out = out_to_tec(file_in)
     #sml_file = 'localdbug/mod_supermag_starlink.txt'
     #smldata = read_SML(sml_file)
     #vsmldata = read_virtual_SML(file_in)
+    """
     datapath = 'run_MEDnHIGHu/GM/IO2/'
     MGL = read_MGL(datapath)
     mgl_file = 'test_outputs/MGL_test.h5'
@@ -458,3 +494,4 @@ if __name__ == "__main__":
                         np.trunc((mZhat_x*x+mZhat_z*z)/r))
             theta = -180/pi*lambda_
     '''
+    """

@@ -113,7 +113,8 @@ def energetics_analysis(infiles,outpath):
     #python objects
     #oggridfile = 'starlink2/IO2/3d__volume_e20220202.plt'
     #oggridfile = 'run_2000_polarcap/GM/IO2/3d__var_3_n00000800.plt'
-    oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
+    #oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
+    oggridfile = ''
     gm_stylehead = 'twopanel_status.sty'
     field_data = tp.data.load_tecplot(infiles)
     filetime = makevideo.get_time(infiles[0])
@@ -157,6 +158,9 @@ def energetics_analysis(infiles,outpath):
                                       truegridfile=oggridfile,
                                       extract_flowline=False,
                                       outputpath=outpath)
+    # MAG data
+    ionosphere.read_maggrid_tec(
+                infiles[0].replace('plt','tec').replace('3d__var_1','mag_grid'))
     # IE data
     #inpath = 'run_MEDnHIGHu/IE/ionosphere/'
     inpath = '/'.join([f for f in infiles[0].split('/')][0:-3])+'/IE/ionosphere/'
@@ -186,7 +190,12 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     if True:
-        save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
+        save_gm_multi([
+                       'cosmetic/energy_closed2.sty',
+                       'cosmetic/energy_forward2.sty',
+                       'cosmetic/dBn_night_north.sty',
+                       'cosmetic/longtail_Bz.sty'],
+        #save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
         #'cosmetic/status_forward.sty',
         #               'cosmetic/energy_forward.sty',
         #               'cosmetic/daynight_closed_side.sty',

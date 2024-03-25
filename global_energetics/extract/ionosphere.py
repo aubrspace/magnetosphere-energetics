@@ -219,15 +219,16 @@ def rotate_xyz(zones,angle,**kwargs):
 
     # Update dirctions of other vectors
     for base in ['E','J','U']:
-        if zones[0].dataset.variable(base+'x*') is not None:
-            Xname = zones[0].dataset.variable(base+'x*').name
-            Zname = zones[0].dataset.variable(base+'z*').name
-            eq('{'+base+'xd} = {'+Xname+'}',zones=zones)
-            eq('{'+base+'zd} = {'+Zname+'}',zones=zones)
-            eq('{'+Xname+'} = '+mXhat_x+'*({'+base+'xd}*'+mXhat_x+
-                              '+{'+base+'zd}*'+mXhat_z+')',zones=zones)
-            eq('{'+Zname+'} = '+mZhat_z+'*({'+base+'xd}*'+mZhat_x+
-                              '+{'+base+'zd}*'+mZhat_z+')',zones=zones)
+        if any([base+'x' in v for v in zones[0].dataset.variable_names]):
+            if zones[0].values(base+'x*').minmax() != (0.0,0.0):
+                Xname = zones[0].dataset.variable(base+'x*').name
+                Zname = zones[0].dataset.variable(base+'z*').name
+                eq('{'+base+'xd} = {'+Xname+'}',zones=zones)
+                eq('{'+base+'zd} = {'+Zname+'}',zones=zones)
+                eq('{'+Xname+'} = '+mXhat_x+'*({'+base+'xd}*'+mXhat_x+
+                                '+{'+base+'zd}*'+mXhat_z+')',zones=zones)
+                eq('{'+Zname+'} = '+mZhat_z+'*({'+base+'xd}*'+mZhat_x+
+                                '+{'+base+'zd}*'+mZhat_z+')',zones=zones)
     # Calculate the dipole field at the new locations
     Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field({'BTHETATILT':str(angle)})
     eq('{r [R]} = sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',zones=zones)
@@ -660,6 +661,22 @@ def get_ionosphere(dataset,**kwargs):
                          datestring+'.h5',
                          data_to_write.keys())
     return data_to_write
+
+def read_maggrid_tec(filein,**kwargs):
+    dataset=tp.data.load_tecplot(filein,read_data_option=ReadDataOption.Append)
+    magzone = dataset.zone(-1)
+    eq = tp.data.operate.execute_equation
+    eq('{theta}=-({LatSm}-90)*pi/180',zones=[magzone])
+    eq('{phi} = {LonSm}*pi/180',zones=[magzone])
+    eq('{X [R]} = 1*sin({theta})*cos({phi})',zones=[magzone])
+    eq('{Y [R]} = 1*sin({theta})*sin({phi})',zones=[magzone])
+    eq('{Z [R]} = 1*cos({theta})',zones=[magzone])
+    if 'BTHETATILT' in dataset.zone(0).aux_data:
+        aux = dataset.zone(0).aux_data
+        rotate_xyz([magzone],float(aux['BTHETATILT']))
+
+def get_maggrid(dataset,**kwargs):
+    pass
 
 
 # Must list .plt that script is applied for proper execution

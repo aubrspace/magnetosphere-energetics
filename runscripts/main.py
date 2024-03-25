@@ -183,6 +183,7 @@ if __name__ == "__main__":
                                     outputpath=outpath)
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
+                ionosphere.read_maggrid_tec('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.tec')
                 do_north, do_south = False, False
                 if os.path.exists(iedatafile):
                     # IE data
@@ -215,25 +216,29 @@ if __name__ == "__main__":
                                               do_cms=False,
                                               do_central_diff=False,
                                               outputpath=outpath)
-                if False:
+                if True:
+                    '''
                     for i,style in enumerate([
                                   #['cosmetic/plasmasheet_transparent_closed_mp.sty'],
                                   #['cosmetic/ps_kX_topRight.sty'],
                                   #['cosmetic/closed_topRight.sty'],
                                   #['cosmetic/mp_topRight.sty'],
                                   #['cosmetic/closed_mp_topRight.sty'],
-                                  ['cosmetic/ps_jpar_wiso.sty'],
+                                  #['cosmetic/ps_jpar_wiso.sty'],
                                   #['cosmetic/zplane_Jy_equitorial.sty'],
                                   #['cosmetic/zplane_rho_equitorial.sty']
                                   #['cosmetic/plasmasheet_transparent_closed_mp2.sty']
                                   ]):
                         save_gm_multi(style,outpath,OUTPUTNAME+'_'+str(i),
                                       filetime)
+                    '''
                     #save_gm_multi(['cosmetic/stretched_ux_plasmasheet.sty'],
-                    #save_gm_multi(['cosmetic/status_forward.sty',
-                    #               'cosmetic/energy_forward.sty',
-                    #               'cosmetic/daynight_closed_side.sty',
-                    #               'cosmetic/north_pc_rxn_busy.sty'],
+                    save_gm_multi([
+                                    'cosmetic/energy_closed2.sty',
+                                    'cosmetic/energy_forward2.sty',
+                                    'cosmetic/dBn_night_north.sty',
+                                    'cosmetic/longtail_Bz.sty'],
+                                  outpath,OUTPUTNAME+'_'+str(i),filetime)
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
