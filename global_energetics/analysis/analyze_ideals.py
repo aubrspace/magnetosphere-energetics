@@ -404,8 +404,8 @@ def test_matrix(event,ev,path):
     #setup figure
     #matrix,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
     matrix,(axis) =plt.subplots(1,1,figsize=[20,8],sharex=True)
+    axis.plot(ev['swt'],ev['sw']['bz'],label='bz',color='blue',lw=4)
     axis.plot(ev['swt'],ev['sw']['by'],label='by',color='magenta')
-    axis.plot(ev['swt'],ev['sw']['bz'],label='bz',color='blue')
     axis.fill_between(ev['swt'],np.sqrt(ev['sw']['by']**2+ev['sw']['bz']**2),
                                         fc='grey',label='B',alpha=0.5)
     #axis2.plot(times,dataset[event]['obs']['swmf_log']['dst_sm'],label=event)
@@ -1307,9 +1307,9 @@ def all_fluxes(ev,event,path,**kwargs):
                                         ev['mp'].index)
     #############
     #setup figure
-    Fluxes,(Kexternal,Kinternal,Energy_dst,al) = plt.subplots(4,1,
-                                                              figsize=[24,28],
-                                                              sharex=True)
+    Fluxes,(Kexternal,Energy_dst,al) = plt.subplots(3,1,figsize=[24,22],
+                                                    sharex=True)
+    test1,(Kinternal) = plt.subplots(1,1,figsize=[24,28],sharex=True)
     # Tighten up the window
     al_values = dataset[event]['obs']['swmf_index']['AL']
     dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
@@ -1380,8 +1380,13 @@ def all_fluxes(ev,event,path,**kwargs):
                           timedelta=True,legend_loc='lower left')
     rax.set_ylabel(r'$\Delta B \left[nT\right]$')
     rax.legend(loc='lower right')
+    rax.spines
+    Energy_dst.spines['left'].set_color('slateblue')
+    Energy_dst.tick_params(axis='y',colors='slateblue')
+    Energy_dst.yaxis.label.set_color('slateblue')
     if 'zoom' in kwargs:
         rax.set_ylim([dst_values.min(),0])
+        pass
     for interv in interval_list:
         Kexternal.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                           c='grey')
@@ -1406,9 +1411,24 @@ def all_fluxes(ev,event,path,**kwargs):
                       kwargs.get('tag','zoomed')+'.png')
     else:
         figurename = path+'/Fluxes_'+event+'.png'
+    # Save in pieces
     Fluxes.savefig(figurename)
-    plt.close(Fluxes)
     print('\033[92m Created\033[00m',figurename)
+    axes = [al,Energy_dst,Kexternal]#from bot to top
+    height = 22
+    for i,ax in enumerate(axes[0:-1]):
+        #axes[i+1].set_xticklabels(ax.get_xticklabels(),visible=True)
+        axes[i+1].xaxis.set_tick_params(which='both', labelbottom=True)
+        axes[i+1].xaxis.set_major_formatter(ax.xaxis.get_major_formatter())
+        ax.remove()
+        if i==1: rax.remove()
+        axes[i+1].set_xlabel(r'Time $\left[ hr\right]$')
+        height = height-6
+        subname = figurename.replace('.png',f'_{i}.png')
+        #Fluxes.set_size_inches(24,height,forward=True)
+        Fluxes.savefig(subname)
+        print('\033[92m Created\033[00m',subname)
+    plt.close(Fluxes)
 
 def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
@@ -1738,7 +1758,7 @@ def show_events(ev,run,events,path):
     fig2,(v_moids,m_moids) = plt.subplots(2,1,figsize=[24,20],
                                sharex=True)
     fig3,(albays) = plt.subplots(1,1,figsize=[24,20],sharex=True)
-    fig4,(k1,k5) = plt.subplots(2,1,figsize=[24,20],sharex=True)
+    fig4,(k1) = plt.subplots(2,1,figsize=[24,10],sharex=True)
     #Plot
     dips.plot(ev['times'],ev['mp']['X_NEXL [Re]'],color='black')
     dips.scatter(ev['times'],ev['mp']['X_NEXL [Re]'],
@@ -1999,21 +2019,21 @@ def initial_figures(dataset):
         #test_matrix(event,ev,path)
         #internalflux_vs_rxn(ev,run,path)
         #mpflux_vs_rxn(ev,event,path)
-        '''
-        all_fluxes(ev,event,path)
+        #all_fluxes(ev,event,path)
         #Zoomed versions
         steady_window = (dt.datetime(2022,6,6,16,0),
                          dt.datetime(2022,6,6,18,0))
         unsteady_window = (dt.datetime(2022,6,7,0,0),
                            dt.datetime(2022,6,7,2,0))
-        all_fluxes(ev,event,path,zoom=steady_window,tag='steady')
-        all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
-        '''
-        show_events(ev,run,events,path)
+        #all_fluxes(ev,event,path,zoom=steady_window,tag='steady')
+        #all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
+        example_window = (dt.datetime(2022,6,6,16,0),
+                          dt.datetime(2022,6,7,2,0))
+        show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
-    tab_contingency(events,path)
+    #tab_contingency(events,path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
