@@ -146,6 +146,7 @@ def general_plot_settings(ax, **kwargs):
             #time.sleep(3)
             return "{:1}".format(hours+minutes/60)
         #Get original limits
+        ax.set_xlim(kwargs.get('xlim',None))
         xlims = ax.get_xlim()
         islong = (xlims[1]-xlims[0])*1e-9/3600 > 10
         if islong:
