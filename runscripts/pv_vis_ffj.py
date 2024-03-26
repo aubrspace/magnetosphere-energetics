@@ -31,7 +31,7 @@ if True:
     #outpath= os.path.join(inpath,'test_output/')
     #inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
     #outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
-    inpath = os.path.join(herepath,'localdbug/parameter_study/')
+    inpath = os.path.join(herepath,'localdbug/parameter_study/MEDHIGH/')
     outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
 
     filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
@@ -51,6 +51,7 @@ if True:
         outfile = 't'+str(i)+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
+                                                       tail_x=-120,
                                                        dimensionless=False,
                                                        localtime=localtime,
                                                        path=herepath,
