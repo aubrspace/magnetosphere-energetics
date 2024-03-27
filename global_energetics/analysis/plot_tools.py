@@ -62,7 +62,8 @@ def pyplotsetup(*,mode='presentation',**kwargs):
     if 'print' in mode:
         #Change colorcycler
         colorwheel = plt.cycler('color',
-                ['maroon', 'magenta', 'tab:blue', 'green',
+                ['orange', 'blue', 'tab:blue', 'green',
+                 #['maroon', 'magenta', 'tab:blue', 'green',
                  'tab:olive','tab:cyan'])
         settings.update({'axes.prop_cycle': colorwheel})
     elif 'digital' in mode:
