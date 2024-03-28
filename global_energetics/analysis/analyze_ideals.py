@@ -1341,10 +1341,14 @@ def all_fluxes(ev,event,path,**kwargs):
                    fc='blue')
     Kexternal.fill_between(ev['times'],ev['K5']/1e12,label='K5 (ClosedMP)',
                    fc='red')
-    Kexternal.plot(ev['times'],ev['Ks4']/1e12,label='K4 (OpenTail)',
-                   color='grey')
-    Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
-                   color='black')
+    #Kexternal.plot(ev['times'],ev['Ks4']/1e12,label='K4 (OpenTail)',
+    #               color='grey')
+    #Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
+    #               color='black')
+    Kexternal.plot(ev['times'],-ev['sw']['EinWang']/1e12,
+                   c='black',lw='4',label='Wang2014')
+    Kexternal.plot(ev['times'],ev['sw']['Pstorm']/1e12,
+                   c='grey',lw='4',label='Tenfjord and Østgaard 2013')
     # Internal Energy Flux
     Kinternal.plot(ev['times'],ev['K2a']/1e12,label='K2a (Cusp)',
                    color='magenta')
@@ -1366,7 +1370,7 @@ def all_fluxes(ev,event,path,**kwargs):
     #Decorations
     general_plot_settings(Kexternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
-                          ylim=[-23,17],
+                          ylim=[-25,17],
                           timedelta=True,legend_loc='lower left')
     general_plot_settings(Kinternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
@@ -1414,6 +1418,7 @@ def all_fluxes(ev,event,path,**kwargs):
     # Save in pieces
     Fluxes.savefig(figurename)
     print('\033[92m Created\033[00m',figurename)
+    '''
     axes = [al,Energy_dst,Kexternal]#from bot to top
     height = 22
     for i,ax in enumerate(axes[0:-1]):
@@ -1428,6 +1433,7 @@ def all_fluxes(ev,event,path,**kwargs):
         #Fluxes.set_size_inches(24,height,forward=True)
         Fluxes.savefig(subname)
         print('\033[92m Created\033[00m',subname)
+    '''
     plt.close(Fluxes)
 
 def build_events(ev,run,**kwargs):
@@ -1447,7 +1453,8 @@ def build_events(ev,run,**kwargs):
     events['substorm'] = np.ceil((events['DIP']+
                                   events['plasmoids_volume']+
                                   events['plasmoids_mass']+
-                                  events['ALbays'])/4)
+                                  events['MGLbays']+
+                                  events['ALbays'])/5)
     # Coupling variability signatures
     events['K1var'],events['K1unsteady'] = ID_variability(ev['K1'])
     events['K5var'],events['K5unsteady'] = ID_variability(ev['K5'])
@@ -1970,6 +1977,8 @@ def show_events(ev,run,events,path,**kwargs):
     fig3.savefig(figurename)
     albays.fill_between(ev['times'],ev['index']['AL'],ev['GridL'],
                         color='purple',alpha=0.4)
+    albays.plot(ev['times'],ev['GridL'],
+                        color='black',lw=6)
     fig3.savefig(figurename.replace('.png','_1.png'))
     albays.fill_between(ev['times'],ev['index']['AL'],foundGridL,
                         color='lime',alpha=0.4)
@@ -2043,30 +2052,36 @@ def tab_contingency(events,path):
             print('{:<15}{:<15}{:<15}{:<15}'.format('',hit+miss,false+no,n))
             print('\nHSS: ',best_skill,'\nLag: ',best_lag,'\n')
             if xkey=='imf_transients':
-                transitions[event] = best_skill
-            elif xkey=='substorms':
-                substorms[event] = best_skill
+                transitions[run] = best_skill
+            elif xkey=='substorm':
+                substorms[run] = best_skill
+    '''
     transition_x = [0,3,6,0,3,6,0,3,6]
     transition_y = [0,0,0,2,2,2,4,4,4]
     substorms_x = [1,4,7,1,4,7,1,4,7]
     substorms_y = [0,0,0,2,2,2,4,4,4]
+    '''
+    transition_x = [5,10,20,5,10,20,5,10,20]
+    transition_y = [-400,-400,-400,-600,-600,-600,-800,-800,-800]
+    substorms_x = [7,12,22,7,12,22,7,12,22]
+    substorms_y = [-400,-400,-400,-600,-600,-600,-800,-800,-800]
     transition_top = [transitions.get('stretched_LOWnLOWu',0),
-                      transitions.get('stretched_LOWnMEDu',0),
-                      transitions.get('stretched_LOWnHIGHu',0),
                       transitions.get('stretched_MEDnLOWu',0),
-                      transitions.get('stretched_MEDnMEDu',0),
-                      transitions.get('stretched_MEDnHIGHu',0),
                       transitions.get('stretched_HIGHnLOWu',0),
+                      transitions.get('stretched_LOWnMEDu',0),
+                      transitions.get('stretched_MEDnMEDu',0),
                       transitions.get('stretched_HIGHnMEDu',0),
+                      transitions.get('stretched_LOWnHIGHu',0),
+                      transitions.get('stretched_MEDnHIGHu',0),
                       transitions.get('stretched_HIGHnHIGHu',0)]
     substorms_top = [substorms.get('stretched_LOWnLOWu',0),
-                    substorms.get('stretched_LOWnMEDu',0),
-                    substorms.get('stretched_LOWnHIGHu',0),
                     substorms.get('stretched_MEDnLOWu',0),
-                    substorms.get('stretched_MEDnMEDu',0),
-                    substorms.get('stretched_MEDnHIGHu',0),
                     substorms.get('stretched_HIGHnLOWu',0),
+                    substorms.get('stretched_LOWnMEDu',0),
+                    substorms.get('stretched_MEDnMEDu',0),
                     substorms.get('stretched_HIGHnMEDu',0),
+                    substorms.get('stretched_LOWnHIGHu',0),
+                    substorms.get('stretched_MEDnHIGHu',0),
                     substorms.get('stretched_HIGHnHIGHu',0)]
     # Setup figure
     old_params = plt.rcParams
@@ -2077,17 +2092,21 @@ def tab_contingency(events,path):
     plt.rcParams.update(params)#NOTE
     fig = plt.figure(figsize=[12,12])
     ax = fig.add_subplot(111, projection='3d')
-    tt = ax.bar3d(transition_x, transition_y, 0, 1, 1, transition_top,
+    tt = ax.bar3d(transition_x, transition_y, 0, 2, 60, transition_top,
              label='SW Transition',alpha=0.5,ec='black',
              shade=True)
     #ax.legend()
     # Decorate
     ax.set_title('Skill',c='w')
     ax.set_zlim([0,1])
+    ax.set_xticks([5,10,20])
+    ax.set_yticks([-800,-600,-400])
+    #ax.set_xlabel('Velocity [km/s]')
+    #ax.set_ylabel('Density [amu/cc]')
     fig.tight_layout(pad=1)
     figurename = path+'/HSS_3d.png'
     fig.savefig(figurename,transparent=True)
-    ax.bar3d(substorms_x, substorms_y, 0, 1, 1, substorms_top, shade=True,
+    ax.bar3d(substorms_x, substorms_y, 0, 2, 60, substorms_top, shade=True,
              label='Substorm',alpha=0.5,ec='black')
     fig.savefig(figurename.replace('.png','_0.png'),transparent=True)
     tt.remove()
@@ -2151,7 +2170,7 @@ def initial_figures(dataset):
         #test_matrix(event,ev,path)
         #internalflux_vs_rxn(ev,run,path)
         #mpflux_vs_rxn(ev,event,path)
-        #all_fluxes(ev,event,path)
+        all_fluxes(ev,run,path)
         #Zoomed versions
         steady_window = (dt.datetime(2022,6,6,16,0),
                          dt.datetime(2022,6,6,18,0))
@@ -2167,7 +2186,7 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
-    tab_contingency(events,path)
+    #tab_contingency(events,path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
@@ -2188,7 +2207,11 @@ if __name__ == "__main__":
 
     # Event list
     #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
-    events = ['stretched_MEDnHIGHu']
+    events =['stretched_MEDnHIGHu',
+             'stretched_LOWnLOWu',
+             'stretched_LOWnHIGHu',
+             'stretched_HIGHnLOWu',
+             'stretched_HIGHnHIGHu']
 
     ## Analysis Data
     dataset = {}
