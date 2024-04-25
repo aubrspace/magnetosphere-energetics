@@ -21,9 +21,12 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     create_stream_zone,
                                                     calc_terminator_zone,
                                                     calc_ocflb_zone,
+                                                    setup_isosurface,
+                                                    get_surf_geom_variables,
                                                     get_global_variables)
 from global_energetics.extract.equations import (get_dipole_field)
 from global_energetics.extract.mapping import (port_mapping_to_ie,
+                                               reversed_mapping,
                                                surface_condition_map_to_ie)
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
@@ -529,6 +532,41 @@ def check_edges(zone,hemi,**kwargs):
         eq('{'+stat_var+'_old2} = {'+stat_var+'}',zones=[zone])
         eq('{'+stat_var+'} = if({'+stat_var+'}<2.9,1,3)',zones=[zone])
 
+def validate_zones(dataset,**kwargs):
+    """ Function checks available zones with given parameters
+    Inputs
+        dataset (tecplot dataset)
+        kwargs:
+            useGM (bool) - default True
+    Returns
+        hasIE,hasGM,staticOnly (bool) - defaults False
+    """
+    hasIE,hasGM,staticOnly = False, False, False
+    # See what zones are available
+    zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
+    zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
+    if zoneNorth and zoneSouth:
+        hasIE = True
+    if zoneGM:
+        hasGM  = True
+    # Validate that the past and future zones are present if needed
+    if kwargs.get('do_cms') and kwargs.get('useGM',True):
+        pastGM = dataset.zone(kwargs.get('pastGM','past'))
+        futureGM = dataset.zone(kwargs.get('futureGM','future'))
+        if not pastGM and futureGM:
+            warnings.warn('Cant find past and future zones '+
+                          'staticOnly -> True', UserWarning)
+            staticOnly = True
+    elif kwargs.get('do_cms') and kwargs.get('useGM',False):
+        pastIE = dataset.zone('past_ionosphere_north')
+        futureIE = dataset.zone('future_ionosphere_north')
+        if not pastIE and futureIE:
+            warnings.warn('Cant find past and future zones '+
+                          'staticOnly -> True', UserWarning)
+            staticOnly = True
+    return hasIE,hasGM,staticOnly
+
 def get_ionosphere(dataset,**kwargs):
     """Function routes to various extraction and analysis options for IE data
         based on kwargs given
@@ -538,57 +576,134 @@ def get_ionosphere(dataset,**kwargs):
             hasGM (bool) - default False
     Returns
     """
-    zoneNorth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
-    zoneSouth = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
-    if kwargs.get('do_cms',False):
-        futureNorth = dataset.zone('future_ionosphere_north')
-        futureSouth = dataset.zone('future_ionosphere_south')
-    tp.active_frame().plot_type = PlotType.Cartesian3D
-    data_to_write={}
-    if kwargs.get('hasGM',False) and kwargs.get('mergeGM',True):
+    eventtime = kwargs.get('eventtime')
+    eq = tp.data.operate.execute_equation
+    # Figure out analysis mode based on available zones and kwargs
+    hasIE,hasGM,staticOnly = validate_zones(dataset,**kwargs)
+    if not hasIE and not hasGM:
+        warnings.warn('Cant perform ionosphere analysis,'+
+                       'missing zones!', UserWarning)
+        return
+    # Prepare the data that is available
+    if hasIE:
+        zoneIEn = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'north')
+        zoneIEs = dataset.zone(kwargs.get('ieZoneHead','ionosphere_')+'south')
+    if hasGM:
         zoneGM = dataset.zone(kwargs.get('zoneGM','global_field'))
-        #zoneSphere = dataset.zone(kwargs.get('zoneSphere','perfectsphere*'))
         aux = zoneGM.aux_data
-        if 'eventtime' in kwargs:
-            eventtime = kwargs.get('eventtime')
-        # Map sphere onto Z aligned IE data
-        #blank_and_trace(zoneSphere,'North')
-        #blank_and_trace(zoneSphere,'South')
-        #sphere2cart_map(zoneSphere)
-        #blank_and_interpolate(zoneSphere,zoneNorth,'North')
-        #blank_and_interpolate(zoneSphere,zoneSouth,'South')
-        # Rotate IE_xyz(SM) to GM_xyz(GSM)
-        if kwargs.get('do_cms',False):
-            # Find the places where Status chagnes between two time steps
-            eq = tp.data.operate.execute_equation
-            old = str(zoneNorth.index+1)
-            new = str(futureNorth.index+1)
-            eq('{changeFlux} = if(({RT 1/B [1/T]}['+old+']<-1)&&'+
+        if hasIE:
+            # First pull flux change info, then delete future and past
+            if not kwargs.get('useGM',True) and kwargs.get('do_cms',False):
+                pastIEn = dataset.zone('past_ionosphere_north')
+                futureIEn = dataset.zone('future_ionosphere_north')
+                pastIEs = dataset.zone('past_ionosphere_south')
+                futureIEs = dataset.zone('future_ionosphere_south')
+                # Find the places where Status changes
+                old = str(pastIEn.index+1)
+                new = str(futureIEn.index+1)
+                eq('{changeFlux} = if(({RT 1/B [1/T]}['+old+']<-1)&&'+
+                                     '({RT 1/B [1/T]}['+new+']>-1),1,'+
+                                  'if(({RT 1/B [1/T]}['+new+']<-1)&&'+
+                                     '({RT 1/B [1/T]}['+old+']>-1),-1,0))',
+                                    zones=[zoneIEn])
+                old = str(pastIEs.index+1)
+                new = str(futureIEs.index+1)
+                eq('{changeFlux} = if(({RT 1/B [1/T]}['+old+']<-1)&&'+
                                  '({RT 1/B [1/T]}['+new+']>-1),1,'+
                            'if(({RT 1/B [1/T]}['+new+']<-1)&&'+
                               '({RT 1/B [1/T]}['+old+']>-1),-1,0))',
-                              zones=[zoneNorth])
-            old = str(zoneSouth.index+1)
-            new = str(futureSouth.index+1)
-            eq('{changeFlux} = if(({RT 1/B [1/T]}['+old+']<-1)&&'+
-                                 '({RT 1/B [1/T]}['+new+']>-1),1,'+
-                           'if(({RT 1/B [1/T]}['+new+']<-1)&&'+
-                              '({RT 1/B [1/T]}['+old+']>-1),-1,0))',
-                              zones=[zoneSouth])
-            dataset.delete_zones([futureNorth,futureSouth])
-        rotate_xyz([zoneNorth,zoneSouth],float(aux['BTHETATILT']))
-        match_variable_names([zoneNorth,zoneSouth])
-        #rotate_xyz([zoneNorth,zoneSphere],float(aux['BTHETATILT']))
-        #match_variable_names([zoneNorth])
-        #check_edges(zoneNorth,'North')
-        #check_edges(zoneSouth,'South')
-        get_global_variables(dataset,'',aux=aux)
+                              zones=[zoneIEs])
+                dataset.delete_zones([pastIEn,pastIEs,futureIEn,futureIEs])
+            rotate_xyz([zoneIEn,zoneIEs],float(aux['BTHETATILT']))
+            match_variable_names([zoneIEn,zoneIEs])
+            get_global_variables(dataset,'',aux=aux)
+        elif 'r [R]' not in dataset.variable_names:
+            get_global_variables(dataset,'',aux=aux)
     else:
-        if 'eventtime' in kwargs:
-            eventtime = kwargs.get('eventtime')
-        match_variable_names([zoneNorth,zoneSouth])
+        match_variable_names([zoneIEn,zoneIEs])
         get_global_variables(dataset,'',only_dipole=True,
                              aux={'BTHETATILT':'0','GAMMA':'1.6666667'})
+    # Depending on mode, create some additional zones
+    if kwargs.get('useGM',True):
+        # Check that daynight mapping is done
+        if 'daynight' not in dataset.variable_names:
+            eq('{trace_limits}=if({Status}==3 && '+
+                            '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
+            reversed_mapping(zoneGM,'trace_limits',
+                             **kwargs)
+            if kwargs.get('do_cms',False):
+                reversed_mapping(dataset.zone('past'),'trace_limits',
+                                 **kwargs)
+                reversed_mapping(dataset.zone('future'),'trace_limits',
+                                 **kwargs)
+        # Create 'ionosphere' north south out of hemi sphere
+        zoneGMn = setup_isosurface(kwargs.get('inner_r',3),
+                                     dataset.variable('r *').index,
+                                     'GMionoNorth',
+                                     blankvar='Zd*',
+                                     blankvalue=0,
+                                     blankop=RelOp.LessThan)
+        zoneGMs = setup_isosurface(kwargs.get('inner_r',3),
+                                     dataset.variable('r *').index,
+                                     'GMionoSouth',
+                                     blankvar='Zd*',
+                                     blankvalue=0,
+                                     blankop=RelOp.GreaterThan)
+    # Prepare past and future zones
+    if kwargs.get('do_cms',False):
+        pastGMn = setup_isosurface(kwargs.get('inner_r',3),
+                                     dataset.variable('r *').index,
+                                     'pastGMionoNorth',
+                                     blankvar='Zd*',
+                                     blankvalue=0,
+                                     blankop=RelOp.LessThan,
+                                     global_key='past')
+        pastGMs = setup_isosurface(kwargs.get('inner_r',3),
+                                     dataset.variable('r *').index,
+                                     'pastGMionoSouth',
+                                     blankvar='Zd*',
+                                     blankvalue=0,
+                                     blankop=RelOp.GreaterThan,
+                                     global_key='past')
+        futureGMn = setup_isosurface(kwargs.get('inner_r',3),
+                                     dataset.variable('r *').index,
+                                     'futureGMionoNorth',
+                                     blankvar='Zd*',
+                                     blankvalue=0,
+                                     blankop=RelOp.LessThan,
+                                     global_key='future')
+        futureGMs = setup_isosurface(kwargs.get('inner_r',3),
+                                     dataset.variable('r *').index,
+                                     'futureGMionoSouth',
+                                     blankvar='Zd*',
+                                     blankvalue=0,
+                                     blankop=RelOp.GreaterThan,
+                                     global_key='future')
+    # Send prepped zones in for analysis
+    if kwargs.get('useGM',True):
+        if kwargs.get('integrate_surface',False):
+            get_surf_geom_variables(zoneGMn)
+            get_surf_geom_variables(zoneGMs)
+            check_edges(zoneGMn,'North')
+            check_edges(zoneGMs,'South')
+            if kwargs.get('do_cms',False):
+                get_surf_geom_variables(pastGMn)
+                get_surf_geom_variables(pastGMs)
+                get_surf_geom_variables(futureGMn)
+                get_surf_geom_variables(futureGMs)
+
+                check_edges(pastGMn,'North')
+                check_edges(pastGMs,'South')
+                check_edges(futureGMn,'North')
+                check_edges(futureGMs,'South')
+        analyze_ionosphere(zoneGMn,zoneGMs,**kwargs)
+
+
+def analyze_ionosphere(zoneNorth,zoneSouth,**kwargs):
+    eventtime = kwargs.get('eventtime')
+    dataset = zoneNorth.dataset
+    tp.active_frame().plot_type = PlotType.Cartesian3D
+    data_to_write={}
     #Analyze data
     if kwargs.get('integrate_line',False):
         # Create a dipole terminator zone
@@ -605,39 +720,40 @@ def get_ionosphere(dataset,**kwargs):
         north_ocflb = calc_ocflb_zone('ocflb',zoneNorth,hemi='North')
         south_ocflb = calc_ocflb_zone('ocflb',zoneSouth,hemi='South')
         # Port daynight mapping onto the ocflb zones
-        port_mapping_to_ie(north_ocflb,dataset.zone(0),**kwargs)
-        port_mapping_to_ie(south_ocflb,dataset.zone(0),**kwargs)
-        if kwargs.get('do_cms',False):
-            pass
-            #future_n_ocflb = calc_ocflb_zone('future_ocflb',futureNorth,
-            #                                 hemi='North')
-            #future_s_ocflb = calc_ocflb_zone('future_ocflb',futureSouth,
-            #                                 hemi='South')
-            #port_mapping_to_ie(future_n_ocflb,dataset.zone(0),**kwargs)
-            #port_mapping_to_ie(future_s_ocflb,dataset.zone(0),**kwargs)
-        if not kwargs.get('do_cms',False):
-            # Integrate along the contour boundary
-            line_results = line_tools.line_analysis(north_ocflb,**kwargs)
-            line_results['Time [UTC]'] = eventtime
-            data_to_write.update({zoneNorth.name+'_line':line_results})
-            line_results = line_tools.line_analysis(south_ocflb,**kwargs)
-            line_results['Time [UTC]'] = eventtime
-            data_to_write.update({zoneSouth.name+'_line':line_results})
+        if 'IE' in zoneNorth.name:
+            port_mapping_to_ie(north_ocflb,dataset.zone('global_field'),
+                               **kwargs)
+            port_mapping_to_ie(south_ocflb,dataset.zone('global_field'),
+                               **kwargs)
+        # Integrate along the contour boundary
+        line_results = line_tools.line_analysis(north_ocflb,**kwargs)
+        line_results['Time [UTC]'] = eventtime
+        data_to_write.update({zoneNorth.name+'_line':line_results})
+        line_results = line_tools.line_analysis(south_ocflb,**kwargs)
+        line_results['Time [UTC]'] = eventtime
+        data_to_write.update({zoneSouth.name+'_line':line_results})
     if kwargs.get('integrate_surface',False):
         for zone in [zoneNorth,zoneSouth]:
-            if kwargs.get('do_cms',False):
+            if kwargs.get('do_cms',False) and 'IE' in zoneNorth.name:
                 # Reversemap the changeFlux points to get daynight
                 surface_condition_map_to_ie(zone,'changeFlux',zoneGM,
                                             dataset.zone('future'),**kwargs)
+            '''
+            else:
+                # Find the places where Status changes
+                eq = tp.data.operate.execute_equation
+                old = str(dataset.zone('past'+zoneNorth).index+1)
+                new = str(dataset.zone('future'+zoneNorth).index+1)
+                eq('{changeFlux} = if(({}['+old+']<-1)&&'+
+                                     '({}['+new+']>-1),1,'+
+                                  'if(({RT 1/B [1/T]}['+new+']<-1)&&'+
+                                     '({RT 1/B [1/T]}['+old+']>-1),-1,0))',
+                                    zones=[zoneIEn])
+            '''
             #integrate power on created surface
             print('\nWorking on: '+zone.name+' surface')
-            surf_results = surface_tools.surface_analysis(zone,surfGeom=True,
-                                                          **kwargs)
-            if kwargs.get('do_central_diff',False):
-                surf_results['Time [UTC]'] = (eventtime+dt.timedelta(seconds=
-                                                    kwargs.get('tdelta',60)))
-            else:
-                surf_results['Time [UTC]'] = eventtime
+            surf_results = surface_tools.surface_analysis(zone,**kwargs)
+            surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
         data_to_write = surface_tools.post_proc(data_to_write,
                          do_interfacing=kwargs.get('do_interfacing',False))

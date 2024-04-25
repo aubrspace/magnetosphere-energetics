@@ -12,7 +12,8 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
-from global_energetics.extract.tec_tools import get_daymapped_nightmapped
+from global_energetics.extract.tec_tools import (get_daymapped_nightmapped,
+                                                 make_trade_eq)
 from global_energetics.extract.surface_tools import (energy_to_dB,
                                         get_open_close_integrands,
                                          get_interface_integrands,
@@ -217,27 +218,6 @@ def get_energy_integrands(state_var):
             energydict.update({name+state:name+' [J]'})
     return energydict
 
-def make_trade_eq(from_state,to_state,tagname,tstep):
-    """Creates the equation string and evaluates 'trade' state
-        Fix from states with [1] designating the currentzone
-        Fix to states with [2] designating the futurezone
-              Reverse for opposite sign
-
-          ex. if( dayclosed[now] & ext[future]) then +M5a[now]/dt
-              elif( dayclosed[future] & ext[now] then -M5a[future]/dt
-    Inputs
-        from_state,to_state (str(variablename))- denotes sign convention
-        tagname (str)- tag put on variable
-    Returns
-        tradestr (str)- equation to be used to evaluate equation
-    """
-
-    tradestr = ('if('+from_state.replace('}=','}[1]=')+'&&'+
-                     to_state.replace('}=','}[2]=')+',{value}[1]/'+tstep+','+
-                'if('+from_state.replace('}=','}[2]=')+'&&'+
-                     to_state.replace('}=','}[1]=')+',-1*{value}[2]/'+tstep+
-                                                                       ',0))')
-    return '{name'+tagname+'} = '+tradestr
 
 def get_volume_trades(zone,integrands,**kwargs):
     """Thinking in terms of volume element 'trades' we track the mobile
@@ -261,9 +241,10 @@ def get_volume_trades(zone,integrands,**kwargs):
     Returns
         trade_integrands
     """
-    tdelta = str(kwargs.get('tdelta',60))
-    if kwargs.get('do_central_diff',False):
-        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    #tdelta = str(kwargs.get('tdelta',60))
+    #if kwargs.get('do_central_diff',False):
+    #    tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    tdelta=str(kwargs.get('tdelta',60)*2)
     analysis_type = kwargs.get('analysis_type','')
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []

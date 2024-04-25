@@ -2212,6 +2212,7 @@ if __name__ == "__main__":
              'stretched_LOWnHIGHu',
              'stretched_HIGHnLOWu',
              'stretched_HIGHnHIGHu']
+             #'stretched_LOWnLOWu_continued']
 
     ## Analysis Data
     dataset = {}
@@ -2244,6 +2245,13 @@ if __name__ == "__main__":
                                         start=dataset[event]['time'][0],
                  end=dataset[event]['time'][-1]+dt.timedelta(seconds=1),
                                              read_supermag=False)
+    dataset['stretched_LOWnLOWu_continued'] = {}
+    dataset['stretched_LOWnLOWu_continued']['obs'] = read_indices(inLogs,
+                                        prefix='continued_LOWnLOWu_',
+                                        start=dt.datetime(2022,6,8,0),
+                                        end=dt.datetime(2022,6,9,0),
+                                             read_supermag=False)
+    from IPython import embed; embed()
     ######################################################################
     ##Quicklook timeseries figures
     initial_figures(dataset)

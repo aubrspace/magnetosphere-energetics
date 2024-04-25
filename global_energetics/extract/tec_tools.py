@@ -1265,6 +1265,9 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              kwargs.get('surface_unevaluated_type'),
                             ' without associated variables!')
         analysis_type = kwargs.get('surface_unevaluated_type')
+    #Throw-away variables, these will be overwritten each time
+    eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
+                                   zones=[zone])
     '''
     ##Throw-away variables, these will be overwritten each time
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered,
@@ -1282,8 +1285,6 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                              zones=[zone])
     eq('{Bz_cc}={B_z [nT]}', value_location=ValueLocation.CellCentered,
                              zones=[zone])
-    eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
-                                   zones=[zone])
     '''
     '''
     REMOVE THIS
@@ -1739,6 +1740,35 @@ def mag2gsm(lat,lon,btheta,*,r=1,**kwargs):
     #find new points by rotation
     return np.matmul(rot,[x_mag,y_mag,z_mag])
 
+def make_trade_eq(from_state,to_state,tagname,tstep,**kwargs):
+    """Creates the equation string and evaluates 'trade' state
+        Fix from states with [1] designating the currentzone
+        Fix to states with [2] designating the futurezone
+              Reverse for opposite sign
+
+          ex. if( dayclosed[now] & ext[future]) then +M5a[now]/dt
+              elif( dayclosed[future] & ext[now] then -M5a[future]/dt
+    Inputs
+        from_state,to_state (str(variablename))- denotes sign convention
+        tagname (str)- tag put on variable
+        kwargs:
+            source_list (list[int])- ordered list w index of [past,pres,futr]
+    Returns
+        tradestr (str)- equation to be used to evaluate equation
+    """
+    #NOTE this assumes past, present, future are zones 1,2,3 (tecplot indexing)
+    source_list = kwargs.get('source_list',[1,2,3])
+    past = '['+str(source_list[0])+']'
+    present = '['+str(source_list[1])+']'
+    future = '['+str(source_list[2])+']'
+    tradestr = ('if('+from_state.replace('}','}'+past)+'&&'+
+                     to_state.replace('}','}'+future)+
+                     ',{value}'+present+'/'+tstep+','+
+                'if('+from_state.replace('}','}'+future)+'&&'+
+                     to_state.replace('}','}'+past)+
+                     ',-1*{value}'+present+'/'+tstep+',0))')
+    return '{name'+tagname+'} = '+tradestr
+
 def eqeval(eqset,**kwargs):
     for lhs,rhs in eqset.items():
         tp.data.operate.execute_equation(lhs+'='+rhs,
@@ -2051,7 +2081,7 @@ def calc_state(mode, zones, **kwargs):
     """
     #####################################################################
     #   This is where new subzones/surfaces can be put in
-    #       To create a function calc_MYNEWSURF_state and call it
+    #       Create a function calc_MYNEWSURF_state and call it
     #       Recommend: zonename as input so variable name is automated
     #       See example use of 'assert' if any pre_recs are needed
     #####################################################################
@@ -2260,7 +2290,7 @@ def calc_state(mode, zones, **kwargs):
                                        variables=[3,4,5,6,7,8,9,10,11,12,13])
         #       4. recalculate derived (global) variables
         get_global_variables(ds, kwargs.get('analysis_type'),
-                             aux=upstream.dataset.zone(0).aux_data,
+                          aux=upstream.dataset.zone('global_field').aux_data,
                              modes=kwargs.get('modes',[]),zones=[downstream])
         return upstream, downstream, state_index
     elif 'Jpar' in mode:
@@ -2289,9 +2319,10 @@ def calc_state(mode, zones, **kwargs):
                                      zonename+'innerbound',blankvar='')
         #PALEO update subsolar point
         new_subsolar = zone.values('X *').max()
-        if new_subsolar>float(zones[0].aux_data['x_subsolar']):
-            print('x_subsolar updated to {}'.format(new_subsolar))
-            zones[0].aux_data['x_subsolar'] = new_subsolar
+        if 'x_subsolar' in zones[0].aux_data:
+            if new_subsolar>float(zones[0].aux_data['x_subsolar']):
+                print('x_subsolar updated to {}'.format(new_subsolar))
+                zones[0].aux_data['x_subsolar'] = new_subsolar
     elif kwargs.get('create_zone',True):
         if kwargs.get('keep_zones')=='all':
             newzones = setup_isosurface(iso_value, state_index,
@@ -2477,6 +2508,7 @@ def calc_ocflb_zone(name,source,**kwargs):
     plot.contour(0).levels.add(contour_level+contour_offset)
     # Adjust the field map to show contour LINE so we can then extract
     fieldmap = plot.fieldmap(source.index)#NOTE assume fieldmap-zonelist match
+    fieldmap.show = True
     fieldmap.contour.show = True
     fieldmap.contour.contour_type = ContourType.Lines
     zones = tp.macro.execute_command('$!CreateContourLineZones '+

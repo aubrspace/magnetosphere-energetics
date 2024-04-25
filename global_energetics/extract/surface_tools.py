@@ -18,6 +18,7 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,
                                                   get_surf_geom_variables,
                                                 get_daymapped_nightmapped,
                                             get_surface_velocity_estimate,
+                                                    make_trade_eq,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
@@ -914,37 +915,45 @@ def get_virial_dict(zone):
     '''
     return virial_dict
 
-def get_traded_dict(zone,**kwargs):
-    daynight_dict, eq = {}, tp.data.operate.execute_equation
-    tdelta = str(kwargs.get('tdelta',60))
-    if kwargs.get('do_central_diff',False):
-        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
-    qty = 'abs({Bf_net [Wb/Re^2]})'
-    eq('{Bf_netDay} = if({daynight}==1,{changeFlux}*'+qty+'/'+tdelta+',0)',
-                                                                 zones=[zone])
-    eq('{Bf_netNight} = if({daynight}<1,{changeFlux}*'+qty+'/'+tdelta+',0)',
-                                                                 zones=[zone])
-    return {'Bf_netDay':'Bf_netDay [Wb/s]',
-            'Bf_netNight':'Bf_netNight [Wb/s]'}
-
 def get_surface_trades(zone,integrands,**kwargs):
-    tdelta = str(kwargs.get('tdelta',60))
-    if kwargs.get('do_central_diff',False):
-        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    """Creates dictionary of terms representing time varying surface bounds
+
+    ex. Dayside reconnection expands the open flux in the north lobe, then
+        we find the cells which
+
+            were:               'closed north dayside' status
+            will be:            'open' status
+            evaluated:          (now in time)
+
+        this trade represents the present flux that is actively being
+        converted from 'closed dayside' to 'open'
+
+    Inputs
+        zone
+        integrands
+        kwargs:
+            source_list
+    Returns
+        trade_integrands
+    """
+    tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
     analysis_type = kwargs.get('analysis_type','')
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []
-    state_name = kwargs.get('state_var').name
+    useIntegrand_keys = [k for k in integrands.keys() if '[' in k]
+    useIntegrands = {}
+    for key in useIntegrand_keys:
+        useIntegrands[key] = integrands[key]
     # Define state strings
-    dayclosed = '({daynight}==1&&{Status}==3)'
-    nightclosed = '({daynight}==-1&&{Status}==3)'
-    lobe = '({Status}==2||{Status==1})'
+    dayclosed = '({daynight}==1&&{status_cc}==3)'
+    nightclosed = '({daynight}<1&&{status_cc}==1)'
+    lobe = '({status_cc}==2||{status_cc}==1)'
     #M2a    from  lobe     ->  dayclosed
     #M2b    from  lobe     ->  nightclosed
-    tradelist.append(make_trade_eq(lobe,dayclosed,'M2a',tdelta))
-    tradelist.append(make_trade_eq(lobe,nightclosed,'M2b',tdelta))
+    tradelist.append(make_trade_eq(lobe,dayclosed,'M2a',tdelta,**kwargs))
+    tradelist.append(make_trade_eq(lobe,nightclosed,'M2b',tdelta,**kwargs))
     # Evaluate all equations and update the integrands for return
-    for varstr,name in integrands.items():
+    for varstr,name in useIntegrands.items():
         for tradestr in tradelist:
             qty,unit = name.split(' ')
             tradetag = tradestr.split('{name')[1].split('}')[0]
@@ -956,11 +965,19 @@ def get_surface_trades(zone,integrands,**kwargs):
             elif unit=='[Wb]':
                 newunit = '[Wb/s]'
             try:
-                eq(new_eq,zones=[zone],value_location=ValueLocation.Nodal)
+                eq(new_eq,zones=[zone],
+                   value_location=ValueLocation.CellCentered)
                 trade_integrands[qty+tradetag]=' '.join([qty+tradetag,newunit])
-            except TecplotLogicError as err:
-                print('Equation eval failed!\n',new_eq,'\n')
-                if kwargs.get('debug',False): print(err)
+            #except TecplotLogicError as err:
+            #    print('Equation eval failed!\n',new_eq,'\n')
+            #    if kwargs.get('debug',False): print(err)
+            except:
+                from IPython import embed; embed()
+    #TODO
+    #   Figure out why north hemi is pulling zeros for M2a/M2b
+    #   Switch from daynight + status => daynight 1->0 vs (-1)->0 etc.
+    #   What todo about daynight 1->(-1) and inverse??
+    #   Maybe need daynight_cc, the values are already interpolated anyway...
     return trade_integrands
 
 def surface_analysis(zone, **kwargs):
@@ -1028,11 +1045,20 @@ def surface_analysis(zone, **kwargs):
         if 'innerbound' in zone.name and kwargs.get('doLowLat',False):
             integrands.update(get_low_lat_integrands(zone, integrands,
                                                      **kwargs))
-        if 'ionosphere' in zone.name and kwargs.get('doOpenClose',True):
-            integrands.update(get_open_close_integrands(zone, integrands))
+        if 'iono' in zone.name and kwargs.get('doOpenClose',True):
+            #integrands.update(get_open_close_integrands(zone, integrands))
+            openclose_integrands = get_open_close_integrands(zone, integrands)
             if kwargs.get('do_cms',False):
-                #get_surface_trades(zone,integrands,**kwargs)
-                integrands.update(get_traded_dict(zone,**kwargs))
+                # Calcluate the same geom/surf terms on the past/future zones
+                pastzone = zone.dataset.zone('past'+zone.name)
+                futurezone = zone.dataset.zone('future'+zone.name)
+                source_list=[pastzone.index+1,zone.index+1,futurezone.index+1]
+                get_surface_variables(pastzone, analysis_type, **kwargs)
+                get_surface_variables(futurezone, analysis_type, **kwargs)
+                # Find the surface 'trade integrals'
+                integrands.update(get_surface_trades(zone,integrands,
+                                                     source_list=source_list))
+            integrands.update(openclose_integrands)
     ###################################################################
     #Evaluate integrals
     if kwargs.get('verbose',False):

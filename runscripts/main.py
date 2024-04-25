@@ -127,55 +127,62 @@ if __name__ == "__main__":
 
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
-            key=makevideo.time_sort)[0:1]
+                      key=makevideo.time_sort)
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist):
-    #k=0
-    #f='febstorm/3d__var_1_e20140219-055500-008.plt'
-        filetime = makevideo.get_time(f)
-        #futuretime = makevideo.get_time(filelist[1])
+    #for k,f in enumerate(filelist):
+    if True:
+        f = filelist[1]
+        pastime = makevideo.get_time(filelist[0])
+        filetime = makevideo.get_time(filelist[1])
+        futuretime = makevideo.get_time(filelist[2])
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            mhddatafile = f
+            mhddatafiles = filelist
             #python objects
-            field_data = tp.data.load_tecplot(mhddatafile)
-            #field_data = tp.data.load_tecplot(filelist[0:1])
-            field_data.zone(0).name = 'global_field'
-            if len(field_data.zone_names)>1:
+            field_data = tp.data.load_tecplot(mhddatafiles)
+            if len(field_data.zone_names)==3:
+                field_data.zone(0).name = 'past'
+                field_data.zone(1).name = 'global_field'
+                field_data.zone(2).name = 'future'
+            elif len(field_data.zone_names)==2:
+                field_data.zone(0).name = 'global_field'
                 field_data.zone(1).name = 'future'
+            else:
+                field_data.zone(0).name = 'global_field'
             main = tp.active_frame()
             main.name = 'main'
 
             #Perform data extraction
             with tp.session.suspend():
                 #TODO: trace down issue with using starlink file
-                #       From brief look, it seems the plasma sheet is super kinked
-                #       View ideas
-                #           plasmasheet with Ux plotted
-                #           plasmasheet with Kx plotted
-                #           plasmasheet with Knormal plotted
-                #           translucent lobes and closed region to get a sense of shape
-                #               with FFJ green blobs to see what the X line is doing
+                #   From brief look, it seems the plasma sheet is super kinked
+                #   View ideas
+                #       plasmasheet with Ux plotted
+                #       plasmasheet with Kx plotted
+                #       plasmasheet with Knormal plotted
+                #       translucent lobes and closed region to get a sense of
+                #        shape
+                #       with FFJ green blobs to see what the X line is doing
                 # GM data
                 _,results = magnetosphere.get_magnetosphere(field_data,
                                                         save_mesh=False,
                                                         write_data=True,
                                                         disp_result=True,
                                     verbose=True,
-                                    do_cms=False,
-                                    do_central_diff=False,
+                                    do_cms=True,
                                     analysis_type='energy_mass_mag_plasmoid',
-                                    modes=['iso_betastar','closed',
-                                           'nlobe','slobe','plasmasheet'],
-                                    inner_r=4,
+                                    modes=['iso_betastar'],
+                                    #['iso_betastar','closed',
+                                    #       'nlobe','slobe','plasmasheet'],
+                                    #inner_r=3,
                                     customTerms={'test':'TestArea [Re^2]'},
-                                    do_interfacing=True,
+                                    do_interfacing=False,
                                     tail_cap=-120,
                                     integrate_surface=True,
                                     integrate_volume=True,
@@ -185,7 +192,8 @@ if __name__ == "__main__":
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
                 ionosphere.read_maggrid_tec('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.tec')
                 do_north, do_south = False, False
-                if os.path.exists(iedatafile):
+                #if os.path.exists(iedatafile):
+                if True:
                     # IE data
                     dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
@@ -212,11 +220,9 @@ if __name__ == "__main__":
                                               integrate_surface=True,
                                               integrate_line=False,
                                               integrate_contour=True,
-                                              do_interfacing=False,
-                                              do_cms=False,
-                                              do_central_diff=False,
+                                              do_cms=True,
                                               outputpath=outpath)
-                if True:
+                if False:
                     '''
                     for i,style in enumerate([
                                   #['cosmetic/plasmasheet_transparent_closed_mp.sty'],
