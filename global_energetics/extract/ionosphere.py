@@ -22,6 +22,7 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,mag2gsm,
                                                     calc_terminator_zone,
                                                     calc_ocflb_zone,
                                                     setup_isosurface,
+                                                pass_time_adjacent_variables,
                                                     get_surf_geom_variables,
                                                     get_global_variables)
 from global_energetics.extract.equations import (get_dipole_field)
@@ -636,6 +637,10 @@ def get_ionosphere(dataset,**kwargs):
                                  **kwargs)
                 reversed_mapping(dataset.zone('future'),'trace_limits',
                                  **kwargs)
+                # Pass past and future info from zones
+                pass_time_adjacent_variables(dataset.zone('past'),
+                                             zoneGM,
+                                             dataset.zone('future'),**kwargs)
         # Create 'ionosphere' north south out of hemi sphere
         zoneGMn = setup_isosurface(kwargs.get('inner_r',3),
                                      dataset.variable('r *').index,
@@ -651,6 +656,31 @@ def get_ionosphere(dataset,**kwargs):
                                      blankop=RelOp.GreaterThan)
     # Prepare past and future zones
     if kwargs.get('do_cms',False):
+        pass
+        #TODO:
+        #   1-1 correspondence is lost between past and future extracted zones
+        #   Instead write a function that brings in variables from p/f
+        #       status_past
+        #       status_future
+        #       daynight_past
+        #       daynight_future
+        #       If 'mag' in analysis_type:
+        #           Bf_x_past [Wb/Re^2]
+        #           Bf_y_past [Wb/Re^2]
+        #           Bf_z_past [Wb/Re^2]
+        #           Bf_x_future [Wb/Re^2]
+        #           Bf_y_future [Wb/Re^2]
+        #           Bf_z_future [Wb/Re^2]
+        #   Then in get_surface_variables
+        #       Recalc:
+        #           Bf_past [Wb/Re^2]
+        #           Bf_future [Wb/Re^2]
+        #   Then integration is:
+        #       dBfdt = int_(open){(Bf_future - Bf_past)/(2*dt)}
+        #           or  int_(around loop){(u x l)Bf}
+        #       dBfdt_motion_day = int_(day->open){Bf/(2*dt)}
+        #       dBfdt_motion_night = int_(night->open){Bf/(2*dt)}
+        '''
         pastGMn = setup_isosurface(kwargs.get('inner_r',3),
                                      dataset.variable('r *').index,
                                      'pastGMionoNorth',
@@ -679,6 +709,7 @@ def get_ionosphere(dataset,**kwargs):
                                      blankvalue=0,
                                      blankop=RelOp.GreaterThan,
                                      global_key='future')
+        '''
     # Send prepped zones in for analysis
     if kwargs.get('useGM',True):
         if kwargs.get('integrate_surface',False):
@@ -686,6 +717,9 @@ def get_ionosphere(dataset,**kwargs):
             get_surf_geom_variables(zoneGMs)
             check_edges(zoneGMn,'North')
             check_edges(zoneGMs,'South')
+            eq('{daynight_cc}={daynight}',zones=[zoneGMn,zoneGMs],
+                                    value_location=ValueLocation.CellCentered)
+            '''
             if kwargs.get('do_cms',False):
                 get_surf_geom_variables(pastGMn)
                 get_surf_geom_variables(pastGMs)
@@ -696,6 +730,10 @@ def get_ionosphere(dataset,**kwargs):
                 check_edges(pastGMs,'South')
                 check_edges(futureGMn,'North')
                 check_edges(futureGMs,'South')
+                eq('{daynight_cc}={daynight}',zones=[pastGMn,pastGMs,
+                                                 futureGMn,futureGMs],
+                                    value_location=ValueLocation.CellCentered)
+            '''
         analyze_ionosphere(zoneGMn,zoneGMs,**kwargs)
 
 

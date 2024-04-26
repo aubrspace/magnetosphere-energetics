@@ -945,9 +945,9 @@ def get_surface_trades(zone,integrands,**kwargs):
     for key in useIntegrand_keys:
         useIntegrands[key] = integrands[key]
     # Define state strings
-    dayclosed = '({daynight}==1&&{status_cc}==3)'
-    nightclosed = '({daynight}<1&&{status_cc}==1)'
-    lobe = '({status_cc}==2||{status_cc}==1)'
+    dayclosed = '({daynight_cc}>0)'
+    nightclosed = '({daynight_cc}<0)'
+    lobe = '({daynight_cc}==0 && ({status_cc}==1 || {status_cc}==2))'
     #M2a    from  lobe     ->  dayclosed
     #M2b    from  lobe     ->  nightclosed
     tradelist.append(make_trade_eq(lobe,dayclosed,'M2a',tdelta,**kwargs))

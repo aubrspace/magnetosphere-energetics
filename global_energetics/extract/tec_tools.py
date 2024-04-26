@@ -732,6 +732,25 @@ def get_surface_velocity_estimate(field_data, currentindex, futureindex,*,
                                                             'ID'].values
     field_data.zone(futureindex).values('SectorID')[::]=future_mesh[
                                                             'ID'].values
+
+def pass_time_adjacent_variables(past,present,future,**kwargs):
+    """Function passes variables between past-present-future zones
+    NOTE: This assumes that all three zones have IDENTICAL STRUCTURE
+    Inputs
+        past, present, future
+        kwargs
+            analysis_type
+    Returns
+        None
+    """
+    from IPython import embed; embed()
+    #TODO pass the following from the past and future zones:
+    #status
+    #daynight
+    # if mag:
+    #   Bf_xyz
+    eq
+
 def get_surf_geom_variables(zone,**kwargs):
     """Function calculates variables for new zone based only on geometry,
         independent of what analysis will be performed on surface
