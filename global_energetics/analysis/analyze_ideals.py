@@ -2143,10 +2143,11 @@ def initial_figures(dataset):
         print(run)
         ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
         if 'iedict' in dataset[run].keys():
-            ev2 = ie_refactor(dataset[run]['iedict'],dt.datetime(2022,6,6,0))
-            for key in ev2.keys():
-                ev[key] = ev2[key]
-        events[run] = build_events(ev,run)
+            #ev2 = ie_refactor(dataset[run]['iedict'],dt.datetime(2022,6,6,0))
+            #for key in ev2.keys():
+            #    ev[key] = ev2[key]
+            pass
+        #events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
@@ -2211,8 +2212,8 @@ if __name__ == "__main__":
              'stretched_LOWnLOWu',
              'stretched_LOWnHIGHu',
              'stretched_HIGHnLOWu',
-             'stretched_HIGHnHIGHu']
-             #'stretched_LOWnLOWu_continued']
+             'stretched_HIGHnHIGHu',
+             'stretched_LOWnLOWucontinued']
 
     ## Analysis Data
     dataset = {}
@@ -2240,18 +2241,16 @@ if __name__ == "__main__":
 
     ## Log Data
     for event in events:
-        prefix = event.split('_')[-1]+'_'
+        prefix = event.split('_')[1]+'_'
         dataset[event]['obs'] = read_indices(inLogs,prefix=prefix,
                                         start=dataset[event]['time'][0],
                  end=dataset[event]['time'][-1]+dt.timedelta(seconds=1),
                                              read_supermag=False)
-    dataset['stretched_LOWnLOWu_continued'] = {}
-    dataset['stretched_LOWnLOWu_continued']['obs'] = read_indices(inLogs,
-                                        prefix='continued_LOWnLOWu_',
-                                        start=dt.datetime(2022,6,8,0),
-                                        end=dt.datetime(2022,6,9,0),
-                                             read_supermag=False)
-    from IPython import embed; embed()
+    #dataset['stretched_LOWnLOWu_continued']['obs'] = read_indices(inLogs,
+    #                                    prefix='continued_LOWnLOWu_',
+    #                                    start=dt.datetime(2022,6,8,0),
+    #                                    end=dt.datetime(2022,6,9,0),
+    #                                         read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures
     initial_figures(dataset)

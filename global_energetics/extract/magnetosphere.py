@@ -388,11 +388,11 @@ def generate_3Dobj(sourcezone, **kwargs):
         zonelist (list[Zone])- list of tp Zone objects of whats generated.
             This useful so we know where to apply SURFACE equations and
             integration operations.
-        state_indices (list[VariableIndex])- list of tp Variable Index's.
+        state_names (list[str])- list of tp Variable Index's.
             This used to apply conditions to achieve VOLUME integrations
         kwargs- we modify at least one arg depending on settings
     """
-    zonelist, zonelist1D, state_indices = [], [], []
+    zonelist, zonelist1D, state_names = [], [], []
     if kwargs=={}: print('Generating default zones:\n\t'+
                          'mode=iso_betastar\n\tanalysis_type=energy')
 
@@ -426,6 +426,7 @@ def generate_3Dobj(sourcezone, **kwargs):
     #Create the tecplot objects from the source and store into lists
     for m in modes:
         zone,inner_zone,state_index=calc_state(m, sources,**kwargs)
+        state_name = zone.dataset.variable(state_index).name
         if (type(zone)!=type(None)or type(inner_zone)!=type(None)):
             if 'zone_rename' in kwargs:
                 zone.name = kwargs.get('zone_rename','')+'_'+m
@@ -435,10 +436,10 @@ def generate_3Dobj(sourcezone, **kwargs):
                 kwargs.update({'zonelist1D':zonelist1D})
             else:
                 zonelist.append(zone)
-                state_indices.append(state_index)
+                state_names.append(state_name)
                 if 'bs' in kwargs.get('modes',[]):
                     zonelist.append(inner_zone)
-                    state_indices.append(state_index)
+                    state_names.append(state_name)
                     get_surf_geom_variables(inner_zone,**kwargs)
                 if 'modes' in kwargs:
                     get_surf_geom_variables(zone,**kwargs)
@@ -454,7 +455,7 @@ def generate_3Dobj(sourcezone, **kwargs):
 
     #Update kwargs dictionary rather than return
     kwargs.update({'zonelist':zonelist})
-    kwargs.update({'state_indices':state_indices})
+    kwargs.update({'state_names':state_names})
 
     return kwargs #NOTE variable return based on what zones are made!
 
@@ -591,7 +592,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     #TODO add in the 1D objects as zones as well
     kwargs = generate_3Dobj(globalzone, **kwargs)
     zonelist = kwargs.get('zonelist')
-    state_indices = kwargs.get('state_indices')
+    state_names = kwargs.get('state_names')
     #timestamp
     ltime = time.time()-start_time
     print('GEN3D--- {:d}min {:.2f}s ---'.format(int(ltime/60),
@@ -673,11 +674,11 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                            np.mod(ltime,60)))
     ################################################################
     if integrate_volume:
-        for i,state_index in enumerate(state_indices):
-            if not 'Br ' in field_data.variable(state_index).name:
+        for i,state in enumerate(state_names):
+            if not 'Br ' in state:
                 region = zonelist[i]
                 print('\nWorking on: '+region.name+' volume')
-                energies = volume_analysis(field_data.variable(state_index),
+                energies = volume_analysis(field_data.variable(state),
                                        **kwargs)
                 '''
                 if kwargs.get('do_central_diff',False):
@@ -785,10 +786,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if save_mesh:
         #save mesh to hdf file
-        for state_index in enumerate(state_indices):
-            region = zonelist[state_index[0]]
+        for state in enumerate(state_names):
+            region = zonelist[0]
             meshvalues = pd.DataFrame()
-            for var in [m for m in savemeshvars.values()][state_index[0]]:
+            for var in [m for m in savemeshvars.values()][0]:
                 usename = var.split(' ')[0]+'*'
                 meshvalues[var] = region.values(usename).as_numpy_array()
             mp_mesh.update({region.name:meshvalues})

@@ -249,16 +249,20 @@ def trace_status(points,zone,hemi,**kwargs):
     Returns
     """
     eq =  tp.data.operate.execute_equation
+    pre = kwargs.get('prefix','')
     # set vector settings
-    tp.active_frame().plot().vector.u_variable = zone.dataset.variable('B_x *')
-    tp.active_frame().plot().vector.v_variable = zone.dataset.variable('B_y *')
-    tp.active_frame().plot().vector.w_variable = zone.dataset.variable('B_z *')
+    tp.active_frame().plot().vector.u_variable = zone.dataset.variable(
+                                                                  pre+'B_x *')
+    tp.active_frame().plot().vector.v_variable = zone.dataset.variable(
+                                                                  pre+'B_y *')
+    tp.active_frame().plot().vector.w_variable = zone.dataset.variable(
+                                                                  pre+'B_z *')
     field_line = tp.active_frame().plot().streamtraces
     stat_var = kwargs.get('stat_var','Status')
     if '_cc' in stat_var:
-        x = zone.values('x_cc2').as_numpy_array()
-        y = zone.values('y_cc2').as_numpy_array()
-        z = zone.values('z_cc2').as_numpy_array()
+        x = zone.values('x_cc').as_numpy_array()
+        y = zone.values('y_cc').as_numpy_array()
+        z = zone.values('z_cc').as_numpy_array()
     else:
         x = zone.values('X *').as_numpy_array()
         y = zone.values('Y *').as_numpy_array()
@@ -275,7 +279,7 @@ def trace_status(points,zone,hemi,**kwargs):
         if True:
             # Find the location in the target_zone
             index = int(np.where((x==p[0])&(y==p[1])&(z==p[2]))[0][0])
-            field_line.add(seed_point=p, direction=direction,
+            zone,field_line.add(seed_point=p, direction=direction,
                            stream_type=Streamtrace.VolumeLine)
             field_line.extract()
             field_line.delete_all()
@@ -506,25 +510,24 @@ def check_edges(zone,hemi,**kwargs):
     """
     """
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
-    stat_var = kwargs.get('stat_var','Status_cc')
+    stat_var = kwargs.get('stat_var','status_cc')
     status = zone.values(stat_var).as_numpy_array()
     if hemi=='North':
         check_indices = np.where((status>2.01)&(status<2.99))[0]
     elif hemi=='South':
         check_indices = np.where((status>1.01)&(status<2.99))[0]
     if 'cc' in stat_var:
-        eq('{x_cc2}={X [R]}',value_location=CC,zones=[zone])
-        eq('{y_cc2}={Y [R]}',value_location=CC,zones=[zone])
-        eq('{z_cc2}={Z [R]}',value_location=CC,zones=[zone])
-        x = zone.values('x_cc2').as_numpy_array()[check_indices]
-        y = zone.values('y_cc2').as_numpy_array()[check_indices]
-        z = zone.values('z_cc2').as_numpy_array()[check_indices]
+        x = zone.values('x_cc').as_numpy_array()[check_indices]
+        y = zone.values('y_cc').as_numpy_array()[check_indices]
+        z = zone.values('z_cc').as_numpy_array()[check_indices]
     else:
         x = zone.values('X *').as_numpy_array()[check_indices]
         y = zone.values('Y *').as_numpy_array()[check_indices]
         z = zone.values('Z *').as_numpy_array()[check_indices]
     points = list(zip(x,y,z))
-    trace_status(points,zone,hemi,stat_var=kwargs.get('stat_var','Status_cc'))
+    trace_status(points,zone,hemi,stat_var=kwargs.get('stat_var','Status_cc'),
+                                  prefix=kwargs.get('prefix',''))
+    '''
     # Boost the Status signal post interpolation for firm discrete states
     if hemi=='North':
         eq('{'+stat_var+'old2} = {'+stat_var+'}',zones=[zone])
@@ -532,6 +535,7 @@ def check_edges(zone,hemi,**kwargs):
     elif hemi=='South':
         eq('{'+stat_var+'_old2} = {'+stat_var+'}',zones=[zone])
         eq('{'+stat_var+'} = if({'+stat_var+'}<2.9,1,3)',zones=[zone])
+    '''
 
 def validate_zones(dataset,**kwargs):
     """ Function checks available zones with given parameters
@@ -654,10 +658,14 @@ def get_ionosphere(dataset,**kwargs):
                                      blankvar='Zd*',
                                      blankvalue=0,
                                      blankop=RelOp.GreaterThan)
+        # Create Open Closed Field Line Boundary zone
+        north_ocflb = calc_ocflb_zone('ocflb',zoneGMn,hemi='North')
+        south_ocflb = calc_ocflb_zone('ocflb',zoneGMs,hemi='South')
     # Prepare past and future zones
-    if kwargs.get('do_cms',False):
-        pass
-        #TODO:
+    #if kwargs.get('do_cms',False):
+    #   from IPython import embed; embed()
+    #   pass
+    #   #TODO:
         #   1-1 correspondence is lost between past and future extracted zones
         #   Instead write a function that brings in variables from p/f
         #       status_past
@@ -713,31 +721,37 @@ def get_ionosphere(dataset,**kwargs):
     # Send prepped zones in for analysis
     if kwargs.get('useGM',True):
         if kwargs.get('integrate_surface',False):
-            get_surf_geom_variables(zoneGMn)
+            get_surf_geom_variables(zoneGMn,zonelist=[zoneGMn,zoneGMs,
+                                                      north_ocflb,
+                                                      south_ocflb])
             get_surf_geom_variables(zoneGMs)
             check_edges(zoneGMn,'North')
             check_edges(zoneGMs,'South')
-            eq('{daynight_cc}={daynight}',zones=[zoneGMn,zoneGMs],
+            eq('{daynight_cc}={daynight}',zones=[zoneGMn,zoneGMs,
+                                                      north_ocflb,
+                                                      south_ocflb],
                                     value_location=ValueLocation.CellCentered)
-            '''
             if kwargs.get('do_cms',False):
-                get_surf_geom_variables(pastGMn)
-                get_surf_geom_variables(pastGMs)
-                get_surf_geom_variables(futureGMn)
-                get_surf_geom_variables(futureGMs)
-
-                check_edges(pastGMn,'North')
-                check_edges(pastGMs,'South')
-                check_edges(futureGMn,'North')
-                check_edges(futureGMs,'South')
-                eq('{daynight_cc}={daynight}',zones=[pastGMn,pastGMs,
-                                                 futureGMn,futureGMs],
+                check_edges(zoneGMn,'North',stat_var='paststatus_cc',
+                                            prefix='past')
+                check_edges(zoneGMs,'South',stat_var='paststatus_cc',
+                                            prefix='past')
+                check_edges(zoneGMn,'North',stat_var='futurestatus_cc',
+                                            prefix='future')
+                check_edges(zoneGMs,'South',stat_var='futurestatus_cc',
+                                            prefix='future')
+                eq('{pastdaynight_cc}={pastdaynight}',zones=[zoneGMn,zoneGMs,
+                                                      north_ocflb,
+                                                      south_ocflb],
                                     value_location=ValueLocation.CellCentered)
-            '''
-        analyze_ionosphere(zoneGMn,zoneGMs,**kwargs)
+                eq('{futuredaynight_cc}={futuredaynight}',
+                                    zones=[zoneGMn,zoneGMs,
+                                           north_ocflb,south_ocflb],
+                                    value_location=ValueLocation.CellCentered)
+        analyze_ionosphere(zoneGMn,zoneGMs,north_ocflb,south_ocflb,**kwargs)
 
 
-def analyze_ionosphere(zoneNorth,zoneSouth,**kwargs):
+def analyze_ionosphere(zoneNorth,zoneSouth,north_ocflb,south_ocflb,**kwargs):
     eventtime = kwargs.get('eventtime')
     dataset = zoneNorth.dataset
     tp.active_frame().plot_type = PlotType.Cartesian3D
@@ -754,9 +768,6 @@ def analyze_ionosphere(zoneNorth,zoneSouth,**kwargs):
                                                 #stat_var='Status_cc',
                                                 sp_rmax=1,ionosphere=True)
     if kwargs.get('integrate_contour',False):
-        # Create Open Closed Field Line Boundary zone
-        north_ocflb = calc_ocflb_zone('ocflb',zoneNorth,hemi='North')
-        south_ocflb = calc_ocflb_zone('ocflb',zoneSouth,hemi='South')
         # Port daynight mapping onto the ocflb zones
         if 'IE' in zoneNorth.name:
             port_mapping_to_ie(north_ocflb,dataset.zone('global_field'),
@@ -790,7 +801,8 @@ def analyze_ionosphere(zoneNorth,zoneSouth,**kwargs):
             '''
             #integrate power on created surface
             print('\nWorking on: '+zone.name+' surface')
-            surf_results = surface_tools.surface_analysis(zone,**kwargs)
+            surf_results = surface_tools.surface_analysis(zone,**kwargs,
+                                            zonelist=[zoneNorth,zoneSouth])
             surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
         data_to_write = surface_tools.post_proc(data_to_write,

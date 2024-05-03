@@ -79,13 +79,22 @@ def energetics_analysis(infiles,outpath):
     #python objects
     #oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
     oggridfile = ''
+    pastime = makevideo.get_time(filelist[0])
+    filetime = makevideo.get_time(filelist[1])
+    futuretime = makevideo.get_time(filelist[2])
     field_data = tp.data.load_tecplot(infiles)
-    filetime = makevideo.get_time(infiles[0])
-    futuretime = makevideo.get_time(infiles[1])
-    outputname = infiles[0].split('e')[-1].split('.plt')[0]
-    field_data.zone(0).name = 'global_field'
-    if len(field_data.zone_names)>1:
+    outputname = infiles[1].split('e')[-1].split('.plt')[0]
+    #python objects
+    field_data = tp.data.load_tecplot(mhddatafiles)
+    if len(field_data.zone_names)==3:
+        field_data.zone(0).name = 'past'
+        field_data.zone(1).name = 'global_field'
+        field_data.zone(2).name = 'future'
+    elif len(field_data.zone_names)==2:
+        field_data.zone(0).name = 'global_field'
         field_data.zone(1).name = 'future'
+    else:
+        field_data.zone(0).name = 'global_field'
     main = tp.active_frame()
     main.name = 'main'
 
@@ -96,9 +105,8 @@ def energetics_analysis(infiles,outpath):
                                       write_data=True,
                                       disp_result=True,
                                       do_cms=True,
-                                      do_central_diff=True,
                                       do_1Dsw=False,
-                                      analysis_type='energy_mass_mag',
+                                      analysis_type='energy_mass_mag_plasmoid',
                                       tail_cap=-120,
                                       #modes=['sphere'],
                                       #sp_rmax=10,
@@ -107,11 +115,10 @@ def energetics_analysis(infiles,outpath):
                                       modes=['iso_betastar','closed',
                                              'nlobe','slobe','plasmasheet'],
                                       #modes=['xslice'],
-                                      inner_r=4,
                                       customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
-                                      integrate_surface=False,
+                                      integrate_surface=True,
                                       integrate_volume=True,
                                       truegridfile=oggridfile,
                                       verbose=True,
@@ -146,10 +153,8 @@ def energetics_analysis(infiles,outpath):
                                               analysis_type='mag',
                                               integrate_surface=True,
                                               integrate_line=False,
-                                              integrate_contour=False,
-                                              do_interfacing=False,
+                                              integrate_contour=True,
                                               do_cms=True,
-                                              do_central_diff=True,
                                               outputpath=outpath)
     print(os.path.join(outpath,'png',outputname+'.png'))
     with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:

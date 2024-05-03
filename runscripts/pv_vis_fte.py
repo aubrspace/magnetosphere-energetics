@@ -48,7 +48,7 @@ if True:
                                                        path=herepath,
                                                        ffj=False,
                                                        doFTE=True,
-                                                       doEnergyFlux=False)
+                                                       doEnergyFlux=True)
         #TODO Create the following static images:
         #   1. Image of the grid next to identified FTE in slice
         #   2. Image of 3D field line traces of FTE next to iso volume of FTE
@@ -58,7 +58,7 @@ if True:
         # Adjust visuals
         SetActiveView(renderView1)
         display_visuals(field,mp,renderView1,doSlice=True,doFluxVol=False,
-                        fontsize=20,localtime=localtime,
+                        fontsize=40,localtime=localtime,
                         #mpContourBy='B_x_nT',
                         #    contourMin=-5,
                         #    contourMax=5,

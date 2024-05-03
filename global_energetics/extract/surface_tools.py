@@ -19,6 +19,7 @@ from global_energetics.extract.tec_tools import (integrate_tecplot,
                                                 get_daymapped_nightmapped,
                                             get_surface_velocity_estimate,
                                                     make_trade_eq,
+                                                    make_alt_trade_eq,
                                                     dump_to_pandas)
 from global_energetics.extract.view_set import variable_blank
 
@@ -337,15 +338,21 @@ def get_open_close_integrands(zone, integrands):
         outputname = term[1].split(' [')[0]
         if not any([n in name for n in ['Day','Flank','Tail','Lowlat']]):
             units = '['+term[1].split('[')[1].split(']')[0]+']'
-            eq('{'+name+'Closed}=IF(Round({Status})==3,'+
+            if 'iono' not in zone.name:
+                eq('{'+name+'Closed}=IF({status_cc}==3,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            eq('{'+name+'OpenN}=IF(Round({Status})==2,'+
+                openClose_dict.update(
+                                {name+'Closed':outputname+'Closed '+units})
+            if 'ionoSouth' not in zone.name:
+                eq('{'+name+'OpenN}=IF({status_cc}==2,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            eq('{'+name+'OpenS}=IF(Round({Status})==1,'+
+                openClose_dict.update(
+                                {name+'OpenN':outputname+'OpenN '+units})
+            if 'ionoNorth' not in zone.name:
+                eq('{'+name+'OpenS}=IF({status_cc}==1,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-            openClose_dict.update({name+'Closed':outputname+'Closed '+units,
-                                  name+'OpenN':outputname+'OpenN ' +units,
-                                  name+'OpenS':outputname+'OpenS ' +units})
+                openClose_dict.update(
+                                {name+'OpenS':outputname+'OpenS '+units})
     return openClose_dict
 
 def conditional_mod(zone,integrands,conditions,modname,**kwargs):
@@ -771,7 +778,6 @@ def calc_integral(term, zone, **kwargs):
             value = np.sum(volumes)
     if (kwargs.get('useNumpy',False) and
         kwargs.get('VariableOption','Scalar')=='Scalar'):
-        print(term[0])
         scalars = zone.values(term[0]).as_numpy_array()
         volumes = zone.values('trueCellVolume').as_numpy_array()
         value = np.dot(scalars,volumes)
@@ -816,23 +822,31 @@ def np_calc_integral(terms, volumes, scalars, **kwargs):
     result = {term[1]:[value]}
     return result
 
-def get_mag_dict(**kwargs):
+def get_mag_dict(zone,**kwargs):
     """Creates dictionary of terms to be integrated for magnetic flux
     Inputs
     Outputs
         mag_dict(dict{str:str})- dictionary w/ pre:post integral
     """
     if kwargs.get('do_1Dsw',False):
-        prepend = '1D'
+        prefixlist = ['1D']
+        flux_suffixes = ['_escape','_injection']#net will calculated in post
+    elif kwargs.get('do_cms',False) and 'iono' in zone.name:
+        prefixlist = ['']
+        flux_suffixes = ['_net']#We already have WAY too many integrals
     else:
-        prepend = ''
-    flux_suffixes = ['_escape','_injection']#net will be calculated in post
+        prefixlist = ['']
+        flux_suffixes = ['_escape','_injection']#net will calculated in post
     units = ' [Wb/Re^2]'
     postunits = ' [Wb]'
     mag_dict = {}
-    for direction in flux_suffixes:
+    for prepend in prefixlist:
+        for direction in flux_suffixes:
+            mag_dict.update(
+              {prepend+'Bf'+direction+units:prepend+'Bf'+direction+postunits})
+    if kwargs.get('do_cms',False) and 'iono' in zone.name:
         mag_dict.update(
-            {prepend+'Bf'+direction+units:prepend+'Bf'+direction+postunits})
+              {'dBfdt_net [Wb/s/Re^2]':'dBfdt_net [Wb/s]'})
     return mag_dict
 
 def get_energy_dict(**kwargs):
@@ -940,18 +954,18 @@ def get_surface_trades(zone,integrands,**kwargs):
     analysis_type = kwargs.get('analysis_type','')
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []
-    useIntegrand_keys = [k for k in integrands.keys() if '[' in k]
+    useIntegrand_keys = [k for k in integrands.keys() if '/s' not in k]
     useIntegrands = {}
     for key in useIntegrand_keys:
         useIntegrands[key] = integrands[key]
     # Define state strings
-    dayclosed = '({daynight_cc}>0)'
-    nightclosed = '({daynight_cc}<0)'
-    lobe = '({daynight_cc}==0 && ({status_cc}==1 || {status_cc}==2))'
+    dayclosed = '({daynight_cc}>0 && {status_cc}==3)'
+    nightclosed = '({daynight_cc}<0 && {status_cc}==3)'
+    lobe = '({status_cc}==1 || {status_cc}==2)'
     #M2a    from  lobe     ->  dayclosed
     #M2b    from  lobe     ->  nightclosed
-    tradelist.append(make_trade_eq(lobe,dayclosed,'M2a',tdelta,**kwargs))
-    tradelist.append(make_trade_eq(lobe,nightclosed,'M2b',tdelta,**kwargs))
+    tradelist.append(make_alt_trade_eq(lobe,dayclosed,'M2a',tdelta,**kwargs))
+    tradelist.append(make_alt_trade_eq(lobe,nightclosed,'M2b',tdelta,**kwargs))
     # Evaluate all equations and update the integrands for return
     for varstr,name in useIntegrands.items():
         for tradestr in tradelist:
@@ -1028,7 +1042,7 @@ def surface_analysis(zone, **kwargs):
     if 'energy' in analysis_type:
         integrands.update(get_energy_dict(**kwargs))
     if 'mag' in analysis_type:
-        integrands.update(get_mag_dict(**kwargs))
+        integrands.update(get_mag_dict(zone,**kwargs))
     if 'mass' in analysis_type:
         integrands.update(get_mass_dict(**kwargs))
     if 'wave' in analysis_type:
@@ -1049,15 +1063,8 @@ def surface_analysis(zone, **kwargs):
             #integrands.update(get_open_close_integrands(zone, integrands))
             openclose_integrands = get_open_close_integrands(zone, integrands)
             if kwargs.get('do_cms',False):
-                # Calcluate the same geom/surf terms on the past/future zones
-                pastzone = zone.dataset.zone('past'+zone.name)
-                futurezone = zone.dataset.zone('future'+zone.name)
-                source_list=[pastzone.index+1,zone.index+1,futurezone.index+1]
-                get_surface_variables(pastzone, analysis_type, **kwargs)
-                get_surface_variables(futurezone, analysis_type, **kwargs)
                 # Find the surface 'trade integrals'
-                integrands.update(get_surface_trades(zone,integrands,
-                                                     source_list=source_list))
+                integrands.update(get_surface_trades(zone,integrands))
             integrands.update(openclose_integrands)
     ###################################################################
     #Evaluate integrals

@@ -29,7 +29,8 @@ def get_x(zone,**kwargs):
         xvar = 'Y *'
     elif 'ocflb' in zone.name:
         eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
-        get_surf_geom_variables(zone,is1D=True)
+        get_surf_geom_variables(zone)
+        #TODO make sure were not wrecking the geom variables for iono zones
         # Perp projection of the 'surface normal' to be // to the sphere surf
         #   Get normal proj to the radial direction
         eq('{nradial_x} = ({surface_normal_x}*{x_cc}+'+
@@ -63,7 +64,7 @@ def get_x(zone,**kwargs):
         #   Get the ID of the subsolar (polar cap) point
         #   start at the ID for the subsolar point and go towards +Y
         #   count backwards in the other direction for the remaining points
-        cell_length = zone.values('Cell Length').as_numpy_array()
+        cell_length = zone.values('Cell Area').as_numpy_array()
         idvals = np.array([i for i in range(1,zone.num_elements+1)])
         #i_start = idvals[x==x[abs(y)<0.01].max()][0]
         i_start = 0
@@ -82,7 +83,7 @@ def get_x(zone,**kwargs):
         zone.dataset.add_variable(zone.name+'_length',locations=CC)
         zone.values('ID')[::] = id_shifted
         zone.values(zone.name+'_length')[::] = length_arr
-        xvar = 'Cell Length'
+        xvar = 'Cell Area'
     return zone.values(xvar).as_numpy_array()
 
 def get_fx(zone,integrands,**kwargs):
@@ -152,8 +153,8 @@ def get_daynight_integrands(zone,integrands):
         name = term[0].split(' [')[0]
         outputname = term[1].split(' [')[0]
         units = '['+term[1].split('[')[1].split(']')[0]+']'
-        eq('{'+name+'Day}=if({daynight}==1,{'+term[0]+'},0)',zones=[zone])
-        eq('{'+name+'Night}=if({daynight}<1,{'+term[0]+'},0)',zones=[zone])
+        eq('{'+name+'Day}=if({daynight}>0,{'+term[0]+'},0)',zones=[zone])
+        eq('{'+name+'Night}=if({daynight}<0,{'+term[0]+'},0)',zones=[zone])
         daynight_dict.update({name+'Day':outputname+'Day '+units,
                               name+'Night':outputname+'Night '+units})
     return daynight_dict

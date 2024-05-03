@@ -743,13 +743,21 @@ def pass_time_adjacent_variables(past,present,future,**kwargs):
     Returns
         None
     """
-    from IPython import embed; embed()
-    #TODO pass the following from the past and future zones:
-    #status
-    #daynight
-    # if mag:
-    #   Bf_xyz
-    eq
+    eq = tp.data.operate.execute_equation
+    # Get the variable indices
+    past_index = str(past.index+1)
+    future_index = str(future.index+1)
+    # Create list of variables to pass
+    variable_list = ['Status','daynight']
+    if 'mag' in kwargs.get('analysis_type',''):
+        variable_list.append('B_x [nT]')
+        variable_list.append('B_y [nT]')
+        variable_list.append('B_z [nT]')
+    for variable in variable_list:
+        eq('{past'+variable+'} = {'+variable+'}['+past_index+']',
+                                                            zones=[present])
+        eq('{future'+variable+'} = {'+variable+'}['+future_index+']',
+                                                            zones=[present])
 
 def get_surf_geom_variables(zone,**kwargs):
     """Function calculates variables for new zone based only on geometry,
@@ -757,21 +765,40 @@ def get_surf_geom_variables(zone,**kwargs):
     Inputs
         zone(Zone)- tecplot zone to calculate variables
     """
-    #Get grid dependent variables
-    tp.macro.execute_extended_command('CFDAnalyzer3',
-                                      'CALCULATE FUNCTION = '+
-                                      'GRIDKUNITNORMAL VALUELOCATION = '+
-                                      'CELLCENTERED')
-    tp.macro.execute_extended_command('CFDAnalyzer3',
-                                      'CALCULATE FUNCTION = '+
-                                      'CELLVOLUME VALUELOCATION = '+
-                                      'CELLCENTERED')
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
-    if kwargs.get('is1D',False):
-        eq('{Cell Length} = {Cell Volume}',zones=[zone],value_location=CC)
-    else:
-        eq('{Cell Area} = {Cell Volume}',zones=[zone],value_location=CC)
-    zone.dataset.delete_variables([zone.dataset.variable('Cell Volume')])
+    zonelist = kwargs.get('zonelist',[zone])
+    if ('X Grid K Unit Normal' in zone.dataset.variable_names and
+        zone.values('X Grid K Unit Normal').location != CC):
+        #Delete the variables if theyre stuck as Nodal
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'X Grid K Unit Normal'))
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'Y Grid K Unit Normal'))
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'Z Grid K Unit Normal'))
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'Cell Area'))
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'surface_normal_x'))
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'surface_normal_y'))
+        zone.dataset.delete_variables(zone.dataset.variable(
+                                                      'surface_normal_z'))
+    if 'X Grid K Unit Normal' not in zone.dataset.variable_names:
+        #Get grid dependent variables
+        tp.macro.execute_extended_command('CFDAnalyzer3',
+                                          'CALCULATE FUNCTION = '+
+                                          'GRIDKUNITNORMAL VALUELOCATION = '+
+                                          'CELLCENTERED')
+        tp.macro.execute_extended_command('CFDAnalyzer3',
+                                          'CALCULATE FUNCTION = '+
+                                          'CELLVOLUME VALUELOCATION = '+
+                                          'CELLCENTERED')
+        if kwargs.get('is1D',False):
+            eq('{Cell Length}={Cell Volume}',zones=zonelist,value_location=CC)
+        else:
+            eq('{Cell Area} = {Cell Volume}',zones=zonelist,value_location=CC)
+        zone.dataset.delete_variables([zone.dataset.variable('Cell Volume')])
     #Generate cellcentered versions of postitional variables
     for var in ['X [R]','Y [R]','Z [R]','r [R]','Xd [R]','Zd [R]',
                 'B_x [nT]','B_y [nT]','B_z [nT]','Bdx','Bdy','Bdz',
@@ -779,11 +806,22 @@ def get_surf_geom_variables(zone,**kwargs):
                 'Utot [J/Re^3]','Status']:
         if var in zone.dataset.variable_names:
             newvar = var.split(' ')[0].lower()+'_cc'
-            eq('{'+newvar+'}={'+var+'}', value_location=CC,
-                                        zones=[zone.index])
+            if (newvar in zone.dataset.variable_names and
+                zone.values(newvar).location != CC):
+                #Delete the variable if its stuck as Nodal
+                zone.dataset.delete_variables(zone.dataset.variable(newvar))
+            if newvar not in zone.dataset.variable_names:
+                eq('{'+newvar+'}={'+var+'}', value_location=CC,
+                                             zones=zonelist)
+    for var in [v for v in zone.dataset.variable_names if ('past' in v or
+                                                           'future' in v) and
+                                                           '_cc' not in v]:
+        newvar = var.split(' ')[0].lower()+'_cc'
+        eq('{'+newvar+'}={'+var+'}', value_location=CC,
+                                        zones=zonelist)
     #Create a DataFrame for easy manipulations
     x_ccvalues =zone.values('x_cc').as_numpy_array()
-    xnormals = zone.values('X GRID K Unit Normal').as_numpy_array()
+    xnormals = zone.values('X Grid K Unit Normal').as_numpy_array()
     df = pd.DataFrame({'x_cc':x_ccvalues,'normal':xnormals})
     #Check that surface normals are pointing outward from surface
     #Spherical inner boundary surface case (want them to point inwards)
@@ -791,111 +829,111 @@ def get_surf_geom_variables(zone,**kwargs):
     #if 'innerbound' in zone.name:
         if df[df['x_cc']==df['x_cc'].min()]['normal'].mean() < 0:
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
     elif 'bs' in zone.name:
         #Look at dayside max plane for bowshock
         if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)]) <
             len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)])):
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
     elif 'xslice' in zone.name:
         #These ones should be assigned a normal on creation (flat plane)
         eq('{surface_normal_x} = {X Grid K Unit Normal}',
-            zones=[zone.index], value_location=CC)
+            zones=zonelist, value_location=CC)
         eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-            zones=[zone.index], value_location=CC)
+            zones=zonelist, value_location=CC)
         eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-            zones=[zone.index], value_location=CC)
+            zones=zonelist, value_location=CC)
     elif 'ocflb' in zone.name:
         #Look at the extreme +X location where the polar cap looks nice
         if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)]) >
             len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)])):
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
     elif 'ms_closed' in zone.name:
         #Look at forward set of points which should be roughly planar
         if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)]) >
             len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)])):
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
         else:
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
     elif 'ms_plasmasheet' in zone.name:
         y_cc =zone.values('y_cc').as_numpy_array()
         #Look to see if things point "up" generally
         if (len(y_cc[y_cc>0]) > len(y_cc[y_cc<0])):
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
         else:
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
     else:
         #Look at tail cuttoff plane for other cases
         if (len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']>0)]) >
             len(df[(df['x_cc']==df['x_cc'].min())&(df['normal']<0)])):
             eq('{surface_normal_x} = -1*{X Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = -1*{Y Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = -1*{Z Grid K Unit Normal}',
-               zones=[zone], value_location=CC)
+               zones=zonelist, value_location=CC)
         else:
             eq('{surface_normal_x} = {X Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_y} = {Y Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
-               zones=[zone.index], value_location=CC)
+               zones=zonelist, value_location=CC)
     if ('mp' in zone.name) and ('innerbound' not in zone.name):
         #Store a helpful 'htail' value in aux data for potential later use
         xvals = zone.values('X *').as_numpy_array()
@@ -1273,7 +1311,8 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                                             were that analysis type, only
                                             read if analysis_type==''
     """
-    eq = tp.data.operate.execute_equation
+    eq,CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
+    zonelist = kwargs.get('zonelist',[zone])
     #Check that geometry variables have already been calculated
     assert any([x!=0 for x in
         zone.values('surface_normal_x').as_numpy_array()]), ('Surface '+
@@ -1285,8 +1324,8 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                             ' without associated variables!')
         analysis_type = kwargs.get('surface_unevaluated_type')
     #Throw-away variables, these will be overwritten each time
-    eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
-                                   zones=[zone])
+    #eq('{status_cc}={Status}',value_location=ValueLocation.CellCentered,
+    #                               zones=[zone])
     '''
     ##Throw-away variables, these will be overwritten each time
     eq('{ux_cc}={U_x [km/s]}', value_location=ValueLocation.CellCentered,
@@ -1320,9 +1359,6 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     #eq('{W_cc}=0', value_location=ValueLocation.CellCentered,
     #               zones=[zone.index])
 
-    ##Variables now only applied to this zone
-    zonelist = [zone]
-
     if (('mp' in zone.name and 'innerbound' not in zone.name) or
                                             kwargs.get('find_DFT',False)):
         get_day_flank_tail(zone)
@@ -1340,11 +1376,11 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     '''
     if 'virial' in analysis_type:
         eq('{Bdx_cc}={Bdx}', value_location=ValueLocation.CellCentered,
-                             zones=[zone])
+                             zones=zonelist)
         eq('{Bdy_cc}={Bdy}', value_location=ValueLocation.CellCentered,
-                             zones=[zone])
+                             zones=zonelist)
         eq('{Bdz_cc}={Bdz}', value_location=ValueLocation.CellCentered,
-                             zones=[zone])
+                             zones=zonelist)
         get_virials()
     ##Different prefixes allow for calculation of surface fluxes using 
     #   multiple sets of flowfield variables (denoted by the prefix)
@@ -1437,9 +1473,21 @@ def get_surface_variables(zone, analysis_type, **kwargs):
     if 'mag' in analysis_type:
         if kwargs.get('do_1Dsw',False):
             prefixlist = ['1D']
+        elif kwargs.get('do_cms',False) and 'iono' in zone.name:
+            prefixlist = ['past','','future']
         else:
             prefixlist = ['']
         for add in prefixlist:
+            # If the variable was accidentially inherited it becomes stuck
+            #   as a nodal variable, we then need to delete and remake it
+            if add+'Bf_net [Wb/Re^2]' in zone.dataset.variable_names:
+                if zone.values(add+'Bf_net ?Wb/Re^2?').location != CC:
+                    zone.dataset.delete_variables(zone.dataset.variable(
+                                                add+'Bf_net ?Wb/Re^2?'))
+                    zone.dataset.delete_variables(zone.dataset.variable(
+                                                add+'Bf_escape ?Wb/Re^2?'))
+                    zone.dataset.delete_variables(zone.dataset.variable(
+                                                add+'Bf_injection ?Wb/Re^2?'))
             ##############################################################
             #Normal Magnetic Flux
             eq('{'+add+'Bf_net [Wb/Re^2]} =('+
@@ -1456,6 +1504,13 @@ def get_surface_variables(zone, analysis_type, **kwargs):
                 zones=zonelist)
             eq('{'+add+'Bf_injection [Wb/Re^2]} ='+
                         'min({'+add+'Bf_net [Wb/Re^2]},0)',
+                value_location=ValueLocation.CellCentered,
+                zones=zonelist)
+        if kwargs.get('do_cms',False) and 'iono' in zone.name:
+            #dflux/dt based on central difference
+            tdelta=str(kwargs.get('tdelta',60)*2)
+            eq('{dBfdt_net [Wb/s/Re^2]} = ({futureBf_net [Wb/Re^2]}-'+
+                                          '{pastBf_net [Wb/Re^2]})/'+tdelta,
                 value_location=ValueLocation.CellCentered,
                 zones=zonelist)
     if 'mass' in analysis_type:
@@ -1786,6 +1841,22 @@ def make_trade_eq(from_state,to_state,tagname,tstep,**kwargs):
                 'if('+from_state.replace('}','}'+future)+'&&'+
                      to_state.replace('}','}'+past)+
                      ',-1*{value}'+present+'/'+tstep+',0))')
+    return '{name'+tagname+'} = '+tradestr
+
+def make_alt_trade_eq(from_state,to_state,tagname,tstep,**kwargs):
+    #TODO: streamline two primary 'cms' integrals:
+    #       1. dBf/dt integration over OPEN north/south
+    #       2. Bf integration over Opening and Closing north/south
+    #           a. Bf_acqu Day(M2a)/Night(M2b) (Opening)
+    #           b. Bf_forf Day(M2a)/Night(M2b) (Closing)
+    #   X   3. (duplicate) Br(ut . n) integration around the OPEN north/south
+    #NOTE this assumes past, present, future are listed with prepends
+    tradestr = ('if('+from_state.replace('{','{past')+'&&'+
+                      to_state.replace('{','{future')+
+                     ',{value}/'+tstep+','+
+                'if('+from_state.replace('{','{future')+'&&'+
+                      to_state.replace('{','{past')+
+                     ',-1*{value}/'+tstep+',0))')
     return '{name'+tagname+'} = '+tradestr
 
 def eqeval(eqset,**kwargs):
