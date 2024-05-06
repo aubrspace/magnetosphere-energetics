@@ -41,8 +41,16 @@
 #DONE#INPUTDIR=./run_MEDnHIGHu/GM/IO2/
      #OUTPUTDIR=./outputs_MEDnHIGHu/
 
-INPUTDIR=./run_MEDnHIGHu/GM/IO2/
-OUTPUTDIR=./outputs_mar24_MEDnHIGHu/
+#REDO#INPUTDIR=./run_MEDnHIGHu/GM/IO2/
+     #OUTPUTDIR=./outputs_mar24_MEDnHIGHu/
+#DONE#INPUTDIR=./run_HIGHnHIGHu/GM/IO2/
+     #OUTPUTDIR=./outputs_mar24_HIGHnHIGHu/
+#DONE#INPUTDIR=./run_LOWnLOWu/GM/IO2/
+     #OUTPUTDIR=./outputs_mar24_LOWnLOWu/
+#DONE#INPUTDIR=./run_HIGHnLOWu/GM/IO2/
+     #OUTPUTDIR=./outputs_mar24_HIGHnLOWu/
+INPUTDIR=./run_LOWnLOWu_continued/GM/IO2/
+OUTPUTDIR=./outputs_mar24_LOWnLOWu_continued/
 
 #INPUTDIR=./Original_sw_run_output/
 #OUTPUTDIR=./outputs_MAST/Original_sw_run_energetics/

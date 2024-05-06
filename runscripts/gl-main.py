@@ -70,16 +70,16 @@ def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
     #t0 = dt.datetime(2015,5,18,3,0)#NOTE
     reltime = (filetime-t0).days*24*3600+(filetime-t0).seconds
     phase = int(np.floor((reltime/3600)/2))
-    #text1 =tp.active_frame().add_text(str(filetime))
+    text1 = tp.active_frame().add_text('&(AUXZONE[1]:TIMEEVENT)')
     text2 =tp.active_frame().add_text('Test Phase: '+str(phase))
     if tp.active_frame().background_color == Color.Black:
-    #    text1.color = Color.White
+        text1.color = Color.White
         text2.color = Color.White
     else:
-    #    text1.color = Color.Black
+        text1.color = Color.Black
         text2.color = Color.Black
-    #text1.position = (2,5)
-    text2.position = (2,5)
+    text1.position = (2,7)
+    text2.position = (2,3)
     # Save
     tp.save_png(os.path.join(outpath,'png',
                              OUTPUTNAME+'.png'),width=1600)

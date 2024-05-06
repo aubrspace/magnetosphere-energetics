@@ -359,7 +359,7 @@ def read_MGL(datapath,**kwargs):
     from global_energetics.makevideo import get_time
     # Check that files are present
     filelist = glob.glob(os.path.join(datapath,
-                                  kwargs.get('filehead','mag_grid_')+'*'))
+                                  kwargs.get('filehead','mag_grid_')+'*.out'))
     t0 = dt.datetime(1970,1,1)
     # Initialize dataframe and arrays
     MGL    = pd.DataFrame()
@@ -467,8 +467,10 @@ if __name__ == "__main__":
     #           'magnetometers_e20140218-060000.mag')
     #file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
     #file_in=('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.out')
-    for file_in in glob.glob('run_MEDnHIGHu/GM/IO2/mag_grid*.out'):
-        file_out = out_to_tec(file_in)
+    inpath = sys.argv[sys.argv.index('-i')+1]
+    for file_in in glob.glob(inpath+'/GM/IO2/mag_grid*.out'):
+        if not os.path.exists(file_in.replace('out','tec')):
+            file_out = out_to_tec(file_in)
     #sml_file = 'localdbug/mod_supermag_starlink.txt'
     #smldata = read_SML(sml_file)
     #vsmldata = read_virtual_SML(file_in)
