@@ -632,9 +632,11 @@ def get_swmf_data(datapath,**kwargs):
             swdata['eps'] = (swdata['B']**2*swdata['v']*
                                         np.sin(swdata['clock']/2)**4*l**2*
                                                 1e3*1e-9**2 / (4*np.pi*1e-7))
+            #Wang2014
             swdata['EinWang'] = (3.78e7*swdata['density']**0.24*
                                 swdata['v']**1.47*(swdata['B_T']*1e9)**0.86*
                                 (abs(sin(swdata['clock']/2))**2.70+0.25))
+            #Tenfjord2013
             swdata['Pstorm'] = (swdata['B_T']**2*swdata['vx']*1e3/(4*pi*1e-7)*
                             swdata['M_A']*abs(sin(swdata['clock']/2))**4*
                             135/(5e-5*swdata['bz']**3+1)*6371e3**2)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Functions for analyzing surfaces from field data
 """
-import os
+import os, warnings
 import sys
 import time
 from array import array
@@ -12,7 +12,8 @@ from tecplot.constant import *
 from tecplot.exception import *
 import pandas as pd
 #interpackage modules, different path if running as main to test
-from global_energetics.extract.tec_tools import get_daymapped_nightmapped
+from global_energetics.extract.tec_tools import (get_daymapped_nightmapped,
+                                                 make_trade_eq)
 from global_energetics.extract.surface_tools import (energy_to_dB,
                                         get_open_close_integrands,
                                          get_interface_integrands,
@@ -217,27 +218,36 @@ def get_energy_integrands(state_var):
             energydict.update({name+state:name+' [J]'})
     return energydict
 
-def make_trade_eq(from_state,to_state,tagname,tstep):
-    """Creates the equation string and evaluates 'trade' state
-        Fix from states with [1] designating the currentzone
-        Fix to states with [2] designating the futurezone
-              Reverse for opposite sign
-
-          ex. if( dayclosed[now] & ext[future]) then +M5a[now]/dt
-              elif( dayclosed[future] & ext[now] then -M5a[future]/dt
-    Inputs
-        from_state,to_state (str(variablename))- denotes sign convention
-        tagname (str)- tag put on variable
-    Returns
-        tradestr (str)- equation to be used to evaluate equation
-    """
-
-    tradestr = ('if('+from_state.replace('}=','}[1]=')+'&&'+
-                     to_state.replace('}=','}[2]=')+',{value}[1]/'+tstep+','+
-                'if('+from_state.replace('}=','}[2]=')+'&&'+
-                     to_state.replace('}=','}[1]=')+',-1*{value}[2]/'+tstep+
-                                                                       ',0))')
-    return '{name'+tagname+'} = '+tradestr
+def get_ddt_terms(zone,state_var,integrands,**kwargs):
+    state, ddtdict  = state_var.name, {}
+    eq = tp.data.operate.execute_equation
+    for term,outname in integrands.items():
+        # Parse integrand in/out strings
+        termkey = term.split(state_var.name)[0]+' *'
+        outbase,units = outname.split()
+        new_outname = 'd'+outbase+'dt'+' '+units.replace(']','/s]')
+        try:
+            varname = zone.dataset.variable(termkey).name
+            varbase,varunits = varname.split()
+        except AttributeError:
+            try:
+                varname = zone.dataset.variable(termkey.replace(' ','')).name
+                varbase,varunits = varname, ''
+            except AttributeError:
+                warnings.warn("Couldnt find variable for "+termkey,UserWarning)
+                continue
+        # Assume past, present, future zones are 1,2,3
+        past,present,future = kwargs.get('timezones',['1','2','3'])
+        dt=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+        # New variable is d{}dt [{}/s]
+        newvarname = state+'d'+varbase+'dt'#+varunits.replace(']','/s]')
+        # Calculate equation with cdiff({}) only where state==1
+        eq('{'+newvarname+'}= if({'+state+'}==1,'+
+                                       '({'+varname+'}['+future+']'+
+                                       '-{'+varname+'}['+past+'])/'+dt+',0)',
+                                                                 zones=[zone])
+        ddtdict.update({newvarname:new_outname})
+    return ddtdict
 
 def get_volume_trades(zone,integrands,**kwargs):
     """Thinking in terms of volume element 'trades' we track the mobile
@@ -261,9 +271,10 @@ def get_volume_trades(zone,integrands,**kwargs):
     Returns
         trade_integrands
     """
-    tdelta = str(kwargs.get('tdelta',60))
-    if kwargs.get('do_central_diff',False):
-        tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    #tdelta = str(kwargs.get('tdelta',60))
+    #if kwargs.get('do_central_diff',False):
+    #    tdelta=str(kwargs.get('tdelta',60)*2) #NOTE x2 if taking a cdiff
+    tdelta=str(kwargs.get('tdelta',60)*2)
     analysis_type = kwargs.get('analysis_type','')
     trade_integrands,td,eq = {}, str(tdelta), tp.data.operate.execute_equation
     tradelist = []
@@ -512,7 +523,7 @@ def volume_analysis(state_var, **kwargs):
         analysis_type = kwargs.get('analysis_type')
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
-    global_zone = state_var.dataset.zone(0)
+    global_zone = state_var.dataset.zone('global_field')
     #Seems to change values by ~3-10%, mostly affects differential qtys
     if False:
         plt = tp.active_frame().plot()
@@ -559,8 +570,9 @@ def volume_analysis(state_var, **kwargs):
         '''
         interface_terms = get_volume_trades(global_zone,integrands,
                                             **kwargs,state_var=state_var)
-        print(interface_terms)
+        ddt_terms = get_ddt_terms(global_zone,state_var,integrands,**kwargs)
         integrands.update(interface_terms)
+        integrands.update(ddt_terms)
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,
                                                 integrands,**kwargs))
