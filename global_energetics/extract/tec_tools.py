@@ -891,7 +891,7 @@ def get_surf_geom_variables(zone,**kwargs):
                zones=zonelist, value_location=CC)
             eq('{surface_normal_z} = {Z Grid K Unit Normal}',
                zones=zonelist, value_location=CC)
-    elif 'ms_closed' in zone.name:
+    elif 'ms_closed' in zone.name or 'mp_iso_betastar' in zone.name:
         #Look at forward set of points which should be roughly planar
         if (len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']>0)]) >
             len(df[(df['x_cc']==df['x_cc'].max())&(df['normal']<0)])):
