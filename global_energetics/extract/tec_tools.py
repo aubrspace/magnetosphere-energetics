@@ -767,6 +767,13 @@ def get_surf_geom_variables(zone,**kwargs):
     """
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     zonelist = kwargs.get('zonelist',[zone])
+    print('Zone: ',zone.name)
+    print('locations:')
+    if 'surface_normal_x' in zone.dataset.variable_names:
+        for z in zone.dataset.zones():
+            print('\t',z.name,'\t',z.values('surface_normal_x').location)
+    else:
+        print('DNE')
     if ('X Grid K Unit Normal' in zone.dataset.variable_names and
         zone.values('X Grid K Unit Normal').location != CC):
         #Delete the variables if theyre stuck as Nodal
@@ -809,6 +816,7 @@ def get_surf_geom_variables(zone,**kwargs):
             if (newvar in zone.dataset.variable_names and
                 zone.values(newvar).location != CC):
                 #Delete the variable if its stuck as Nodal
+                print('deleting ',newvar)
                 zone.dataset.delete_variables(zone.dataset.variable(newvar))
             if newvar not in zone.dataset.variable_names:
                 eq('{'+newvar+'}={'+var+'}', value_location=CC,

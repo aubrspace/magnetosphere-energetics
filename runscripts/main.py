@@ -177,12 +177,12 @@ if __name__ == "__main__":
                                     verbose=True,
                                     do_cms=True,
                                     analysis_type='energy_mass_mag_plasmoid',
-                                    modes=['iso_betastar'],
-                                    #['iso_betastar','closed',
-                                    #       'nlobe','slobe','plasmasheet'],
+                                    #modes=['iso_betastar'],
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe','plasmasheet'],
                                     #inner_r=3,
                                     customTerms={'test':'TestArea [Re^2]'},
-                                    do_interfacing=False,
+                                    do_interfacing=True,
                                     tail_cap=-120,
                                     integrate_surface=True,
                                     integrate_volume=True,
@@ -211,7 +211,8 @@ if __name__ == "__main__":
                     #if dataset.zone('IonS*') is not None:
                     #    dataset.zone('IonS*').name = 'future_ionosphere_south'
                     #    do_south = True
-                if do_north*do_south:
+                #if do_north*do_south:
+                if False:
                     ionosphere.get_ionosphere(dataset,
                                               verbose=True,
                                               hasGM=True,

@@ -440,15 +440,18 @@ def generate_3Dobj(sourcezone, **kwargs):
                 if 'bs' in kwargs.get('modes',[]):
                     zonelist.append(inner_zone)
                     state_names.append(state_name)
-                    get_surf_geom_variables(inner_zone,**kwargs)
+                    #get_surf_geom_variables(inner_zone,**kwargs)
                 if 'modes' in kwargs:
-                    get_surf_geom_variables(zone,**kwargs)
-                    if inner_zone is not None:
-                        copy_kwargs = kwargs.copy()
-                        copy_kwargs.update({'innerbound':True})
-                        get_surf_geom_variables(inner_zone,**copy_kwargs)
-                        if 'iso_betastar' not in zone.name:
-                            zonelist.append(inner_zone)
+                    if (inner_zone is not None and
+                        'iso_betastar' not in zone.name):
+                        zonelist.append(inner_zone)
+    #Get the geometry variables AFTER all zones are created
+    for zone in zonelist:
+        get_surf_geom_variables(zone,**kwargs)
+        if inner_zone is not None:
+            copy_kwargs = kwargs.copy()
+            copy_kwargs.update({'innerbound':True})
+            get_surf_geom_variables(inner_zone,**copy_kwargs)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
@@ -701,7 +704,11 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 ux = plasmasheet.values('U_x *').as_numpy_array()
                 betastar = plasmasheet.values('beta_star').as_numpy_array()
                 L = plasmasheet.values('Lshell').as_numpy_array()
-                area = plasmasheet.values('Cell Area').as_numpy_array()
+                tp.macro.execute_extended_command('CFDAnalyzer3',
+                                      'CALCULATE FUNCTION = '+
+                                      'CELLVOLUME VALUELOCATION = '+
+                                      'NODAL')
+                area = plasmasheet.values('Cell Volume').as_numpy_array()
                 averages = pd.DataFrame()
                 # Ux
                 averages['ux_positive'] = [np.sum(ux[ux>0]*area[ux>0])/
