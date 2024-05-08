@@ -1300,7 +1300,6 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     Kinternal_rxn.savefig(figurename)
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
-    #from IPython import embed; embed()
 
 def all_fluxes(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
@@ -2004,6 +2003,43 @@ def show_events(ev,run,events,path,**kwargs):
     plt.close(fig4)
     print('\033[92m Created\033[00m',figurename)
 
+def coupling_scatter(events,path):
+    interval_list =build_interval_list(TSTART,DT,TJUMP,
+                                       dataset['stretched_LOWnLOWu']['time'])
+    #############
+    #setup figure
+    scatterCoupling,(axis) =plt.subplots(1,1,figsize=[15,15])
+    colors = ['#80b3ffff','#0066ffff','#0044aaff',
+              '#80ffb3ff','#2aff80ff','#00aa44ff',
+              '#ffe680ff','#ffcc00ff','#806600ff']
+    testpoints = ['stretched_LOWnLOWu',
+                  'stretched_MEDnLOWu',
+                  'stretched_HIGHnLOWu',
+                  'stretched_LOWnMEDu',
+                  'stretched_MEDnMEDu',
+                  'stretched_HIGHnMEDu',
+                  'stretched_LOWnHIGHu',
+                  'stretched_MEDnHIGHu',
+                  'stretched_HIGHnHIGHu']
+    #Plot
+    for i,testpoint in enumerate(testpoints):
+        if testpoint in dataset.keys():
+            sw = dataset[testpoint]['obs']['swmf_sw']
+            Ein,Pstorm = np.zeros(23),np.zeros(23)
+            for k,tsample in enumerate([j[1] for j in interval_list][0:-1]):
+                Ein[k],Pstorm[k] = sw.loc[tsample,['EinWang','Pstorm']]
+            axis.scatter(Ein/1e12,-Pstorm/1e12,s=200,c=colors[i],
+                         label=str(i+1))
+    axis.set_xlabel(r'$E_{in} \left(TW\right)$, (Wang2014)')
+    axis.set_ylabel(r'$P_{storm} \left(TW\right)$, '+
+                                                '(Tenfjord and Østgaard 2013)')
+    #axis.legend()
+    scatterCoupling.tight_layout(pad=1)
+    figurename = path+'/couplingScatter.png'
+    scatterCoupling.savefig(figurename)
+    plt.close(scatterCoupling)
+    print('\033[92m Created\033[00m',figurename)
+
 def tab_contingency(events,path):
     transitions = {}
     substorms = {}
@@ -2171,7 +2207,7 @@ def initial_figures(dataset):
         #test_matrix(event,ev,path)
         #internalflux_vs_rxn(ev,run,path)
         #mpflux_vs_rxn(ev,event,path)
-        all_fluxes(ev,run,path)
+        #all_fluxes(ev,run,path)
         #Zoomed versions
         steady_window = (dt.datetime(2022,6,6,16,0),
                          dt.datetime(2022,6,6,18,0))
@@ -2187,6 +2223,7 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
+    coupling_scatter(dataset,path)
     #tab_contingency(events,path)
 
 if __name__ == "__main__":
@@ -2212,8 +2249,8 @@ if __name__ == "__main__":
              'stretched_LOWnLOWu',
              'stretched_LOWnHIGHu',
              'stretched_HIGHnLOWu',
-             'stretched_HIGHnHIGHu',
-             'stretched_LOWnLOWucontinued']
+             'stretched_HIGHnHIGHu']
+             #'stretched_LOWnLOWucontinued']
 
     ## Analysis Data
     dataset = {}
