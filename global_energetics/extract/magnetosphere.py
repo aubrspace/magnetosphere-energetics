@@ -156,7 +156,8 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
 
     #get date and time info based on data source
     if source == 'swmf':
-        eventtime = swmf_access.swmf_read_time()+dt.timedelta(minutes=tshift)
+        eventtime = (swmf_access.swmf_read_time(zoneindex=1)+
+                                                  dt.timedelta(minutes=tshift))
         if do_cms:
             pasttime = (swmf_access.swmf_read_time(zoneindex=0)+
                         dt.timedelta(minutes=tshift))

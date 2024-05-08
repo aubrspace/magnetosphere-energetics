@@ -636,15 +636,12 @@ def get_ionosphere(dataset,**kwargs):
                             '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
             reversed_mapping(zoneGM,'trace_limits',
                              **kwargs)
-            if kwargs.get('do_cms',False):
-                reversed_mapping(dataset.zone('past'),'trace_limits',
-                                 **kwargs)
-                reversed_mapping(dataset.zone('future'),'trace_limits',
-                                 **kwargs)
-                # Pass past and future info from zones
-                pass_time_adjacent_variables(dataset.zone('past'),
-                                             zoneGM,
-                                             dataset.zone('future'),**kwargs)
+        if kwargs.get('do_cms',False):
+            reversed_mapping(dataset.zone('past'),'trace_limits',**kwargs)
+            reversed_mapping(dataset.zone('future'),'trace_limits',**kwargs)
+            # Pass past and future info from zones
+            pass_time_adjacent_variables(dataset.zone('past'),zoneGM,
+                                         dataset.zone('future'),**kwargs)
         # Create 'ionosphere' north south out of hemi sphere
         zoneGMn = setup_isosurface(kwargs.get('inner_r',3),
                                      dataset.variable('r *').index,
@@ -732,6 +729,11 @@ def get_ionosphere(dataset,**kwargs):
                                                       south_ocflb],
                                     value_location=ValueLocation.CellCentered)
             if kwargs.get('do_cms',False):
+                for v in zoneGMn.dataset.variable_names:
+                    print(v.split()[0]+'*\t',
+                          zoneGMn.values(v.split()[0]+'*').minmax(),
+                          zoneGMn.values(v.split()[0]+'*').location)
+                print(zoneGMs.values('paststatus_cc').minmax())
                 check_edges(zoneGMn,'North',stat_var='paststatus_cc',
                                             prefix='past')
                 check_edges(zoneGMs,'South',stat_var='paststatus_cc',

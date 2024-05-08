@@ -79,21 +79,24 @@ def energetics_analysis(infiles,outpath):
     #python objects
     #oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
     oggridfile = ''
-    pastime = makevideo.get_time(filelist[0])
-    filetime = makevideo.get_time(filelist[1])
-    futuretime = makevideo.get_time(filelist[2])
-    field_data = tp.data.load_tecplot(infiles)
+    pasttime = makevideo.get_time(infiles[0])
+    filetime = makevideo.get_time(infiles[1])
+    futuretime = makevideo.get_time(infiles[2])
     outputname = infiles[1].split('e')[-1].split('.plt')[0]
     #python objects
-    field_data = tp.data.load_tecplot(mhddatafiles)
+    field_data = tp.data.load_tecplot(infiles)
     if len(field_data.zone_names)==3:
         field_data.zone(0).name = 'past'
         field_data.zone(1).name = 'global_field'
         field_data.zone(2).name = 'future'
     elif len(field_data.zone_names)==2:
+        print('NOT ENOUGH ZONES!!!')
+        return
         field_data.zone(0).name = 'global_field'
         field_data.zone(1).name = 'future'
     else:
+        print('NOT ENOUGH ZONES!!!')
+        return
         field_data.zone(0).name = 'global_field'
     main = tp.active_frame()
     main.name = 'main'
@@ -127,7 +130,7 @@ def energetics_analysis(infiles,outpath):
     # IE data
     inpath = '/'.join([f for f in infiles[0].split('/')][0:-3])+'/IE/ionosphere/'
     iedatafile, success = find_IE_matched_file(inpath,filetime)
-    future_iefile, _ = find_IE_matched_file(inpath,futuretime)
+    #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
     if os.path.exists(iedatafile):
         dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
@@ -137,14 +140,14 @@ def energetics_analysis(infiles,outpath):
         if dataset.zone('IonS*') is not None:
             dataset.zone('IonS*').name = 'ionosphere_south'
             do_south = True
-        dataset = tp.data.load_tecplot(future_iefile,
-                        read_data_option=ReadDataOption.Append)
-        if dataset.zone('IonN*') is not None:
-            dataset.zone('IonN*').name = 'future_ionosphere_north'
-            do_north = True
-        if dataset.zone('IonS*') is not None:
-            dataset.zone('IonS*').name = 'future_ionosphere_south'
-            do_south = True
+        #dataset = tp.data.load_tecplot(future_iefile,
+        #                read_data_option=ReadDataOption.Append)
+        #if dataset.zone('IonN*') is not None:
+        #    dataset.zone('IonN*').name = 'future_ionosphere_north'
+        #    do_north = True
+        #if dataset.zone('IonS*') is not None:
+        #    dataset.zone('IonS*').name = 'future_ionosphere_south'
+        #    do_south = True
         if do_north*do_south:
             ionosphere.get_ionosphere(dataset,
                                               verbose=False,
@@ -204,7 +207,7 @@ if __name__ == "__main__":
             nextfile_mirror = os.path.join(inpath,nextfile)
             #nextfile_mirror = os.path.join(inpath,'mirror',nextfile)
             previousfile = os.path.join(inpath,
-                              full_list[full_list.index(nowfile)-1].split('/')[-1])
+                              full_list[max(0,full_list.index(nowfile)-1)].split('/')[-1])
             #previousfile_mirror = os.path.join(inpath,'mirror',previousfile)
         except IndexError:
             print(nowfile+' is the end of the list!')
@@ -216,12 +219,12 @@ if __name__ == "__main__":
                 nextfile_mirror = nowfile
         print('CDIFF previous: ',previousfile)
         print('CDIFF now: ',nowfile)
-        print('CDIFF next: ',nextfile)
+        print('CDIFF next: ',nextfile_mirror)
         if previousfile not in file_list:
             print('CDIFF '+previousfile+' already done....')
             exit()
         #energetics_analysis([nowfile,nextfile_mirror],outpath)
-        energetics_analysis([previousfile,nextfile_mirror],outpath)
+        energetics_analysis([previousfile,nowfile,nextfile_mirror],outpath)
         #Test message
         '''
         print('Processing: ',previousfile,'\n\twith\n',nextfile_mirror,
