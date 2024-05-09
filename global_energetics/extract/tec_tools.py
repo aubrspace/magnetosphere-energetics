@@ -767,13 +767,6 @@ def get_surf_geom_variables(zone,**kwargs):
     """
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     zonelist = kwargs.get('zonelist',[zone])
-    print('Zone: ',zone.name)
-    print('locations:')
-    if 'surface_normal_x' in zone.dataset.variable_names:
-        for z in zone.dataset.zones():
-            print('\t',z.name,'\t',z.values('surface_normal_x').location)
-    else:
-        print('DNE')
     if ('X Grid K Unit Normal' in zone.dataset.variable_names and
         zone.values('X Grid K Unit Normal').location != CC):
         #Delete the variables if theyre stuck as Nodal
@@ -819,6 +812,9 @@ def get_surf_geom_variables(zone,**kwargs):
                 print('deleting ',newvar)
                 zone.dataset.delete_variables(zone.dataset.variable(newvar))
             if newvar not in zone.dataset.variable_names:
+                eq('{'+newvar+'}={'+var+'}', value_location=CC,
+                                             zones=zonelist)
+            elif zone.values(newvar).passive:
                 eq('{'+newvar+'}={'+var+'}', value_location=CC,
                                              zones=zonelist)
     for var in [v for v in zone.dataset.variable_names if ('past' in v or
@@ -1918,14 +1914,16 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         eqeval(alleq['basic3d'])
         if 'dvol [R]^3' in field_data.variable_names:
             eq('{Cell Size [Re]}={dvol [R]^3}**(1/3)',
-                                 zones=[field_data.zone(0)],value_location=cc)
+                                 zones=[field_data.zone('global_field')],
+                                 value_location=cc)
         else:
             tp.macro.execute_extended_command('CFDAnalyzer3',
                                       'CALCULATE FUNCTION = '+
                                       'CELLVOLUME VALUELOCATION = '+
                                       'CELLCENTERED')
             eq('{Cell Size [Re]}={Cell Volume}**(1/3)',
-                                 zones=[field_data.zone(0)],value_location=cc)
+                                 zones=[field_data.zone('global_field')],
+                                 value_location=cc)
         eqeval(alleq['dipole_coord'])
         eqeval(alleq['dipole'])
         #eqeval(alleq['dipole'],value_location=cc)
@@ -2183,6 +2181,8 @@ def calc_state(mode, zones, **kwargs):
     #       Recommend: zonename as input so variable name is automated
     #       See example use of 'assert' if any pre_recs are needed
     #####################################################################
+    i_primary = kwargs.get('mainZoneIndex',0)
+    dataset = zones[i_primary].dataset
     #Call calc_XYZ_state and return state_index and create zonename
     closed_zone = kwargs.get('closed_zone')
     clean_blanks = False #flag to clear out blanks if get used here
@@ -2193,7 +2193,7 @@ def calc_state(mode, zones, **kwargs):
 
     elif mode == 'perfectsphere':
         zonename = mode+str(kwargs.get('sp_rmax',3))
-        state_index = zones[0].dataset.variable('r *').index
+        state_index = dataset.variable('r *').index
         iso_value = kwargs.get('sp_rmax',3)
     elif mode == 'sphere':
         zonename = mode+str(kwargs.get('sp_rmax',3))
@@ -2204,9 +2204,9 @@ def calc_state(mode, zones, **kwargs):
                                 rmin=kwargs.get('sp_rmin',0))
     elif mode == 'terminator':
         zonename = mode+str(kwargs.get('sp_rmax',3))
-        assert zones[0].dataset.zone('sphere*') is not None, (
+        assert dataset.zone('sphere*') is not None, (
                 "No spherical zone, can't apply terminator!")
-        sp_zone = zones[0].dataset.zone('sphere*')
+        sp_zone = dataset.zone('sphere*')
         north,south = calc_terminator_zone(zonename,sp_zone,**kwargs)
         return north, south, None
     elif mode == 'box':
@@ -2224,7 +2224,7 @@ def calc_state(mode, zones, **kwargs):
             zonename = 'shu97'
         else:
             zonename = 'shue98'
-        state_index = calc_shue_state(tp.active_frame().dataset, mode,
+        state_index = calc_shue_state(dataset, mode,
                                       kwargs.get('x_subsolar'),
                                       kwargs.get('tail_cap', -20),
                                       zones)
@@ -2236,17 +2236,17 @@ def calc_state(mode, zones, **kwargs):
                                                  ' Cant do lcb')
         #zonename = closed_zone.name
         zonename = 'ms_'+mode
-        state_index=zones[0].dataset.variable(closed_zone.name).index
+        state_index=dataset.variable(closed_zone.name).index
     elif 'lobe' in mode:
-        mpvar = kwargs.get('mpvar',zones[0].dataset.variable('mp*'))
+        mpvar = kwargs.get('mpvar',dataset.variable('mp*'))
         assert kwargs.get('do_trace',False) == False, (
                             "lobe mode only works with do_trace==False!")
         #assert mpvar is not None,('magnetopause variable not found'+
         #                          'cannot calculate lobe zone!')
         #NOTE replaced assertion w emergency magnetopause variable creation
         if mpvar is None:
-            calc_betastar_state('mp_iso_betastar', zones[0],**kwargs)
-            mpvar = zones[0].dataset.variable('mp*')
+            calc_betastar_state('mp_iso_betastar', zones,**kwargs)
+            mpvar = dataset.variable('mp*')
         zonename = 'ms_'+mode
         if 'slobe' in mode.lower():
             state_index = calc_lobe_state(mpvar.name, 'south',
@@ -2258,12 +2258,12 @@ def calc_state(mode, zones, **kwargs):
             state_index = calc_lobe_state(mpvar.name, 'both',
                                           zones,**kwargs)
     elif 'plasmasheet' in mode:
-        assert 'daynight' in zones[0].dataset.variable_names, ('No'+
+        assert 'daynight' in dataset.variable_names, ('No'+
                                        ' daynightmapping present!'+
                                        ' Cant do plasmasheet')
         #Br=0, NOTE this makes a flat 2D planar surface (0 captured volume)
         zonename = 'ms_'+mode
-        state_index = zones[0].dataset.variable('Br *').index
+        state_index = dataset.variable('Br *').index
         iso_value = 0
         # Blank daynight>-1 implies both closed and mapped to nightside
         tp.active_frame().plot().value_blanking.active = True
@@ -2271,7 +2271,7 @@ def calc_state(mode, zones, **kwargs):
                                                ValueBlankCellMode.PrimaryValue)
         blank = tp.active_frame().plot().value_blanking.constraint(7)
         blank.active = True
-        blank.variable = zones[0].dataset.variable('daynight')
+        blank.variable = dataset.variable('daynight')
         blank.comparison_operator = RelOp.GreaterThan
         blank.comparison_value = -1
         clean_blanks = True
@@ -2307,13 +2307,13 @@ def calc_state(mode, zones, **kwargs):
                                         str(kwargs.get('bxmax',10)),
                                         zones)
     elif 'xslice' in mode:
-        assert 'lcb' in zones[0].dataset.variable_names, ('No'+
+        assert 'lcb' in dataset.variable_names, ('No'+
                                        ' closed_zone variable! Cant do xslice')
         zonename = 'ms_'+mode
         #state_index = calc_xslice_state(zonename,closed_zone.name,zones)
-        zone = setup_slicezone(zones[0].dataset,'x',0,'lcb')
+        zone = setup_slicezone(dataset,'x',0,'lcb')
         zone.name = zonename
-        return zone, None, zones[0].dataset.variable('lcb').index
+        return zone, None, dataset.variable('lcb').index
 
     elif 'bs' in mode:
         #TODO: revive and refresh this to give a consistant result
@@ -2394,12 +2394,12 @@ def calc_state(mode, zones, **kwargs):
     elif 'Jpar' in mode:
         #Make sure we have a place to find the regions of intense FAC's
         assert any(
-                ['inner' in zn for zn in zones[0].dataset.zone_names]),(
+              ['inner' in zn for zn in dataset.zone_names]),(
                                         'No inner boundary zone created, '
                                             +'unclear where to calc FAC!')
         #Warn user if there is multiple valid "inner" zone targets
         if (['inner' in zn for zn in
-                           zones[0].dataset.zone_names].count(True) >1):
+                         dataset.zone_names].count(True) >1):
             warnings.warn("multiple 'inner' zones found, "+
                                    "default to first listed!",UserWarning)
         zonename = 'ms_'+mode
@@ -2413,14 +2413,14 @@ def calc_state(mode, zones, **kwargs):
                                 blankvalue=kwargs.get('inner_r',3))
         #Sphere at fixed radius
         innerzone = setup_isosurface(kwargs.get('inner_r',3),
-                                     zones[0].dataset.variable('r *').index,
+                            dataset.variable('r *').index,
                                      zonename+'innerbound',blankvar='')
         #PALEO update subsolar point
         new_subsolar = zone.values('X *').max()
-        if 'x_subsolar' in zones[0].aux_data:
-            if new_subsolar>float(zones[0].aux_data['x_subsolar']):
+        if 'x_subsolar' in zones[i_primary].aux_data:
+            if new_subsolar>float(zones[i_primary].aux_data['x_subsolar']):
                 print('x_subsolar updated to {}'.format(new_subsolar))
-                zones[0].aux_data['x_subsolar'] = new_subsolar
+                zones[i_primary].aux_data['x_subsolar'] = new_subsolar
     elif kwargs.get('create_zone',True):
         if kwargs.get('keep_zones')=='all':
             newzones = setup_isosurface(iso_value, state_index,
@@ -2439,9 +2439,9 @@ def calc_state(mode, zones, **kwargs):
                 innerzone.name = zonename+'_inner'
                 # Delete the rest
                 if newzones != []:
-                    zones[0].dataset.delete_zones(newzones)
+                    dataset.delete_zones(newzones)
                 #NOTE need to refresh variable for innerzone to fix index
-                innerzone = zones[0].dataset.zone(zonename+'_inner')
+                innerzone = dataset.zone(zonename+'_inner')
                 print('created '+innerzone.name)
 
                 # Name the zones
@@ -2733,11 +2733,12 @@ def calc_Jpar_state(mode, zones,  **kwargs):
     Returns
         zone
     """
+    i_primary = kwargs.get('mainZoneIndex',0)
     #Initialize state variable
     eq, CC = tp.data.operate.execute_equation, ValueLocation.CellCentered
     eq('{'+mode+'}=0', zones=zones)
     tol = kwargs.get('projection_tol', 2)
-    state = zones[0].values(mode).as_numpy_array()
+    state = zones[i_primary].values(mode).as_numpy_array()
     #pull footpoint values from entire domain into arrays
     #global_th1 = sourcezone.values('theta_1 *').as_numpy_array()
     #global_th2 = sourcezone.values('theta_2 *').as_numpy_array()
@@ -2745,7 +2746,7 @@ def calc_Jpar_state(mode, zones,  **kwargs):
     #global_phi2 = sourcezone.values('phi_2 *').as_numpy_array()
 
     #define zone that will be used to find current densities
-    zone = zones[0].dataset.zone('*inner*')
+    zone = zones[i_primary].dataset.zone('*inner*')
     lat = zone.values('theta *').as_numpy_array()
     Jpar = zone.values('J_par *').as_numpy_array()
 
@@ -2905,6 +2906,7 @@ def calc_bs_state2(deltaS, betastarblank, xtail, zones, *,
     Return
         index- index for the created variable
     """
+    i_primary = kwargs.get('mainZoneIndex',0)
     eq = tp.data.operate.execute_equation
     state = 'ext_bs_Ds'
     if True:
@@ -2912,7 +2914,7 @@ def calc_bs_state2(deltaS, betastarblank, xtail, zones, *,
                   '&& ({s [Re^4/s^2kg^2/3]}/'+
                       '({1Ds [Re^4/s^2kg^2/3]}+1e-20)<'+str(deltaS)+
                             '),1,0)',zones=zones)
-    return zones[0].dataset.variable('ext_bs_Ds').index
+    return zones[i_primary].dataset.variable('ext_bs_Ds').index
 
 def calc_xslice_state(varname,closed_name,zones):
     eq = tp.data.operate.execute_equation
@@ -2930,6 +2932,7 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,zones,**kwargs):
     Return
         index- index for the created variable
     """
+    i_primary = kwargs.get('mainZoneIndex',0)
     eq = tp.data.operate.execute_equation
     Lvar = kwargs.get('Lvar','Lshell')
     state = 'ms_'+ps_qDp+'_L>'
@@ -2949,7 +2952,7 @@ def calc_ps_qDp_state(ps_qDp,closed_var,lshelllim,bxmax,zones,**kwargs):
         eq('{'+state+'} = if({'+closed_var+'}>0&&'+
                                   '{'+Lvar+'}>='+lshelllim+'&&'+
               '{r [R]}>='+str(kwargs.get('inner_r',3))+',1,0)',zones=zones)
-    return zones[0].dataset.variable(state).index
+    return zones[i_primary].dataset.variable(state).index
 
 
 def calc_rc_state(closed_var, lshellmax, zones, *,
@@ -2964,13 +2967,14 @@ def calc_rc_state(closed_var, lshellmax, zones, *,
     Return
         index- index for the created variable
     """
+    i_primary = kwargs.get('mainZoneIndex',0)
     eq = tp.data.operate.execute_equation
     state = 'ms_rc_L='
     eq('{'+state+'} = if({'+closed_var+'}==1&&'+
                            '{r [R]}>='+str(kwargs.get('inner_r',3))+'&&'+
                                     '{'+Lvar+'}<'+lshellmax+',1,0)',
                                     zones=zones)
-    return zones[0].dataset.variable(state).index
+    return zones[i_primary].dataset.variable(state).index
 
 def calc_plasmasheet_state(zones,xlims,ylims,zlims,**kwargs):
     """Function creates equation for the plasmasheet which is constricted to
@@ -3010,6 +3014,7 @@ def calc_lobe_state(mp_var, northsouth, zones, **kwargs):
     eq, cc = tp.data.operate.execute_equation, ValueLocation.CellCentered
     status = kwargs.get('status','Status')
     r = str(kwargs.get('inner_r',3))
+    i_primary = kwargs.get('mainZoneIndex',0)
     #set state name
     if 'both' in northsouth: state = 'Lobe'
     else: state = northsouth[0].upper()+'Lobe'
@@ -3024,7 +3029,7 @@ def calc_lobe_state(mp_var, northsouth, zones, **kwargs):
         eqstr=('{'+state+'} =if(({'+mp_var+'}==1&&{r [R]}>='+r+')&&'+
               '({'+status+'}==1 || {'+status+'}==2),1,0)')
     eq(eqstr, zones=zones)
-    return zones[0].dataset.variable(state).index
+    return zones[i_primary].dataset.variable(state).index
 
 def calc_transition_rho_state(xmax, xmin, hmax, rhomax, rhomin, uBmin,
                               sourcezone):
@@ -3068,7 +3073,7 @@ def calc_betastar_state(zonename, zones, **kwargs):
     else:
         eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+
                                  '{X [R]} <'+xmax+'&&{r [R]} >='+core_r)
-    if 'Status' in zones[0].dataset.variable_names:
+    if 'Status' in zones[kwargs.get('mainZone',0)].dataset.variable_names:
         eqstr+='&&{Status}>0'
     eqstr=(eqstr+',IF({beta_star}<'+betamax+',1,')
     if type(closed_zone) != type(None):
@@ -3125,10 +3130,10 @@ def calc_shue_state(field_data, mode, x_subsolar,xtail,zones,*, dx=10):
     for source in zones:
         src=str(source.index+1)#Needs to be ref for non fixed variables XYZR
         #Probe field data at x_subsolar + dx to find Bz and Dp
-        Bz = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[source.index][9]
+        Bz=tp.data.query.probe_at_position(x_subsolar+dx,0,0)[source.index][9]
         Dp_index = field_data.variable('Dp *').index
-        Dp = tp.data.query.probe_at_position(x_subsolar+dx,0,0)[
-                                                         source.index][Dp_index]
+        Dp=tp.data.query.probe_at_position(x_subsolar+dx,0,0)[
+                                                       source.index][Dp_index]
         #Get r0 and alpha based on IMF conditions
         if mode == 'shue97':
             r0, alpha = r0_alpha_1997(Bz, Dp)
@@ -3153,6 +3158,7 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, zones,*, rmin=0):
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
+    i_primary = kwargs.get('mainZoneIndex',0)
     '''
     if 'future' in sourcezone.name: state = 'future_'+mode
     else: state = mode
@@ -3166,7 +3172,7 @@ def calc_sphere_state(mode, xc, yc, zc, rmax, zones,*, rmin=0):
                             '({Y [R]} -'+str(yc)+')**2 +'+
                             '({Z [R]} -'+str(zc)+')**2) >'+
                             str(rmin)+',1, 0)',zones=zones)
-    return zones[0].dataset.variable(state).index
+    return zones[i_primary].dataset.variable(state).index
 
 def calc_closed_state(statename, status_key,status_val,xmin,source,core_r):
     """Function creates state variable for the closed fieldline region
@@ -3192,6 +3198,7 @@ def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin,zones):
         state_var_index- index to find state variable in tecplot
     """
     eq = tp.data.operate.execute_equation
+    i_primary = kwargs.get('mainZoneIndex',0)
     state = mode
     eq('{'+state+'} = IF(({X [R]} >'+str(xmin)+') &&'+
                        '({X [R]} <'+str(xmax)+') &&'+
@@ -3199,7 +3206,7 @@ def calc_box_state(mode, xmax, xmin, ymax, ymin, zmax, zmin,zones):
                        '({Y [R]} <'+str(ymax)+') &&'+
                        '({Z [R]} >'+str(zmin)+') &&'+
                        '({Z [R]} <'+str(zmax)+'), 1, 0)',zones=zones)
-    return sourcezone.dataset.variable(mode).index
+    return zones[i_primary].variable(state).index
 
 def abs_to_timestamp(abstime):
     """Function converts absolute time in sec to a timestamp list

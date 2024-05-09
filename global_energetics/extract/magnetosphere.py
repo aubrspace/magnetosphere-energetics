@@ -426,7 +426,8 @@ def generate_3Dobj(sourcezone, **kwargs):
 
     #Create the tecplot objects from the source and store into lists
     for m in modes:
-        zone,inner_zone,state_index=calc_state(m, sources,**kwargs)
+        zone,inner_zone,state_index=calc_state(m, sources,**kwargs,
+                                               mainZoneIndex=sourcezone.index)
         state_name = zone.dataset.variable(state_index).name
         if (type(zone)!=type(None)or type(inner_zone)!=type(None)):
             if 'zone_rename' in kwargs:
@@ -444,15 +445,15 @@ def generate_3Dobj(sourcezone, **kwargs):
                     #get_surf_geom_variables(inner_zone,**kwargs)
                 if 'modes' in kwargs:
                     if (inner_zone is not None and
-                        'iso_betastar' not in zone.name):
+                        'iso_betastar' in zone.name):
                         zonelist.append(inner_zone)
     #Get the geometry variables AFTER all zones are created
     for zone in zonelist:
         get_surf_geom_variables(zone,**kwargs)
-        if inner_zone is not None:
+        if 'innerbound' in zone.name:
             copy_kwargs = kwargs.copy()
             copy_kwargs.update({'innerbound':True})
-            get_surf_geom_variables(inner_zone,**copy_kwargs)
+            get_surf_geom_variables(zone,**copy_kwargs)
 
     #Assign magnetopause variable
     kwargs.update({'mpvar':sourcezone.dataset.variable('mp*')})
@@ -651,6 +652,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 for name in ['1DK_net [W/Re^2]','1DP0_net [W/Re^2]',
                                 '1DExB_net [W/Re^2]']:
                     savemeshvars[kwargs.get('modes')[0]].append(name)
+            '''
             if(('iso_betastar'in kwargs.get('modes'))and('mp_'in zone.name)
                                            and ('inner' not in zone.name)):
                 #integrate power on innerboundary surface
@@ -669,9 +671,12 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                     var.split(' ')[0]+'*').as_numpy_array()
                     inner_mesh.update({'Time [UTC]':
                                  pd.DataFrame({'Time [UTC]':[eventtime]})})
+            '''
         #quick post_proc, saves on number of integration calls
         data_to_write = surface_tools.post_proc(data_to_write,
                          do_interfacing=kwargs.get('do_interfacing',False))
+    if any(['innerbound' in z.name for z in zonelist]):
+        zonelist.remove(field_data.zone('*innerbound'))
     #timestamp
     ltime = time.time()-start_time
     print('SURF--- {:d}min {:.2f}s ---'.format(int(ltime/60),
@@ -679,7 +684,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     ################################################################
     if integrate_volume:
         for i,state in enumerate(state_names):
-            if not 'Br ' in state:
+            if 'Br 'not in state:
                 region = zonelist[i]
                 print('\nWorking on: '+region.name+' volume')
                 energies = volume_analysis(field_data.variable(state),

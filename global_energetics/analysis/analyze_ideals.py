@@ -2223,7 +2223,7 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
-    coupling_scatter(dataset,path)
+    #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
 
 if __name__ == "__main__":

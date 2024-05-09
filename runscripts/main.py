@@ -212,7 +212,7 @@ if __name__ == "__main__":
                     #    dataset.zone('IonS*').name = 'future_ionosphere_south'
                     #    do_south = True
                 #if do_north*do_south:
-                if False:
+                if True:
                     ionosphere.get_ionosphere(dataset,
                                               verbose=True,
                                               hasGM=True,

@@ -645,6 +645,9 @@ def refactor(event,t0):
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
 
+    from IPython import embed; embed()
+    time.sleep(3)
+
     return ev
 
 def ie_refactor(event,t0):

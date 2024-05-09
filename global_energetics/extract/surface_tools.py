@@ -982,11 +982,11 @@ def get_surface_trades(zone,integrands,**kwargs):
                 eq(new_eq,zones=[zone],
                    value_location=ValueLocation.CellCentered)
                 trade_integrands[qty+tradetag]=' '.join([qty+tradetag,newunit])
-            #except TecplotLogicError as err:
-            #    print('Equation eval failed!\n',new_eq,'\n')
+            except TecplotLogicError as err:
+                print('Equation eval failed!\n',new_eq,'\n')
             #    if kwargs.get('debug',False): print(err)
-            except:
-                from IPython import embed; embed()
+            #except:
+            #    from IPython import embed; embed()
     #TODO
     #   Figure out why north hemi is pulling zeros for M2a/M2b
     #   Switch from daynight + status => daynight 1->0 vs (-1)->0 etc.
