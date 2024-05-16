@@ -645,9 +645,63 @@ def refactor(event,t0):
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
 
-    from IPython import embed; embed()
-    time.sleep(3)
+    #from IPython import embed; embed()
+    #time.sleep(3)
 
+    return ev
+
+def gmiono_refactor(event,t0):
+    # Name the top level
+    ev = {}
+    ev['ocflb_north'] = event['GMionoNorth_line'].resample('60S').ffill()
+    ev['ocflb_south'] = event['GMionoSouth_line'].resample('60S').ffill()
+    ev['ie_surface_north']=event['GMionoNorth_surface'].resample('60S').ffill()
+    ev['ie_surface_south']=event['GMionoSouth_surface'].resample('60S').ffill()
+    # Data collected piece wise so it doesn't always stack up time-wise
+    surf_index = ev['ie_surface_north'].index
+    line_index = ev['ocflb_north'].index
+    timedelta = [t-t0 for t in ev['ocflb_north'].index]
+    ev['ie_times']=[float(n.to_numpy()) for n in timedelta]
+    # Name more specific stuff
+    # Flux
+    ev['ie_flux_north']= ev['ie_surface_north']['Bf_netOpenN [Wb]']
+    ev['ie_flux_south']= ev['ie_surface_south']['Bf_netOpenS [Wb]']
+    ev['ie_flux'] = (abs(ev['ie_surface_north']['Bf_netOpenN [Wb]'])+
+                     abs(ev['ie_surface_south']['Bf_netOpenS [Wb]']))
+    # Static reconnection
+    ev['RXNs_north'] =  ev['ie_surface_north']['dBfdt_netOpenN [Wb/s]']
+    ev['RXNs_south'] = -ev['ie_surface_south']['dBfdt_netOpenS [Wb/s]']
+    ev['RXNs'] = ( ev['ie_surface_north']['dBfdt_netOpenN [Wb/s]']-
+                   ev['ie_surface_south']['dBfdt_netOpenS [Wb/s]'])
+    # Motional reconnection
+    ev['RXNm_northDay'] = -ev['ie_surface_north']['Bf_netM2a [Wb/s]']
+    ev['RXNm_southDay'] =  ev['ie_surface_south']['Bf_netM2a [Wb/s]']
+    ev['RXNm_northNight'] = -ev['ie_surface_north']['Bf_netM2b [Wb/s]']
+    ev['RXNm_southNight'] =  ev['ie_surface_south']['Bf_netM2b [Wb/s]']
+    ev['RXNm_Day'] = (-ev['ie_surface_north']['Bf_netM2a [Wb/s]']+
+                       ev['ie_surface_south']['Bf_netM2a [Wb/s]'])
+    ev['RXNm_Night'] = (-ev['ie_surface_north']['Bf_netM2b [Wb/s]']+
+                         ev['ie_surface_south']['Bf_netM2b [Wb/s]'])
+    ev['RXNm'] = ev['RXNm_Day']+ev['RXNm_Night']
+    ev['RXN'] = ev['RXNm']+ev['RXNs']
+    # Contour (static) reconnection
+    ev['cRXNs_north'] = ev['ocflb_north']['dPhidt_net [Wb/s]']
+    ev['cRXNs_south'] =  ev['ocflb_south']['dPhidt_net [Wb/s]']
+    ev['cRXNs_northDay'] = ev['ocflb_north']['dPhidtDay_net [Wb/s]']
+    ev['cRXNs_southDay'] =  ev['ocflb_south']['dPhidtDay_net [Wb/s]']
+    ev['cRXNs_northNight'] = ev['ocflb_north']['dPhidtNight_net [Wb/s]']
+    ev['cRXNs_southNight'] =  ev['ocflb_south']['dPhidtNight_net [Wb/s]']
+
+    ev['cRXNs'] = (ev['ocflb_north']['dPhidt_net [Wb/s]']+
+                    ev['ocflb_south']['dPhidt_net [Wb/s]'])
+    ev['cRXNs_Day'] = (ev['ocflb_north']['dPhidtDay_net [Wb/s]']+
+                        ev['ocflb_south']['dPhidtDay_net [Wb/s]'])
+    ev['cRXNs_Night'] = (ev['ocflb_north']['dPhidtNight_net [Wb/s]']+
+                          ev['ocflb_south']['dPhidtNight_net [Wb/s]'])
+    # Finite diferences (for checking)
+    ev['cdiffRXN_north'] = central_diff(abs(ev['ie_flux_north']))
+    ev['cdiffRXN_south'] = central_diff(abs(ev['ie_flux_south']))
+    ev['cdiffRXN'] = -central_diff(ev['ie_flux'])
     return ev
 
 def ie_refactor(event,t0):
