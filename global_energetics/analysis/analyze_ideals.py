@@ -421,13 +421,27 @@ def test_matrix(event,ev,path):
     plt.close(matrix)
     print('\033[92m Created\033[00m',figurename)
 
-def indices(dataset,path):
+def plot_indices(dataset,path):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
-                                       dataset['MEDnHIGHu']['time'])
+                                       dataset['stretched_MEDnHIGHu']['time'])
+    colors = ['#80b3ffff','#0066ffff','#0044aaff',
+              '#80ffb3ff','#2aff80ff','#00aa44ff',
+              '#ffe680ff','#ffcc00ff','#806600ff']
+    testpoints = ['stretched_LOWnLOWu',
+                  'stretched_MEDnLOWu',
+                  'stretched_HIGHnLOWu',
+                  'stretched_LOWnMEDu',
+                  'stretched_MEDnMEDu',
+                  'stretched_HIGHnMEDu',
+                  'stretched_LOWnHIGHu',
+                  'stretched_MEDnHIGHu',
+                  'stretched_HIGHnHIGHu']
     #############
     #setup figure
     indices,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
-    for event in dataset.keys():
+    for i,event in enumerate(testpoints):
+        if event not in dataset.keys():
+            continue
         timedelta = [t-T0 for t in dataset[event]['obs']['swmf_log'].index]
         times = [float(n.to_numpy()) for n in timedelta]
         #supdelta = [t-T0 for t in dataset[event]['obs']['vsupermag'].index]
@@ -436,21 +450,21 @@ def indices(dataset,path):
         indtimes = [float(n.to_numpy()) for n in inddelta]
         axis.plot(times,
                   dataset[event]['obs']['swmf_log']['dst_sm'],
-                  label=event)
-        axis2.plot(times,
-                  dataset[event]['obs']['swmf_log']['cpcpn'],
-                  label=event)
-        #axis2.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
-        #           label=event)
+                  label=event,c=colors[i],lw=3)
+        #axis2.plot(times,
+        #          dataset[event]['obs']['swmf_log']['cpcpn'],
+        #          label=event)
+        axis2.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
+                   label=event,c=colors[i])
     for interv in interval_list:
         axis.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
         axis2.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                       c='grey')
 
-    general_plot_settings(axis,do_xlabel=False,legend=True,
+    general_plot_settings(axis,do_xlabel=False,legend=False,
                           ylabel=r'Dst $\left[nT\right]$',timedelta=True)
-    general_plot_settings(axis2,do_xlabel=True,legend=True,
-                          ylabel=r'SML $\left[nT\right]$',timedelta=True)
+    general_plot_settings(axis2,do_xlabel=True,legend=False,
+                          ylabel=r'AL $\left[nT\right]$',timedelta=True)
     axis.margins(x=0.01)
     indices.tight_layout(pad=1)
     figurename = path+'/indices.png'
@@ -2185,8 +2199,8 @@ def tab_contingency(events,path):
     ax.set_zlim([0,1])
     ax.set_xticks([5,10,20])
     ax.set_yticks([-800,-600,-400])
-    #ax.set_xlabel('Velocity [km/s]')
-    #ax.set_ylabel('Density [amu/cc]')
+    ax.set_ylabel('Velocity [km/s]',labelpad=20)
+    ax.set_xlabel('Density [amu/cc]',labelpad=20)
     fig.tight_layout(pad=1)
     figurename = path+'/HSS_3d.png'
     fig.savefig(figurename,transparent=True)
@@ -2231,7 +2245,7 @@ def initial_figures(dataset):
                                   dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
-        #events[run] = build_events(ev,run)
+        events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
@@ -2265,13 +2279,14 @@ def initial_figures(dataset):
         #all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
         example_window = (dt.datetime(2022,6,6,14,0),
                           dt.datetime(2022,6,7,4,0))
-        rxn(ev,run,path,zoom=example_window,tag='midzoom')
+        #rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #show_event_hist(ev,run,events,path)
         #show_events(ev,run,events,path)
         #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
+    plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
 
@@ -2294,11 +2309,15 @@ if __name__ == "__main__":
 
     # Event list
     #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
-    events =['stretched_MEDnHIGHu']
-             #'stretched_LOWnLOWu',
-             #'stretched_LOWnHIGHu',
-             #'stretched_HIGHnLOWu',
-             #'stretched_HIGHnHIGHu']
+    events =['stretched_LOWnLOWu',
+             'stretched_LOWnMEDu',
+             'stretched_LOWnHIGHu',
+             #
+             'stretched_HIGHnLOWu',
+             'stretched_HIGHnHIGHu',
+             #
+             'stretched_MEDnMEDu',
+             'stretched_MEDnHIGHu']
              #'stretched_LOWnLOWucontinued']
 
     ## Analysis Data
