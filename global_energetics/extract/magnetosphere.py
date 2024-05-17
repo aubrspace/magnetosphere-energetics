@@ -568,6 +568,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                                       do_cms, verbose,
                                               kwargs.get('do_trace',False),
                                               kwargs.get('tshift',0))
+    if 'tdelta' not in kwargs:
+        kwargs.update({'tdelta':deltatime})
+    print(kwargs.get('tdelta'))
     #timestamp
     ltime = time.time()-start_time
     print('PREPROC--- {:d}min {:.2f}s ---'.format(int(ltime/60),

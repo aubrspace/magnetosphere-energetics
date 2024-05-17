@@ -2,8 +2,8 @@
 #'parallel' script for spawning lots of jobs
 
 #define variables
-INPUTDIR=./run_HIGHnLOWu/GM/IO2/
-OUTPUTDIR=./outputs_may6_HIGHnLOWu/
+INPUTDIR=./run_r3test/GM/IO2/
+OUTPUTDIR=./outputs_1second/
 
 # May6 Todo list:
 # MedLow

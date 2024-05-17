@@ -148,8 +148,11 @@ def energetics_analysis(infiles,outpath):
         #if dataset.zone('IonS*') is not None:
         #    dataset.zone('IonS*').name = 'future_ionosphere_south'
         #    do_south = True
-        if do_north*do_south:
-            ionosphere.get_ionosphere(dataset,
+        #if do_north*do_south:
+    else:
+        dataset = field_data
+    if True:
+        ionosphere.get_ionosphere(dataset,
                                               verbose=False,
                                               hasGM=True,
                                               eventtime=filetime,
