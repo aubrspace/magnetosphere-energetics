@@ -20,7 +20,8 @@ from global_energetics.analysis.plot_tools import (central_diff,
                                                    plot_stack_distr,
                                                    plot_pearson_r,
                                                    plot_stack_contrib,
-                                                   refactor,ie_refactor)
+                                                   refactor,ie_refactor,
+                                                   gmiono_refactor)
 from global_energetics.analysis.proc_hdf import (load_hdf_sort)
 from global_energetics.analysis.proc_indices import read_indices
 from global_energetics.analysis.analyze_energetics import plot_power
@@ -1301,6 +1302,53 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
 
+def rxn(ev,event,path,**kwargs):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    if 'zoom' in kwargs:
+        zoom = kwargs.get('zoom')
+        window = [float(pd.Timedelta(n-TSTART).to_numpy()) for n in zoom]
+    else:
+        window = None
+    #############
+    #setup figure
+    RXN,(daynight) = plt.subplots(1,1,figsize=[24,8],
+                                                    sharex=True)
+    # Get time markings that match the format
+    #Plot
+    # Dayside/nightside reconnection rates
+    daynight.axhline(0,c='black')
+    daynight.fill_between(ev['ie_times'],ev['RXN']/1e3,label='Net',fc='grey')
+    daynight.plot(ev['ie_times'],ev['RXNm_Day']/1e3,label='Day',
+                  c='dodgerblue',lw=3)
+    daynight.plot(ev['ie_times'],ev['RXNm_Night']/1e3,label='Night',c='navy')
+    daynight.plot(ev['ie_times'],ev['RXNs']/1e3,label='Static',c='red',ls='--')
+    #Decorations
+    general_plot_settings(daynight,do_xlabel=True,legend=True,
+                          ylabel=r'$d\phi/dt \left[kV\right]$',
+                          xlim = window,
+                          timedelta=True)
+    if 'zoom' in kwargs:
+        daynight.set_ylim([ev['RXN'][(ev['RXN'].index<zoom[1])&
+                                     (ev['RXN'].index>zoom[0])].min()/1e3,
+                           ev['RXN'][(ev['RXN'].index<zoom[1])&
+                                     (ev['RXN'].index>zoom[0])].max()/1e3])
+    for interv in interval_list:
+        daynight.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                          c='grey')
+    daynight.margins(x=0.01)
+    RXN.tight_layout()
+    #Save
+    if 'zoom' in kwargs:
+        figurename = (path+'/RXN_'+event+'_'+
+                      kwargs.get('tag','zoomed')+'.png')
+    else:
+        figurename = path+'/RXN_'+event+'.png'
+    # Save in pieces
+    RXN.savefig(figurename)
+    print('\033[92m Created\033[00m',figurename)
+    plt.close(RXN)
+
 def all_fluxes(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
                                         ev['mp'].index)
@@ -2179,10 +2227,10 @@ def initial_figures(dataset):
         print(run)
         ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
         if 'iedict' in dataset[run].keys():
-            #ev2 = ie_refactor(dataset[run]['iedict'],dt.datetime(2022,6,6,0))
-            #for key in ev2.keys():
-            #    ev[key] = ev2[key]
-            pass
+            ev2 = gmiono_refactor(dataset[run]['iedict'],
+                                  dt.datetime(2022,6,6,0))
+            for key in ev2.keys():
+                ev[key] = ev2[key]
         #events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
@@ -2217,6 +2265,7 @@ def initial_figures(dataset):
         #all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
         example_window = (dt.datetime(2022,6,6,14,0),
                           dt.datetime(2022,6,7,4,0))
+        rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #show_event_hist(ev,run,events,path)
         #show_events(ev,run,events,path)
         #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
@@ -2245,11 +2294,11 @@ if __name__ == "__main__":
 
     # Event list
     #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
-    events =['stretched_MEDnHIGHu',
-             'stretched_LOWnLOWu',
-             'stretched_LOWnHIGHu',
-             'stretched_HIGHnLOWu',
-             'stretched_HIGHnHIGHu']
+    events =['stretched_MEDnHIGHu']
+             #'stretched_LOWnLOWu',
+             #'stretched_LOWnHIGHu',
+             #'stretched_HIGHnLOWu',
+             #'stretched_HIGHnHIGHu']
              #'stretched_LOWnLOWucontinued']
 
     ## Analysis Data

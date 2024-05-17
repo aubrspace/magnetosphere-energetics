@@ -39,7 +39,7 @@ def load_hdf_sort(hdf, **kwargs):
                 gmdict[key].drop(columns=['Time [UTC]'],inplace=True)
             else:
                 gmdict[key] = store[key]
-        if 'ie' in key or 'ionosphere' in key:
+        if 'ie' in key or 'iono' in key:
             iedict[key] = store[key]
         if 'ua' in key:
             uadict[key] = store[key]
