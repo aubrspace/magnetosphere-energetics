@@ -145,18 +145,22 @@ def general_plot_settings(ax, **kwargs):
             #from IPython import embed; embed()
             #import time
             #time.sleep(3)
-            return "{:1}".format(hours+minutes/60)
+            return "{:d}:{:d}".format(hours,minutes)
         #Get original limits
         ax.set_xlim(kwargs.get('xlim',None))
         xlims = ax.get_xlim()
         islong = (xlims[1]-xlims[0])*1e-9/3600 > 10
+        ismed = (xlims[1]-xlims[0])*1e-9/3600 > 2
         if islong:
             #Manually adjust the xticks
             n = 3600*4/1e-9
             locs = [i*n for i in range(-100,100)]
-        else:
+        elif ismed:
             n = 3600*0.5/1e-9
             locs = [i*n for i in range(-100,100)]
+        else:
+            n = 3600/60/1e-9
+            locs = [i*n for i in range(-2000,2000)]
         locs = [np.round(l/1e10)*1e10 for l in locs]
         ax.xaxis.set_ticks(locs)
         if islong:
@@ -657,10 +661,18 @@ def refactor(event,t0):
 def gmiono_refactor(event,t0):
     # Name the top level
     ev = {}
-    ev['ocflb_north'] = event['GMionoNorth_line'].resample('60S').ffill()
-    ev['ocflb_south'] = event['GMionoSouth_line'].resample('60S').ffill()
-    ev['ie_surface_north']=event['GMionoNorth_surface'].resample('60S').ffill()
-    ev['ie_surface_south']=event['GMionoSouth_surface'].resample('60S').ffill()
+    sample = str((event['GMionoNorth_surface'].index[-1]-
+                  event['GMionoNorth_surface'].index[-2]).seconds)+'S'
+    #ev['ocflb_north'] = event['GMionoNorth_line'].resample(sample).ffill()
+    #ev['ocflb_south'] = event['GMionoSouth_line'].resample(sample).ffill()
+    #ev['ie_surface_north']=event['GMionoNorth_surface'].resample(
+    #                                                           sample).ffill()
+    #ev['ie_surface_south']=event['GMionoSouth_surface'].resample(
+    #                                                           sample).ffill()
+    ev['ocflb_north'] = event['GMionoNorth_line']
+    ev['ocflb_south'] = event['GMionoSouth_line']
+    ev['ie_surface_north']=event['GMionoNorth_surface']
+    ev['ie_surface_south']=event['GMionoSouth_surface']
     # Data collected piece wise so it doesn't always stack up time-wise
     surf_index = ev['ie_surface_north'].index
     line_index = ev['ocflb_north'].index
@@ -706,6 +718,7 @@ def gmiono_refactor(event,t0):
     ev['cdiffRXN_north'] = central_diff(abs(ev['ie_flux_north']))
     ev['cdiffRXN_south'] = central_diff(abs(ev['ie_flux_south']))
     ev['cdiffRXN'] = -central_diff(ev['ie_flux'])
+    #from IPython import embed; embed()
     return ev
 
 def ie_refactor(event,t0):

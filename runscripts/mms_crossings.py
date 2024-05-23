@@ -297,9 +297,9 @@ def plot_timeseries(event,path,**kwargs):
              color='brown')
     #Time markers
     mvab.axvline(event['BL50'],c='orange',lw=3)
-    mvab.axvline(event['start'],c='black')
     sw_r.axhline(0)
     for ax in [mvab,flux,sw,dst,al]:
+        ax.axvline(event['start'],c='black')
         ax.axvline(event['HTstart'],c='green',ls='--',lw=3)
         ax.axvline(event['HTend'],c='green',ls='--',lw=3)
         ax.margins(x=0.01)
@@ -399,8 +399,41 @@ def calc_LMN(bfield,vfield,normal,l,**kwargs):
     # Get BL 50% mark
     #TODO: update this to not find the 'closest' but to march instead
     runningBL = cross_b['bl'].rolling('5s').mean()
-    bl38_value = runningBL.min()+(runningBL.max()-runningBL.min())*0.12
+    i_min = np.where(runningBL==runningBL.min())[0][0]
+    i_max = np.where(runningBL==runningBL.max())[0][0]
+    bl76 = runningBL[min(i_min,i_max):max(i_min,i_max)+1]
+
+    # 50%
+    dB = runningBL.max()-runningBL.min()
+    blmin = bl76.min()
     bl50_value = runningBL.min()+(runningBL.max()-runningBL.min())*0.5
+    i_50 = np.where(abs(bl76-bl50_value)==abs(bl76-bl50_value).min())[0][0]
+    bl50_time = bl76.index[i_50]
+    if bl76[0]>bl76[-1]:
+        down = bl76[i_50::].items()
+        up = zip(reversed(bl76[0:i_50].index),reversed(bl76[0:i_50]))
+    else:
+        up = bl76[i_50::].items()
+        down = zip(reversed(bl76[0:i_50].index),reversed(bl76[0:i_50]))
+    # 38%
+    for i,(t,value) in enumerate(down):
+        percent = (value-blmin)/dB*100
+        if percent<32:
+            i_38 = i
+            bl38_time = t
+            break
+    # 88%
+    for i,(t,value) in enumerate(up):
+        percent = (value-blmin)/dB*100
+        print(percent)
+        if percent>88:
+            i_88 = i
+            bl88_time = t
+            break
+
+
+    '''
+    bl38_value = runningBL.min()+(runningBL.max()-runningBL.min())*0.12
     bl88_value = runningBL.min()+(runningBL.max()-runningBL.min())*0.70
     # Constrain to only between the max and min
     i_min = np.where(runningBL==runningBL.min())[0][0]
@@ -413,6 +446,7 @@ def calc_LMN(bfield,vfield,normal,l,**kwargs):
                                 abs(bl76-bl50_value).min()][0]
     bl88_time = bl76.index[abs(bl76-bl88_value)==
                                 abs(bl76-bl88_value).min()][0]
+    '''
     # Get HT interval as CurrentSheet width x 1.5
     cs_window = max(bl38_time,bl88_time)-min(bl38_time,bl88_time)
     HT_start = (min(bl38_time,bl88_time)+cs_window/2)-(cs_window*1.5/2)
@@ -481,7 +515,7 @@ def process_crossing(crossing_misc,ID,t0):
     start = dt.datetime.fromisoformat(misc['DateStart'])
     ut = (start-t0).total_seconds()
     gp.recalc(ut)
-    interval = [start,start+dt.timedelta(seconds=100)]
+    interval = [start,start+dt.timedelta(seconds=300)]
     # Misc. data has found the boundary normal and u_norm already
     eigenvalues = misc['l1_mfr'],misc['l2_mfr'],misc['l3_mfr']
     min_vector = eigenvalues.index(min(eigenvalues))+1
@@ -499,8 +533,7 @@ def process_crossing(crossing_misc,ID,t0):
     #event = {'ID':'20151206_232844'}
     #event = {'ID':'20151206_002304'}#NOTE failed case
     event = {'ID':ID}
-    pos,bfield,plasma=collect_mms(interval[0]-dt.timedelta(hours=5),
-                                    interval[1]-dt.timedelta(hours=5),
+    pos,bfield,plasma=collect_mms(interval[0],interval[1],
                                     writeData=False,
                                     fgm_mode='brst',
                                     fpi_mode='brst')
@@ -521,8 +554,8 @@ def process_crossing(crossing_misc,ID,t0):
                                                     HTstart,HTend,n_gsm,u_n)
         # Get THEMIS data and check for good positioning
     th_pos,th_bfield,th_plasma = collect_themis(
-                                        interval[0]-dt.timedelta(hours=5),
-                                        interval[1]-dt.timedelta(hours=5),
+                                        interval[0],
+                                        interval[1],
                                         writeData=False)
     if not th_pos['themisA'].empty:
         print('BAD DATA!')
@@ -595,30 +628,23 @@ if __name__ == '__main__':
 
     success = 0
     failed = 0
-    for i,ID in enumerate(good_crossings['ID'].values):
+    for i,ID in enumerate(good_crossings['ID'].values[0:1]):
         print(i,ID)
         # Store in compiled list
-        try:
+        #try:
+        if True:
             event = process_crossing(crossing_misc,ID,t0)
             plot_timeseries(event,outPath)
-            for key in [k for k in event.keys() if 'mms' not in k]:
+            for key in [k for k in event.keys() if 'mms' not in k and
+                                                   'omni' not in k]:
                 good_crossings.loc[i,key] = event[key]
             success+=1
-        except:
-            print(ID,' Failed!')
-            failed+=1
-            continue
+        #except:
+        #    print(ID,' Failed!')
+        #    failed+=1
+        #    continue
 
-        '''
-        good_crossing_data[ID] = event
-        good_crossings.loc[i,'ID'] = event['ID']
-        good_crossings.loc[i,'good_themis'] = event['good_themis']
-        good_crossings.loc[i,'driving'] = event['driving']
-        good_crossings.loc[i,'energized'] = event['energized']
-        good_crossings.loc[i,'storm'] = event['storm']
-        good_crossings.loc[i,'substorm'] = event['substorm']
-        '''
-    print(f'success: {success}, failed: {failed}')
+    print(f'success: {success/(i+1)*100}%, failed: {failed/(i+1)*100}%')
     #from IPython import embed; embed()
     #TODO
     #   #Count up the number of crossings of different types

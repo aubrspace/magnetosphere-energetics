@@ -493,11 +493,12 @@ def collect_mms(start, end, **kwargs):
     Returns
         df (DataFrame)- collected and processed data
     """
+    buff = dt.timedelta(hours=12)
     # Position
     print('Gathering Position Data')
     positions = {}
     mode = kwargs.get('eph_mode','srvy')
-    for num in ['1','2','3','4']:
+    for num in ['1']:
         print('\tmms',num)
         skip = False
         df = pd.DataFrame()
@@ -510,34 +511,46 @@ def collect_mms(start, end, **kwargs):
         status,posdata = cdas.get_data(pos_instrument,[gsm_key,bfield_key,
                                                        field_status_key,
                                                        tilt_key],
-                                                      start,end)
+                                                      start-buff,end+buff)
         if posdata:
+            df.index = posdata[epoch_key]
             df[['x','y','z']] = posdata[gsm_key]/6371 # km->Re
             #df[['bx','by','bz','b']] = posdata[bfield_key] # nT
             df['status'] = posdata[field_status_key]
             df['tilt'] = posdata[tilt_key]
-            df.index = posdata[epoch_key]
+            df = df[(df.index>start)&(df.index<end)]
+        else:
+            print('no pos data!')
         positions['mms'+num] = df
     # Flux Gate Magnetometer
     print('Gathering Bfield Data')
     bfield = {}
     mode = kwargs.get('fgm_mode','srvy')
-    for num in ['1','2','3','4']:
+    for num in ['1']:
         print('\tmms',num)
         df = pd.DataFrame()
         fgm_instrument = 'MMS'+num+'_FGM_'+mode.upper()+'_L2'
         bvec_key = 'mms'+num+'_fgm_b_gsm_'+mode+'_l2_clean'
         epoch_key = 'Epoch'
-        status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],start,end)
+        status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],
+                                       start-buff,end+buff)
+        if not fgmdata and kwargs.get('fgm_mode','srvy')=='brst':
+            fgm_instrument = fgm_instrument.replace('BRST','SRVY')
+            bvec_key = bvec_key.replace('brst','srvy')
+            status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],
+                                           start-buff,end+buff)
         if fgmdata:
-            df[['bx','by','bz','b']] = fgmdata[bvec_key]
             df.index=fgmdata[epoch_key]
+            df[['bx','by','bz','b']] = fgmdata[bvec_key]
+            df = df[(df.index>start)&(df.index<end)]
+        else:
+            print('no Bfield data!')
         bfield['mms'+num] = df
     # Dual Ion Spectrometer (distribution moments)
     print('Gathering Plasma Data')
     plasma = {}
     mode = kwargs.get('fpi_mode','fast')
-    for num in ['1','2','3','4']:
+    for num in ['1']:
         print('\tmms',num)
         df = pd.DataFrame()
         plasma_instrument = 'MMS'+num+'_FPI_'+mode.upper()+'_L2_DIS-MOMS'
@@ -550,8 +563,20 @@ def collect_mms(start, end, **kwargs):
                                                              u_ion_key,
                                                              tpar_ion_key,
                                                              tperp_ion_key],
-                                                            start,end)
-        if plasmadata and posdata:
+                                                         start-buff,end+buff)
+        if not plasmadata and kwargs.get('fpi_mode','fast')=='brst':
+            plasma_instrument = plasma_instrument.replace('BRST','FAST')
+            n_ion_key = n_ion_key.replace('brst','fast')
+            u_ion_key = u_ion_key.replace('brst','fast')
+            tpar_ion_key = tpar_ion_key.replace('brst','fast')
+            tperp_ion_key = tperp_ion_key.replace('brst','fast')
+            status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
+                                                                 u_ion_key,
+                                                             tpar_ion_key,
+                                                             tperp_ion_key],
+                                                         start-buff,end+buff)
+        if plasmadata:
+            df.index = plasmadata[epoch_key]
             df['n'] = plasmadata[n_ion_key] # n/cc
             """
             for gse,gse_keys in [[[df['vx_gse'],df['vy_gse'],df['vz_gse']],
@@ -568,12 +593,15 @@ def collect_mms(start, end, **kwargs):
             # Convert gse velocity to gsm
             xtime = [t.value for t in positions['mms'+num].index]
             ytime = [pd.Timestamp(t).value for t in plasmadata[epoch_key]]
-            dipole_angles = np.interp(ytime,xtime,posdata[tilt_key])
+            dipole_angles = np.interp(ytime,xtime,
+                                      positions['mms'+num]['tilt'])
             vgsm=rotate_gse_gsm(dipole_angles,plasmadata[u_ion_key])
             df[['vx','vy','vz']] = vgsm # km/s
             df['tpar'] = plasmadata[tpar_ion_key] # eV
             df['tperp'] = plasmadata[tperp_ion_key] # eV
-            df.index = plasmadata[epoch_key]
+            df = df[(df.index>start)&(df.index<end)]
+        else:
+            print('no plasma data!')
         plasma['mms'+num] = df
     # Hot Plasma Composition Analyzer (other ion species moments)
     # TODO if we need to grab 'MMS'+num+'_HPCA_'+mode.upper()+'_L2_DIS-MOMS'

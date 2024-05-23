@@ -1387,42 +1387,92 @@ def rxn(ev,event,path,**kwargs):
     #setup figure
     RXN,(daynight) = plt.subplots(1,1,figsize=[24,8],
                                                     sharex=True)
+    Bflux,(bflux,dphidt) = plt.subplots(2,1,figsize=[24,20],
+                                                    sharex=True)
     # Get time markings that match the format
     #Plot
     # Dayside/nightside reconnection rates
     daynight.axhline(0,c='black')
-    daynight.fill_between(ev['ie_times'],ev['RXN']/1e3,label='Net',fc='grey')
+    daynight.fill_between(ev['ie_times'],(ev['cdiffRXN']/1e3),label='cdiff',
+                          fc='grey')
     daynight.plot(ev['ie_times'],ev['RXNm_Day']/1e3,label='Day',
                   c='dodgerblue',lw=3)
     daynight.plot(ev['ie_times'],ev['RXNm_Night']/1e3,label='Night',c='navy')
     daynight.plot(ev['ie_times'],ev['RXNs']/1e3,label='Static',c='red',ls='--')
-    daynight.plot(ev['ie_times'],(ev['cdiffRXN']/1e3),label='cdiff',
-                  c='gold',ls='--')
+    daynight.plot(ev['ie_times'],ev['RXN']/1e3,label='Net',c='gold',ls='--')
+
+    bflux.plot(ev['ie_times'],ev['ie_flux']/1e9,label='1s',c='grey')
+    bflux.plot(ev['ie_times'],ev['ie_flux'].rolling('3s').mean()/1e9,
+                                                        label='3s',c='gold')
+    bflux.plot(ev['ie_times'],ev['ie_flux'].rolling('10s').mean()/1e9,
+                                                        label='10s',c='brown')
+    bflux.plot(ev['ie_times'],ev['ie_flux'].rolling('30s').mean()/1e9,
+                                                        label='30s',c='blue')
+    bflux.plot(ev['ie_times'],ev['ie_flux'].rolling('60s').mean()/1e9,
+                                                        label='60s',c='black')
+    dphidt.plot(ev['ie_times'],central_diff(ev['ie_flux'])/1e3,label='1s'
+                                                                    ,c='grey')
+    dphidt.plot(ev['ie_times'],central_diff(
+                                      ev['ie_flux'].rolling('3s').mean())/1e3,
+                                                          label='3s',c='gold')
+    dphidt.plot(ev['ie_times'],central_diff(
+                                      ev['ie_flux'].rolling('10s').mean())/1e3,
+                                                        label='10s',c='brown')
+    dphidt.plot(ev['ie_times'],central_diff(
+                                      ev['ie_flux'].rolling('30s').mean())/1e3,
+                                                         label='30s',c='blue')
+    dphidt.plot(ev['ie_times'],central_diff(
+                                      ev['ie_flux'].rolling('60s').mean())/1e3,
+                                                        label='60s',c='black')
     #Decorations
     general_plot_settings(daynight,do_xlabel=True,legend=True,
                           ylabel=r'$d\phi/dt \left[kV\right]$',
                           xlim = window,
                           timedelta=True)
+    general_plot_settings(bflux,do_xlabel=False,legend=True,
+                          ylabel=r'$\phi \left[GW\right]$',
+                          ylim=[2.13,2.18],
+                          xlim = window,
+                          timedelta=True)
+    general_plot_settings(dphidt,do_xlabel=True,legend=True,
+                          ylabel=r'$d\phi/dt \left[kV\right]$',
+                          #ylim=[2.13,2.18],
+                          xlim = window,
+                          timedelta=True)
     if 'zoom' in kwargs:
+        '''
         daynight.set_ylim([ev['RXN'][(ev['RXN'].index<zoom[1])&
                                      (ev['RXN'].index>zoom[0])].min()/1e3,
                            ev['RXN'][(ev['RXN'].index<zoom[1])&
                                      (ev['RXN'].index>zoom[0])].max()/1e3])
+        '''
+        daynight.set_ylim([-500,500])
     for interv in interval_list:
         daynight.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                           c='grey')
+    dphidt.axhline(0,c='lightgrey',lw=1)
     daynight.margins(x=0.01)
+    bflux.margins(x=0.01)
+    dphidt.margins(x=0.01)
     RXN.tight_layout()
+    Bflux.tight_layout()
     #Save
     if 'zoom' in kwargs:
         figurename = (path+'/RXN_'+event+'_'+
                       kwargs.get('tag','zoomed')+'.png')
+        figurename2 = (path+'/Bflux_'+event+'_'+
+                      kwargs.get('tag','zoomed')+'.png')
     else:
         figurename = path+'/RXN_'+event+'.png'
+        figurename2 = path+'/Bflux_'+event+'.png'
     # Save in pieces
     RXN.savefig(figurename)
     print('\033[92m Created\033[00m',figurename)
     plt.close(RXN)
+
+    Bflux.savefig(figurename2)
+    print('\033[92m Created\033[00m',figurename2)
+    plt.close(Bflux)
 
 def all_fluxes(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
@@ -2344,10 +2394,10 @@ def initial_figures(dataset):
                           dt.datetime(2022,6,7,4,0))
         small_window =   (dt.datetime(2022,6,6,22,18),
                           dt.datetime(2022,6,6,22,25))
-        errors(ev,run,path)
-        errors(ev,run,path,zoom=small_window,tag='closezoom')
+        #errors(ev,run,path)
+        #errors(ev,run,path,zoom=small_window,tag='closezoom')
         #all_fluxes(ev,event,path,zoom=example_window,tag='midzoom')
-        #rxn(ev,run,path,zoom=example_window,tag='midzoom')
+        rxn(ev,run,path,zoom=small_window,tag='closezoom')
         #show_event_hist(ev,run,events,path)
         #show_events(ev,run,events,path)
         #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
@@ -2377,14 +2427,14 @@ if __name__ == "__main__":
 
     # Event list
     #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
-    events =['stretched_LOWnLOWu',
-             'stretched_LOWnMEDu',
-             'stretched_LOWnHIGHu',
+    events =[#'stretched_LOWnLOWu',
+             #'stretched_LOWnMEDu',
+             #'stretched_LOWnHIGHu',
              #
-             'stretched_HIGHnLOWu',
-             'stretched_HIGHnHIGHu',
+             #'stretched_HIGHnLOWu',
+             #'stretched_HIGHnHIGHu',
              #
-             'stretched_MEDnMEDu',
+             #'stretched_MEDnMEDu',
              'stretched_MEDnHIGHu',
              'stretched_test']
              #'stretched_LOWnLOWucontinued']
