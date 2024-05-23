@@ -384,18 +384,20 @@ def add_derived_variables2(indf, name, datatype,**kwargs):
         df
     """
     df = indf.copy(deep=True) #copy so we can control what's changing
+    #NOTE use python 'fstrings' to swap out xyz for say, LMN coordinates
+    x,y,z = kwargs.get('xyz',['x','y','z'])
     if df.empty:
         print('Empty data frame, skipping derived variables')
     else:
         if datatype == 'virtual':
             n = df['Rho']
-            ux = df['U_x']
-            uy = df['U_y']
-            uz = df['U_z']
+            ux = df[f'U_{x}']
+            uy = df[f'U_{y}']
+            uz = df[f'U_{z}']
             p = df['P']
-            bx = df['B_x']
-            by = df['B_y']
-            bz = df['B_z']
+            bx = df[f'B_{x}']
+            by = df[f'B_{y}']
+            bz = df[f'B_{z}']
         elif datatype == 'combined':
             # Thermal Pressure
             if ('tpar' in [k.lower() for k in df.keys()] and
@@ -413,12 +415,13 @@ def add_derived_variables2(indf, name, datatype,**kwargs):
             elif 'themis' in name and 'p' in df.keys():
                 df.rename(columns={'p':'ptot'},inplace=True)
             n = df['n']
-            ux = df['vx']
-            uy = df['vy']
-            uz = df['vz']
-            bx = df['bx']
-            by = df['by']
-            bz = df['bz']
+            #NOTE only handles constant relative boundary motion
+            ux = df[f'v{x}'] - kwargs.get('un',[0,0,0])[0]
+            uy = df[f'v{y}'] - kwargs.get('un',[0,0,0])[1]
+            uz = df[f'v{z}'] - kwargs.get('un',[0,0,0])[2]
+            bx = df[f'b{x}']
+            by = df[f'b{y}']
+            bz = df[f'b{z}']
         # Dynamic pressure
         rho = n*1e6*1.6605e-27 #kg/m^3
         df['pdyn'] = np.sqrt(ux**2+uy**2+uz**2) * rho*1e9 #nPa
@@ -428,21 +431,21 @@ def add_derived_variables2(indf, name, datatype,**kwargs):
         # Betastar
         df['betastar'] =(p+df['pdyn'])/((bx**2+by**2+bz**2)/(2*4*pi*1e-7))
         # H total energy transfer vector
-        df['Hx'] = 0.5*df['pdyn']+2.5*p*6371**2*ux #W/Re^2
-        df['Hy'] = 0.5*df['pdyn']+2.5*p*6371**2*uy #W/Re^2
-        df['Hz'] = 0.5*df['pdyn']+2.5*p*6371**2*uz #W/Re^2
+        df[f'H{x}'] = 0.5*df['pdyn']+2.5*p*6371**2*ux #W/Re^2
+        df[f'H{y}'] = 0.5*df['pdyn']+2.5*p*6371**2*uy #W/Re^2
+        df[f'H{z}'] = 0.5*df['pdyn']+2.5*p*6371**2*uz #W/Re^2
         # S total energy transfer vector
-        df['Sx'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
+        df[f'S{x}'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
                     ux)-bx*(bx*ux+by*uy+bz*uz)/(4*np.pi*1e-7)*1e-9*6371**2
-        df['Sy'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
+        df[f'S{y}'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
                     uy)-by*(bx*ux+by*uy+bz*uz)/(4*np.pi*1e-7)*1e-9*6371**2
-        df['Sz'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
+        df[f'S{z}'] = (bx**2+by**2+bz**2)/(4*np.pi*1e-7)*1e-9*6371**2*(
                     uz)-bz*(bx*ux+by*uy+bz*uz)/(4*np.pi*1e-7)*1e-9*6371**2
         #W/Re^2
         # K total energy transfer vector
-        df['Kx'] = df['Hx']+df['Sx'] #W/Re^2
-        df['Ky'] = df['Hy']+df['Sy'] #W/Re^2
-        df['Kz'] = df['Hz']+df['Sz'] #W/Re^2
+        df[f'K{x}'] = df[f'H{x}']+df[f'S{x}'] #W/Re^2
+        df[f'K{y}'] = df[f'H{y}']+df[f'S{y}'] #W/Re^2
+        df[f'K{z}'] = df[f'H{z}']+df[f'S{z}'] #W/Re^2
     return df
 
 def add_derived_variables(dflist, *, obs=False):

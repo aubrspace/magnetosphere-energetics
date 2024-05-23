@@ -770,6 +770,77 @@ def get_expanded_sw(start, end, data_path):
     omni['Time [UTC]'] = omni['times']
     return supermag, omni
 
+def ID_ALbays(ev,**kwargs):
+    if kwargs.get('criteria','BandY2017')=='BandY2017':
+        # see BOROVSKY AND YAKYMENKO 2017 doi:10.1002/2016JA023625
+        #   find period where SML decreases by >=150nT in 15min
+        #   onset if:
+        #       drops by >10nT in 2min AND
+        #       >15min from last onset time
+        #       Then for each onset:
+        #           integrate SML for 45min forward
+        #           integrate SML for 45min pior
+        #           if fwd < 1.5*prior:
+        #               reject as true onset
+        #           NOTE (my addition)else:
+        #               mark as psuedobreakup instead
+        #       Keep only the first onset
+
+        if kwargs.get('al_series','AL')=='AL':
+            al_copy=ev['index']['AL'].copy(deep=True).reset_index(drop=True)
+            al_series = al_copy.values
+        elif kwargs.get('al_series','AL')=='MGL':
+            al_copy=ev['maggrid']['dBmin'].copy(deep=True).reset_index(
+                                                                    drop=True)
+            al_series = al_copy.values
+        elif kwargs.get('al_series','AL')=='al':
+            al_series=ev['al']
+        lookahead = kwargs.get('al_lookahead',15)
+        fwd_period= kwargs.get('al_fwdperiod',45)
+        prior_period= fwd_period
+        albay  = np.zeros(len(al_series))
+        onset  = np.zeros(len(al_series))
+        psuedo = np.zeros(len(al_series))
+        last_i = 0
+        for i,testpoint in enumerate(al_series[prior_period:-fwd_period]):
+            al = al_series[i]
+            # find period where SML decreases by >=150nT in 15min
+            if (al-al_series[i:i+lookahead].min())>150:
+                # drops by >10nT in 2min AND >15min from last onset time
+                if (not any(onset[i-15:i]) and
+                    (al-al_series[i:i+2].min()>10)):
+                    # integrate SML for 45min forward
+                    fwd = np.trapz(al_series[i:i+fwd_period],dx=60)
+                    # integrate SML for 45min pior
+                    prior = np.trapz(al_series[i-prior_period:i],dx=60)
+                    if fwd < 1.5*prior:
+                        onset[i] = 1
+                        isonset=True
+                    else:
+                        psuedo[i] = 1#NOTE
+                        isonset=False
+                    # If we've got one need to see how far it extends
+                    al_min = al_series[i:i+lookahead].min()
+                    i_mins = np.where(al_series==al_min)[0]
+                    i_min = i_mins[np.where((i_mins<(i+lookahead))&
+                                            (i_mins>i))][0]
+                    #i_min = al_series[i:i+lookahead].idxmin()
+                    albay[i:i_min+1] = 1
+                    # If it's at the end of the window, check if its continuing
+                    if i_min==i+lookahead-1:
+                        found_min = False
+                    else:
+                        found_min = True
+                    while not found_min:
+                        if al_series[i_min+1]<al_series[i_min]:
+                            albay[i_min+1] = 1
+                            i_min +=1
+                            if i_min==len(al_series):
+                                found_min = True
+                        else:
+                            found_min = True
+    return albay,onset,psuedo
+
 def read_indices(data_path, **kwargs):
     """Top level function handles time varying magnetopause data and
         generates figures according to settings set by inputs

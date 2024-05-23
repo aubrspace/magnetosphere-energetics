@@ -23,7 +23,7 @@ from global_energetics.analysis.plot_tools import (central_diff,
                                                    refactor,ie_refactor,
                                                    gmiono_refactor)
 from global_energetics.analysis.proc_hdf import (load_hdf_sort)
-from global_energetics.analysis.proc_indices import read_indices
+from global_energetics.analysis.proc_indices import read_indices,ID_ALbays
 from global_energetics.analysis.analyze_energetics import plot_power
 from global_energetics.analysis.proc_timing import (peak2peak,
                                                     pearson_r_shifts)
@@ -1316,6 +1316,65 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     plt.close(Kinternal_rxn)
     print('\033[92m Created\033[00m',figurename)
 
+def errors(ev,event,path,**kwargs):
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        ev['mp'].index)
+    if 'zoom' in kwargs:
+        zoom = kwargs.get('zoom')
+        window = [float(pd.Timedelta(n-TSTART).to_numpy()) for n in zoom]
+    else:
+        window = None
+    #############
+    #setup figure
+    errors,(fluxes,inside) = plt.subplots(2,1,figsize=[24,16],sharex=True)
+    # Get time markings that match the format
+    #Plot
+    # Dayside/nightside reconnection rates
+    fluxes.axhline(0,c='black')
+    fluxes.fill_between(ev['times'],ev['K_cdiff_mp']/1e12,label='Cdiff',
+                        fc='grey')
+    fluxes.plot(ev['times'],ev['Ksum']/1e12,label='Summed',c='dodgerblue',lw=3)
+    fluxes.plot(ev['times'],ev['Kstatic']/1e12,label='Static',c='navy')
+    #fluxes.plot(ev['times'],ev['Kstatic2']/1e12,label='Static',c='red')
+    fluxes.plot(ev['times'],ev['M']/1e12,label='Motion',c='green')
+    fluxes.plot(ev['times'],ev['dUdt']/1e12,label='dUdt',c='red',ls='--')
+    fluxes.plot(ev['times'],(ev['dUdt']+ev['M'])/1e12,label='allVol',c='gold',
+                ls='--')
+    # Dayside/nightside reconnection rates
+    inside.axhline(0,c='black')
+    inside.plot(ev['times'],(ev['Ks3']+ev['Ks7'])/1e12,label='Inner',
+                c='navy')
+    inside.plot(ev['times'],(ev['Ks1']+ev['Ks5'])/1e12,label='Outer',
+                c='dodgerblue')
+    inside.plot(ev['times'],(ev['Ks4']+ev['Ks6'])/1e12,label='Cuttoffs',
+                c='red')
+    #Decorations
+    general_plot_settings(fluxes,do_xlabel=True,legend=True,
+          ylabel=r'$\int_{MP}{\mathbf{K}\cdot\mathbf{n}} \left[TW\right]$',
+                          xlim = window,
+                          ylim=[-10,5],
+                          timedelta=True)
+    general_plot_settings(inside,do_xlabel=True,legend=True,
+          ylabel=r'$\int_{MP}{\mathbf{K}\cdot\mathbf{n}} \left[TW\right]$',
+                          xlim = window,
+                          ylim=[-10,5],
+                          timedelta=True)
+    for interv in interval_list:
+        fluxes.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                          c='grey')
+    fluxes.margins(x=0.01)
+    errors.tight_layout()
+    #Save
+    if 'zoom' in kwargs:
+        figurename = (path+'/errors_'+event+'_'+
+                      kwargs.get('tag','zoomed')+'.png')
+    else:
+        figurename = path+'/errors_'+event+'.png'
+    # Save in pieces
+    errors.savefig(figurename)
+    print('\033[92m Created\033[00m',figurename)
+    plt.close(errors)
+
 def rxn(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
                                         ev['mp'].index)
@@ -1337,6 +1396,8 @@ def rxn(ev,event,path,**kwargs):
                   c='dodgerblue',lw=3)
     daynight.plot(ev['ie_times'],ev['RXNm_Night']/1e3,label='Night',c='navy')
     daynight.plot(ev['ie_times'],ev['RXNs']/1e3,label='Static',c='red',ls='--')
+    daynight.plot(ev['ie_times'],(ev['cdiffRXN']/1e3),label='cdiff',
+                  c='gold',ls='--')
     #Decorations
     general_plot_settings(daynight,do_xlabel=True,legend=True,
                           ylabel=r'$d\phi/dt \left[kV\right]$',
@@ -1562,6 +1623,7 @@ def ID_variability(in_signal,**kwargs):
         unsteady[i] = var[i]>abs(signal[i])*(threshold/100)
     return relvar,unsteady
 
+'''
 def ID_ALbays(ev,**kwargs):
     if kwargs.get('criteria','BandY2017')=='BandY2017':
         # see BOROVSKY AND YAKYMENKO 2017 doi:10.1002/2016JA023625
@@ -1625,6 +1687,7 @@ def ID_ALbays(ev,**kwargs):
                         else:
                             found_min = True
     return albay,onset,psuedo
+'''
 
 def ID_plasmoids(ev,**kwargs):
     """Function finds plasmoid release events in timeseries
@@ -2245,7 +2308,7 @@ def initial_figures(dataset):
                                   dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
-        events[run] = build_events(ev,run)
+        #events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
@@ -2279,6 +2342,11 @@ def initial_figures(dataset):
         #all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
         example_window = (dt.datetime(2022,6,6,14,0),
                           dt.datetime(2022,6,7,4,0))
+        small_window =   (dt.datetime(2022,6,6,22,18),
+                          dt.datetime(2022,6,6,22,25))
+        errors(ev,run,path)
+        errors(ev,run,path,zoom=small_window,tag='closezoom')
+        #all_fluxes(ev,event,path,zoom=example_window,tag='midzoom')
         #rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #show_event_hist(ev,run,events,path)
         #show_events(ev,run,events,path)
@@ -2286,7 +2354,7 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
-    plot_indices(dataset,path)
+    #plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
 
@@ -2317,8 +2385,10 @@ if __name__ == "__main__":
              'stretched_HIGHnHIGHu',
              #
              'stretched_MEDnMEDu',
-             'stretched_MEDnHIGHu']
+             'stretched_MEDnHIGHu',
+             'stretched_test']
              #'stretched_LOWnLOWucontinued']
+    #events = ['stretched_test']
 
     ## Analysis Data
     dataset = {}
@@ -2344,13 +2414,16 @@ if __name__ == "__main__":
         dataset['LOWnLOWu']['mpdict'][key] = df.drop(index=droptimes)
     '''
 
+    #from IPython import embed; embed()
     ## Log Data
+    '''
     for event in events:
         prefix = event.split('_')[1]+'_'
         dataset[event]['obs'] = read_indices(inLogs,prefix=prefix,
                                         start=dataset[event]['time'][0],
                  end=dataset[event]['time'][-1]+dt.timedelta(seconds=1),
                                              read_supermag=False)
+    '''
     #dataset['stretched_LOWnLOWu_continued']['obs'] = read_indices(inLogs,
     #                                    prefix='continued_LOWnLOWu_',
     #                                    start=dt.datetime(2022,6,8,0),

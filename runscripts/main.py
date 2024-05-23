@@ -114,9 +114,9 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'localdbug/parameter_study/MEDHIGH/'
+    inpath = 'error_results/hitime_run/'
     #inpath = 'localdbug/starlink/'
-    outpath = 'parameter_study/'
+    outpath = 'error_results/hitime_run/'
     #outpath = 'localdbug/MAST/test_output/'
     #outpath = 'localdbug/starlink/'
     head = '3d__var_1_*'
@@ -143,7 +143,7 @@ if __name__ == "__main__":
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            mhddatafiles = filelist
+            mhddatafiles = [filelist[0],filelist[1],filelist[2]]
             #python objects
             field_data = tp.data.load_tecplot(mhddatafiles)
             if len(field_data.zone_names)==3:
@@ -193,7 +193,7 @@ if __name__ == "__main__":
                 ionosphere.read_maggrid_tec('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.tec')
                 do_north, do_south = False, False
                 #if os.path.exists(iedatafile):
-                if True:
+                if False:
                     # IE data
                     dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
@@ -212,6 +212,8 @@ if __name__ == "__main__":
                     #    dataset.zone('IonS*').name = 'future_ionosphere_south'
                     #    do_south = True
                 #if do_north*do_south:
+                else:
+                    dataset = field_data
                 if True:
                     ionosphere.get_ionosphere(dataset,
                                               verbose=True,
