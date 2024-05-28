@@ -505,7 +505,7 @@ def calc_MHD(cross_b,cross_v,HT_start,HT_end,n_gsm,u_n):
 
     return dfxyz, i_inside, i_outside
 
-def process_crossing(crossing_misc,ID,t0):
+def process_crossing(crossing_misc,ID,t0,**kwargs):
     """Main function
     """
     # Use start time +100s to find a prelim interval
@@ -533,26 +533,28 @@ def process_crossing(crossing_misc,ID,t0):
     #event = {'ID':'20151206_232844'}
     #event = {'ID':'20151206_002304'}#NOTE failed case
     event = {'ID':ID}
-    pos,bfield,plasma=collect_mms(interval[0],interval[1],
-                                    writeData=False,
-                                    fgm_mode='brst',
-                                    fpi_mode='brst')
+    # Load and Handle MMS data
+    if kwargs.get('load_mms',True):
+        pos,bfield,plasma=collect_mms(interval[0],interval[1],
+                                      writeData=False,
+                                      fgm_mode='brst',
+                                      fpi_mode='brst')
 
-    if pos['mms1'].empty:
-        print('BAD DATA!')
-        return
-    event['mms_b'],event['mms_v'],HTstart,BL50,HTend = calc_LMN(
+        if pos['mms1'].empty:
+            print('BAD DATA!')
+            return
+        event['mms_b'],event['mms_v'],HTstart,BL50,HTend = calc_LMN(
                                                 bfield['mms1'],
                                                 plasma['mms1'],n_gsm,l_gsm)
-    event['start'] = start
-    event['BL50'] = BL50
-    event['HTstart'] = HTstart
-    event['HTend'] = HTend
-    event['mms_mhd'],event['i_in'],event['i_out'] = calc_MHD(
+        event['start'] = start
+        event['BL50'] = BL50
+        event['HTstart'] = HTstart
+        event['HTend'] = HTend
+        event['mms_mhd'],event['i_in'],event['i_out'] = calc_MHD(
                                                     event['mms_b'],
                                                     event['mms_v'],
                                                     HTstart,HTend,n_gsm,u_n)
-        # Get THEMIS data and check for good positioning
+    # Get THEMIS data and check for good positioning
     th_pos,th_bfield,th_plasma = collect_themis(
                                         interval[0],
                                         interval[1],
@@ -564,7 +566,7 @@ def process_crossing(crossing_misc,ID,t0):
         good_themis = False
     # Get OMNI data and check for good positioning
     omni_window = [interval[0]-dt.timedelta(hours=(24)),
-                       interval[1]+dt.timedelta(hours=(24))]
+                   interval[1]+dt.timedelta(hours=(24))]
     omni = swmfpy.web.get_omni_data(omni_window[0],omni_window[1])
     event['omni'] = upgrade_OMNI(omni)
     driving, energized, storm, substorm = classify_OMNI(event['omni'],
@@ -583,6 +585,7 @@ def process_crossing(crossing_misc,ID,t0):
 
 #Main program
 if __name__ == '__main__':
+    start_time = time.time()
     inBase = 'magEx'
     inPath = os.path.join(inBase,'data')
     outPath = os.path.join(inBase,'figures')
@@ -628,12 +631,12 @@ if __name__ == '__main__':
 
     success = 0
     failed = 0
-    for i,ID in enumerate(good_crossings['ID'].values[0:1]):
+    for i,ID in enumerate(good_crossings['ID'].values[0:5]):
         print(i,ID)
         # Store in compiled list
         #try:
         if True:
-            event = process_crossing(crossing_misc,ID,t0)
+            event = process_crossing(crossing_misc,ID,t0,load_mms=False)
             plot_timeseries(event,outPath)
             for key in [k for k in event.keys() if 'mms' not in k and
                                                    'omni' not in k]:
@@ -643,17 +646,15 @@ if __name__ == '__main__':
         #    print(ID,' Failed!')
         #    failed+=1
         #    continue
+    #TODO save good_crossings to an hdf5 file
+    #from IPython import embed; embed()
+
+    #TODO read in themis fast flow events from Li et al. 2021:
+    #   ff_list = call read_list(path_to_files)
+    #   ff_matches = get_ff_matches(good_crossings,list)
 
     print(f'success: {success/(i+1)*100}%, failed: {failed/(i+1)*100}%')
-    #from IPython import embed; embed()
-    #TODO
-    #   #Count up the number of crossings of different types
-    #   eventtype_hists(good_crossings,bad_crossings)
-    #   For each good crossing
-    #       plot mms+MHD: B, VxVyVz, K,S,H, etc.
-    #   For type in [types]:
-    #       pull just type from good_crossings
-    #       sea_results = SEA(type)
-    #       plot_sea(sea_results)
-    #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
-    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
+    #timestamp
+    ltime = time.time()-start_time
+    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))
