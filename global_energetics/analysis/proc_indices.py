@@ -801,6 +801,7 @@ def ID_ALbays(ev,**kwargs):
         albay  = np.zeros(len(al_series))
         onset  = np.zeros(len(al_series))
         psuedo = np.zeros(len(al_series))
+        substorm = np.zeros(len(al_series))
         last_i = 0
         for i,testpoint in enumerate(al_series[prior_period:-fwd_period]):
             al = al_series[i]
@@ -826,6 +827,10 @@ def ID_ALbays(ev,**kwargs):
                                             (i_mins>i))][0]
                     #i_min = al_series[i:i+lookahead].idxmin()
                     albay[i:i_min+1] = 1
+                    if isonset:
+                        substorm[i:i_min+1] = 1
+                    else:
+                        psuedo[i:i_min+1] = 1
                     # If it's at the end of the window, check if its continuing
                     if i_min==i+lookahead-1:
                         found_min = False
@@ -834,12 +839,16 @@ def ID_ALbays(ev,**kwargs):
                     while not found_min:
                         if al_series[i_min+1]<al_series[i_min]:
                             albay[i_min+1] = 1
+                            if isonset:
+                                substorm[i_min+1] = 1
+                            else:
+                                psuedo[i_min+1] = 1
                             i_min +=1
                             if i_min==len(al_series):
                                 found_min = True
                         else:
                             found_min = True
-    return albay,onset,psuedo
+    return albay,onset,psuedo,substorm
 
 def read_indices(data_path, **kwargs):
     """Top level function handles time varying magnetopause data and

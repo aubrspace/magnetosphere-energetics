@@ -188,6 +188,8 @@ def general_plot_settings(ax, **kwargs):
         time_range = mdates.num2timedelta(tmax-tmin)
         if time_range>dt.timedelta(hours=6):
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H'))
+        elif time_range<dt.timedelta(minutes=3):
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%M:%S'))
         if kwargs.get('do_xlabel',False):
             ax.set_xlabel(kwargs.get('xlabel',r'Time $\left[ hr\right]$'))
         else:

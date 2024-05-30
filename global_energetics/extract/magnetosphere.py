@@ -156,15 +156,17 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
 
     #get date and time info based on data source
     if source == 'swmf':
-        eventtime = (swmf_access.swmf_read_time(zoneindex=1)+
-                                                  dt.timedelta(minutes=tshift))
         if do_cms:
+            eventtime = (swmf_access.swmf_read_time(zoneindex=1)+
+                                                  dt.timedelta(minutes=tshift))
             pasttime = (swmf_access.swmf_read_time(zoneindex=0)+
                         dt.timedelta(minutes=tshift))
             futuretime = (swmf_access.swmf_read_time(zoneindex=2)+
                           dt.timedelta(minutes=tshift))
             deltatime = (futuretime-pasttime).seconds/2
         else:
+            eventtime = (swmf_access.swmf_read_time(zoneindex=0)+
+                                                  dt.timedelta(minutes=tshift))
             deltatime=0
 
     #Check to make sure that dimensional variables are given
@@ -526,7 +528,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     integrate_volume = kwargs.get('integrate_volume', True)
     save_mesh = kwargs.get('save_mesh', False)
     write_data = kwargs.get('write_data', True)
-    disp_result = kwargs.get('disp_result', True)
+    disp_result = kwargs.get('disp_result', False)
     verbose = kwargs.get('verbose', True)
     do_cms = kwargs.get('do_cms', False)
     #do_central_diff = kwargs.get('do_central_diff',False)

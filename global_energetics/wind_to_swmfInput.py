@@ -410,59 +410,69 @@ def collect_themis(start, end, **kwargs):
         df (DataFrame)- collected and processed data
     """
     # Position
+    buff = dt.timedelta(hours=12)
     print('Gathering Position Data')
     positions = {}
-    for num in ['A','D','E']:
-        print('\tthemis',num)
-        df = pd.DataFrame()
-        pos_instrument = 'TH'+num+'_OR_SSC'
-        gsm_key = 'XYZ_GSM'
-        bx_key = 'MAG_X'
-        by_key = 'MAG_Y'
-        bz_key = 'MAG_Z'
-        epoch_key = 'Epoch'
-        status,posdata = cdas.get_data(pos_instrument,
-                                       [gsm_key,bx_key,by_key,bz_key],
-                                       start,end)
-        if posdata:
-            df.index = posdata[epoch_key]
-            df[['x','y','z']] = posdata[gsm_key] # Re
-        positions['themis'+num] = df
+    if not kwargs.get('skip_pos_data',False):
+        for num in ['A','D','E']:
+            print('\tthemis',num)
+            df = pd.DataFrame()
+            pos_instrument = 'TH'+num+'_OR_SSC'
+            gsm_key = 'XYZ_GSM'
+            gse_key = 'XYZ_GSE'
+            bx_key = 'MAG_X'
+            by_key = 'MAG_Y'
+            bz_key = 'MAG_Z'
+            epoch_key = 'Epoch'
+            status,posdata = cdas.get_data(pos_instrument,
+                                       [gsm_key,gse_key,bx_key,by_key,bz_key],
+                                       start-buff,end+buff)
+            if posdata:
+                df.index = posdata[epoch_key]
+                df[['x','y','z']] = posdata[gsm_key] # Re
+                df[['x_gse','y_gse','z_gse']] = posdata[gse_key] # Re
+                df = df[(df.index>start)&(df.index<end)]
+            positions['themis'+num] = df
     # Flux Gate Magnetometer
     print('Gathering Bfield Data')
     bfield = {}
-    for num in ['A','D','E']:
-        print('\tthemis',num)
-        df = pd.DataFrame()
-        fgm_instrument = 'TH'+num+'_L2_FGM'
-        bvec_key = 'th'+num.lower()+'_fgs_gsm'
-        epoch_key = 'th'+num.lower()+'_fgs_epoch'
-        status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],start,end)
-        if fgmdata:
-            df.index=fgmdata[epoch_key]
-            df[['bx','by','bz']] = fgmdata[bvec_key]
-        bfield['themis'+num] = df
+    if not kwargs.get('skip_bfield_data',False):
+        for num in ['A','D','E']:
+            print('\tthemis',num)
+            df = pd.DataFrame()
+            fgm_instrument = 'TH'+num+'_L2_FGM'
+            bvec_key = 'th'+num.lower()+'_fgs_gsm'
+            epoch_key = 'th'+num.lower()+'_fgs_epoch'
+            status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],
+                                           start-buff,end+buff)
+            if fgmdata:
+                df.index=fgmdata[epoch_key]
+                df[['bx','by','bz']] = fgmdata[bvec_key]
+                df = df[(df.index>start)&(df.index<end)]
+            bfield['themis'+num] = df
     # On board plasma moments 
     print('Gathering Plasma Data')
     plasma = {}
-    for num in ['A','D','E']:
-        print('\tthemis',num)
-        df = pd.DataFrame()
-        plasma_instrument = 'TH'+num+'_L2_MOM'
-        n_ion_key = 'th'+num.lower()+'_peim_density'
-        u_ion_key = 'th'+num.lower()+'_peim_velocity_gsm'
-        p_ion_key = 'th'+num.lower()+'_peim_ptot'
-        epoch_key = 'th'+num.lower()+'_peim_epoch'
-        status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
-                                                             u_ion_key,
-                                                             p_ion_key],
-                                                            start,end)
-        if plasmadata:
-            df.index = plasmadata[epoch_key]
-            df['n'] = plasmadata[n_ion_key] # n/cc
-            df[['vx','vy','vz']] = plasmadata[u_ion_key] # km/s
-            df['p'] = plasmadata[p_ion_key] # eV/cc
-        plasma['themis'+num] = df
+    if not kwargs.get('skip_plasma_data',False):
+        for num in ['A','D','E']:
+            print('\tthemis',num)
+            df = pd.DataFrame()
+            plasma_instrument = 'TH'+num+'_L2_MOM'
+            n_ion_key = 'th'+num.lower()+'_peim_density'
+            u_ion_key = 'th'+num.lower()+'_peim_velocity_gsm'
+            p_ion_key = 'th'+num.lower()+'_peim_ptot'
+            epoch_key = 'th'+num.lower()+'_peim_epoch'
+            status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
+                                                                u_ion_key,
+                                                                p_ion_key],
+                                                        start-buff,end+buff)
+            if plasmadata:
+                df.index = plasmadata[epoch_key]
+                df['n'] = plasmadata[n_ion_key] # n/cc
+                df[['vx','vy','vz']] = plasmadata[u_ion_key] # km/s
+                df['p'] = plasmadata[p_ion_key] # eV/cc
+                df = df[(df.index>start)&(df.index<end)]
+            plasma['themis'+num] = df
     if kwargs.get('writeData',True):
         ofilename = kwargs.get('ofilename','themis')
         # Position
@@ -754,15 +764,15 @@ if __name__ == '__main__':
     #end = dt.datetime(2019,5,15,12,0)
     #start = dt.datetime(2014,2,18,4,0)
     #end = dt.datetime(2014,2,25,0,0)
-    start = dt.datetime(2022,2,2,5)
-    end = dt.datetime(2022,2,5,12)
+    start = dt.datetime(2022,2,2,12)
+    end = dt.datetime(2022,2,3,12)
     outpath = './'
-    plot_data = True
+    plot_data = False
     #######################################################################
 
     #wind = collect_wind(start, end)
     #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
-    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
+    mms_pos, mms_b,mms_plasma = collect_mms(start, end)
     #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
     #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
 
