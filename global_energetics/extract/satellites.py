@@ -143,7 +143,6 @@ def add_currentlocation(zonenames, field_data):
             loc_satzone.values('X *')[::] = xpos
             loc_satzone.values('Y *')[::] = ypos
             loc_satzone.values('Z *')[::] = zpos
-            from IPython import embed; embed()
             #loc_satzone.values('Status')[0] = status
 
 def get_satzone_fromHdf5(field_data,hdffile,**kwargs):
