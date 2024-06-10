@@ -1517,6 +1517,7 @@ def all_fluxes(ev,event,path,**kwargs):
     #               color='grey')
     #Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
     #               color='black')
+    from IPython import embed; embed()
     Kexternal.plot(ev['times'],-ev['sw']['EinWang']/1e12,
                    c='black',lw='4',label='Wang2014')
     Kexternal.plot(ev['times'],ev['sw']['Pstorm']/1e12,
@@ -2396,9 +2397,9 @@ def initial_figures(dataset):
                           dt.datetime(2022,6,6,22,25))
         #errors(ev,run,path)
         #errors(ev,run,path,zoom=small_window,tag='closezoom')
-        #all_fluxes(ev,event,path,zoom=example_window,tag='midzoom')
-        rxn(ev,run,path,zoom=small_window,tag='closezoom')
-        #show_event_hist(ev,run,events,path)
+        all_fluxes(ev,event,path,zoom=example_window,tag='midzoom')
+        #rxn(ev,run,path,zoom=small_window,tag='closezoom')
+        show_event_hist(ev,run,events,path)
         #show_events(ev,run,events,path)
         #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
         #tshift_scatter(ev,'GridL','K1',run,path)
@@ -2435,8 +2436,8 @@ if __name__ == "__main__":
              #'stretched_HIGHnHIGHu',
              #
              #'stretched_MEDnMEDu',
-             'stretched_MEDnHIGHu',
-             'stretched_test']
+             'stretched_MEDnHIGHu']
+             #'stretched_test']
              #'stretched_LOWnLOWucontinued']
     #events = ['stretched_test']
 
@@ -2466,15 +2467,13 @@ if __name__ == "__main__":
 
     #from IPython import embed; embed()
     ## Log Data
-    '''
     for event in events:
         prefix = event.split('_')[1]+'_'
         dataset[event]['obs'] = read_indices(inLogs,prefix=prefix,
                                         start=dataset[event]['time'][0],
                  end=dataset[event]['time'][-1]+dt.timedelta(seconds=1),
                                              read_supermag=False)
-    '''
-    #dataset['stretched_LOWnLOWu_continued']['obs'] = read_indices(inLogs,
+    #dataset['stretched_LOWnLOWucontinued']['obs'] = read_indices(inLogs,
     #                                    prefix='continued_LOWnLOWu_',
     #                                    start=dt.datetime(2022,6,8,0),
     #                                    end=dt.datetime(2022,6,9,0),

@@ -550,18 +550,20 @@ def refactor(event,t0):
     #ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
     #ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
     times =  ev['mp'].index
+    ev['rawtimes']=times
     timedelta = [t-t0 for t in times]
     ev['times']=[float(n.to_numpy()) for n in timedelta]
     if 'obs' in event.keys():
+    #if False:
         ev['sim'] = event['obs']['swmf_log'].reindex(use_i,method='ffill')
-        ev['sw'] = event['obs']['swmf_sw'].reindex(use_i,method='ffill')
+        ev['sw'] = event['obs']['swmf_sw'].drop_duplicates().reindex(use_i,method='ffill')
         ev['index'] = event['obs']['swmf_index'].reindex(use_i,method='ffill')
         simtdelta = [t-t0 for t in ev['sim'].index]
         swtdelta = [t-t0 for t in ev['sw'].index]
         ev['simt']=[float(n.to_numpy()) for n in simtdelta]
         ev['swt']=[float(n.to_numpy()) for n in swtdelta]
+    if 'gridMin' in event['obs'].keys():
         ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
-    if 'maggrid' in ev.keys():
         ev['GridL'] = ev['maggrid']['dBmin']
     ev['closedVolume'] = ev['closed']['Volume [Re^3]']
 
@@ -619,8 +621,13 @@ def refactor(event,t0):
     ev['M5a'] = ev['closed']['UtotM5a [W]'].fillna(value=0)
     ev['M5b'] = ev['closed']['UtotM5b [W]'].fillna(value=0)
     ev['M2a'] = ev['closed']['UtotM2a [W]'].fillna(value=0)
-    ev['M2b'] = ev['closed']['UtotM2b [W]'].fillna(value=0)
+    ev['M2b'] = ev['closed'].get('UtotM2b [W]')
     ev['Mic'] = ev['closed']['UtotMic [W]'].fillna(value=0)
+    for M in ['M1','M5','M','MM','M5a','M5b','M2a','M2b','Mic']:
+        if ev[M] is not None:
+            ev[M] = ev[M].fillna(value=0)
+        else:
+            ev[M] = np.zeros(len(ev['times']))
 
     ev['M_lobes'] = ev['M1']
     ev['M_closed'] = ev['M5a']+ev['M5b']+ev['M2a']+ev['M2b']
@@ -642,8 +649,8 @@ def refactor(event,t0):
     ev['S_cdiff_closed'] = -1*central_diff(ev['closed']['uB [J]'])
     ev['S_cdiff_lobes'] = -1*central_diff(ev['lobes']['uB [J]'])
     ev['S_cdiff_mp'] = -1*central_diff(ev['mp']['uB [J]'])
-    if 'obs' in event.keys():
-        ev['dDstdt_sim'] = -1*central_diff(ev['sim']['dst_sm'])
+    #if 'obs' in event.keys():
+    #    ev['dDstdt_sim'] = -1*central_diff(ev['sim']['dst_sm'])
 
     ev['K1'] = ev['Ks1']+ev['M1']
     ev['K5'] = ev['Ks5']+ev['M5']
@@ -653,7 +660,7 @@ def refactor(event,t0):
                   ev['M1']+ev['M5'])
     #ev['Kstatic']= ev['mp']['K_net [W]']-ev['inner']['K_net [W]']
     ev['Kstatic']=ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']
-    ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
+    #ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
 
     #from IPython import embed; embed()
     #time.sleep(3)
