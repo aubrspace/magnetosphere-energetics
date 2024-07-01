@@ -8,6 +8,7 @@ import tecplot as tp
 #Interpackage imports
 try:
     from global_energetics.makevideo import get_time
+    from global_energetics.extract import magnetosphere
     DOSTANDARDIZE = True
 except ImportError:
     print('global_energetics not found, unable to standardize names')
@@ -50,6 +51,9 @@ def fix_plt_files(pathtofiles,**kwargs):
             try:
                 print(str(i)+' fixing '+infile+' into '+outfile_name+'....')
                 ds = tp.data.load_tecplot(infile)
+                ds.zone(0).name = 'global_field'
+                if kwargs.get('dimensionalize',False):
+                    magnetosphere.todimensional(ds)
                 ds.variable('X*').name = 'x'
                 ds.variable('Y*').name = 'y'
                 ds.variable('Z*').name = 'z'
@@ -126,9 +130,14 @@ if __name__ == '__main__':
     if (DOSTANDARDIZE and '-s' not in sys.argv and
                           '--standard' not in sys.argv):
         DOSTANDARDIZE=False
+    if DOSTANDARDIZE and('-d' in sys.argv or '--dimensionalize' in sys.argv):
+        dimension = True
+    else:
+        dimension = False
 
     # Modify files
     fix_plt_files(pathtofiles,verbose=doVerbose,
                   standardize=DOSTANDARDIZE,
+                  dimensionalize=True,
                   keep=keepboth)
     print('DONE')
