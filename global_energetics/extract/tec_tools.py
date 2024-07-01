@@ -3079,7 +3079,8 @@ def calc_betastar_state(zonename, zones, **kwargs):
     if type(closed_zone) != type(None):
         eqstr =(eqstr+'IF({'+closed_zone.name+'} == 1,1,0))')
     else:
-        eqstr =(eqstr+'0)')
+        eqstr =(eqstr+'IF({Status} == 3,1,0))')
+        #eqstr =(eqstr+'0)')
     eqstr =(eqstr+',0)')
     eq(eqstr, zones=zones)
     return tp.active_frame().dataset.variable(zonename).index

@@ -26,7 +26,7 @@ if __name__ == "__main__":
     # Search to find the full list of files
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
                       key=makevideo.time_sort)
-    for k,f in enumerate(filelist):
+    for k,f in enumerate(filelist[2::]):
         filetime = makevideo.get_time(f)
         tp.new_layout()
         #python objects

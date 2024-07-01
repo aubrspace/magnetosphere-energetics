@@ -131,14 +131,47 @@ def rxn(ev,event,path,**kwargs):
     print('\033[92m Created\033[00m',figurename2)
     plt.close(Bflux)
 
+def hist_plot(datafile,path,**kwargs):
+    #pull data
+    data = pd.read_csv(datafile,sep='\s+')
+    K1 = data[data['Status']!=3]['K_net']
+    K5 = data[data['Status']==3]['K_net']
+    K1_weights = data[data['Status']!=3]['Cell_Area']
+    K5_weights = data[data['Status']==3]['Cell_Area']
+    K1counts,K1fluxes = np.histogram(K1,weights=K1_weights,
+                                     bins=np.linspace(-3e9,3e9,61))
+    K5counts,K5fluxes = np.histogram(K5,weights=K5_weights,
+                                     bins=np.linspace(-3e9,3e9,61))
+    K1ave = np.sum(K1*K1_weights)/np.sum(K1_weights)/1e9
+    K5ave = np.sum(K5*K5_weights)/np.sum(K5_weights)/1e9
+    #############
+    #setup figure
+    #############
+    fig1,(k) = plt.subplots(1,1,figsize=[10,10])
+    # HIST of energy flux
+    #############
+    k.bar(K1fluxes[0:-1]/1e9,K1counts,fc='blue',ec='black',width=0.10,
+            label='K1',alpha=0.5)
+    k.bar(K5fluxes[0:-1]/1e9,K5counts,fc='red',bottom=K1counts,ec='black',
+            width=0.10,label='K2',alpha=0.5)
+    #Decorations
+    #############
+    k.axvline(K1ave,c='blue',lw='4',ls='--')
+    k.axvline(K5ave,c='red',lw='4',ls='--')
+    k.set_xlabel(r'Normal Energy Flux $K_n\left[GW/R_E^2\right]$')
+    k.set_ylabel('Area Weighted Counts')
+    fig1.tight_layout(pad=1)
+    figurename = path+'/Hist.svg'
+    # Save 
+    fig1.savefig(figurename)
+    print('\033[92m Created\033[00m',figurename)
+
 def summary_plot(ev,dataset,event,path,**kwargs):
-    #interval_list = build_interval_list(TSTART,DT,TJUMP,
-    #                                    ev['mp'].index)
     #############
     #setup figure
     Summary = plt.figure(figsize=(28,22))#,layout="constrained")
     horizChunk = plt.GridSpec(1,2,hspace=0.1,top=0.95,figure=Summary,
-                                width_ratios=[5,1])
+                                width_ratios=[3,1])
     leftstacks = horizChunk[0].subgridspec(3,1,hspace=0.05)
     rightstacks = horizChunk[1].subgridspec(1,1,hspace=0.05)
     # Axes
@@ -150,30 +183,8 @@ def summary_plot(ev,dataset,event,path,**kwargs):
     dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
     Ein_values = dataset[event]['obs']['swmf_sw']['EinWang']
     Pstorm_values = dataset[event]['obs']['swmf_sw']['Pstorm']
-    if 'zoom' in kwargs:
-        #zoom
-        zoom = kwargs.get('zoom')
-        mp_window = ((ev['mp'].index>zoom[0])&(ev['mp'].index<zoom[1]))
-        '''
-        index_window = (
-                (dataset[event]['obs']['swmf_index']['AL'].index>zoom[0])&
-                (dataset[event]['obs']['swmf_index']['AL'].index<zoom[1]))
-        log_window = (
-                (dataset[event]['obs']['swmf_log']['dst_sm'].index>zoom[0])&
-                (dataset[event]['obs']['swmf_log']['dst_sm'].index<zoom[1]))
-        sw_window = (
-                (dataset[event]['obs']['swmf_sw']['EinWang'].index>zoom[0])&
-                (dataset[event]['obs']['swmf_sw']['EinWang'].index<zoom[1]))
-        zoomed = {}
-        for key in ev.keys():
-            if len(mp_window)==len(ev[key]):
-                zoomed[key] = np.array(ev[key])[mp_window]
-        ev = zoomed
-        al_values = dataset[event]['obs']['swmf_index']['AL'][index_window]
-        dst_values = dataset[event]['obs']['swmf_log']['dst_sm'][log_window]
-        Ein_values = dataset[event]['obs']['swmf_sw']['EinWang']
-        Pstorm_values = dataset[event]['obs']['swmf_sw']['Pstorm']
-        '''
+
+    #############
     # Driving as measured by coupling function
     driving.fill_between(Ein_values.index,Ein_values/1e12,label='Wang2014',
                          fc='orange')
@@ -183,6 +194,9 @@ def summary_plot(ev,dataset,event,path,**kwargs):
     ms_state.fill_between(ev['rawtimes'],-ev['U']/1e15,
                             label=r'-$\int_VU\left[\frac{J}{m^3}\right]$',
                             fc='blue',alpha=0.4)
+    #ms_state.fill_between(ev['rawtimes'],(ev['U']-ev['U'][0])/-8e13,
+    #          label=r'-$\int_VU/\mu_E\left[\frac{J}{m^3}/\frac{J}{T}\right]$',
+    #                        fc='blue',alpha=0.4)
     rax = ms_state.twinx()
     rax.plot(dst_values.index,dst_values,label='Dst (simulated)',color='black')
 
@@ -198,21 +212,22 @@ def summary_plot(ev,dataset,event,path,**kwargs):
     # AL and GridL
     #al.plot(al_values.index,al_values,label='AL (simulated)',color='black')
 
+    #############
     #Decorations
     general_plot_settings(driving,do_xlabel=False,legend=True,
-                          ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
-                          ylim=[0,3],
+                          ylabel=r'Energy Input $\left[TW\right]$',
+                          ylim=[0,5],
                           xlim=kwargs.get('zoom'),
-                          timedelta=False,legend_loc='lower left')
+                          timedelta=False,legend_loc='upper left')
     general_plot_settings(ms_state,do_xlabel=False,legend=True,
-                          ylabel=r'Energy $\left[PJ\right]$',
+                          ylabel=r'-1*Energy $\left[PJ\right]$',
                           xlim=kwargs.get('zoom'),
-                          #ylim=[-3,3],
+                          ylim=[-16,-13],
                           timedelta=False,legend_loc='lower left')
     general_plot_settings(coupling,do_xlabel=True,legend=True,
               ylabel=r'$\int_{MP}\mathbf{K}\cdot d\mathbf{A}\left[TW\right]$',
                           xlim=kwargs.get('zoom'),
-                          ylim=[-3,3],
+                          ylim=[-3.5,2.5],
                           timedelta=False,legend_loc='lower left')
     driving.xaxis.set_ticklabels([])
     ms_state.xaxis.set_ticklabels([])
@@ -221,16 +236,18 @@ def summary_plot(ev,dataset,event,path,**kwargs):
     rax.set_ylabel(r'$\Delta B \left[nT\right]$')
     rax.legend(loc='lower right')
     rax.spines
+    rax.set_ylim([-50,0])
     ms_state.spines['left'].set_color('slateblue')
     ms_state.tick_params(axis='y',colors='slateblue')
     ms_state.yaxis.label.set_color('slateblue')
     if 'zoom' in kwargs:
-        rax.set_ylim([dst_values.min(),0])
+        #rax.set_ylim([dst_values.min(),0])
         pass
     ms_state.axhline(0,c='black')
     driving.margins(x=0.01)
     ms_state.margins(x=0.01)
     Summary.tight_layout()
+    #############
     #Save
     if 'zoom' in kwargs:
         figurename = (path+'/Summary'+event+'_'+
@@ -241,15 +258,18 @@ def summary_plot(ev,dataset,event,path,**kwargs):
     Summary.savefig(figurename)
     print('\033[92m Created\033[00m',figurename)
 
-def create_figures(dataset):
-    path = unfiled
+def create_figures(dataset,path):
     # Zoom in
     crossing_window = (dt.datetime(2022,2,2,23,0)-dt.timedelta(hours=2),
                        dt.datetime(2022,2,2,23,50)+dt.timedelta(hours=2))
+    themis_window = (dt.datetime(2022,2,3,4,0)-dt.timedelta(hours=2),
+                       dt.datetime(2022,2,3,4,0)+dt.timedelta(hours=2))
     # Process data
     ev = refactor(dataset['star4'],dt.datetime(2022,2,2,23,0))
     # Create figures
-    summary_plot(ev,dataset,'star4',path,zoom=crossing_window,tag='crossing')
+    #summary_plot(ev,dataset,'star4',path,zoom=crossing_window,tag='crossing')
+    #summary_plot(ev,dataset,'star4',path,zoom=themis_window,tag='themis')
+    hist_plot('magEx/data/mp_energy_dist.txt',path)
 
 if __name__ == "__main__":
     #Need input path, then create output dir's
@@ -280,4 +300,4 @@ if __name__ == "__main__":
                  end=data['star4']['time'][-1]+dt.timedelta(seconds=1),
                                              read_supermag=False)
     ## Make plots
-    create_figures(data)
+    create_figures(data,unfiled)

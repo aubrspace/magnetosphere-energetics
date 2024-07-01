@@ -499,11 +499,16 @@ def plot_psd(ax, t, series, **kwargs):
     Returns
         None
     """
-    f, Pxx = signal.periodogram(series,fs=kwargs.get('fs',1/300),nfft=3000)
-    T_peak = (1/f[Pxx==Pxx.max()][0])/3600 #period in hours
-    ax.semilogy(f*1e3,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
-                                    +' Peak at  {:.2f} hrs'.format(T_peak))
-    ax.set_xlim(kwargs.get('xlim',[0,0.5]))
+    f, Pxx = signal.periodogram(series,fs=kwargs.get('fs',1/300),
+                                nfft=kwargs.get('nfft',None))
+    #T_peak = (1/f[Pxx==Pxx.max()][0])/3600 #period in hours
+    fmax = 1/kwargs.get('fs')
+    T_peak = (1/f[Pxx==Pxx.max()][0]) #period in minutes
+    #ax.semilogy(f*1e3,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
+    #                                +' Peak at  {:.2f} hrs'.format(T_peak))
+    ax.semilogy(f,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
+                                    +' Peak at  {:.2f}min'.format(T_peak))
+    #ax.set_xlim(kwargs.get('xlim',[0,0.5]))
     ax.set_ylim(kwargs.get('ylim',[1e-6*Pxx.max(),10*Pxx.max()]))
     ax.legend()
     ax.set_xlabel(kwargs.get('xlabel'))
@@ -660,7 +665,7 @@ def refactor(event,t0):
                   ev['M1']+ev['M5'])
     #ev['Kstatic']= ev['mp']['K_net [W]']-ev['inner']['K_net [W]']
     ev['Kstatic']=ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']
-    #ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
+    ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
 
     #from IPython import embed; embed()
     #time.sleep(3)

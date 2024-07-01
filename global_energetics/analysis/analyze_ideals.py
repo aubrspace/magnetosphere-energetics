@@ -18,6 +18,7 @@ from global_energetics.analysis.plot_tools import (central_diff,
                                                    pyplotsetup,safelabel,
                                                    general_plot_settings,
                                                    plot_stack_distr,
+                                                   plot_psd,
                                                    plot_pearson_r,
                                                    plot_stack_contrib,
                                                    refactor,ie_refactor,
@@ -1393,13 +1394,13 @@ def rxn(ev,event,path,**kwargs):
     #Plot
     # Dayside/nightside reconnection rates
     daynight.axhline(0,c='black')
-    daynight.fill_between(ev['ie_times'],(ev['cdiffRXN']/1e3),label='cdiff',
-                          fc='grey')
+    #daynight.fill_between(ev['ie_times'],(ev['cdiffRXN']/1e3),label='cdiff',
+    #                      fc='grey')
+    daynight.fill_between(ev['ie_times'],ev['RXN']/1e3,label='Net',fc='grey')
     daynight.plot(ev['ie_times'],ev['RXNm_Day']/1e3,label='Day',
-                  c='dodgerblue',lw=3)
+                  c='red',lw=3)
     daynight.plot(ev['ie_times'],ev['RXNm_Night']/1e3,label='Night',c='navy')
-    daynight.plot(ev['ie_times'],ev['RXNs']/1e3,label='Static',c='red',ls='--')
-    daynight.plot(ev['ie_times'],ev['RXN']/1e3,label='Net',c='gold',ls='--')
+    #daynight.plot(ev['ie_times'],ev['RXNs']/1e3,label='Static',c='red',ls='--')
 
     bflux.plot(ev['ie_times'],ev['ie_flux']/1e9,label='1s',c='grey')
     bflux.plot(ev['ie_times'],ev['ie_flux'].rolling('3s').mean()/1e9,
@@ -1446,7 +1447,8 @@ def rxn(ev,event,path,**kwargs):
                            ev['RXN'][(ev['RXN'].index<zoom[1])&
                                      (ev['RXN'].index>zoom[0])].max()/1e3])
         '''
-        daynight.set_ylim([-500,500])
+        #daynight.set_ylim([-500,500])
+        pass
     for interv in interval_list:
         daynight.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                           c='grey')
@@ -1486,6 +1488,11 @@ def all_fluxes(ev,event,path,**kwargs):
     al_values = dataset[event]['obs']['swmf_index']['AL']
     dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
     if 'zoom' in kwargs:
+        xlims = [float(pd.Timedelta(t-TSTART).to_numpy()) for t in kwargs.get('zoom')]
+    else:
+        xlims = None
+    '''
+        zoom = [tkwargs.get('zoom')
         #zoom
         zoom = kwargs.get('zoom')
         mp_window = ((ev['mp'].index>zoom[0])&(ev['mp'].index<zoom[1]))
@@ -1502,6 +1509,7 @@ def all_fluxes(ev,event,path,**kwargs):
         ev = zoomed
         al_values = dataset[event]['obs']['swmf_index']['AL'][index_window]
         dst_values = dataset[event]['obs']['swmf_log']['dst_sm'][log_window]
+    '''
     # Get time markings that match the format
     inddelta = [t-T0 for t in al_values.index]
     indtimes = [float(n.to_numpy()) for n in inddelta]
@@ -1513,15 +1521,18 @@ def all_fluxes(ev,event,path,**kwargs):
                    fc='blue')
     Kexternal.fill_between(ev['times'],ev['K5']/1e12,label='K5 (ClosedMP)',
                    fc='red')
+    #Kexternal.fill_between(ev['times'],ev['dUdt']/1e12,label=r'$\frac{dU}{dt}$',
+    #                       fc='grey')
+    Kexternal.fill_between(ev['times'],ev['Ksum']/1e12,label=r'$K_{net}$',fc='black',
+                           alpha=0.5)
     #Kexternal.plot(ev['times'],ev['Ks4']/1e12,label='K4 (OpenTail)',
     #               color='grey')
     #Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
     #               color='black')
-    from IPython import embed; embed()
     Kexternal.plot(ev['times'],-ev['sw']['EinWang']/1e12,
-                   c='black',lw='4',label='Wang2014')
+                   c='black',lw=4,label='Wang2014')
     Kexternal.plot(ev['times'],ev['sw']['Pstorm']/1e12,
-                   c='grey',lw='4',label='Tenfjord and Østgaard 2013')
+                   c='grey',lw=4,label='Tenfjord and Østgaard 2013')
     # Internal Energy Flux
     Kinternal.plot(ev['times'],ev['K2a']/1e12,label='K2a (Cusp)',
                    color='magenta')
@@ -1542,17 +1553,17 @@ def all_fluxes(ev,event,path,**kwargs):
     al.plot(ev['times'],ev['GridL'],label='GridL',color='purple')
     #Decorations
     general_plot_settings(Kexternal,do_xlabel=False,legend=True,
-                          ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
-                          ylim=[-25,17],
+                          ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
+                          ylim=[-25,17],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
     general_plot_settings(Kinternal,do_xlabel=False,legend=True,
-                          ylabel=r' $\int_S$Energy Flux $\left[TW\right]$',
-                          ylim=[-30,10],
+                          ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
+                          ylim=[-30,10],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
     general_plot_settings(Energy_dst,do_xlabel=False,legend=True,
-                          ylabel=r'Energy $\left[PJ\right]$',
+                          ylabel=r'$\int_V U\left[PJ\right]$',xlim=xlims,
                           timedelta=True,legend_loc='lower left')
-    general_plot_settings(al,do_xlabel=True,legend=True,
+    general_plot_settings(al,do_xlabel=True,legend=True,xlim=xlims,
                           ylabel=r'$\Delta B \left[nT\right]$',
                           timedelta=True,legend_loc='lower left')
     rax.set_ylabel(r'$\Delta B \left[nT\right]$')
@@ -1619,8 +1630,8 @@ def build_events(ev,run,**kwargs):
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
     events['plasmoids_mass'] = ID_plasmoids(ev,mode='mass')
     events['plasmoids'] = events['plasmoids_mass']*events['plasmoids_volume']
-    events['ALbays'],events['ALonsets'],events['ALpsuedos'] = ID_ALbays(ev)
-    events['MGLbays'],events['MGLonsets'],events['MGLpsuedos'] = ID_ALbays(ev,
+    events['ALbays'],events['ALonsets'],events['ALpsuedos'],_ = ID_ALbays(ev)
+    events['MGLbays'],events['MGLonsets'],events['MGLpsuedos'],_ = ID_ALbays(ev,
                                                               al_series='MGL')
     # ID MPBs
     events['substorm'] = np.ceil((events['DIP']+
@@ -1629,9 +1640,12 @@ def build_events(ev,run,**kwargs):
                                   events['MGLbays']+
                                   events['ALbays'])/5)
     # Coupling variability signatures
-    events['K1var'],events['K1unsteady'] = ID_variability(ev['K1'])
-    events['K5var'],events['K5unsteady'] = ID_variability(ev['K5'])
-    events['K15var'],events['K15unsteady'] = ID_variability(ev['K1']+ev['K5'])
+    events['K1var'],events['K1unsteady'],events['K1err'] = ID_variability(
+                                                                     ev['K1'])
+    events['K5var'],events['K5unsteady'],events['K5err'] = ID_variability(
+                                                                     ev['K5'])
+    events['K15var'],events['K15unsteady'],events['K15err'] = ID_variability(
+                                                            ev['K1']+ev['K5'])
     events['both'] = np.ceil((events['substorm']+events['imf_transients'])/2)
     # other combos
     return events
@@ -1661,10 +1675,13 @@ def ID_variability(in_signal,**kwargs):
     signal = in_signal.copy(deep=True).reset_index(drop=True)
     lookahead = kwargs.get('lookahead',5)
     lookbehind = kwargs.get('lookbehind',5)
-    threshold = kwargs.get('threshold',56.24)
+    threshold = kwargs.get('threshold',51.4)
     unsteady = np.zeros(len(signal))
     var = np.zeros(len(signal))
     relvar = np.zeros(len(signal))
+    integ_true = np.zeros(len(signal))
+    integ_steady = np.zeros(len(signal))
+    integ_err = np.zeros(len(signal))
     for i in range(lookbehind+1,len(signal)-lookahead-1):
         # Measure the variability within a given window for each point
         var[i] = np.sum([abs(signal[k+1]-signal[k-1])/120 for k in
@@ -1672,7 +1689,13 @@ def ID_variability(in_signal,**kwargs):
         relvar[i] = var[i]/abs(signal[i])*100
         # Assign 1/0 to if the window variability is > threshold
         unsteady[i] = var[i]>abs(signal[i])*(threshold/100)
-    return relvar,unsteady
+        # Calculate the error in window integrated value vs assuming steady
+        integ_true[i] = np.sum([signal[k] for k in
+                            range(i-lookbehind,i+lookahead+1)])
+        integ_steady[i] = len(range(i-lookbehind,i+lookahead+1))*signal[i]
+        integ_err[i] = (integ_steady[i]-integ_true[i])/integ_true[i]*100
+    #from IPython import embed; embed()
+    return relvar,unsteady,integ_err
 
 '''
 def ID_ALbays(ev,**kwargs):
@@ -1932,7 +1955,156 @@ def tshift_scatter(ev,xkey,ykey,run,path):
 def hide_zeros(values):
     return np.array([float('nan') if x==0 else x for x in values])
 
+def show_full_hist(events,path,**kwargs):
+    testpoints = ['stretched_LOWnLOWu',
+                  'stretched_MEDnLOWu',
+                  'stretched_HIGHnLOWu',
+                  'stretched_LOWnMEDu',
+                  'stretched_MEDnMEDu',
+                  'stretched_HIGHnMEDu',
+                  'stretched_LOWnHIGHu',
+                  'stretched_MEDnHIGHu',
+                  'stretched_HIGHnHIGHu']
+    #############
+    #setup figure
+    fig1,(k1) = plt.subplots(1,1,figsize=[10,10])
+    fig2,(k1err) = plt.subplots(1,1,figsize=[10,10])
+    allK1var = np.array([])
+    allK1err = np.array([])
+    allSubstorm = np.array([])
+    for i,run in enumerate(testpoints):
+        if run not in events.keys():
+            continue
+        evK1var = events[run]['K1var']
+        evK1err = events[run]['K1err']
+        evSubstorm = events[run]['substorm']
+        allK1var = np.append(allK1var,evK1var.values)
+        allK1err = np.append(allK1err,evK1err.values)
+        allSubstorm = np.append(allSubstorm,evSubstorm.values)
+    dfK1var = pd.DataFrame({'K1var':allK1var,'substorm':allSubstorm})
+    dfK1err = pd.DataFrame({'K1err':allK1err})
+    # Scrub outliers twice
+    outliers = np.where((dfK1var['K1var']>2*dfK1var['K1var'].std()))[0]
+    dfK1var.drop(index=outliers,inplace=True)
+    dfK1var.reset_index(drop=True,inplace=True)
+    outliers = np.where((dfK1var['K1var']>2*dfK1var['K1var'].std()))[0]
+    dfK1var.drop(index=outliers,inplace=True)
+    dfK1var.reset_index(drop=True,inplace=True)
+    binsvar = np.linspace(dfK1var['K1var'].quantile(0.00),
+                       dfK1var['K1var'].quantile(0.95),51)
+    binserr = np.linspace(-35,35,51)
+    # Create 2 stacks
+    layer1 = dfK1var['K1var'][dfK1var['substorm']==0]
+    layer2 = dfK1var['K1var'][dfK1var['substorm']==1]
+    y1,x = np.histogram(layer1,bins=binsvar)
+    y2,x2 = np.histogram(layer2,bins=binsvar)
+    # Variability
+    q75_var =dfK1var['K1var'].quantile(0.75)
+    mean_var =dfK1var['K1var'].mean()
+    #k1.hist(dfK1var['K1var'],bins=binsvar,fc='green')
+    #k1.bar(x[1::],y1,3,fc='green',label='quiet')
+    #k1.bar(x[1::],y2,3,bottom=y1,fc='magenta',label='substorm')
+    k1.bar(x[1::],y2,3,fc='magenta',label='substorm',alpha=0.4)
+    k1.bar(x[1::],y1,3,fc='green',label='quiet',alpha=0.4)
+    k1.bar(x[1::],y1+y2,3,fill=False,color='black',label='total')
+    k1.axvline(dfK1var['K1var'].quantile(0.75),c='black',lw=4)
+    k1.axvline(layer1.quantile(0.75),c='darkgreen',lw=2)
+    k1.axvline(layer2.quantile(0.75),c='darkmagenta',lw=2)
+    k1q75 = k1.text(1,0.94,r'$75^{th}$ Percentile'+f'={q75_var:.1f}%',
+                     transform=k1.transAxes,
+                     horizontalalignment='right')
+    k1mean = k1.text(1,0.88,r'Mean'+f'={mean_var:.1f}%',
+                     transform=k1.transAxes,c='grey',
+                     horizontalalignment='right')
+    k1.legend(loc='center right')
+    # Error
+    q75_err =dfK1err['K1err'].quantile(0.75)
+    mean_err =dfK1err['K1err'].mean()
+    k1err.hist(dfK1err['K1err'],bins=binserr,fc='purple')
+    k1err.axvline(dfK1err['K1err'].quantile(0.75),c='black',lw=4)
+    k1errq75 = k1err.text(1,0.94,r'$75^{th}$ Percentile'+f'={q75_err:.1f}%',
+                     transform=k1.transAxes,
+                     horizontalalignment='right')
+    k1errmean = k1err.text(1,0.88,r'Mean'+f'={mean_err:.1f}%',
+                     transform=k1.transAxes,c='grey',
+                     horizontalalignment='right')
+    # Decorate
+    k1.set_xlabel('Total Variation of \n'+
+                 r'$\int_1\mathbf{K}\left[\%\right]$')
+    k1.set_ylabel('Counts')
+    k1.set_xlim(0,150)
+
+    k1err.set_xlabel('Rel.Error of \n'+
+                 r'$\int_{\Delta t}\int_1\mathbf{K}\left[\%\right]$')
+    k1err.set_ylabel('Counts')
+    k1err.set_xlim(-35,35)
+
+    # Save
+    fig1.tight_layout(pad=1)
+    figurename = path+'/hist_eventsK1_all.png'
+    fig1.savefig(figurename)
+    plt.close(fig1)
+    print('\033[92m Created\033[00m',figurename)
+
+    fig2.tight_layout(pad=1)
+    figurename = path+'/hist_eventsK1err_all.png'
+    fig2.savefig(figurename)
+    plt.close(fig2)
+    print('\033[92m Created\033[00m',figurename)
+
 def show_event_hist(ev,run,events,path,**kwargs):
+    interv = kwargs.get('zoom')
+    if interv:
+        i_interv = (ev['mp'].index>interv[0])&(ev['mp'].index<interv[1])
+        zoomevents = events[run][i_interv]
+        interval_list = build_interval_list(interv[0],DT,TJUMP,
+                                            ev['mp'][i_interv].index)
+    else:
+        zoomevents = events[run]
+        interval_list = build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
+    for start,end in interval_list:
+        i_period = (ev['mp'].index>start)&(ev['mp'].index<end)
+        K1var = events[run][i_period]['K1var']
+        K1err = events[run][i_period]['K1err']
+        real = np.sum(ev['K1'][i_period])
+        steady = np.average(ev['K1'][i_period])*len(ev['K1'][i_period])
+        period_err = (steady-real)/real*100
+        print(start,end)
+        '''
+        print('K1var:\n'+
+                    f'\tmean: {K1var.mean():.1f}%'+
+                    f'\t25th: {K1var.quantile(.25):.1f}%'+
+                    f'\t50th: {K1var.quantile(.50):.1f}%'+
+                    f'\t75th: {K1var.quantile(.75):.1f}%')
+        print('K1err:\n'+
+                    f'\tmean: {K1err.mean():.1f}%'+
+                    f'\t25th: {K1err.quantile(.25):.1f}%'+
+                    f'\t50th: {K1err.quantile(.50):.1f}%'+
+                    f'\t75th: {K1err.quantile(.75):.1f}%'+
+                    f'\n\tperiod_err: {period_err:.1f}%\n\n')
+        '''
+        # K1 PSD
+        T_peaks = []
+        for i,sig in enumerate([ev['K1'][i_period],
+                        dataset[event]['obs']['swmf_index']['AL'][i_period]]):
+            f, Pxx = signal.periodogram(sig,fs=1)
+            df = pd.DataFrame({'f':f,'Pxx':Pxx})
+            df.sort_values(by='Pxx',inplace=True)
+            df.reset_index(drop=True,inplace=True)
+            T_peak = (1/df['f'].iloc[-1]) #period in min
+            #if abs(T_peak-len(sig))<1:
+            #    T_peak = (1/df['f'].iloc[-2]) #period in min
+            #T_peaks[i] = T_peak
+            T_peaks.append(1/df['f'].iloc[-4::])
+        # AL PSD
+        print('PSD:\n'+
+        #            f'\tK1 Tpeak: {T_peaks[0]:.3f}min'+
+        #            f'\tAL Tpeak: {T_peaks[1]:.3f}min\n\n')
+                    f'\tK1 Tpeak: {T_peaks[0]}\n'+
+                    f'\tAL Tpeak: {T_peaks[1]}\n\n')
+    #fig,ax = plt.subplots(1,1)
+    #plot_psd(ax,ev['K1'].index,ev['K1'].values/1e12,fs=1,
+    #         label=r'$\int\mathbf{K}_1\left[ TW\right]$')
     #############
     #setup figure
     fig1,(k1) = plt.subplots(1,1,figsize=[10,10])
@@ -1954,6 +2126,7 @@ def show_event_hist(ev,run,events,path,**kwargs):
     k1.set_xlabel('Total Variation of \n'+
                  r'Integrated K1 Flux $\left[\%\right]$')
     k1.set_ylabel('Counts')
+    k1.set_xlim(0,150)
 
     fig1.tight_layout(pad=1)
     figurename = path+'/hist_events1_'+run+'.png'
@@ -2359,7 +2532,7 @@ def initial_figures(dataset):
                                   dt.datetime(2022,6,6,0))
             for key in ev2.keys():
                 ev[key] = ev2[key]
-        #events[run] = build_events(ev,run)
+        events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
@@ -2397,14 +2570,16 @@ def initial_figures(dataset):
                           dt.datetime(2022,6,6,22,25))
         #errors(ev,run,path)
         #errors(ev,run,path,zoom=small_window,tag='closezoom')
-        all_fluxes(ev,event,path,zoom=example_window,tag='midzoom')
+        #all_fluxes(ev,run,path,zoom=example_window,tag='midzoom')
         #rxn(ev,run,path,zoom=small_window,tag='closezoom')
-        show_event_hist(ev,run,events,path)
+        #rxn(ev,run,path,zoom=example_window,tag='midzoom')
+        #show_event_hist(ev,run,events,path,zoom=example_window,tag='midzoom')
         #show_events(ev,run,events,path)
         #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
+    show_full_hist(events,path)
     #plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
@@ -2428,14 +2603,14 @@ if __name__ == "__main__":
 
     # Event list
     #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
-    events =[#'stretched_LOWnLOWu',
-             #'stretched_LOWnMEDu',
-             #'stretched_LOWnHIGHu',
+    events =['stretched_LOWnLOWu',
+             'stretched_LOWnMEDu',
+             'stretched_LOWnHIGHu',
              #
-             #'stretched_HIGHnLOWu',
-             #'stretched_HIGHnHIGHu',
+             'stretched_HIGHnLOWu',
+             'stretched_HIGHnHIGHu',
              #
-             #'stretched_MEDnMEDu',
+             'stretched_MEDnMEDu',
              'stretched_MEDnHIGHu']
              #'stretched_test']
              #'stretched_LOWnLOWucontinued']

@@ -409,12 +409,13 @@ def collect_themis(start, end, **kwargs):
     Returns
         df (DataFrame)- collected and processed data
     """
+    probelist = kwargs.get('probelist',['A','D','E'])
     # Position
     buff = dt.timedelta(hours=12)
     print('Gathering Position Data')
     positions = {}
     if not kwargs.get('skip_pos_data',False):
-        for num in ['A','D','E']:
+        for num in probelist:
             print('\tthemis',num)
             df = pd.DataFrame()
             pos_instrument = 'TH'+num+'_OR_SSC'
@@ -437,7 +438,7 @@ def collect_themis(start, end, **kwargs):
     print('Gathering Bfield Data')
     bfield = {}
     if not kwargs.get('skip_bfield_data',False):
-        for num in ['A','D','E']:
+        for num in probelist:
             print('\tthemis',num)
             df = pd.DataFrame()
             fgm_instrument = 'TH'+num+'_L2_FGM'
@@ -454,7 +455,7 @@ def collect_themis(start, end, **kwargs):
     print('Gathering Plasma Data')
     plasma = {}
     if not kwargs.get('skip_plasma_data',False):
-        for num in ['A','D','E']:
+        for num in probelist:
             print('\tthemis',num)
             df = pd.DataFrame()
             plasma_instrument = 'TH'+num+'_L2_MOM'
