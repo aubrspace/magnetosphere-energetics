@@ -510,6 +510,7 @@ def get_swmf_data(datapath,**kwargs):
     logpath = os.path.join(datapath,kwargs.get('prefix','')+'log_*.log')
     swpath = os.path.join(datapath,kwargs.get('prefix','')+'*IMF.dat')
     iepath = os.path.join(datapath,kwargs.get('prefix','')+'IE_*.log')
+    superpath=os.path.join(datapath,kwargs.get('prefix','')+'superindex_*.log')
     if glob.glob(geopath) != []:
         geoindex = glob.glob(geopath)[0]
         skip_geo = False
@@ -534,6 +535,12 @@ def get_swmf_data(datapath,**kwargs):
     else:
         skip_ie = True
         ielogdata = pd.DataFrame()
+    if glob.glob(superpath) != []:
+        superlog = glob.glob(superpath)[0]
+        skip_super = False
+    else:
+        skip_super = True
+        superlogdata = pd.DataFrame()
     #get dataset names
     print('reading: ')
     if not skip_geo:
@@ -542,6 +549,9 @@ def get_swmf_data(datapath,**kwargs):
     if not skip_log:
         swmflogname = swmflog.split('/')[-1].split('.log')[0]
         print('\t{}'.format(swmflog))
+    if not skip_super:
+        superlogname = superlog.split('/')[-1].split('.log')[0]
+        print('\t{}'.format(superlog))
     if not skip_sw:
         solarwindname = solarwind.split('/')[-1].split('.dat')[0]
         print('\t{}'.format(solarwind))
@@ -563,6 +573,15 @@ def get_swmf_data(datapath,**kwargs):
         swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
         swmflogdata.index = swmflogdata['Time [UTC]']
         swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
+    ##SUPERMAG LOG (GM)
+    if not skip_super:
+        superlogdata = pd.read_csv(superlog, sep='\s+', skiprows=1,
+            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+            date_parser=datetimeparser,
+            infer_datetime_format=True, keep_date_col=True)
+        superlogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        superlogdata.index = superlogdata['Time [UTC]']
+        superlogdata.drop(columns=['Time [UTC]'],inplace=True)
     ##IE SIMULATION LOG
     if not skip_ie:
         ielogdata = pd.read_csv(ielog,sep='\s+',skiprows=1,
@@ -645,6 +664,8 @@ def get_swmf_data(datapath,**kwargs):
         geoindexdata['times'] = geoindexdata.index
     if not skip_log:
         swmflogdata['times'] = swmflogdata.index
+    if not skip_super:
+        superlogdata['times'] = superlogdata.index
     if not skip_sw:
         swdata['times'] = swdata.index
         swdata['dens'] = swdata['density']
@@ -655,6 +676,9 @@ def get_swmf_data(datapath,**kwargs):
                                          after=kwargs.get('end'))
     if not skip_log:
         swmflogdata = swmflogdata.truncate(before=kwargs.get('start'),
+                                       after=kwargs.get('end'))
+    if not skip_super:
+        superlogdata = superlogdata.truncate(before=kwargs.get('start'),
                                        after=kwargs.get('end'))
     if not skip_sw:
         swdata = swdata.truncate(before=kwargs.get('start'),
@@ -668,6 +692,7 @@ def get_swmf_data(datapath,**kwargs):
     data.update({'swmf_log':swmflogdata})
     data.update({'swmf_sw':swdata})
     data.update({'ie_log':ielogdata})
+    data.update({'super_log':superlogdata})
     return data
 
 def prepare_figures(data, path, **kwargs):

@@ -426,8 +426,14 @@ def plot_indices(dataset,path):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
                                        dataset['stretched_MEDnHIGHu']['time'])
     colors = ['#80b3ffff','#0066ffff','#0044aaff',
-              '#80ffb3ff','#2aff80ff','#00aa44ff',
+              '#80ffb3ff','#00aa44ff','#005500ff',
               '#ffe680ff','#ffcc00ff','#806600ff']
+    styles = [None,None,None,
+              '--','--','--',
+              None,None,None]
+    markers = [None,None,None,
+               None,None,None,
+               'x','x','x']
     testpoints = ['stretched_LOWnLOWu',
                   'stretched_MEDnLOWu',
                   'stretched_HIGHnLOWu',
@@ -439,36 +445,53 @@ def plot_indices(dataset,path):
                   'stretched_HIGHnHIGHu']
     #############
     #setup figure
-    indices,(axis,axis2) =plt.subplots(2,1,figsize=[20,16],sharex=True)
+    indices,(axis1,axis2,axis3) =plt.subplots(3,1,figsize=[20,20],sharex=True)
     for i,event in enumerate(testpoints):
         if event not in dataset.keys():
             continue
+        # Time shenanigans
         timedelta = [t-T0 for t in dataset[event]['obs']['swmf_log'].index]
         times = [float(n.to_numpy()) for n in timedelta]
-        #supdelta = [t-T0 for t in dataset[event]['obs']['vsupermag'].index]
-        #suptimes = [float(n.to_numpy()) for n in supdelta]
+        supdelta = [t-T0 for t in dataset[event]['obs']['super_log'].index]
+        suptimes = [float(n.to_numpy()) for n in supdelta]
         inddelta = [t-T0 for t in dataset[event]['obs']['swmf_index'].index]
         indtimes = [float(n.to_numpy()) for n in inddelta]
-        axis.plot(times,
+        utimedelta = [t-T0 for t in dataset[event]['mpdict']['ms_full'].index]
+        utimes = [float(n.to_numpy()) for n in utimedelta]
+
+        # Plot
+        axis1.plot(utimes,
+                   dataset[event]['mpdict']['ms_full']['Utot [J]']/1e15,
+                   label=event,c=colors[i],lw=3,ls=styles[i],marker=markers[i],
+                   markevery=10)
+        axis2.plot(times,
                   dataset[event]['obs']['swmf_log']['dst_sm'],
-                  label=event,c=colors[i],lw=3)
-        #axis2.plot(times,
-        #          dataset[event]['obs']['swmf_log']['cpcpn'],
-        #          label=event)
-        axis2.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
-                   label=event,c=colors[i])
+                  label=event,c=colors[i],lw=3,ls=styles[i],marker=markers[i],
+                  markevery=50)
+        #axis3.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
+        #           label=event,c=colors[i])
+        axis3.plot(suptimes,dataset[event]['obs']['super_log']['SML'],
+                   label=event,c=colors[i],ls=styles[i],marker=markers[i],
+                   markevery=10)
     for interv in interval_list:
-        axis.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
+        axis1.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
         axis2.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
                       c='grey')
+        axis3.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+                      c='grey')
 
-    general_plot_settings(axis,do_xlabel=False,legend=False,
+    general_plot_settings(axis1,do_xlabel=False,legend=False,
+                          ylabel=r'Energy $\left[PJ\right]$',timedelta=True)
+    general_plot_settings(axis2,do_xlabel=False,legend=False,
                           ylabel=r'Dst $\left[nT\right]$',timedelta=True)
-    general_plot_settings(axis2,do_xlabel=True,legend=False,
-                          ylabel=r'AL $\left[nT\right]$',timedelta=True)
-    axis.margins(x=0.01)
+    general_plot_settings(axis3,do_xlabel=True,legend=False,
+                          ylabel=r'SML $\left[nT\right]$',timedelta=True)
+    axis1.margins(x=0.01)
+    axis2.margins(x=0.01)
+    axis3.margins(x=0.01)
     indices.tight_layout(pad=1)
-    figurename = path+'/indices.png'
+    figurename = path+'/indices.svg'
     indices.savefig(figurename)
     plt.close(indices)
     print('\033[92m Created\033[00m',figurename)
@@ -2525,7 +2548,6 @@ def initial_figures(dataset):
     path = unfiled
     tave,tv,corr,raw,events = {},{},{},{},{}
     for i,run in enumerate(dataset.keys()):
-        print(run)
         ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
         if 'iedict' in dataset[run].keys():
             ev2 = gmiono_refactor(dataset[run]['iedict'],
@@ -2579,8 +2601,8 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'GridL','K1',run,path)
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
-    show_full_hist(events,path)
-    #plot_indices(dataset,path)
+    #show_full_hist(events,path)
+    plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
 
@@ -2602,14 +2624,15 @@ if __name__ == "__main__":
     plt.rcParams.update(pyplotsetup(mode='print'))
 
     # Event list
-    #events = ['MEDnHIGHu','HIGHnHIGHu','LOWnLOWu','LOWnHIGHu','HIGHnLOWu']
     events =['stretched_LOWnLOWu',
              'stretched_LOWnMEDu',
              'stretched_LOWnHIGHu',
              #
              'stretched_HIGHnLOWu',
+             'stretched_HIGHnMEDu',
              'stretched_HIGHnHIGHu',
              #
+             'stretched_MEDnLOWu',
              'stretched_MEDnMEDu',
              'stretched_MEDnHIGHu']
              #'stretched_test']
@@ -2624,23 +2647,7 @@ if __name__ == "__main__":
         if os.path.exists(GMfile):
             dataset[event] = load_hdf_sort(GMfile)
 
-    '''
-    #HOTFIX duplicate LOWLOW values
-    M5 = dataset['LOWnLOWu']['mpdict']['ms_full']['UtotM5 [W]'].copy()/1e12
-    drops = np.where(abs(M5)>15)
-    droptimes = dataset['LOWnLOWu']['time'][drops]
-    dataset['LOWnLOWu']['time'] = dataset['LOWnLOWu']['time'].drop(droptimes)
-    keylist = dataset['LOWnLOWu']['msdict'].keys()
-    for key in keylist:
-        df = dataset['LOWnLOWu']['msdict'][key]
-        dataset['LOWnLOWu']['msdict'][key] = df.drop(index=droptimes)
-    keylist = dataset['LOWnLOWu']['mpdict'].keys()
-    for key in keylist:
-        df = dataset['LOWnLOWu']['mpdict'][key]
-        dataset['LOWnLOWu']['mpdict'][key] = df.drop(index=droptimes)
-    '''
 
-    #from IPython import embed; embed()
     ## Log Data
     for event in events:
         prefix = event.split('_')[1]+'_'
