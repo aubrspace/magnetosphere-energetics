@@ -2,11 +2,11 @@
 #'parallel' script for spawning lots of jobs
 
 #define variables
-INPUTDIR=./run_r3test/GM/IO2/
-OUTPUTDIR=./outputs_1second/
+INPUTDIR=./run_HIGHnMEDu/GM/IO2/
+OUTPUTDIR=./outputs_may6_HIGHnMEDu/
+#INPUTDIR=./starlink2/IO2/
 
 # May6 Todo list:
-# MedLow
 # HighMed
 
 filecount=0
@@ -18,6 +18,7 @@ workercount=0
 head=3d__var_1_e202206
 #head=3d__var_1_e201505
 #head=it2206
+#head=3d__var_1_e202202
 
 #satpath=star2satloc
 
@@ -33,6 +34,7 @@ do
     sbatch batchjob_energetics.gl -i $INPUTDIR -o $OUTPUTDIR \
                                   -f ${file:${#INPUTDIR}}    \
     #                              -s $satpath
+    #sbatch batchjob_park.gl -f ${file:${#INPUTDIR}}
 
     #if you only want to process one file use this
     #i=$((i+1))
