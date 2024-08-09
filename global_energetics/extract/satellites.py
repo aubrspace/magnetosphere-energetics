@@ -108,6 +108,7 @@ def load_swmf_sat(filename, field_variables):
     return satname
 
 def add_currentlocation(zonenames, field_data):
+    t0 = dt.datetime(2000,1,1,0)
     #Get corresponding satellite fieldmap variable indices
     satindices = []
     for name in zonenames:
@@ -127,18 +128,38 @@ def add_currentlocation(zonenames, field_data):
                                                     '%Y/%m/%d %H:%M:%S.%f')
             deltadt = eventdt-startdt
             tvals = field_data.zone(name).values('t').as_numpy_array()
+            times = [dt.datetime(2000,1,1,0)+dt.timedelta(seconds=int(t))
+                                                                for t in tvals]
+            dtimes = [(abs(t-eventdt)).total_seconds() for t in times]
+            i_time = np.where(dtimes==np.min(dtimes))[0][0]
             xvals = field_data.zone(name).values('X *').as_numpy_array()
             yvals = field_data.zone(name).values('Y *').as_numpy_array()
             zvals = field_data.zone(name).values('Z *').as_numpy_array()
             svals = field_data.zone(name).values('Status').as_numpy_array()
-            xpos = xvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-            ypos = yvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-            zpos = zvals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-            status = svals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
-            loc_satzone.values('X *')[0] = xpos
-            loc_satzone.values('Y *')[0] = ypos
-            loc_satzone.values('Z *')[0] = zpos
-            loc_satzone.values('Status')[0] = status
+            xpos = xvals[i_time]
+            ypos = yvals[i_time]
+            zpos = zvals[i_time]
+            #status = svals[np.where(abs(tvals-deltadt.seconds) < 3)][0]
+            loc_satzone.values('X *')[::] = xpos
+            loc_satzone.values('Y *')[::] = ypos
+            loc_satzone.values('Z *')[::] = zpos
+            #loc_satzone.values('Status')[0] = status
+
+def get_satzone_fromHdf5(field_data,hdffile,**kwargs):
+    t0 = dt.datetime(2000,1,1,0)
+    with pd.HDFStore(hdffile) as store:
+        for key in store.keys():
+            df = store[key]
+            keyzone = field_data.add_ordered_zone(key.replace('/',''),len(df))
+            keyzone.values('X *')[::] = df['x']
+            keyzone.values('Y *')[::] = df['y']
+            keyzone.values('Z *')[::] = df['z']
+            #keyzone.values('Status')[::] = df['status']
+            if 't' not in field_data.variable_names:
+                field_data.add_variable('t')
+            keyzone.values('t')[::]=[(t-t0).total_seconds()for t in df.index]
+            print(f'Created new zone from {key}')
+    return
 
 def get_satellite_zones(field_data, datapath, *, coordsys='GSM'):
     """Function to find satellite trace data (if avail) and append the data

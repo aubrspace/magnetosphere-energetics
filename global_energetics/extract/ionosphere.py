@@ -634,8 +634,7 @@ def get_ionosphere(dataset,**kwargs):
         if 'daynight' not in dataset.variable_names:
             eq('{trace_limits}=if({Status}==3 && '+
                             '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
-            reversed_mapping(zoneGM,'trace_limits',
-                             **kwargs)
+            reversed_mapping(zoneGM,'trace_limits',**kwargs)
         if kwargs.get('do_cms',False):
             reversed_mapping(dataset.zone('past'),'trace_limits',**kwargs)
             reversed_mapping(dataset.zone('future'),'trace_limits',**kwargs)

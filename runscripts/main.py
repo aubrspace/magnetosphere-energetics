@@ -114,9 +114,9 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'localdbug/parameter_study/MEDHIGH/'
+    inpath = 'error_results/hitime_run/'
     #inpath = 'localdbug/starlink/'
-    outpath = 'parameter_study/'
+    outpath = 'error_results/hitime_run/'
     #outpath = 'localdbug/MAST/test_output/'
     #outpath = 'localdbug/starlink/'
     head = '3d__var_1_*'
@@ -132,21 +132,18 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    #for k,f in enumerate(filelist):
-    if True:
-        f = filelist[1]
-        pastime = makevideo.get_time(filelist[0])
+    for k,f in enumerate(filelist):
+        #f = filelist[1]
         filetime = makevideo.get_time(filelist[1])
-        futuretime = makevideo.get_time(filelist[2])
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            mhddatafiles = filelist
+            mhddatafiles = [filelist[0],filelist[1],filelist[2]]
             #python objects
             field_data = tp.data.load_tecplot(mhddatafiles)
-            if len(field_data.zone_names)==3:
+            if len(field_data.zone_names)>=3:
                 field_data.zone(0).name = 'past'
                 field_data.zone(1).name = 'global_field'
                 field_data.zone(2).name = 'future'
@@ -177,23 +174,25 @@ if __name__ == "__main__":
                                     verbose=True,
                                     do_cms=True,
                                     analysis_type='energy_mass_mag_plasmoid',
-                                    #modes=['iso_betastar'],
-                                    modes=['iso_betastar','closed',
-                                           'nlobe','slobe','plasmasheet'],
+                                    #modes=['iso_betastar','closed',
+                                    #       'nlobe','slobe','plasmasheet'],
+                                    modes=['perfectellipsoid','perfectsphere',
+                                           'ellipsoid'],
                                     #inner_r=3,
                                     customTerms={'test':'TestArea [Re^2]'},
-                                    do_interfacing=True,
+                                    do_interfacing=False,
                                     tail_cap=-120,
                                     integrate_surface=True,
                                     integrate_volume=True,
                                     truegridfile=oggridfile,
                                     outputpath=outpath)
+                """
                 iedatafile, success = find_IE_matched_file(inpath,filetime)
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
                 ionosphere.read_maggrid_tec('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.tec')
                 do_north, do_south = False, False
                 #if os.path.exists(iedatafile):
-                if True:
+                if False:
                     # IE data
                     dataset = tp.data.load_tecplot(iedatafile,
                                     read_data_option=ReadDataOption.Append)
@@ -212,6 +211,8 @@ if __name__ == "__main__":
                     #    dataset.zone('IonS*').name = 'future_ionosphere_south'
                     #    do_south = True
                 #if do_north*do_south:
+                else:
+                    dataset = field_data
                 if True:
                     ionosphere.get_ionosphere(dataset,
                                               verbose=True,
@@ -246,6 +247,7 @@ if __name__ == "__main__":
                                     'cosmetic/dBn_night_north.sty',
                                     'cosmetic/longtail_Bz.sty'],
                                   outpath,OUTPUTNAME+'_'+str(i),filetime)
+                """
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')

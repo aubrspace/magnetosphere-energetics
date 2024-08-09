@@ -1,11 +1,11 @@
 #/usr/bin/env python
 """Plots solar wind from IMF.dat file for checking
 """
+import os,sys,glob,time
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import pandas as pd
 import numpy as np
-import os
-import sys
-import time
 import datetime as dt
 import matplotlib as mpl
 import matplotlib.pyplot as plt

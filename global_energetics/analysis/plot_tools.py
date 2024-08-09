@@ -145,18 +145,22 @@ def general_plot_settings(ax, **kwargs):
             #from IPython import embed; embed()
             #import time
             #time.sleep(3)
-            return "{:1}".format(hours+minutes/60)
+            return "{:d}:{:d}".format(hours,minutes)
         #Get original limits
         ax.set_xlim(kwargs.get('xlim',None))
         xlims = ax.get_xlim()
         islong = (xlims[1]-xlims[0])*1e-9/3600 > 10
+        ismed = (xlims[1]-xlims[0])*1e-9/3600 > 2
         if islong:
             #Manually adjust the xticks
             n = 3600*4/1e-9
             locs = [i*n for i in range(-100,100)]
-        else:
+        elif ismed:
             n = 3600*0.5/1e-9
             locs = [i*n for i in range(-100,100)]
+        else:
+            n = 3600/60/1e-9
+            locs = [i*n for i in range(-2000,2000)]
         locs = [np.round(l/1e10)*1e10 for l in locs]
         ax.xaxis.set_ticks(locs)
         if islong:
@@ -183,7 +187,9 @@ def general_plot_settings(ax, **kwargs):
         tmin,tmax = ax.get_xlim()
         time_range = mdates.num2timedelta(tmax-tmin)
         if time_range>dt.timedelta(hours=6):
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%H'))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H'))
+        elif time_range<dt.timedelta(minutes=3):
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%M:%S'))
         if kwargs.get('do_xlabel',False):
             ax.set_xlabel(kwargs.get('xlabel',r'Time $\left[ hr\right]$'))
         else:
@@ -493,11 +499,16 @@ def plot_psd(ax, t, series, **kwargs):
     Returns
         None
     """
-    f, Pxx = signal.periodogram(series,fs=kwargs.get('fs',1/300),nfft=3000)
-    T_peak = (1/f[Pxx==Pxx.max()][0])/3600 #period in hours
-    ax.semilogy(f*1e3,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
-                                    +' Peak at  {:.2f} hrs'.format(T_peak))
-    ax.set_xlim(kwargs.get('xlim',[0,0.5]))
+    f, Pxx = signal.periodogram(series,fs=kwargs.get('fs',1/300),
+                                nfft=kwargs.get('nfft',None))
+    #T_peak = (1/f[Pxx==Pxx.max()][0])/3600 #period in hours
+    fmax = 1/kwargs.get('fs')
+    T_peak = (1/f[Pxx==Pxx.max()][0]) #period in minutes
+    #ax.semilogy(f*1e3,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
+    #                                +' Peak at  {:.2f} hrs'.format(T_peak))
+    ax.semilogy(f,Pxx,label=kwargs.get('label',r'Virial $\Delta B$')
+                                    +' Peak at  {:.2f}min'.format(T_peak))
+    #ax.set_xlim(kwargs.get('xlim',[0,0.5]))
     ax.set_ylim(kwargs.get('ylim',[1e-6*Pxx.max(),10*Pxx.max()]))
     ax.legend()
     ax.set_xlabel(kwargs.get('xlabel'))
@@ -534,29 +545,31 @@ def refactor(event,t0):
     # Gather segments of the event to pass directly to figure functions
     ev = {}
     #NOTE fill gaps S.T. values fill forward to keep const dt
-    ev['mp'] = event['mpdict']['ms_full'].resample('60S').ffill()
+    sample = str((event['mpdict']['ms_full'].index[-1]-
+                  event['mpdict']['ms_full'].index[-2]).seconds)+'S'
+    ev['mp'] = event['mpdict']['ms_full'].resample(sample).ffill()
     use_i = ev['mp'].index
     ev['lobes'] = event['msdict']['lobes'].reindex(use_i,method='ffill')
     ev['closed'] = event['msdict']['closed'].reindex(use_i,method='ffill')
+    ev['inner'] = event['inner_mp'].reindex(use_i,method='ffill')
     #ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
     #ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
     times =  ev['mp'].index
-    ev['inner'] = event['inner_mp'].reindex(use_i,method='ffill')
-    ev['sim'] = event['obs']['swmf_log'].reindex(use_i,method='ffill')
-    ev['sw'] = event['obs']['swmf_sw'].reindex(use_i,method='ffill')
-    ev['index'] = event['obs']['swmf_index'].reindex(use_i,method='ffill')
-    #ev['inner'] = event['inner_mp'].resample('60S').ffill()
-    #ev['sim'] = event['obs']['swmf_log'].resample('60S').ffill()
-    #ev['sw'] = event['obs']['swmf_sw'].resample('60S').ffill()
-    #ev['index'] = event['obs']['swmf_index'].resample('60S').ffill()
+    ev['rawtimes']=times
     timedelta = [t-t0 for t in times]
-    simtdelta = [t-t0 for t in ev['sim'].index]
-    swtdelta = [t-t0 for t in ev['sw'].index]
     ev['times']=[float(n.to_numpy()) for n in timedelta]
-    ev['simt']=[float(n.to_numpy()) for n in simtdelta]
-    ev['swt']=[float(n.to_numpy()) for n in swtdelta]
-    ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
-    ev['GridL'] = ev['maggrid']['dBmin']
+    if 'obs' in event.keys():
+    #if False:
+        ev['sim'] = event['obs']['swmf_log'].reindex(use_i,method='ffill')
+        ev['sw'] = event['obs']['swmf_sw'].drop_duplicates().reindex(use_i,method='ffill')
+        ev['index'] = event['obs']['swmf_index'].reindex(use_i,method='ffill')
+        simtdelta = [t-t0 for t in ev['sim'].index]
+        swtdelta = [t-t0 for t in ev['sw'].index]
+        ev['simt']=[float(n.to_numpy()) for n in simtdelta]
+        ev['swt']=[float(n.to_numpy()) for n in swtdelta]
+    if 'gridMin' in event['obs'].keys():
+        ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
+        ev['GridL'] = ev['maggrid']['dBmin']
     ev['closedVolume'] = ev['closed']['Volume [Re^3]']
 
     # Calc dt
@@ -613,8 +626,13 @@ def refactor(event,t0):
     ev['M5a'] = ev['closed']['UtotM5a [W]'].fillna(value=0)
     ev['M5b'] = ev['closed']['UtotM5b [W]'].fillna(value=0)
     ev['M2a'] = ev['closed']['UtotM2a [W]'].fillna(value=0)
-    ev['M2b'] = ev['closed']['UtotM2b [W]'].fillna(value=0)
+    ev['M2b'] = ev['closed'].get('UtotM2b [W]')
     ev['Mic'] = ev['closed']['UtotMic [W]'].fillna(value=0)
+    for M in ['M1','M5','M','MM','M5a','M5b','M2a','M2b','Mic']:
+        if ev[M] is not None:
+            ev[M] = ev[M].fillna(value=0)
+        else:
+            ev[M] = np.zeros(len(ev['times']))
 
     ev['M_lobes'] = ev['M1']
     ev['M_closed'] = ev['M5a']+ev['M5b']+ev['M2a']+ev['M2b']
@@ -636,7 +654,8 @@ def refactor(event,t0):
     ev['S_cdiff_closed'] = -1*central_diff(ev['closed']['uB [J]'])
     ev['S_cdiff_lobes'] = -1*central_diff(ev['lobes']['uB [J]'])
     ev['S_cdiff_mp'] = -1*central_diff(ev['mp']['uB [J]'])
-    ev['dDstdt_sim'] = -1*central_diff(ev['sim']['dst_sm'])
+    #if 'obs' in event.keys():
+    #    ev['dDstdt_sim'] = -1*central_diff(ev['sim']['dst_sm'])
 
     ev['K1'] = ev['Ks1']+ev['M1']
     ev['K5'] = ev['Ks5']+ev['M5']
@@ -644,6 +663,9 @@ def refactor(event,t0):
     ev['K2b'] = ev['Ks2b']+ev['M2b']
     ev['Ksum'] = (ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']+
                   ev['M1']+ev['M5'])
+    #ev['Kstatic']= ev['mp']['K_net [W]']-ev['inner']['K_net [W]']
+    ev['Kstatic']=ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']
+    ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
 
     #from IPython import embed; embed()
     #time.sleep(3)
@@ -653,10 +675,18 @@ def refactor(event,t0):
 def gmiono_refactor(event,t0):
     # Name the top level
     ev = {}
-    ev['ocflb_north'] = event['GMionoNorth_line'].resample('60S').ffill()
-    ev['ocflb_south'] = event['GMionoSouth_line'].resample('60S').ffill()
-    ev['ie_surface_north']=event['GMionoNorth_surface'].resample('60S').ffill()
-    ev['ie_surface_south']=event['GMionoSouth_surface'].resample('60S').ffill()
+    sample = str((event['GMionoNorth_surface'].index[-1]-
+                  event['GMionoNorth_surface'].index[-2]).seconds)+'S'
+    #ev['ocflb_north'] = event['GMionoNorth_line'].resample(sample).ffill()
+    #ev['ocflb_south'] = event['GMionoSouth_line'].resample(sample).ffill()
+    #ev['ie_surface_north']=event['GMionoNorth_surface'].resample(
+    #                                                           sample).ffill()
+    #ev['ie_surface_south']=event['GMionoSouth_surface'].resample(
+    #                                                           sample).ffill()
+    ev['ocflb_north'] = event['GMionoNorth_line']
+    ev['ocflb_south'] = event['GMionoSouth_line']
+    ev['ie_surface_north']=event['GMionoNorth_surface']
+    ev['ie_surface_south']=event['GMionoSouth_surface']
     # Data collected piece wise so it doesn't always stack up time-wise
     surf_index = ev['ie_surface_north'].index
     line_index = ev['ocflb_north'].index
@@ -702,6 +732,7 @@ def gmiono_refactor(event,t0):
     ev['cdiffRXN_north'] = central_diff(abs(ev['ie_flux_north']))
     ev['cdiffRXN_south'] = central_diff(abs(ev['ie_flux_south']))
     ev['cdiffRXN'] = -central_diff(ev['ie_flux'])
+    #from IPython import embed; embed()
     return ev
 
 def ie_refactor(event,t0):

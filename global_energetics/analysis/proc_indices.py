@@ -510,6 +510,7 @@ def get_swmf_data(datapath,**kwargs):
     logpath = os.path.join(datapath,kwargs.get('prefix','')+'log_*.log')
     swpath = os.path.join(datapath,kwargs.get('prefix','')+'*IMF.dat')
     iepath = os.path.join(datapath,kwargs.get('prefix','')+'IE_*.log')
+    superpath=os.path.join(datapath,kwargs.get('prefix','')+'superindex_*.log')
     if glob.glob(geopath) != []:
         geoindex = glob.glob(geopath)[0]
         skip_geo = False
@@ -534,6 +535,12 @@ def get_swmf_data(datapath,**kwargs):
     else:
         skip_ie = True
         ielogdata = pd.DataFrame()
+    if glob.glob(superpath) != []:
+        superlog = glob.glob(superpath)[0]
+        skip_super = False
+    else:
+        skip_super = True
+        superlogdata = pd.DataFrame()
     #get dataset names
     print('reading: ')
     if not skip_geo:
@@ -542,6 +549,9 @@ def get_swmf_data(datapath,**kwargs):
     if not skip_log:
         swmflogname = swmflog.split('/')[-1].split('.log')[0]
         print('\t{}'.format(swmflog))
+    if not skip_super:
+        superlogname = superlog.split('/')[-1].split('.log')[0]
+        print('\t{}'.format(superlog))
     if not skip_sw:
         solarwindname = solarwind.split('/')[-1].split('.dat')[0]
         print('\t{}'.format(solarwind))
@@ -563,6 +573,15 @@ def get_swmf_data(datapath,**kwargs):
         swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
         swmflogdata.index = swmflogdata['Time [UTC]']
         swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
+    ##SUPERMAG LOG (GM)
+    if not skip_super:
+        superlogdata = pd.read_csv(superlog, sep='\s+', skiprows=1,
+            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
+            date_parser=datetimeparser,
+            infer_datetime_format=True, keep_date_col=True)
+        superlogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        superlogdata.index = superlogdata['Time [UTC]']
+        superlogdata.drop(columns=['Time [UTC]'],inplace=True)
     ##IE SIMULATION LOG
     if not skip_ie:
         ielogdata = pd.read_csv(ielog,sep='\s+',skiprows=1,
@@ -645,6 +664,8 @@ def get_swmf_data(datapath,**kwargs):
         geoindexdata['times'] = geoindexdata.index
     if not skip_log:
         swmflogdata['times'] = swmflogdata.index
+    if not skip_super:
+        superlogdata['times'] = superlogdata.index
     if not skip_sw:
         swdata['times'] = swdata.index
         swdata['dens'] = swdata['density']
@@ -655,6 +676,9 @@ def get_swmf_data(datapath,**kwargs):
                                          after=kwargs.get('end'))
     if not skip_log:
         swmflogdata = swmflogdata.truncate(before=kwargs.get('start'),
+                                       after=kwargs.get('end'))
+    if not skip_super:
+        superlogdata = superlogdata.truncate(before=kwargs.get('start'),
                                        after=kwargs.get('end'))
     if not skip_sw:
         swdata = swdata.truncate(before=kwargs.get('start'),
@@ -668,6 +692,7 @@ def get_swmf_data(datapath,**kwargs):
     data.update({'swmf_log':swmflogdata})
     data.update({'swmf_sw':swdata})
     data.update({'ie_log':ielogdata})
+    data.update({'super_log':superlogdata})
     return data
 
 def prepare_figures(data, path, **kwargs):
@@ -769,6 +794,86 @@ def get_expanded_sw(start, end, data_path):
             pd.Series({'name':'omni'}), ignore_index=True)
     omni['Time [UTC]'] = omni['times']
     return supermag, omni
+
+def ID_ALbays(ev,**kwargs):
+    if kwargs.get('criteria','BandY2017')=='BandY2017':
+        # see BOROVSKY AND YAKYMENKO 2017 doi:10.1002/2016JA023625
+        #   find period where SML decreases by >=150nT in 15min
+        #   onset if:
+        #       drops by >10nT in 2min AND
+        #       >15min from last onset time
+        #       Then for each onset:
+        #           integrate SML for 45min forward
+        #           integrate SML for 45min pior
+        #           if fwd < 1.5*prior:
+        #               reject as true onset
+        #           NOTE (my addition)else:
+        #               mark as psuedobreakup instead
+        #       Keep only the first onset
+
+        if kwargs.get('al_series','AL')=='AL':
+            al_copy=ev['index']['AL'].copy(deep=True).reset_index(drop=True)
+            al_series = al_copy.values
+        elif kwargs.get('al_series','AL')=='MGL':
+            al_copy=ev['maggrid']['dBmin'].copy(deep=True).reset_index(
+                                                                    drop=True)
+            al_series = al_copy.values
+        elif kwargs.get('al_series','AL')=='al':
+            al_series=ev['al']
+        lookahead = kwargs.get('al_lookahead',15)
+        fwd_period= kwargs.get('al_fwdperiod',45)
+        prior_period= fwd_period
+        albay  = np.zeros(len(al_series))
+        onset  = np.zeros(len(al_series))
+        psuedo = np.zeros(len(al_series))
+        substorm = np.zeros(len(al_series))
+        last_i = 0
+        for i,testpoint in enumerate(al_series[prior_period:-fwd_period]):
+            al = al_series[i]
+            # find period where SML decreases by >=150nT in 15min
+            if (al-al_series[i:i+lookahead].min())>150:
+                # drops by >10nT in 2min AND >15min from last onset time
+                if (not any(onset[i-15:i]) and
+                    (al-al_series[i:i+2].min()>10)):
+                    # integrate SML for 45min forward
+                    fwd = np.trapz(al_series[i:i+fwd_period],dx=60)
+                    # integrate SML for 45min pior
+                    prior = np.trapz(al_series[i-prior_period:i],dx=60)
+                    if fwd < 1.5*prior:
+                        onset[i] = 1
+                        isonset=True
+                    else:
+                        psuedo[i] = 1#NOTE
+                        isonset=False
+                    # If we've got one need to see how far it extends
+                    al_min = al_series[i:i+lookahead].min()
+                    i_mins = np.where(al_series==al_min)[0]
+                    i_min = i_mins[np.where((i_mins<(i+lookahead))&
+                                            (i_mins>i))][0]
+                    #i_min = al_series[i:i+lookahead].idxmin()
+                    albay[i:i_min+1] = 1
+                    if isonset:
+                        substorm[i:i_min+1] = 1
+                    else:
+                        psuedo[i:i_min+1] = 1
+                    # If it's at the end of the window, check if its continuing
+                    if i_min==i+lookahead-1:
+                        found_min = False
+                    else:
+                        found_min = True
+                    while not found_min:
+                        if al_series[i_min+1]<al_series[i_min]:
+                            albay[i_min+1] = 1
+                            if isonset:
+                                substorm[i_min+1] = 1
+                            else:
+                                psuedo[i_min+1] = 1
+                            i_min +=1
+                            if i_min==len(al_series):
+                                found_min = True
+                        else:
+                            found_min = True
+    return albay,onset,psuedo,substorm
 
 def read_indices(data_path, **kwargs):
     """Top level function handles time varying magnetopause data and

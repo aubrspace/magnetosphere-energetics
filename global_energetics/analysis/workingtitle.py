@@ -361,6 +361,7 @@ def find_crossings(in_vsat,in_obssat,satname):
         last_index = index
     vsat['crosstype'] = 'none'
     obssat['crosstype'] = 'none'
+    obsinterp['crosstype'] = 'none'
     for interval_id in range(1,crossing_status['id'].max()+1):
         interval_points = crossing_status[crossing_status['id']==
                                           interval_id].index
@@ -370,7 +371,8 @@ def find_crossings(in_vsat,in_obssat,satname):
         tend = vsat.loc[end,'time']
         start_status = vsat.loc[start,'Status']
         end_status = vsat.loc[end,'Status']
-        obswindow = obssat[(obsinterp.index>tstart)&(obsinterp.index<tend)].index
+        obswindow = obsinterp[(obsinterp['time']>tstart)&
+                              (obsinterp['time']<tend)].index
         # A dip if starting and ending with the same status
         #TODO: mark both the virtual and obssat 'crosstype'
         #       Add a day/night to the derived values
@@ -471,9 +473,9 @@ def locate_phase(times,**kwargs):
     #starlink_endMain1 = dt.datetime(2022,2,4,13,10)
     starlink_endMain2 = dt.datetime(2022,2,3,11,54)
     starlink_inter_start = (starlink_endMain1+
-                            dt.timedelta(hours=-4,minutes=-20))
+                            dt.timedelta(hours=-12,minutes=-35))
     starlink_inter_end = (starlink_endMain1+
-                            dt.timedelta(hours=4,minutes=0))
+                            dt.timedelta(hours=-12,minutes=5))
     #May2019
     may2019_impact = dt.datetime(2019,5,14,4,11)
     #may2019_impact = dt.datetime(2019,5,13,19,35)
@@ -3435,16 +3437,17 @@ def solarwind_figure(ds,ph,path,hatches,**kwargs):
 def satellite_comparisons(dataset,phase,path):
     """Time series comparison of virtual and observed satellite data
     """
-    dotimedelta=True
+    dotimedelta = True
     for i,event in enumerate(dataset.keys()):
         moments = locate_phase(dataset[event]['time'])
         # List of satellites we want to use
-        satlist = ['cluster4','themisa','themisd','themise','mms1']
+        #satlist = ['cluster4','themisa','themisd','themise','mms1']
+        satlist = ['mms1']
         #############
         #setup figure
         #bp_compare_detail,axis = plt.subplots(len(satlist)*2,1,
         #                                     figsize=[20,6*len(satlist)])
-        bp_compare = plt.figure(figsize=[20,6*len(satlist)])
+        bp_compare = plt.figure(figsize=[20,15*len(satlist)])
         twochunk = plt.GridSpec(2,1,hspace=0.1,top=0.90,figure=bp_compare)
         topstacks = twochunk[0].subgridspec(len(satlist),1,hspace=0.2)
         botstacks = twochunk[1].subgridspec(len(satlist),1,hspace=0.2)
@@ -3801,113 +3804,92 @@ def satellite_comparisons(dataset,phase,path):
         '''
         #############
         #setup figure
-        k_detail,axis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
-        h_detail,haxis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
-        s_detail,saxis = plt.subplots(len(satlist),1,
-                                             figsize=[16,3*len(satlist)])
-        #Plot
-        for i,sat in enumerate(satlist):
-            # Setup quickaccess and time format
-            virtual = dataset[event]['vsat'][sat+phase]
-            virtualtime = dataset[event][sat+'_vtime'+phase]
-            vtime = [float(t) for t in virtualtime.to_numpy()]
-            obs = dataset[event]['obssat'][sat+phase]
-            obstime = dataset[event][sat+'_otime'+phase]
-            otime = [float(t) for t in obstime.to_numpy()]
-            # Plot
-            # K
-            axis[i].plot(vtime,np.sqrt(virtual['Kx']**2+
-                                       virtual['Ky']**2+
-                                       virtual['Kz']**2)
-                                       ,label='simK')
-            axis[i].plot(otime,np.sqrt(obs['Kx']**2+
-                                       obs['Ky']**2+
-                                       obs['Kz']**2)
-                                       ,label='obsK')
-            # H
-            haxis[i].plot(vtime,np.sqrt(virtual['Hx']**2+
-                                        virtual['Hy']**2+
-                                        virtual['Hz']**2)
-                                       ,label='simH')
-            haxis[i].plot(otime,np.sqrt(obs['Hx']**2+
-                                        obs['Hy']**2+
-                                        obs['Hz']**2)
-                                       ,label='obsH')
-            # S
-            saxis[i].plot(vtime,np.sqrt(virtual['Sx']**2+
-                                        virtual['Sy']**2+
-                                        virtual['Sz']**2)
-                                       ,label='simS')
-            saxis[i].plot(otime,np.sqrt(obs['Sx']**2+
-                                        obs['Sy']**2+
-                                        obs['Sz']**2)
-                                       ,label='obsS')
-            #Decorations
-            # K
-            general_plot_settings(axis[i],legend=False,
-                                  do_xlabel=(i==len(satlist)-1),
-                                  #ylabel=sat+r' $|K|\left[ KW/Re^2\right]$',
-                                  ylabel=sat,
-                                  ylim=[0,1e11],
-                                  timedelta=dotimedelta)
-            # H
-            general_plot_settings(haxis[i],legend=False,
-                                  do_xlabel=(i==len(satlist)-1),
-                                  #ylabel=sat+r' $|H|\left[ KW/Re^2\right]$',
-                                  ylabel=sat,
-                                  ylim=[0,1e11],
-                                  timedelta=dotimedelta)
-            # S
-            general_plot_settings(saxis[i],legend=False,
-                                  do_xlabel=(i==len(satlist)-1),
-                                  #ylabel=sat+r' $|S|\left[ KW/Re^2\right]$',
-                                  ylabel=sat,
-                                  ylim=[0,1e11],
-                                  timedelta=dotimedelta)
-            for ax in [axis[i],haxis[i],saxis[i]]:
-                ax.axvline((moments['impact']-
-                               moments['peak2']).total_seconds()*1e9,
-                               ls='--',color='black')
-                ax.axvline(0,ls='--',color='black')
-                ax.fill_between(vtime,1e11,color='red',alpha=0.2,
-                                 where=((virtual['Status']>2)).values)
-                ax.fill_between(vtime,1e11,color='blue',alpha=0.2,
-                                 where=((virtual['Status']<2)&
-                                        (virtual['Status']>1)).values)
-                ax.fill_between(vtime,1e11,color='cyan',alpha=0.2,
-                                 where=((virtual['Status']<1)&
-                                        (virtual['Status']>0)).values)
-                ax.fill_between(vtime,1e11,color='grey',alpha=0.2,
-                                 where=((virtual['Status']<0)).values)
-        #save
+        comp_mms,[blmn,flux] = plt.subplots(2,1,figsize=[20,14])
+        # times
+        virtual = dataset[event]['vsat'][sat+phase]
+        vtime = virtual.index
+        obs = dataset[event]['obssat'][sat+phase]
+        otime = obs.index
+        normal = [0.9390187358054729,-0.31741473962765177,0.1322561789611415]
+        l = [-0.12419102997055348, 0.04198006060909885, 0.9825083031265985]
+        m = [-0.31741473962765177, -0.9390187358054729, 0.0]
+        # B
+        obs['bn'] = (obs['bx']*normal[0]+
+                     obs['by']*normal[1]+
+                     obs['bz']*normal[2])
+        obs['bl'] = (obs['bx']*l[0]+
+                     obs['by']*l[1]+
+                     obs['bz']*l[2])
+        obs['bm'] = (obs['bx']*m[0]+
+                     obs['by']*m[1]+
+                     obs['bz']*m[2])
+        virtual['bn'] = (virtual['B_x']*normal[0]+
+                     virtual['B_y']*normal[1]+
+                     virtual['B_z']*normal[2])
+        virtual['bl'] = (virtual['B_x']*l[0]+
+                     virtual['B_y']*l[1]+
+                     virtual['B_z']*l[2])
+        virtual['bm'] = (virtual['B_x']*m[0]+
+                     virtual['B_y']*m[1]+
+                     virtual['B_z']*m[2])
         # K
-        k_detail.suptitle(moments['peak1'].strftime(
+        obs['Kn'] = (obs['Kx']*normal[0]+
+                     obs['Ky']*normal[1]+
+                     obs['Kz']*normal[2])
+        obs['Kl'] = (obs['Kx']*l[0]+
+                     obs['Ky']*l[1]+
+                     obs['Kz']*l[2])
+        obs['Km'] = (obs['Kx']*m[0]+
+                     obs['Ky']*m[1]+
+                     obs['Kz']*m[2])
+        virtual['Kn'] = (virtual['Kx']*normal[0]+
+                     virtual['Ky']*normal[1]+
+                     virtual['Kz']*normal[2])
+        virtual['Kl'] = (virtual['Kx']*l[0]+
+                     virtual['Ky']*l[1]+
+                     virtual['Kz']*l[2])
+        virtual['Km'] = (virtual['Kx']*m[0]+
+                     virtual['Ky']*m[1]+
+                     virtual['Kz']*m[2])
+        # Plot
+        # B
+        blmn.plot(otime,obs['bl'],label='obsBl',c='blue')
+        blmn.plot(vtime,virtual['bn'],label='simBn',c='red',ls='--')
+        blmn.plot(vtime,virtual['bm'],label='simBm',c='grey',ls='--')
+        blmn.plot(vtime,virtual['bl'],label='simBl',c='blue',ls='--')
+        # K
+        flux.plot(otime,obs['Kn']/1e9,label='obsKn',c='red')
+        flux.plot(otime,obs['Km']/1e9,label='obsKm',c='grey')
+        flux.plot(otime,obs['Kl']/1e9,label='obsKl',c='blue')
+        flux.plot(vtime,virtual['Kn']/1e9,label='simKn',c='red',ls='--')
+        flux.plot(vtime,virtual['Km']/1e9,label='simKm',c='grey',ls='--')
+        flux.plot(vtime,virtual['Kl']/1e9,label='simKl',c='blue',ls='--')
+        #Decorations
+        # K
+        general_plot_settings(blmn,legend=True,
+                                do_xlabel=False,
+                                ylabel=sat+r'$B\left[ nT\right]$',
+                                #ylim=[-20,80],
+                                timedelta=False)
+        general_plot_settings(flux,legend=True,
+                                do_xlabel=False,
+                                ylabel=sat+r'$K\left[ GW/{R_E}^2\right]$',
+                                #ylim=[-30,30],
+                                timedelta=False)
+        flux.fill_between(vtime,-100,100,color='blue',alpha=0.1,
+                          where=((virtual['Status']>2)).values)
+        blmn.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        flux.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        blmn.set_xlabel('Time [hr:min]')
+        flux.set_xlabel('Time [hr:min]')
+        #save
+        comp_mms.suptitle(moments['peak1'].strftime(
                                                      "%b %Y, t0=%d-%H:%M:%S"),
                                       ha='left',x=0.01,y=0.99)
-        k_detail.tight_layout(pad=0.04)
-        figurename = path+'/k_detail'+phase+'_'+event+'.png'
-        k_detail.savefig(figurename)
-        plt.close(k_detail)
-        print('\033[92m Created\033[00m',figurename)
-        # H
-        h_detail.suptitle(moments['peak1'].strftime(
-                                                     "%b %Y, t0=%d-%H:%M:%S"),
-                                      ha='left',x=0.01,y=0.99)
-        h_detail.tight_layout()
-        figurename = path+'/h_detail'+phase+'_'+event+'.png'
-        h_detail.savefig(figurename)
-        plt.close(h_detail)
-        print('\033[92m Created\033[00m',figurename)
-        # S
-        s_detail.suptitle(moments['peak1'].strftime(
-                                                     "%b %Y, t0=%d-%H:%M:%S"),
-                                      ha='left',x=0.01,y=0.99)
-        s_detail.tight_layout()
-        figurename = path+'/s_detail'+phase+'_'+event+'.png'
-        s_detail.savefig(figurename)
-        plt.close(s_detail)
+        comp_mms.tight_layout()
+        figurename = path+'/comp_mms'+phase+'_'+event+'.png'
+        comp_mms.savefig(figurename)
+        plt.close(comp_mms)
         print('\033[92m Created\033[00m',figurename)
         '''
         #############
@@ -4441,7 +4423,7 @@ def main_rec_figures(dataset):
         plt.close(fig)
         plt.close(fig2)
         '''
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #lobe_power_histograms(dataset, phase, path,doratios=False)
         #lobe_power_histograms(dataset, phase, path,doratios=True)
         #power_correlations(dataset,phase,path,optimize_tshift=True)
@@ -4465,10 +4447,11 @@ def interval_figures(dataset):
         #polar_cap_area_fig(dataset,phase,path)
         #polar_cap_flux_fig(dataset,phase,path)
         #static_motional_fig(dataset,phase,path)
-        imf_figure(dataset,phase,path,hatches)
+        #imf_figure(dataset,phase,path,hatches)
         #quantity_timings(dataset, phase, path)
+        satellite_comparisons(dataset, phase, path)
         #quantify_timings2(dataset, phase, path)
-        lobe_balance_fig(dataset,phase,path)
+        #lobe_balance_fig(dataset,phase,path)
         #oneD_comparison(dataset,phase,path)
         #diagram_summary(dataset,phase,unfiled)
         #lobe_power_histograms(dataset, phase, path)
@@ -4527,17 +4510,19 @@ if __name__ == "__main__":
     #                                read_supermag=False, tshift=45)
     dataset['star4']['obs'] = read_indices(inLogs, prefix='starlink_',
                                      read_supermag=False,
-                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                            end=dataset['star4']['msdict']['closed'].index[-1],
                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
+    '''
     dataset['star4']['obs2'] = read_indices(inLogs, prefix='fresh_',
                                      read_supermag=False,
-                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                            end=dataset['star4']['msdict']['closed'].index[-1],
                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     dataset['star4']['obs3'] = read_indices(inLogs, prefix='windy_',
                                      read_supermag=False,
-                                     end=dataset['star4']['msdict']['closed'].index[-1],
+                            end=dataset['star4']['msdict']['closed'].index[-1],
                  magStationFile=inGround+'magnetometers_e20220202-050000.mag')
     from IPython import embed; embed()
+    '''
     #dataset['2000']['obs'] = read_indices(inLogs, prefix='', read_supermag=False)
     #dataset['ideal']['obs'] = read_indices(inLogs, prefix='',
     #                                       read_supermag=True)
@@ -4554,8 +4539,8 @@ if __name__ == "__main__":
     ## Satellite Data
     #dataset['star']['vsat'],dataset['star']['obssat'] = {},{}
     #dataset['star4']['vsat'],dataset['star4']['obssat'] = {},{}
-    #dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
-    #                                                                inSats)
+    dataset['star4']['vsat'],dataset['star4']['obssat'] = read_satellites(
+                                                                    inSats)
     #dataset['2000']['vsat'],dataset['2000']['obssat'] = {},{}
     #dataset['ideal']['vsat'],dataset['ideal']['obssat'] = {},{}
     #dataset['LL']['vsat'],dataset['LL']['obssat'] = {},{}
@@ -4667,17 +4652,15 @@ if __name__ == "__main__":
                                         parse_phase(event['vsat'][sat],phase))
                 event['obssat'][sat+phase],event[sat+'_otime'+phase] = (
                                       parse_phase(event['obssat'][sat],phase))
-    '''
         for sat in satlist:
             crossings = find_crossings(event['vsat'][sat],
                                        event['obssat'][sat],sat)
-        '''
     ######################################################################
     ##Main + Recovery phase
-    main_rec_figures(dataset)
+    #main_rec_figures(dataset)
     ######################################################################
     ##Short zoomed in interval
-    #interval_figures(dataset)
+    interval_figures(dataset)
     ######################################################################
     #TODO
     ph = '_lineup'

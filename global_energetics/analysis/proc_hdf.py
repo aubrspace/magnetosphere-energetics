@@ -85,6 +85,8 @@ def load_hdf_sort(hdf, **kwargs):
             mp = pd.DataFrame()
         if '/mp_iso_betastar_inner_surface' in gmdict.keys():
             inner_mp = gmdict['/mp_iso_betastar_inner_surface']
+        elif '/mp_iso_betastarinnerbound_surface' in gmdict.keys():
+            inner_mp = gmdict['/mp_iso_betastarinnerbound_surface']
         else:
             inner_mp = pd.DataFrame()
 
