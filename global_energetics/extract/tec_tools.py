@@ -2202,6 +2202,23 @@ def calc_state(mode, zones, **kwargs):
                                 kwargs.get('sp_z',0),
                                 kwargs.get('sp_rmax',3), zones,
                                 rmin=kwargs.get('sp_rmin',0))
+    elif mode == 'perfectellipsoid':
+        zonename = mode
+        tp.data.operate.execute_equation('{perfectellipsoid} = '+
+            '({X [R]}+25)**2/35**2+{Y [R]}**2/20**2+{Z [R]}**2/20**2',
+                                         zones=zones)
+        state_index = dataset.variable('perfectellipsoid').index
+        iso_value = 1
+    elif mode == 'ellipsoid':
+        zonename = mode
+        kwargs.update({'keep_zones':'all'})
+        tp.data.operate.execute_equation('{ellipsoid} = '+
+            '({X [R]}+25)**2/35**2+{Y [R]}**2/20**2+{Z [R]}**2/20**2',
+                                         zones=zones)
+        tp.data.operate.execute_equation('{ellipsoid2} = if({ellipsoid}<1 &&'+
+                                                             '{r [R]}>3,1,0)',
+                                         zones=zones)
+        state_index = dataset.variable('ellipsoid2').index
     elif mode == 'terminator':
         zonename = mode+str(kwargs.get('sp_rmax',3))
         assert dataset.zone('sphere*') is not None, (
@@ -2447,6 +2464,13 @@ def calc_state(mode, zones, **kwargs):
                 # Name the zones
                 zone.name = zonename
                 print('created '+zone.name)
+            else:
+                zone, innerzone = newzones
+                # Name the zones
+                zone.name = zonename
+                print('created '+zone.name)
+                innerzone.name = zonename+'_innerbound'
+                print('created '+zone.name+'_innerbound')
         else:
             zone = setup_isosurface(iso_value, state_index, zonename,
                                     blankvar=kwargs.get('blankvar',''),

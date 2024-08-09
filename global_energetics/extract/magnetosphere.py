@@ -125,7 +125,7 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
     #Validate mode selection
     approved= ['iso_betastar', 'shue97', 'shue98', 'shue', 'box', 'sphere',
                'lcb', 'nlobe', 'slobe', 'rc', 'ps', 'qDp','closed','bs',
-               'plasmasheet']
+               'ellipsoid','plasmasheet']
     if not any([mode == match for match in approved]):
         assert False, ('Magnetopause mode "{}" not recognized!!'.format(
                                                                     mode)+
@@ -440,14 +440,15 @@ def generate_3Dobj(sourcezone, **kwargs):
                 kwargs.update({'zonelist1D':zonelist1D})
             else:
                 zonelist.append(zone)
-                state_names.append(state_name)
+                if 'perfect' not in zone.name:
+                    state_names.append(state_name)
                 if 'bs' in kwargs.get('modes',[]):
                     zonelist.append(inner_zone)
                     state_names.append(state_name)
                     #get_surf_geom_variables(inner_zone,**kwargs)
                 if 'modes' in kwargs:
-                    if (inner_zone is not None and
-                        'iso_betastar' in zone.name):
+                    if (inner_zone is not None):
+                        #and'iso_betastar' in zone.name):
                         zonelist.append(inner_zone)
     #Get the geometry variables AFTER all zones are created
     for zone in zonelist:
@@ -693,7 +694,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 region = zonelist[i]
                 print('\nWorking on: '+region.name+' volume')
                 energies = volume_analysis(field_data.variable(state),
-                                       **kwargs)
+                                           **kwargs)
                 '''
                 if kwargs.get('do_central_diff',False):
                     # Drop the non-motional terms

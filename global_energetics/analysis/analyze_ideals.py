@@ -121,7 +121,7 @@ def series_segments(event,ev,**kwargs):
     Saxis.plot(ev['times'],ev['mp']['uB [J]']/1e15,label='Energy',c='grey')
     for i,(start,end) in enumerate(interval_list):
         interv = (ev['Ks1'].index>start)&(ev['Ks1'].index<end)
-        interv_timedelta = [t-TSTART for t in ev['M1'][interv].index]
+        interv_timedelta = [t-T0 for t in ev['M1'][interv].index]
         interv_times=[float(n.to_numpy()) for n in interv_timedelta]
 
         # Total energy
@@ -474,11 +474,11 @@ def plot_indices(dataset,path):
                    label=event,c=colors[i],ls=styles[i],marker=markers[i],
                    markevery=10)
     for interv in interval_list:
-        axis1.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        axis1.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
-        axis2.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        axis2.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
-        axis3.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        axis3.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
 
     general_plot_settings(axis1,do_xlabel=False,legend=False,
@@ -509,7 +509,7 @@ def energies(dataset,path):
                   dataset[event]['mpdict']['ms_full']['Utot [J]']/1e15,
                   label=event)
     for interv in interval_list:
-        axis.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
+        axis.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
 
     general_plot_settings(axis,do_xlabel=True,legend=True,
                           ylabel=r'Energy $\left[PJ\right]$',timedelta=True)
@@ -535,7 +535,7 @@ def couplers(dataset,path):
                   #axis.plot(swtimes,dataset[event]['obs']['swmf_sw']['bz'],
                   label=event)
     for interv in interval_list:
-        axis.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
+        axis.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
 
     general_plot_settings(axis,do_xlabel=True,legend=True,
                           ylabel=r'Energy $\left[PJ\right]$',timedelta=True)
@@ -1178,11 +1178,11 @@ def energy_vs_polarcap(ev,event,path):
     K3.plot(ev['times'],ev['Ks3']/1e12,label='K3')
     #Decorate
     for interv in interval_list:
-        Ulobe.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        Ulobe.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
-        PCflux.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        PCflux.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
-        K3.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),c='grey')
+        K3.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
         Ulobe.axhline(0,c='black')
         PCflux.axhline(0,c='black')
         K3.axhline(0,c='black')
@@ -1205,43 +1205,60 @@ def energy_vs_polarcap(ev,event,path):
     plt.close(Ulobe_PCflux)
     print('\033[92m Created\033[00m',figurename)
 
-def mpflux_vs_rxn(ev,event,path):
+def mpflux_vs_rxn(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
                                         ev['mp'].index)
+    if 'zoom' in kwargs:
+        zoom = kwargs.get('zoom')
+        window = [float(pd.Timedelta(n-T0).to_numpy()) for n in zoom]
+    else:
+        window = None
     #############
     #setup figure
-    Kmp_rxn,(K5_K1,DayRxn,NightRxn) = plt.subplots(3,1,figsize=[20,16],
+    Kmp_rxn,(K5_K1,Rxn,DayNightRxn) = plt.subplots(3,1,figsize=[20,16],
                                                   sharex=True)
     #Plot
-    K5_K1.plot(ev['times'],ev['K5']/1e12,label='K5')
-    K5_K1.plot(ev['times'],ev['K1']/1e12,label='K1')
-    DayRxn.plot(ev['ie_times'],ev['RXN_Day']/1e3,label='Day')
-    NightRxn.plot(ev['ie_times'],ev['RXN_Night']/1e3,label='Night')
+    K5_K1.plot(ev['times'],ev['dUdt']/1e12,label='dUdt static')
+    K5_K1.plot(ev['times'],ev['M']/1e12,label='dUdt motion')
+    K5_K1.plot(ev['times'],ev['Ksum']/1e12,label='K Sum')
+    K5_K1.plot(ev['times'],ev['K_cdiff_mp']/1e12,label='K cdiff')
+
+    Rxn.fill_between(ev['ie_times'],(ev['cdiffRXN']/1e3),label='cdiff',
+                          fc='grey')
+    Rxn.plot(ev['ie_times'],ev['RXNm']/1e3,label='Motion')
+    Rxn.plot(ev['ie_times'],ev['RXNs']/1e3,label='Static')
+    Rxn.plot(ev['ie_times'],ev['RXN']/1e3,label='Sum')
+
+    DayNightRxn.plot(ev['ie_times'],ev['RXNm_Day']/1e3,label='Day Motion')
+    DayNightRxn.plot(ev['ie_times'],ev['RXNm_Night']/1e3,label='Night Motion')
     #Decorate
     for interv in interval_list:
-        K5_K1.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        K5_K1.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
-        DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        Rxn.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
-        NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        DayNightRxn.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
         K5_K1.axhline(0,c='black')
-        DayRxn.axhline(0,c='black')
-        NightRxn.axhline(0,c='black')
+        Rxn.axhline(0,c='black')
+        DayNightRxn.axhline(0,c='black')
     general_plot_settings(K5_K1,do_xlabel=False,legend=True,
                           ylabel=r'Int. Energy Flux $\left[TW\right]$',
+                          xlim=window,
                           timedelta=True)
-    general_plot_settings(DayRxn,do_xlabel=False,legend=True,
+    general_plot_settings(Rxn,do_xlabel=False,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
                           ylim=[-700,700],
+                          xlim=window,
                           timedelta=True)
-    general_plot_settings(NightRxn,do_xlabel=True,legend=True,
+    general_plot_settings(DayNightRxn,do_xlabel=True,legend=True,
                           ylabel=r'Reconnection $\left[kV\right]$',
                           ylim=[-700,700],
+                          xlim=window,
                           timedelta=True)
     K5_K1.margins(x=0.01)
-    DayRxn.margins(x=0.01)
-    NightRxn.margins(x=0.01)
+    Rxn.margins(x=0.01)
+    DayNightRxn.margins(x=0.01)
     Kmp_rxn.tight_layout(pad=1)
     #Save
     figurename = path+'/Kmp_rxn_'+event+'.png'
@@ -1286,17 +1303,17 @@ def internalflux_vs_rxn(ev,event,path,**kwargs):
     #Decorate
     if 'zoom' not in kwargs:
         for interv in interval_list:
-            K15.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+            K15.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                             c='grey')
-            K2a_K2b.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+            K2a_K2b.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                             c='grey')
-            DayRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+            DayRxn.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                             c='grey')
-            NightRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+            NightRxn.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                             c='grey')
-            NetRxn.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+            NetRxn.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                             c='grey')
-            al.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+            al.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                             c='grey')
     K15.axhline(0,c='black')
     K2a_K2b.axhline(0,c='black')
@@ -1345,7 +1362,7 @@ def errors(ev,event,path,**kwargs):
                                         ev['mp'].index)
     if 'zoom' in kwargs:
         zoom = kwargs.get('zoom')
-        window = [float(pd.Timedelta(n-TSTART).to_numpy()) for n in zoom]
+        window = [float(pd.Timedelta(n-T0).to_numpy()) for n in zoom]
     else:
         window = None
     #############
@@ -1384,7 +1401,7 @@ def errors(ev,event,path,**kwargs):
                           ylim=[-10,5],
                           timedelta=True)
     for interv in interval_list:
-        fluxes.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        fluxes.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
     fluxes.margins(x=0.01)
     errors.tight_layout()
@@ -1404,7 +1421,7 @@ def rxn(ev,event,path,**kwargs):
                                         ev['mp'].index)
     if 'zoom' in kwargs:
         zoom = kwargs.get('zoom')
-        window = [float(pd.Timedelta(n-TSTART).to_numpy()) for n in zoom]
+        window = [float(pd.Timedelta(n-T0).to_numpy()) for n in zoom]
     else:
         window = None
     #############
@@ -1473,7 +1490,7 @@ def rxn(ev,event,path,**kwargs):
         #daynight.set_ylim([-500,500])
         pass
     for interv in interval_list:
-        daynight.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        daynight.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
     dphidt.axhline(0,c='lightgrey',lw=1)
     daynight.margins(x=0.01)
@@ -1499,19 +1516,101 @@ def rxn(ev,event,path,**kwargs):
     print('\033[92m Created\033[00m',figurename2)
     plt.close(Bflux)
 
+def plot_2by2_rxn(dataset,windows,path):
+    interval_list =build_interval_list(TSTART,DT,TJUMP,
+                                       dataset['stretched_MEDnHIGHu']['time'])
+    #############
+    #setup figure
+    RXN,ax = plt.subplots(2,len(windows),figsize=[32,22])
+    for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
+        ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
+        ev2 = gmiono_refactor(dataset[run]['iedict'],dt.datetime(2022,6,6,0))
+        for key in ev2.keys():
+            ev[key] = ev2[key]
+        for j,window in enumerate(windows):
+            xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in window]
+            ax[i][j].axhline(0,c='black')
+            # Day and night global merging rate
+            ax[i][j].fill_between(ev['ie_times'],ev['RXN']/1e3,label='Net',
+                                  fc='grey')
+            ax[i][j].plot(ev['ie_times'],ev['RXNm_Day']/1e3,label='Day',
+                          c='red',lw=3)
+            ax[i][j].plot(ev['ie_times'],ev['RXNm_Night']/1e3,label='Night',
+                          c='navy')
+            # Decorate
+            general_plot_settings(ax[i][j],do_xlabel=i==1,legend=False,
+                          ylabel=r'$d\phi/dt \left[kV\right]$',
+                          ylim=[-650,1000],
+                          xlim=xlims,
+                          timedelta=True,legend_loc='lower left')
+            if j!=0: ax[i][j].set_ylabel(None)
+            for interv in interval_list:
+                ax[i][j].axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
+                                 c='grey')
+            ax[i][j].margins(x=0.01)
+    ax[0][2].legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                    ncol=3, fancybox=True, shadow=True)
+    RXN.tight_layout()
+    #Save
+    figurename = path+'/RXN_2by3.svg'
+    RXN.savefig(figurename)
+    print('\033[92m Created\033[00m',figurename)
+
+def plot_2by2_flux(dataset,windows,path):
+    interval_list =build_interval_list(TSTART,DT,TJUMP,
+                                       dataset['stretched_MEDnHIGHu']['time'])
+    #############
+    #setup figure
+    Fluxes,ax = plt.subplots(2,len(windows),figsize=[32,22])
+    for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
+        ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
+        for j,window in enumerate(windows):
+            xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in window]
+            # External Energy Flux
+            ax[i][j].fill_between(ev['times'],ev['K1']/1e12,label='K1 (OpenMP)',
+                                 fc='blue')
+            ax[i][j].fill_between(ev['times'],ev['K5']/1e12,
+                                 label='K5 (ClosedMP)',fc='red')
+            ax[i][j].fill_between(ev['times'],ev['Ksum']/1e12,
+                                  label=r'$K_{net}$',fc='black',alpha=0.9)
+            ax[i][j].fill_between(ev['times'],(ev['K1']+ev['K5'])/1e12,
+                           label=r'$K1+K5$',fc='lightgrey',alpha=0.4)
+            ax[i][j].plot(ev['times'],-ev['sw']['EinWang']/1e12,
+                     c='black',lw=4,label='Wang2014')
+            ax[i][j].plot(ev['times'],ev['sw']['Pstorm']/1e12,
+                     c='grey',lw=4,label='Tenfjord and Østgaard 2013')
+            # Decorate
+            general_plot_settings(ax[i][j],do_xlabel=i==1,legend=False,
+                          ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
+                          ylim=[-25,17],xlim=xlims,
+                          timedelta=True,legend_loc='lower left')
+            if j!=0: ax[i][j].set_ylabel(None)
+            for interv in interval_list:
+                ax[i][j].axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
+                                 c='grey')
+            ax[i][j].margins(x=0.01)
+    ax[0][2].legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                    ncol=6, fancybox=True, shadow=True)
+    Fluxes.tight_layout()
+    #Save
+    figurename = path+'/Fluxes_2by3.svg'
+    Fluxes.savefig(figurename)
+    print('\033[92m Created\033[00m',figurename)
+
 def all_fluxes(ev,event,path,**kwargs):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
                                         ev['mp'].index)
     #############
     #setup figure
-    Fluxes,(Kexternal,Energy_dst,al) = plt.subplots(3,1,figsize=[24,22],
+    Fluxes,(Kexternal,Energy_dst,al) = plt.subplots(3,1,figsize=[24,24],
                                                     sharex=True)
-    test1,(Kinternal) = plt.subplots(1,1,figsize=[24,28],sharex=True)
+    test1,(Kinternal) = plt.subplots(1,1,figsize=[24,16],sharex=True)
     # Tighten up the window
     al_values = dataset[event]['obs']['swmf_index']['AL']
+    sml_values = dataset[event]['obs']['super_log']['SML']
     dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
     if 'zoom' in kwargs:
-        xlims = [float(pd.Timedelta(t-TSTART).to_numpy()) for t in kwargs.get('zoom')]
+        xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in kwargs.get('zoom')]
     else:
         xlims = None
     '''
@@ -1534,7 +1633,7 @@ def all_fluxes(ev,event,path,**kwargs):
         dst_values = dataset[event]['obs']['swmf_log']['dst_sm'][log_window]
     '''
     # Get time markings that match the format
-    inddelta = [t-T0 for t in al_values.index]
+    inddelta = [t-T0 for t in sml_values.index]
     indtimes = [float(n.to_numpy()) for n in inddelta]
     logdelta = [t-T0 for t in dst_values.index]
     logtimes = [float(n.to_numpy()) for n in logdelta]
@@ -1544,10 +1643,12 @@ def all_fluxes(ev,event,path,**kwargs):
                    fc='blue')
     Kexternal.fill_between(ev['times'],ev['K5']/1e12,label='K5 (ClosedMP)',
                    fc='red')
-    #Kexternal.fill_between(ev['times'],ev['dUdt']/1e12,label=r'$\frac{dU}{dt}$',
-    #                       fc='grey')
-    Kexternal.fill_between(ev['times'],ev['Ksum']/1e12,label=r'$K_{net}$',fc='black',
-                           alpha=0.5)
+    #Kexternal.fill_between(ev['times'],ev['dUdt']/1e12,
+    #                        label=r'$\frac{dU}{dt}$',fc='grey')
+    Kexternal.fill_between(ev['times'],ev['Ksum']/1e12,label=r'$K_{net}$',
+                           fc='black',alpha=0.9)
+    Kexternal.fill_between(ev['times'],(ev['K1']+ev['K5'])/1e12,
+                           label=r'$K1+K5$',fc='lightgrey',alpha=0.4)
     #Kexternal.plot(ev['times'],ev['Ks4']/1e12,label='K4 (OpenTail)',
     #               color='grey')
     #Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
@@ -1571,14 +1672,16 @@ def all_fluxes(ev,event,path,**kwargs):
                             fc='blue',alpha=0.4)
     rax = Energy_dst.twinx()
     rax.plot(logtimes,dst_values,label='Dst (simulated)',color='black')
-    # AL and GridL
-    al.plot(indtimes,al_values,label='AL (simulated)',color='black')
+    # SML and GridL
+    al.plot(indtimes,sml_values,label='SML (simulated)',color='black')
     al.plot(ev['times'],ev['GridL'],label='GridL',color='purple')
     #Decorations
     general_plot_settings(Kexternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
                           ylim=[-25,17],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
+    Kexternal.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                     ncol=3, fancybox=True, shadow=True)
     general_plot_settings(Kinternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
                           ylim=[-30,10],xlim=xlims,
@@ -1599,13 +1702,13 @@ def all_fluxes(ev,event,path,**kwargs):
         rax.set_ylim([dst_values.min(),0])
         pass
     for interv in interval_list:
-        Kexternal.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        Kexternal.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
-        Kinternal.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        Kinternal.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
-        Energy_dst.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        Energy_dst.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
-        al.axvline(float(pd.Timedelta(interv[0]-TSTART).to_numpy()),
+        al.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
     Kexternal.axhline(0,c='black')
     Kinternal.axhline(0,c='black')
@@ -2412,6 +2515,48 @@ def coupling_scatter(events,path):
     plt.close(scatterCoupling)
     print('\033[92m Created\033[00m',figurename)
 
+def tab_contingency2(events,path):
+    transitions = {}
+    substorms = {}
+    # Combine all events data into 1 array
+    # Do contingency for each iteration
+    from IPython import embed; embed()
+    for xkey,ykey in [['substorm','K1unsteady']
+                      ]:
+        X = events[run][xkey].values
+        Y = events[run][ykey].values
+        best_skill = -1e12
+        best_lag = -30
+        skills = np.zeros(len(range(-30,90)))-1e12
+        for i,lag in enumerate(range(-30,90)):
+            if lag>0:
+                x = X[lag::]
+                y = Y[0:-lag]
+            elif lag<0:
+                x = X[0:lag]
+                y = Y[-lag::]
+            hit = np.sum(x*y)
+            miss = np.sum(x*abs(y-1))
+            false = np.sum(abs(x-1)*y)
+            no = np.sum(abs(x-1)*abs(y-1))
+            skill = (2*(hit*no-false*miss)/
+                                ((hit+miss)*(miss+no)+(hit+false)*(false+no)))
+            skills[i] = skill
+            if skill>best_skill:
+                best_skill = skill
+                best_lag = lag
+        # print results
+        print('{:<15}{:<15}{:<15}{:<15}'.format('',xkey,'',''))
+        print('{:<15}{:<15}{:<15}{:<15}'.format(ykey,'Yes','No',''))
+        print('{:<15}{:<15}{:<15}{:<15}'.format('Yes',hit,false,hit+false))
+        print('{:<15}{:<15}{:<15}{:<15}'.format('No',miss,no,miss+no))
+        print('{:<15}{:<15}{:<15}{:<15}'.format('',hit+miss,false+no,n))
+        print('\nHSS: ',best_skill,'\nLag: ',best_lag,'\n')
+        if xkey=='imf_transients':
+            transitions[run] = best_skill
+        elif xkey=='substorm':
+            substorms[run] = best_skill
+
 def tab_contingency(events,path):
     transitions = {}
     substorms = {}
@@ -2574,27 +2719,33 @@ def initial_figures(dataset):
             #mpflux_vs_rxn(ev,run,path,zoom=window)
             #internalflux_vs_rxn(ev,run,path,zoom=window)
             pass
-        #mpflux_vs_rxn(ev,run,path)
         #test_matrix(event,ev,path)
         #internalflux_vs_rxn(ev,run,path)
-        #mpflux_vs_rxn(ev,event,path)
         #all_fluxes(ev,run,path)
+        #rxn(ev,run,path)
         #Zoomed versions
-        steady_window = (dt.datetime(2022,6,6,16,0),
-                         dt.datetime(2022,6,6,18,0))
-        unsteady_window = (dt.datetime(2022,6,7,0,0),
-                           dt.datetime(2022,6,7,2,0))
-        #all_fluxes(ev,event,path,zoom=steady_window,tag='steady')
-        #all_fluxes(ev,event,path,zoom=unsteady_window,tag='unsteady')
+        window1 = (dt.datetime(2022,6,6,11,30),
+                   dt.datetime(2022,6,6,14,30))
+        window2 = (dt.datetime(2022,6,6,15,30),
+                   dt.datetime(2022,6,6,18,30))
+        #window3 = (dt.datetime(2022,6,7,13,30),
+        #           dt.datetime(2022,6,7,16,30))
+        window3 = (dt.datetime(2022,6,7,17,30),
+                   dt.datetime(2022,6,7,20,30))
+        #all_fluxes(ev,run,path)
         example_window = (dt.datetime(2022,6,6,14,0),
                           dt.datetime(2022,6,7,4,0))
         small_window =   (dt.datetime(2022,6,6,22,18),
                           dt.datetime(2022,6,6,22,25))
+        mpflux_vs_rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #errors(ev,run,path)
         #errors(ev,run,path,zoom=small_window,tag='closezoom')
-        #all_fluxes(ev,run,path,zoom=example_window,tag='midzoom')
-        #rxn(ev,run,path,zoom=small_window,tag='closezoom')
-        #rxn(ev,run,path,zoom=example_window,tag='midzoom')
+        #all_fluxes(ev,run,path,zoom=window1,tag='w1')
+        #all_fluxes(ev,run,path,zoom=window2,tag='w2')
+        #all_fluxes(ev,run,path,zoom=window3,tag='w3')
+        #rxn(ev,run,path,zoom=window1,tag='w1')
+        #rxn(ev,run,path,zoom=window2,tag='w2')
+        #rxn(ev,run,path,zoom=window3,tag='w3')
         #show_event_hist(ev,run,events,path,zoom=example_window,tag='midzoom')
         #show_events(ev,run,events,path)
         #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
@@ -2602,13 +2753,16 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
     #show_full_hist(events,path)
-    plot_indices(dataset,path)
+    #plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
+    #tab_contingency2(events,path)
+    #plot_2by2_flux(dataset,[window1,window2,window3],path)
+    #plot_2by2_rxn(dataset,[window1,window2,window3],path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
-    TSTART = dt.datetime(2022,6,6,0,0)
+    TSTART = dt.datetime(2022,6,6,0,10)
     DT = dt.timedelta(hours=2)
     TJUMP = dt.timedelta(hours=2)
     #Need input path, then create output dir's
@@ -2662,4 +2816,5 @@ if __name__ == "__main__":
     #                                         read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures
-    initial_figures(dataset)
+    from IPython import embed; embed()
+    #initial_figures(dataset)
