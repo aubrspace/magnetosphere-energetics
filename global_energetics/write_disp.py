@@ -46,6 +46,9 @@ def write_to_hdf(filename, data):
             #    updated_df = pd.concat([store[key],df],ignore_index=True)
             #store['/'+key] = data[key]
             store[key] = data[key]
+            if 'time' in data[key].attrs.keys():
+                #from IPython import embed; embed()
+                store.get_storer(key).attrs.time = data[key].attrs['time']
 
 def display_progress(meshfile, integralfile, zonename):
     """Function displays current status of hdf5 files
@@ -83,6 +86,86 @@ def display_progress(meshfile, integralfile, zonename):
     print('**************************************************************')
     print(result)
     print('**************************************************************')
+
+def combine_to_multi_index(datapath,outputpath,**kwargs):
+    """Function combines .h5 files and stores common dataframes within the
+        store in a multiIndex dataframe within an output .h5 file. This is
+        useful for data which multi-dimensional and not sparse. For instance
+        2500+ timesteps with 6 fluxes across ~90000 flux points.
+    Inputs
+        datapath
+        outpath
+    """
+    combo_name = 'test.h5'
+    filelist = glob.glob(os.path.join(datapath,'*.h5'))
+    #TODO
+    time_dict = {}
+    value_dict = {}
+    point_dict = {}
+    index_dict = {}
+    # Get the number of dataframes for the final output array
+    with pd.HDFStore(filelist[0]) as input_store:
+        dataframe_keys = input_store.keys()
+        for key in input_store.keys():
+            df = input_store[key]
+            #NOTE assuming each dataframe in the store has the same cols
+            columns = np.array(df.keys())
+            time_dict[key] = np.array([])
+            point_dict[key] = np.array([])
+            index_dict[key] = np.array([])
+            value_dict[key] = {}
+            for col in columns:
+                value_dict[key][col] = np.array([])
+    for i,infile in enumerate(filelist):
+        if kwargs.get('progress',True):
+            print('{:>4}/{:<4}\t{:<25}'.format(i+1,len(filelist),infile))
+        with pd.HDFStore(infile) as input_store:
+            for key in input_store.keys():
+                df = input_store[key]
+                # Get time entry
+                if 'time' in input_store.get_storer(key).attrs:
+                    time = input_store.get_storer(key).attrs.time
+                else:
+                    time = f'time{i}'
+                # Update time array
+                time_dict[key] = np.append(time_dict[key],
+                                           np.array([time]*len(df)))
+                #columns = np.array([c.replace('/','') for c in df.keys()])
+                # Update the point array depending on the number of points
+                point_dict[key] = np.append(point_dict[key],
+                                            list(range(len(df))))
+                # Add this files values to the value array
+                for col in columns: #NOTE assuming all have same columns
+                    value_dict[key][col] = np.append(value_dict[key][col],
+                                                     df[col].values)
+    with pd.HDFStore(outputpath+'/'+combo_name) as output:
+        # Set the index array with points + time entry
+        for key in dataframe_keys:
+            index_dict[key] = [time_dict[key],point_dict[key]]
+            # Smoosh the values from dict ->  (points) x (columns) array
+            values = np.array(list(value_dict[key].values())).T
+            output[key.replace('/','')] = pd.DataFrame(values,
+                                                       index=index_dict[key],
+                                                       columns=columns)
+    '''
+                input_dataframe = input_data[key]
+                if key in output_data:
+                    output_data[key] = pd.concat([input_dataframe,
+                                                  output_data[key]],
+                                                 ignore_index=True)
+                else:
+                    output_data[key] = input_dataframe
+    with pd.HDFStore(outputpath+'/'+combo_name) as output:
+       for key in output_data.keys():
+           if 'Time [UTC]' in output_data[key].keys():
+               load_df = output_data[key].sort_values(by='Time [UTC]')
+               load_df.index = load_df['Time [UTC]']
+               load_df.drop(columns=['Time [UTC]'],inplace=True)
+           else:
+               load_df = output_data[key]
+           output[key] = load_df
+    pass
+    '''
 
 def merge_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                                           progress=True):
@@ -205,10 +288,12 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                         outputpath+'/energetics.h5', 'Combined_zones')
 
 if __name__ == "__main__":
-    DATA = sys.argv[1]
+    PATH = sys.argv[1]
     OPATH = sys.argv[2]
     kwargs = {}
     if '-c' in sys.argv:
         kwargs['combo_name'] = sys.argv[sys.argv.index('-c')+1]
-    combine_hdfs2(DATA, OPATH,**kwargs)
-    #merge_hdfs(DATA, OPATH)
+    if '-multi' in sys.argv:
+        combine_to_multi_index(PATH,OPATH,**kwargs)
+    else:
+        combine_hdfs2(PATH, OPATH,**kwargs)

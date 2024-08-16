@@ -799,6 +799,17 @@ def get_surf_geom_variables(zone,**kwargs):
         else:
             eq('{Cell Area} = {Cell Volume}',zones=zonelist,value_location=CC)
         zone.dataset.delete_variables([zone.dataset.variable('Cell Volume')])
+    if ('Cell Area' in zone.dataset.variable_names and
+                                         zone.values('Cell Area').max()==0.0):
+        tp.macro.execute_extended_command('CFDAnalyzer3',
+                                          'CALCULATE FUNCTION = '+
+                                          'CELLVOLUME VALUELOCATION = '+
+                                          'CELLCENTERED')
+        if kwargs.get('is1D',False):
+            eq('{Cell Length}={Cell Volume}',zones=zonelist,value_location=CC)
+        else:
+            eq('{Cell Area} = {Cell Volume}',zones=zonelist,value_location=CC)
+        zone.dataset.delete_variables([zone.dataset.variable('Cell Volume')])
     #Generate cellcentered versions of postitional variables
     for var in ['X [R]','Y [R]','Z [R]','r [R]','Xd [R]','Zd [R]',
                 'B_x [nT]','B_y [nT]','B_z [nT]','Bdx','Bdy','Bdz',

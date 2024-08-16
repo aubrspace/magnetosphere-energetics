@@ -132,15 +132,16 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist):
+    for k,f in enumerate(filelist[0:1]):
         #f = filelist[1]
-        filetime = makevideo.get_time(filelist[1])
+        filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            mhddatafiles = [filelist[0],filelist[1],filelist[2]]
+            #mhddatafiles = [filelist[0],filelist[1],filelist[2]]
+            mhddatafiles = [f]
             #python objects
             field_data = tp.data.load_tecplot(mhddatafiles)
             if len(field_data.zone_names)>=3:
@@ -172,7 +173,7 @@ if __name__ == "__main__":
                                                         write_data=True,
                                                         disp_result=True,
                                     verbose=True,
-                                    do_cms=True,
+                                    do_cms=False,
                                     analysis_type='energy_mass_mag_plasmoid',
                                     #modes=['iso_betastar','closed',
                                     #       'nlobe','slobe','plasmasheet'],
@@ -183,7 +184,8 @@ if __name__ == "__main__":
                                     do_interfacing=False,
                                     tail_cap=-120,
                                     integrate_surface=True,
-                                    integrate_volume=True,
+                                    save_surface_flux_dist=True,
+                                    integrate_volume=False,
                                     truegridfile=oggridfile,
                                     outputpath=outpath)
                 """

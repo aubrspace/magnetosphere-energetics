@@ -613,6 +613,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
     mp_mesh = {}
     data_to_write={}
     savemeshvars = {}
+    distribution_data={}
     for mode in kwargs.get('modes'):
         savemeshvars.update({mode:[]})
     ################################################################
@@ -620,7 +621,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         for zone in zonelist:
             #integrate power on created surface
             print('\nWorking on: '+zone.name+' surface')
-            surf_results = surface_tools.surface_analysis(zone,**kwargs)
+            surf_results,dists = surface_tools.surface_analysis(zone,**kwargs)
             if ('mp_' in zone.name) and ('inner' not in zone.name):
                 #Add x_subsolar
                 surf_results['X_subsolar [Re]'] = float(aux['x_subsolar'])
@@ -647,6 +648,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                         surf_results['r_'+var.split('*')[0]]=dnstream/upstream
             surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})
+            if kwargs.get('save_surface_flux_dist',False):
+                dists.attrs['time'] = eventtime
+                distribution_data[zone.name+'_surface'] = dists
             if save_mesh:
                 cc_length =len(zone.values('x_cc').as_numpy_array())
                 for name in field_data.variable_names:
@@ -665,7 +669,7 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                 inner_mesh = {}
                 inner_zone = field_data.zone('*innerbound*')
                 print('\nWorking on: '+inner_zone.name)
-                inner_surf_results = surface_tools.surface_analysis(
+                inner_surf_results,inner_dists=surface_tools.surface_analysis(
                                                        inner_zone,**kwargs)
                 inner_surf_results['Time [UTC]'] = eventtime
                 data_to_write.update({zonelist[0].name+'_inner_surface':
@@ -681,6 +685,10 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         #quick post_proc, saves on number of integration calls
         data_to_write = surface_tools.post_proc(data_to_write,
                          do_interfacing=kwargs.get('do_interfacing',False))
+        if kwargs.get('save_surface_flux_dist',False):
+            distribution_data = surface_tools.post_proc(distribution_data,
+                                                        **kwargs)
+            #distribution_data['time'] = eventtime
     if any(['innerbound' in z.name for z in zonelist]):
         zonelist.remove(field_data.zone('*innerbound'))
     #timestamp
@@ -820,6 +828,9 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                                             eventtime.minute,eventtime.second))
         write_to_hdf(outputpath+'/energeticsdata/GM/energetics_'+
                         datestring+'.h5', data_to_write)
+        if kwargs.get('save_surface_flux_dist',False):
+            write_to_hdf(outputpath+'/fluxdistribution/GM/fluxdistribution__'+
+                         datestring+'.h5', distribution_data)
     if save_mesh:
         write_to_hdf(outputpath+'/meshdata/mesh_'+datestring+'.h5',mp_mesh)
     if disp_result:

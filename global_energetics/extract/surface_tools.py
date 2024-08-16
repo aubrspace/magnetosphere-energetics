@@ -221,17 +221,22 @@ def post_proc(results,**kwargs):
         #Combine 'injections' and 'escapes' back into net
         injections = df[[k for k in df.keys() if 'injection' in k]]
         escapes = df[[k for k in df.keys() if 'escape' in k]]
-        net_values = injections.values+escapes.values
+        #net_values = injections.values+escapes.values
         net_keys = ['_net'.join(k.split('_injection')) for k in df.keys()
                     if 'injection' in k]
-        for k in enumerate(net_keys):df[k[1]]=net_values[0][k[0]]
+        nets = pd.DataFrame(injections.values+escapes.values,columns=net_keys)
+        for k in nets.keys(): df[k] = nets[k]
+        if kwargs.get('save_surface_flux_dist',False):
+            df.drop(columns=list(np.append(injections.keys(),
+                                            escapes.keys())),
+                                            inplace=True)
 
         #Combine P0 and ExB into K (total flux)
         p0 = df[[k for k in df.keys() if 'P0' in k]]
         ExB = df[[k for k in df.keys() if 'ExB' in k]]
-        K_values = p0.values+ExB.values
         K_keys = ['K'.join(k.split('P0')) for k in df.keys()if 'P0' in k]
-        for k in enumerate(K_keys):df[k[1]]=K_values[0][k[0]]
+        K = pd.DataFrame(p0.values+ExB.values,columns=K_keys)
+        for k in K.keys(): df[k] = K[k]
 
     if (kwargs.get('do_interfacing',False) and
         'mp_iso_betastar_surface' in results.keys()):
@@ -787,6 +792,27 @@ def calc_integral(term, zone, **kwargs):
     result = {term[1]:[value]}
     return result
 
+def save_distribution(variable_str,zone,**kwargs):
+    """ Saves the full distribution of flux (term) for the surface (zone)
+    Inputs
+        term(tuple(str:str))- name pre:post integration
+        zone(Zone)- tecplot zone object where integration is performed
+        kwargs:
+            VariableOption(str)- 'Scalar', alt is 'LengthAreaVolume'
+            flag (bool)- 0 if failed, can then skip compiling that term
+    Return
+        dist (numpy array)
+    """
+    variable_name = variable_str.replace('[','?')
+    # Check that the variable is cell centered, if not skip
+    if zone.values(variable_name).location == ValueLocation.CellCentered:
+        return zone.values(variable_name).as_numpy_array(), 1
+    else:
+        if kwargs.get('verbose',False):
+            print(f'SAVE SURFACE DISTRIBUTION: Variable {variable_str} not'+
+                    'cell cetered, skipping save')
+        return None, 0
+
 #TODO: see if this can be wrapped with numba @jit
 def np_calc_integral(terms, volumes, scalars, **kwargs):
     """Calls numpy integration for S(term*volume)
@@ -1009,7 +1035,8 @@ def surface_analysis(zone, **kwargs):
             blank_operator(RelOp)- RelOp.LessThan, tecplot constant obj
             customTerms(dict{str:str})- any one-off integrations
     Outputs
-        surface_power- power, or energy flux at the magnetopause surface
+        surface_power- power, or integrated energy flux at the given surface
+        flux_dists(DataFrame)- (optional) export flux distribution
 
     ###################################################################
     # These integrals are like sandwhiches, pick and chose what to
@@ -1035,6 +1062,7 @@ def surface_analysis(zone, **kwargs):
     '''
     #initialize empty dictionary that will make up the results of calc
     integrands, results, eq = {}, {}, tp.data.operate.execute_equation
+    flux_dists = {}
     ###################################################################
     #Core integral terms
     if 'virial' in analysis_type:
@@ -1076,6 +1104,11 @@ def surface_analysis(zone, **kwargs):
         if kwargs.get('verbose',False):
             print('{:<30}{:<35}{:>.3}'.format(
                       zone.name,term[1],results[term[1]][0]))
+        if kwargs.get('save_surface_flux_dist',False):
+            distribution, keep = save_distribution(term[0],zone,**kwargs)
+            if keep:
+                flux_dists[term[0]] = distribution
+    # Error estimate (NOTE needs update!)
     if kwargs.get('verbose',False) and 'TestArea [Re^2]' in results.keys():
         powerkeys = [k for k in results.keys()if 'P0' in k or 'ExB' in k]
         powers = np.sum([
@@ -1106,13 +1139,17 @@ def surface_analysis(zone, **kwargs):
         if kwargs.get('verbose',False):
             print('{:<30}{:<35}{:>.3}'.format(
                       zone.name,'Area [Re^2]',results['Area [Re^2]'][0]))
+        if kwargs.get('save_surface_flux_dist',False):
+            distribution, keep = save_distribution('Cell Area',zone,**kwargs)
+            if keep:
+                flux_dists['Area'] = distribution
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:
         for term in [{key:pair} for (key,pair) in results.items()
                                                        if 'Virial' in key]:
             results.update(energy_to_dB([t for t in term.items()][0]))
-    return pd.DataFrame(results)
+    return pd.DataFrame(results), pd.DataFrame(flux_dists)
 
 def plane_analysis(x,y,z,plane_var,loc,**kwargs):
     """Calculate flux through a specific plane slice through the domain
@@ -1135,4 +1172,5 @@ def plane_analysis(x,y,z,plane_var,loc,**kwargs):
     # Reset xyz variables
     # Return results
     pass
+
 
