@@ -35,6 +35,10 @@ def get_time(infile,**kwargs):
                 time_dt = time_dt.replace(microsecond=0)
             elif len(date_string)==15:
                 time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S')
+            else:
+                numerics = ''.join([c for c in infile.split('.')[0]
+                                    if c.isnumeric()])
+                time_dt = dt.datetime.strptime(str(numerics),'%Y%m%d%H%M%S')
     except ValueError:
         try:#looking for typical IE output
             date_string=infile.split('/')[-1].split('it')[-1].split('.')[0]

@@ -132,7 +132,7 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist[0:1]):
+    for k,f in enumerate(filelist[0:8]):
         #f = filelist[1]
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]

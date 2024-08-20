@@ -10,6 +10,7 @@ import datetime as dt
 import pandas as pd
 #import spacepy as sp
 import tecplot as tp
+from global_energetics import makevideo
 
 def write_mesh(filename, zonename, timedata, mesh):
     """Function writes out 3D mesh data to hdf5 file
@@ -97,7 +98,7 @@ def combine_to_multi_index(datapath,outputpath,**kwargs):
         outpath
     """
     combo_name = 'test.h5'
-    filelist = glob.glob(os.path.join(datapath,'*.h5'))
+    filelist = sorted(glob.glob(os.path.join(datapath,'*.h5')),key=makevideo.time_sort)
     #TODO
     time_dict = {}
     value_dict = {}

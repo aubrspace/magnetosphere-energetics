@@ -1143,6 +1143,9 @@ def surface_analysis(zone, **kwargs):
             distribution, keep = save_distribution('Cell Area',zone,**kwargs)
             if keep:
                 flux_dists['Area'] = distribution
+            distribution, keep = save_distribution('Status_cc',zone,**kwargs)
+            if keep:
+                flux_dists['Status'] = distribution
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:
