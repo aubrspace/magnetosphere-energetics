@@ -1076,6 +1076,7 @@ def surface_analysis(zone, **kwargs):
     if 'wave' in analysis_type:
         integrands.update(get_wave_dict(**kwargs))
     integrands.update(kwargs.get('customTerms', {}))
+    core_integrands = integrands.copy()
     ###################################################################
     #Integral bounds modifications spatially parsing results
     if kwargs.get('do_interfacing',False) and 'ionosphere' not in zone.name:
@@ -1099,12 +1100,15 @@ def surface_analysis(zone, **kwargs):
     if kwargs.get('verbose',False):
         print('{:<30}{:<35}{:<9}'.format('Surface','Term','Value'))
         print('{:<30}{:<35}{:<9}'.format('******','****','*****'))
+    print(integrands)
+    print(core_integrands)
     for term in integrands.items():
         results.update(calc_integral(term, zone))
         if kwargs.get('verbose',False):
             print('{:<30}{:<35}{:>.3}'.format(
                       zone.name,term[1],results[term[1]][0]))
-        if kwargs.get('save_surface_flux_dist',False):
+        if (kwargs.get('save_surface_flux_dist',False) and
+            term[0] in core_integrands.keys()):
             distribution, keep = save_distribution(term[0],zone,**kwargs)
             if keep:
                 flux_dists[term[0]] = distribution
@@ -1146,6 +1150,9 @@ def surface_analysis(zone, **kwargs):
             distribution, keep = save_distribution('Status_cc',zone,**kwargs)
             if keep:
                 flux_dists['Status'] = distribution
+            distribution, keep = save_distribution('x_cc',zone,**kwargs)
+            if keep:
+                flux_dists['X'] = distribution
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:

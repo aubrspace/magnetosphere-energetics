@@ -10,7 +10,6 @@ import datetime as dt
 import pandas as pd
 #import spacepy as sp
 import tecplot as tp
-from global_energetics import makevideo
 
 def write_mesh(filename, zonename, timedata, mesh):
     """Function writes out 3D mesh data to hdf5 file
@@ -97,7 +96,7 @@ def combine_to_multi_index(datapath,outputpath,**kwargs):
         datapath
         outpath
     """
-    combo_name = 'test.h5'
+    combo_name = kwargs.get('combo_name','test.h5')
     filelist = sorted(glob.glob(os.path.join(datapath,'*.h5')),key=makevideo.time_sort)
     #TODO
     time_dict = {}
@@ -139,7 +138,7 @@ def combine_to_multi_index(datapath,outputpath,**kwargs):
                 for col in columns: #NOTE assuming all have same columns
                     value_dict[key][col] = np.append(value_dict[key][col],
                                                      df[col].values)
-    with pd.HDFStore(outputpath+'/'+combo_name) as output:
+    with pd.HDFStore(os.path.join(outputpath,combo_name)) as output:
         # Set the index array with points + time entry
         for key in dataframe_keys:
             index_dict[key] = [time_dict[key],point_dict[key]]
@@ -289,6 +288,8 @@ def combine_hdfs(datapath, outputpath, *, combo_name='energetics.h5',
                         outputpath+'/energetics.h5', 'Combined_zones')
 
 if __name__ == "__main__":
+    #from global_energetics import makevideo
+    import makevideo
     PATH = sys.argv[1]
     OPATH = sys.argv[2]
     kwargs = {}

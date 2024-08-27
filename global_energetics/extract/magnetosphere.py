@@ -687,7 +687,8 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
                          do_interfacing=kwargs.get('do_interfacing',False))
         if kwargs.get('save_surface_flux_dist',False):
             distribution_data = surface_tools.post_proc(distribution_data,
-                                                        **kwargs)
+                                              save_surface_flux_dist=True,
+                                                        do_interfacing=False)
             #distribution_data['time'] = eventtime
     if any(['innerbound' in z.name for z in zonelist]):
         zonelist.remove(field_data.zone('*innerbound'))

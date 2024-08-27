@@ -17,6 +17,7 @@ def get_time(infile,**kwargs):
     Output
         time- spacepy Ticktock object
     """
+    infile = infile.split('/')[-1]
     try:#looking for typically BATSRUS 3D output
         if '_t' in infile and '_n' in infile:
             date_string=infile.split('/')[-1].split('_t')[-1].split('_')[0]
