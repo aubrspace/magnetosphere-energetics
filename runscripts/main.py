@@ -132,7 +132,7 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist[0:8]):
+    for k,f in enumerate(filelist[0:1]):
         #f = filelist[1]
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
@@ -176,7 +176,7 @@ if __name__ == "__main__":
                                     do_cms=False,
                                     analysis_type='energy_mass_mag_plasmoid',
                                     #modes=['iso_betastar','closed',
-                                    #       'nlobe','slobe','plasmasheet'],
+                                    #       'nlobe','slobe'],
                                     modes=['perfectellipsoid','perfectsphere',
                                            'ellipsoid'],
                                     #inner_r=3,
