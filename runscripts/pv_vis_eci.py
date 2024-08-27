@@ -50,7 +50,7 @@ if True:
                                                        path=herepath,
                                                        ffj=False,
                                                        doFTE=False,
-                                                       doEnergyFlux=False)
+                                                       doEnergyFlux=True)
         # Switch over to eci XYZ
         eci2=Calculator(registrationName='eci2',Input=field)
         eci2.Function = 'x_eci*iHat+y_eci*jHat+z_eci*kHat'
