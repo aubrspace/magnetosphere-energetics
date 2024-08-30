@@ -145,7 +145,7 @@ def general_plot_settings(ax, **kwargs):
             #from IPython import embed; embed()
             #import time
             #time.sleep(3)
-            return "{:d}:{:d}".format(hours,minutes)
+            return "{:d}:{:02}".format(hours,minutes)
         #Get original limits
         ax.set_xlim(kwargs.get('xlim',None))
         xlims = ax.get_xlim()
