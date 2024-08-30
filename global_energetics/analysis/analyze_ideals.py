@@ -1821,7 +1821,10 @@ def ID_variability(in_signal,**kwargs):
         integ_steady[i] = len(range(i-lookbehind,i+lookahead+1))*signal[i]
         integ_err[i] = (integ_steady[i]-integ_true[i])/integ_true[i]*100
     #from IPython import embed; embed()
-    return relvar,unsteady,integ_err
+    if kwargs.get('relative',True):
+        return relvar,unsteady,integ_err
+    else:
+        return var,unsteady,integ_err
 
 '''
 def ID_ALbays(ev,**kwargs):
@@ -2816,5 +2819,4 @@ if __name__ == "__main__":
     #                                         read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures
-    from IPython import embed; embed()
     #initial_figures(dataset)

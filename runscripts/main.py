@@ -114,11 +114,10 @@ if __name__ == "__main__":
     else:
         pass
     # Set file paths/individual file
-    inpath = 'error_results/hitime_run/'
-    #inpath = 'localdbug/starlink/'
-    outpath = 'error_results/hitime_run/'
-    #outpath = 'localdbug/MAST/test_output/'
-    #outpath = 'localdbug/starlink/'
+    #inpath = 'error_results/hitime_run/'
+    inpath = 'localdbug/parameter_study/MEDMED/'
+    #outpath = 'error_results/hitime_run/'
+    outpath = 'localdbug/parameter_study/MEDMED/'
     head = '3d__var_1_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
@@ -132,15 +131,16 @@ if __name__ == "__main__":
     oggridfile = ''
 
     i=0
-    for k,f in enumerate(filelist[0:1]):
-        #f = filelist[1]
+    #for k,f in enumerate(filelist[0:1]):
+    if True:
+        f = filelist[1]
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
             print('('+str(i)+') ',filetime)
             i+=1
             tp.new_layout()
-            #mhddatafiles = [filelist[0],filelist[1],filelist[2]]
+            #mhddatafiles = [filelist[1],filelist[2],filelist[3]]
             mhddatafiles = [f]
             #python objects
             field_data = tp.data.load_tecplot(mhddatafiles)
@@ -174,15 +174,15 @@ if __name__ == "__main__":
                                                         disp_result=True,
                                     verbose=True,
                                     do_cms=False,
-                                    analysis_type='energy_mass_mag_plasmoid',
-                                    #modes=['iso_betastar','closed',
-                                    #       'nlobe','slobe'],
-                                    modes=['perfectellipsoid','perfectsphere',
-                                           'ellipsoid'],
-                                    #inner_r=3,
+                                    analysis_type='energy_mass',
+                                    modes=['iso_betastar','closed',
+                                           'nlobe','slobe'],
+                                    #modes=['perfectellipsoid','perfectsphere',
+                                    #       'ellipsoid'],
+                                    inner_r=4,
                                     customTerms={'test':'TestArea [Re^2]'},
-                                    do_interfacing=False,
-                                    tail_cap=-120,
+                                    do_interfacing=True,
+                                    tail_cap=-20,
                                     integrate_surface=True,
                                     save_surface_flux_dist=True,
                                     integrate_volume=False,
