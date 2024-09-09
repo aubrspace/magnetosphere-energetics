@@ -2740,7 +2740,7 @@ def initial_figures(dataset):
                           dt.datetime(2022,6,7,4,0))
         small_window =   (dt.datetime(2022,6,6,22,18),
                           dt.datetime(2022,6,6,22,25))
-        mpflux_vs_rxn(ev,run,path,zoom=example_window,tag='midzoom')
+        #mpflux_vs_rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #errors(ev,run,path)
         #errors(ev,run,path,zoom=small_window,tag='closezoom')
         #all_fluxes(ev,run,path,zoom=window1,tag='w1')
@@ -2756,12 +2756,12 @@ def initial_figures(dataset):
         #tshift_scatter(ev,'closedVolume','K1',run,path)
         #tshift_scatter(ev,'K5','K1',run,path)
     #show_full_hist(events,path)
-    #plot_indices(dataset,path)
+    plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
     #tab_contingency2(events,path)
-    #plot_2by2_flux(dataset,[window1,window2,window3],path)
-    #plot_2by2_rxn(dataset,[window1,window2,window3],path)
+    plot_2by2_flux(dataset,[window1,window2,window3],path)
+    plot_2by2_rxn(dataset,[window1,window2,window3],path)
 
 if __name__ == "__main__":
     T0 = dt.datetime(2022,6,6,0,0)
@@ -2819,4 +2819,4 @@ if __name__ == "__main__":
     #                                         read_supermag=False)
     ######################################################################
     ##Quicklook timeseries figures
-    #initial_figures(dataset)
+    initial_figures(dataset)

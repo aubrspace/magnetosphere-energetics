@@ -27,12 +27,12 @@ if True:
     start_time = time.time()
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
-    #inpath = os.path.join(herepath,'localdbug/starlink/')
-    #outpath= os.path.join(inpath,'test_output/')
+    inpath = os.path.join(herepath,'localdbug/starlink/')
+    outpath= os.path.join(inpath,'test_output/')
     #inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
     #outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
-    inpath = os.path.join(herepath,'localdbug/parameter_study/LOWnLOWu/')
-    outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
+    #inpath = os.path.join(herepath,'localdbug/parameter_study/LOWnLOWu/')
+    #outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
 
     filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
                       key=time_sort)
@@ -45,13 +45,13 @@ if True:
                                        ('03-1214' in f)or#t2
                                        ('03-1224' in f)]#t3
     '''
-    for i,infile in enumerate(filelist[0:1]):
+    for i,infile in enumerate(filelist[-1::]):
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         outfile = 't'+str(i)+infile.split('_1_')[-1].split('.')[0]+'.png'
         oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(
                                                        infile,
-                                                       tail_x=-60,
+                                                       tail_x=-120,
                                                        dimensionless=False,
                                                        localtime=localtime,
                                                        path=herepath,
