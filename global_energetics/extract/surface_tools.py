@@ -343,10 +343,10 @@ def get_open_close_integrands(zone, integrands):
         outputname = term[1].split(' [')[0]
         if not any([n in name for n in ['Day','Flank','Tail','Lowlat']]):
             units = '['+term[1].split('[')[1].split(']')[0]+']'
-            if 'iono' not in zone.name:
-                eq('{'+name+'Closed}=IF({status_cc}==3,'+
+            #if 'iono' not in zone.name:
+            eq('{'+name+'Closed}=IF({status_cc}==3,'+
                                            '{'+term[0]+'},0)',zones=[zone])
-                openClose_dict.update(
+            openClose_dict.update(
                                 {name+'Closed':outputname+'Closed '+units})
             if 'ionoSouth' not in zone.name:
                 eq('{'+name+'OpenN}=IF({status_cc}==2,'+
@@ -386,21 +386,24 @@ def conditional_mod(zone,integrands,conditions,modname,**kwargs):
         else:
             #value_location = ValueLocation.Nodal
             value_location = ValueLocation.CellCentered
-        #OPEN CLOSED
+        #OPEN CLOSED and CONTESTED
         if (any(['open' in c for c in conditions]) or
-            any(['closed' in c for c in conditions])):
+            any(['closed' in c for c in conditions]) or
+            any(['contested' in c for c in conditions])):
             if (any(['not open' in c for c in conditions]) or
                 any(['closed' in c for c in conditions])):
-                new_eq+='({status_cc}['+condition_source+']>=3) &&'#closed
+                new_eq+='({status_cc}['+condition_source+']==3) &&'#closed
             elif any(['N' in c for c in conditions]):
-                new_eq+=('({status_cc}['+condition_source+']<3&&'+
-                          '{status_cc}['+condition_source+']>=2)&&')#north
+                new_eq+=('({status_cc}['+condition_source+']==2)&&')#north
             elif any(['S' in c for c in conditions]):
-                new_eq+=('({status_cc}['+condition_source+']<2 &&'+
-                          '{status_cc}['+condition_source+']>0) &&')#south
+                new_eq+=('({status_cc}['+condition_source+']==1) &&')#south
+            elif any(['contested' in c for c in conditions]):
+                new_eq+=('({status_cc}['+condition_source+']>1 && '+
+                          '{status_cc}['+condition_source+']!=2 && '+
+                          '{status_cc}['+condition_source+']!=3) &&')#contest
             else:
                 new_eq+=('({status_cc}['+condition_source+']<3 && '+
-                          '{status_cc}['+condition_source+']>0) &&')#open
+                          '{status_cc}['+condition_source+']>0) &&')#open-open
         #TAIL
         if any(['tail' in c for c in conditions]):
             if 'not tail' in conditions:
@@ -527,6 +530,10 @@ def get_interface_integrands(zone,integrands,**kwargs):
         interfaces.update(conditional_mod(zone,integrands,
                                        ['closed',dotail],'K5',**kwargs,
                                           target=target))
+        # Contested K1/K5
+        interfaces.update(conditional_mod(zone,integrands,
+                                         ['contested',dotail],'Kcontested',
+                                         **kwargs,target=target))
         # K5_day
         if not skip_daynightmapping:
             interfaces.update(conditional_mod(zone,integrands,
@@ -599,6 +606,9 @@ def get_interface_integrands(zone,integrands,**kwargs):
         if 'south' in target:
             interfaces.update(conditional_mod(zone,integrands,
                                          ['openS'],'PolesS',**kwargs))
+        interfaces.update(conditional_mod(zone,integrands,
+                                         ['contested'],'Kcontested',**kwargs,
+                                          target=target))
         #Poles dayside only
         #if 'north' in target:
         #    if not skip_daynightmapping:

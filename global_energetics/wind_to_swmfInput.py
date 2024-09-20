@@ -317,6 +317,7 @@ def collect_geotail(start, end, **kwargs):
     Returns
         df (DataFrame)- collected and processed data
     """
+    probelist = kwargs.get('probes',['1','2','3','4'])
     # Get tilt from somewhere else bc apparently it's not included here...
     print('Getting dipole tilt')
     mms_instrument = 'MMS1_MEC_SRVY_L2_EPHT89D'
@@ -325,60 +326,63 @@ def collect_geotail(start, end, **kwargs):
     xtime = [pd.Timestamp(t).value for t in tiltdata['Epoch']]
 
     # Position
-    print('Gathering Position Data')
     positions = {}
-    print('\tgeotail')
-    df = pd.DataFrame()
-    pos_instrument = 'GE_OR_DEF'
-    gsm_key = 'GSM_POS'
-    epoch_key = 'Epoch'
-    status,posdata = cdas.get_data(pos_instrument,[gsm_key],start,end)
-    df[['x','y','z']] = posdata[gsm_key]/6371 # from km to Re
-    df.index = posdata[epoch_key]
-    positions['geotail'] = df
+    if not kwargs.get('skip_pos',False):
+        print('Gathering Position Data')
+        print('\tgeotail')
+        df = pd.DataFrame()
+        pos_instrument = 'GE_OR_DEF'
+        gsm_key = 'GSM_POS'
+        epoch_key = 'Epoch'
+        status,posdata = cdas.get_data(pos_instrument,[gsm_key],start,end)
+        df[['x','y','z']] = posdata[gsm_key]/6371 # from km to Re
+        df.index = posdata[epoch_key]
+        positions['geotail'] = df
 
     # Magnetic Field Instrument
-    print('Gathering Bfield Data')
     bfield = {}
-    print('\tgeotail')
-    df = pd.DataFrame()
-    mag_instrument = 'GE_K0_MGF'
-    bvec_key = 'IB_vector'
-    epoch_key = 'Epoch'
-    status,magdata = cdas.get_data(mag_instrument,[bvec_key],start,end)
-    ytime = [pd.Timestamp(t).value for t in magdata[epoch_key]]
-    dipole_angles = np.interp(ytime,xtime,tiltdata[tilt_key])
-    bgsm=rotate_gse_gsm(dipole_angles,magdata[bvec_key])
-    df[['bx','by','bz']] = bgsm
-    df.index=magdata[epoch_key]
-    bfield['geotail'] = df
+    if not kwargs.get('skip_bfield',False):
+        print('Gathering Bfield Data')
+        print('\tgeotail')
+        df = pd.DataFrame()
+        mag_instrument = 'GE_K0_MGF'
+        bvec_key = 'IB_vector'
+        epoch_key = 'Epoch'
+        status,magdata = cdas.get_data(mag_instrument,[bvec_key],start,end)
+        ytime = [pd.Timestamp(t).value for t in magdata[epoch_key]]
+        dipole_angles = np.interp(ytime,xtime,tiltdata[tilt_key])
+        bgsm=rotate_gse_gsm(dipole_angles,magdata[bvec_key])
+        df[['bx','by','bz']] = bgsm
+        df.index=magdata[epoch_key]
+        bfield['geotail'] = df
 
     # Comprehensive Plasma Instrument 
-    print('Gathering Plasma Data')
     plasma = {}
-    print('\tgeotail')
-    df = pd.DataFrame()
-    plasma_instrument = 'GE_K0_CPI'
-    sw_n_ion_key = 'SW_P_Den'  #solar wind number density
-    sw_u_ion_key = 'SW_V'      #solar wind bulk velocity
-    sw_e_ion_key = 'SW_P_AVGE' #solar wind average energy
-    #hp_n_ion_key = 'HP_P_Den' #hot plasma number density
-    #hp_u_ion_key = 'HP_V'     #hot plasma bulk velocity
-    hp_p_key = 'W'             #hot plasma plasma pressure
-    epoch_key = 'Epoch'
-    status,plasmadata = cdas.get_data(plasma_instrument,[sw_n_ion_key,
-                                                         sw_u_ion_key,
-                                                         sw_e_ion_key,
-                                                         #hp_n_ion_key,
-                                                         #hp_u_ion_key,
-                                                         hp_p_key],
-                                                            start,end)
-    df['n'] = plasmadata[sw_n_ion_key] # n/cc
-    vgsm=rotate_gse_gsm(dipole_angles,plasmadata[sw_u_ion_key])
-    df[['vx','vy','vz']] = vgsm # km/s
-    df['energy'] = plasmadata[sw_e_ion_key] # eV
-    df.index = plasmadata[epoch_key]
-    plasma['geotail'] = df
+    if not kwargs.get('skip_plasma',False):
+        print('Gathering Plasma Data')
+        print('\tgeotail')
+        df = pd.DataFrame()
+        plasma_instrument = 'GE_K0_CPI'
+        sw_n_ion_key = 'SW_P_Den'  #solar wind number density
+        sw_u_ion_key = 'SW_V'      #solar wind bulk velocity
+        sw_e_ion_key = 'SW_P_AVGE' #solar wind average energy
+        #hp_n_ion_key = 'HP_P_Den' #hot plasma number density
+        #hp_u_ion_key = 'HP_V'     #hot plasma bulk velocity
+        hp_p_key = 'W'             #hot plasma plasma pressure
+        epoch_key = 'Epoch'
+        status,plasmadata = cdas.get_data(plasma_instrument,[sw_n_ion_key,
+                                                            sw_u_ion_key,
+                                                            sw_e_ion_key,
+                                                            #hp_n_ion_key,
+                                                            #hp_u_ion_key,
+                                                            hp_p_key],
+                                                                start,end)
+        df['n'] = plasmadata[sw_n_ion_key] # n/cc
+        vgsm=rotate_gse_gsm(dipole_angles,plasmadata[sw_u_ion_key])
+        df[['vx','vy','vz']] = vgsm # km/s
+        df['energy'] = plasmadata[sw_e_ion_key] # eV
+        df.index = plasmadata[epoch_key]
+        plasma['geotail'] = df
     if kwargs.get('writeData',True):
         ofilename = kwargs.get('ofilename','geotail')
         # Position
@@ -412,9 +416,9 @@ def collect_themis(start, end, **kwargs):
     probelist = kwargs.get('probelist',['A','D','E'])
     # Position
     buff = dt.timedelta(hours=12)
-    print('Gathering Position Data')
     positions = {}
-    if not kwargs.get('skip_pos_data',False):
+    if not kwargs.get('skip_pos',False):
+        print('Gathering Position Data')
         for num in probelist:
             print('\tthemis',num)
             df = pd.DataFrame()
@@ -430,14 +434,14 @@ def collect_themis(start, end, **kwargs):
                                        start-buff,end+buff)
             if posdata:
                 df.index = posdata[epoch_key]
-                df[['x','y','z']] = posdata[gsm_key] # Re
+                df[['x_gsm','y_gsm','z_gsm']] = posdata[gsm_key] # Re
                 df[['x_gse','y_gse','z_gse']] = posdata[gse_key] # Re
                 df = df[(df.index>start)&(df.index<end)]
             positions['themis'+num] = df
     # Flux Gate Magnetometer
-    print('Gathering Bfield Data')
     bfield = {}
-    if not kwargs.get('skip_bfield_data',False):
+    if not kwargs.get('skip_bfield',False):
+        print('Gathering Bfield Data')
         for num in probelist:
             print('\tthemis',num)
             df = pd.DataFrame()
@@ -452,9 +456,9 @@ def collect_themis(start, end, **kwargs):
                 df = df[(df.index>start)&(df.index<end)]
             bfield['themis'+num] = df
     # On board plasma moments 
-    print('Gathering Plasma Data')
     plasma = {}
-    if not kwargs.get('skip_plasma_data',False):
+    if not kwargs.get('skip_plasma',False):
+        print('Gathering Plasma Data')
         for num in probelist:
             print('\tthemis',num)
             df = pd.DataFrame()
@@ -477,23 +481,26 @@ def collect_themis(start, end, **kwargs):
     if kwargs.get('writeData',True):
         ofilename = kwargs.get('ofilename','themis')
         # Position
-        posfile = pd.HDFStore(ofilename+'_pos.h5')
-        for key in positions.keys():
-            posfile[key] = positions[key]
-        posfile.close()
-        print('Created ',ofilename+'_pos.h5 output file')
+        if not kwargs.get('skip_pos',False):
+            posfile = pd.HDFStore(ofilename+'_pos.h5')
+            for key in positions.keys():
+                posfile[key] = positions[key]
+            posfile.close()
+            print('Created ',ofilename+'_pos.h5 output file')
         # B Field
-        bfile = pd.HDFStore(ofilename+'_bfield.h5')
-        for key in bfield.keys():
-            bfile[key] = bfield[key]
-        bfile.close()
-        print('Created ',ofilename+'_bfield.h5 output file')
+        if not kwargs.get('skip_bfield',False):
+            bfile = pd.HDFStore(ofilename+'_bfield.h5')
+            for key in bfield.keys():
+                bfile[key] = bfield[key]
+            bfile.close()
+            print('Created ',ofilename+'_bfield.h5 output file')
         # Plasma
-        plasmafile = pd.HDFStore(ofilename+'_plasma.h5')
-        for key in plasma.keys():
-            plasmafile[key] = plasma[key]
-        plasmafile.close()
-        print('Created ',ofilename+'_plasma.h5 output file')
+        if not kwargs.get('skip_plasma',False):
+            plasmafile = pd.HDFStore(ofilename+'_plasma.h5')
+            for key in plasma.keys():
+                plasmafile[key] = plasma[key]
+            plasmafile.close()
+            print('Created ',ofilename+'_plasma.h5 output file')
     return positions, bfield, plasma
 
 def collect_mms(start, end, **kwargs):
@@ -504,28 +511,30 @@ def collect_mms(start, end, **kwargs):
     Returns
         df (DataFrame)- collected and processed data
     """
+    probelist = kwargs.get('probes',['1'])
     buff = dt.timedelta(hours=12)
     # Position
-    print('Gathering Position Data')
     positions = {}
     mode = kwargs.get('eph_mode','srvy')
-    for num in ['1']:
-        print('\tmms',num)
-        skip = False
-        df = pd.DataFrame()
-        pos_instrument = 'MMS'+num+'_MEC_'+mode.upper()+'_L2_EPHT89D'
-        tilt_key = 'mms'+num+'_mec_dipole_tilt'
-        gsm_key = 'mms'+num+'_mec_r_gsm'
-        field_status_key = 'mms'+num+'_mec_fieldline_type'
-        bfield_key = 'mms'+num+'_mec_bsc_gsm'
-        epoch_key = 'Epoch'
-        status,posdata = cdas.get_data(pos_instrument,[gsm_key,bfield_key,
-                                                       field_status_key,
-                                                       tilt_key],
-                                                      start-buff,end+buff)
+    if not kwargs.get('skip_pos',False):
+        print('Gathering Position Data')
+        for num in probelist:
+            print('\tmms',num)
+            skip = False
+            df = pd.DataFrame()
+            pos_instrument = 'MMS'+num+'_MEC_'+mode.upper()+'_L2_EPHT89D'
+            tilt_key = 'mms'+num+'_mec_dipole_tilt'
+            gsm_key = 'mms'+num+'_mec_r_gsm'
+            field_status_key = 'mms'+num+'_mec_fieldline_type'
+            bfield_key = 'mms'+num+'_mec_bsc_gsm'
+            epoch_key = 'Epoch'
+            status,posdata = cdas.get_data(pos_instrument,[gsm_key,bfield_key,
+                                                        field_status_key,
+                                                        tilt_key],
+                                                        start-buff,end+buff)
         if posdata:
             df.index = posdata[epoch_key]
-            df[['x','y','z']] = posdata[gsm_key]/6371 # km->Re
+            df[['x_gsm','y_gsm','z_gsm']] = posdata[gsm_key]/6371 # km->Re
             #df[['bx','by','bz','b']] = posdata[bfield_key] # nT
             df['status'] = posdata[field_status_key]
             df['tilt'] = posdata[tilt_key]
@@ -534,113 +543,118 @@ def collect_mms(start, end, **kwargs):
             print('no pos data!')
         positions['mms'+num] = df
     # Flux Gate Magnetometer
-    print('Gathering Bfield Data')
     bfield = {}
-    mode = kwargs.get('fgm_mode','srvy')
-    for num in ['1']:
-        print('\tmms',num)
-        df = pd.DataFrame()
-        fgm_instrument = 'MMS'+num+'_FGM_'+mode.upper()+'_L2'
-        bvec_key = 'mms'+num+'_fgm_b_gsm_'+mode+'_l2_clean'
-        epoch_key = 'Epoch'
-        status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],
-                                       start-buff,end+buff)
-        if not fgmdata and kwargs.get('fgm_mode','srvy')=='brst':
-            fgm_instrument = fgm_instrument.replace('BRST','SRVY')
-            bvec_key = bvec_key.replace('brst','srvy')
+    if not kwargs.get('skip_bfield',False):
+        print('Gathering Bfield Data')
+        mode = kwargs.get('fgm_mode','srvy')
+        for num in probelist:
+            print('\tmms',num)
+            df = pd.DataFrame()
+            fgm_instrument = 'MMS'+num+'_FGM_'+mode.upper()+'_L2'
+            bvec_key = 'mms'+num+'_fgm_b_gsm_'+mode+'_l2_clean'
+            epoch_key = 'Epoch'
             status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],
-                                           start-buff,end+buff)
-        if fgmdata:
-            df.index=fgmdata[epoch_key]
-            df[['bx','by','bz','b']] = fgmdata[bvec_key]
-            df = df[(df.index>start)&(df.index<end)]
-        else:
-            print('no Bfield data!')
-        bfield['mms'+num] = df
+                                        start-buff,end+buff)
+            if not fgmdata and kwargs.get('fgm_mode','srvy')=='brst':
+                fgm_instrument = fgm_instrument.replace('BRST','SRVY')
+                bvec_key = bvec_key.replace('brst','srvy')
+                status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],
+                                            start-buff,end+buff)
+            if fgmdata:
+                df.index=fgmdata[epoch_key]
+                df[['bx','by','bz','b']] = fgmdata[bvec_key]
+                df = df[(df.index>start)&(df.index<end)]
+            else:
+                print('no Bfield data!')
+            bfield['mms'+num] = df
     # Dual Ion Spectrometer (distribution moments)
-    print('Gathering Plasma Data')
     plasma = {}
-    mode = kwargs.get('fpi_mode','fast')
-    for num in ['1']:
-        print('\tmms',num)
-        df = pd.DataFrame()
-        plasma_instrument = 'MMS'+num+'_FPI_'+mode.upper()+'_L2_DIS-MOMS'
-        n_ion_key = 'mms'+num+'_dis_numberdensity_'+mode
-        u_ion_key = 'mms'+num+'_dis_bulkv_gse_'+mode
-        tpar_ion_key = 'mms'+num+'_dis_temppara_'+mode
-        tperp_ion_key = 'mms'+num+'_dis_tempperp_'+mode
-        epoch_key = 'Epoch'
-        status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
-                                                             u_ion_key,
-                                                             tpar_ion_key,
-                                                             tperp_ion_key],
-                                                         start-buff,end+buff)
-        if not plasmadata and kwargs.get('fpi_mode','fast')=='brst':
-            plasma_instrument = plasma_instrument.replace('BRST','FAST')
-            n_ion_key = n_ion_key.replace('brst','fast')
-            u_ion_key = u_ion_key.replace('brst','fast')
-            tpar_ion_key = tpar_ion_key.replace('brst','fast')
-            tperp_ion_key = tperp_ion_key.replace('brst','fast')
+    if not kwargs.get('skip_plasma',False):
+        print('Gathering Plasma Data')
+        mode = kwargs.get('fpi_mode','fast')
+        for num in probelist:
+            print('\tmms',num)
+            df = pd.DataFrame()
+            plasma_instrument = 'MMS'+num+'_FPI_'+mode.upper()+'_L2_DIS-MOMS'
+            n_ion_key = 'mms'+num+'_dis_numberdensity_'+mode
+            u_ion_key = 'mms'+num+'_dis_bulkv_gse_'+mode
+            tpar_ion_key = 'mms'+num+'_dis_temppara_'+mode
+            tperp_ion_key = 'mms'+num+'_dis_tempperp_'+mode
+            epoch_key = 'Epoch'
             status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
-                                                                 u_ion_key,
-                                                             tpar_ion_key,
-                                                             tperp_ion_key],
-                                                         start-buff,end+buff)
-        if plasmadata:
-            df.index = plasmadata[epoch_key]
-            df['n'] = plasmadata[n_ion_key] # n/cc
-            """
-            for gse,gse_keys in [[[df['vx_gse'],df['vy_gse'],df['vz_gse']],
-                                  ['vx','vy','vz']]]:
-                x = np.zeros(len(gse[0]))
-                y = np.zeros(len(gse[0]))
-                z = np.zeros(len(gse[0]))
-                for i,t in enumerate(df[epoch_key]):
-                    ut = (t-t0).total_seconds()
-                    gp.recalc(ut)
-                    gsm = gp.gsmgse(gse[0][i],gse[1][i],gse[2][i],-1)
-                    x[i],y[i],z[i] = gsm
-            """
-            # Convert gse velocity to gsm
-            xtime = [t.value for t in positions['mms'+num].index]
-            ytime = [pd.Timestamp(t).value for t in plasmadata[epoch_key]]
-            dipole_angles = np.interp(ytime,xtime,
-                                      positions['mms'+num]['tilt'])
-            vgsm=rotate_gse_gsm(dipole_angles,plasmadata[u_ion_key])
-            df[['vx','vy','vz']] = vgsm # km/s
-            df['tpar'] = plasmadata[tpar_ion_key] # eV
-            df['tperp'] = plasmadata[tperp_ion_key] # eV
-            df = df[(df.index>start)&(df.index<end)]
-        else:
-            print('no plasma data!')
-        plasma['mms'+num] = df
-    # Hot Plasma Composition Analyzer (other ion species moments)
-    # TODO if we need to grab 'MMS'+num+'_HPCA_'+mode.upper()+'_L2_DIS-MOMS'
-    #   has H+
-    #       He+
-    #       He++
-    #       O+
-    #       Spin averaged B
+                                                                u_ion_key,
+                                                                tpar_ion_key,
+                                                                tperp_ion_key],
+                                                            start-buff,end+buff)
+            if not plasmadata and kwargs.get('fpi_mode','fast')=='brst':
+                plasma_instrument = plasma_instrument.replace('BRST','FAST')
+                n_ion_key = n_ion_key.replace('brst','fast')
+                u_ion_key = u_ion_key.replace('brst','fast')
+                tpar_ion_key = tpar_ion_key.replace('brst','fast')
+                tperp_ion_key = tperp_ion_key.replace('brst','fast')
+                status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
+                                                                    u_ion_key,
+                                                                tpar_ion_key,
+                                                                tperp_ion_key],
+                                                            start-buff,end+buff)
+            if plasmadata:
+                df.index = plasmadata[epoch_key]
+                df['n'] = plasmadata[n_ion_key] # n/cc
+                """
+                for gse,gse_keys in [[[df['vx_gse'],df['vy_gse'],df['vz_gse']],
+                                    ['vx','vy','vz']]]:
+                    x = np.zeros(len(gse[0]))
+                    y = np.zeros(len(gse[0]))
+                    z = np.zeros(len(gse[0]))
+                    for i,t in enumerate(df[epoch_key]):
+                        ut = (t-t0).total_seconds()
+                        gp.recalc(ut)
+                        gsm = gp.gsmgse(gse[0][i],gse[1][i],gse[2][i],-1)
+                        x[i],y[i],z[i] = gsm
+                """
+                # Convert gse velocity to gsm
+                xtime = [t.value for t in positions['mms'+num].index]
+                ytime = [pd.Timestamp(t).value for t in plasmadata[epoch_key]]
+                dipole_angles = np.interp(ytime,xtime,
+                                        positions['mms'+num]['tilt'])
+                vgsm=rotate_gse_gsm(dipole_angles,plasmadata[u_ion_key])
+                df[['vx','vy','vz']] = vgsm # km/s
+                df['tpar'] = plasmadata[tpar_ion_key] # eV
+                df['tperp'] = plasmadata[tperp_ion_key] # eV
+                df = df[(df.index>start)&(df.index<end)]
+            else:
+                print('no plasma data!')
+            plasma['mms'+num] = df
+        # Hot Plasma Composition Analyzer (other ion species moments)
+        # TODO if we need to grab 'MMS'+num+'_HPCA_'+mode.upper()+'_L2_DIS-MOMS'
+        #   has H+
+        #       He+
+        #       He++
+        #       O+
+        #       Spin averaged B
     if kwargs.get('writeData',True):
         ofilename = kwargs.get('ofilename','mms')
         # Position
-        posfile = pd.HDFStore(ofilename+'_pos.h5')
-        for key in positions.keys():
-            posfile[key] = positions[key]
-        posfile.close()
-        print('Created ',ofilename+'_pos.h5 output file')
+        if not kwargs.get('skip_pos',False):
+            posfile = pd.HDFStore(ofilename+'_pos.h5')
+            for key in positions.keys():
+                posfile[key] = positions[key]
+            posfile.close()
+            print('Created ',ofilename+'_pos.h5 output file')
         # B Field
-        bfile = pd.HDFStore(ofilename+'_bfield.h5')
-        for key in bfield.keys():
-            bfile[key] = bfield[key]
-        bfile.close()
-        print('Created ',ofilename+'_bfield.h5 output file')
+        if not kwargs.get('skip_bfield',False):
+            bfile = pd.HDFStore(ofilename+'_bfield.h5')
+            for key in bfield.keys():
+                bfile[key] = bfield[key]
+            bfile.close()
+            print('Created ',ofilename+'_bfield.h5 output file')
         # Plasma
-        plasmafile = pd.HDFStore(ofilename+'_plasma.h5')
-        for key in plasma.keys():
-            plasmafile[key] = plasma[key]
-        plasmafile.close()
-        print('Created ',ofilename+'_plasma.h5 output file')
+        if not kwargs.get('skip_plasma',False):
+            plasmafile = pd.HDFStore(ofilename+'_plasma.h5')
+            for key in plasma.keys():
+                plasmafile[key] = plasma[key]
+            plasmafile.close()
+            print('Created ',ofilename+'_plasma.h5 output file')
     return positions, bfield, plasma
 
 def collect_cluster(start, end, **kwargs):
@@ -651,82 +665,91 @@ def collect_cluster(start, end, **kwargs):
     Returns
         df (DataFrame)- collected and processed data
     """
+    probelist = kwargs.get('probes',['1','2','3','4'])
+    buff = dt.timedelta(hours=12)
     # Position
-    print('Gathering Position Data')
     positions = {}
-    pos_instrument = kwargs.get('instrument','CL_SP_AUX')
-    gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
-    gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
-    gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in [1,2,3,4]]
-    status,posdata = cdas.get_data(pos_instrument,gse_keys.append(gseref_key),
-                                   start,end)
-    for sc in gse_keys[0:-1]:#drop appended ref key
-        num = sc.split('sc_dr')[1].split('_')[0]
-        scpos_gse = (posdata[sc]+posdata[gseref_key])/6371 #units are km
-        scpos = rotate_gse_gsm(posdata[gsmgse_key],scpos_gse)
-        df = pd.DataFrame(scpos, columns=['x','y','z'],
-                          index=posdata['Epoch__CL_SP_AUX'])
-        positions['cluster'+num] = df
+    if not kwargs.get('skip_pos',False):
+        print('Gathering Position Data')
+        pos_instrument = kwargs.get('instrument','CL_SP_AUX')
+        gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
+        gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
+        gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in probelist]
+        gse_keys.append(gseref_key)
+        gse_keys.append(gsmgse_key)
+        status,posdata = cdas.get_data(pos_instrument,gse_keys,
+                                       start-buff,end+buff)
+        for sc in gse_keys[0:-2]:#drop appended ref key
+            num = sc.split('sc_dr')[1].split('_')[0]
+            scpos_gse = (posdata[sc]+posdata[gseref_key])/6371 #units are km
+            scpos = rotate_gse_gsm(posdata[gsmgse_key],scpos_gse)
+            df = pd.DataFrame(scpos, columns=['x_gsm','y_gsm','z_gsm'],
+                            index=posdata['Epoch__CL_SP_AUX'])
+            df = df[(df.index>start)&(df.index<end)]
+            positions['cluster'+num] = df
     # Flux Gate Magnetometer
-    print('Gathering Bfield Data')
     bfield = {}
-    for num in ['1','2','3','4']:
-        df = pd.DataFrame()
-        fgm_instrument = 'C'+num+'_CP_FGM_SPIN'
-        bvec_key = 'B_vec_xyz_gse__C'+num+'_CP_FGM_SPIN'
-        epoch_key = 'Epoch__C'+num+'_CP_FGM_SPIN'
-        status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],start,end)
-        columns = ['bx','by','bz']
-        if fgmdata == None:
-            fgm_instrument = 'C'+num+'_UP_FGM'
-            bvec_key = 'B_xyz_gse__C'+num+'_UP_FGM'
-            status_key = 'Status__C'+num+'_UP_FGM'
-            status,fgmdata=cdas.get_data(fgm_instrument,[bvec_key,status_key],
-                                         start,end)
-            df[['status1','status2','status3','status4']]=fgmdata[status_key]
-            epoch_key = 'Epoch__C'+num+'_UP_FGM'
-        xtime = [t.value for t in positions['cluster'+num].index]
-        ytime = [pd.Timestamp(t).value for t in fgmdata[epoch_key]]
-        dipole_angles = np.interp(ytime,xtime,posdata[gsmgse_key])
-        bgsm = rotate_gse_gsm(dipole_angles,fgmdata[bvec_key])
-        df[['bx','by','bz']] =  bgsm
-        df.index = fgmdata[epoch_key]
-        bfield['cluster'+num] = df
+    if not kwargs.get('skip_bfield',False):
+        print('Gathering Bfield Data')
+        for num in probelist:
+            df = pd.DataFrame()
+            fgm_instrument = 'C'+num+'_CP_FGM_SPIN'
+            bvec_key = 'B_vec_xyz_gse__C'+num+'_CP_FGM_SPIN'
+            epoch_key = 'Epoch__C'+num+'_CP_FGM_SPIN'
+            status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],start,end)
+            columns = ['bx','by','bz']
+            if fgmdata == None:
+                fgm_instrument = 'C'+num+'_UP_FGM'
+                bvec_key = 'B_xyz_gse__C'+num+'_UP_FGM'
+                status_key = 'Status__C'+num+'_UP_FGM'
+                status,fgmdata=cdas.get_data(fgm_instrument,
+                                             [bvec_key,status_key],start,end)
+                df[['status1','status2','status3','status4']]=fgmdata[
+                                                                    status_key]
+                epoch_key = 'Epoch__C'+num+'_UP_FGM'
+            xtime = [t.value for t in positions['cluster'+num].index]
+            ytime = [pd.Timestamp(t).value for t in fgmdata[epoch_key]]
+            dipole_angles = np.interp(ytime,xtime,posdata[gsmgse_key])
+            bgsm = rotate_gse_gsm(dipole_angles,fgmdata[bvec_key])
+            df[['bx','by','bz']] =  bgsm
+            df.index = fgmdata[epoch_key]
+            bfield['cluster'+num] = df
     # Cluster Ion Spectrometry (CIS)
-    print('Gathering Plasma Data')
     plasma = {}
-    for num in ['1','2','3','4']:
-        df = pd.DataFrame()
-        # Variable keys
-        cis_instrument = 'C'+num+'_PP_CIS'
-        n_proton_key = 'N_p__C'+num+'_PP_CIS'# n/cc
-        u_proton_key = 'V_p_xyz_gse__C'+num+'_PP_CIS' #km/s
-        Tpar_proton_key = 'T_p_par__C'+num+'_PP_CIS' #MK
-        Tperp_proton_key = 'T_p_perp__C'+num+'_PP_CIS' #MK
-        epoch_key = 'Epoch__C'+num+'_PP_CIS'
-        # Get Data
-        status,plasmadata = cdas.get_data(cis_instrument,[n_proton_key,
-                                                          u_proton_key,
-                                                          Tpar_proton_key,
-                                                          Tperp_proton_key],
-                                                          start,end)
-        if plasmadata!=None:
-            if len(plasmadata[epoch_key])<10:
-                plasmadata = None
-                plasma['cluster'+num] = pd.DataFrame()
+    if not kwargs.get('skip_bfield',False):
+        print('Gathering Plasma Data')
+        for num in ['1','2','3','4']:
+            df = pd.DataFrame()
+            # Variable keys
+            cis_instrument = 'C'+num+'_PP_CIS'
+            n_proton_key = 'N_p__C'+num+'_PP_CIS'# n/cc
+            u_proton_key = 'V_p_xyz_gse__C'+num+'_PP_CIS' #km/s
+            Tpar_proton_key = 'T_p_par__C'+num+'_PP_CIS' #MK
+            Tperp_proton_key = 'T_p_perp__C'+num+'_PP_CIS' #MK
+            epoch_key = 'Epoch__C'+num+'_PP_CIS'
+            # Get Data
+            status,plasmadata = cdas.get_data(cis_instrument,[n_proton_key,
+                                                            u_proton_key,
+                                                            Tpar_proton_key,
+                                                            Tperp_proton_key],
+                                                            start,end)
+            if plasmadata!=None:
+                if len(plasmadata[epoch_key])<10:
+                    plasmadata = None
+                    plasma['cluster'+num] = pd.DataFrame()
+                else:
+                    df['n'] = plasmadata[n_proton_key]
+                    xtime = [t.value for t in positions['cluster'+num].index]
+                    ytime=[pd.Timestamp(t).value for t in plasmadata[epoch_key]]
+                    dipole_angles = np.interp(ytime,xtime,posdata[gsmgse_key])
+                    vgsm=rotate_gse_gsm(dipole_angles,plasmadata[u_proton_key])
+                    df[['vx','vy','vz']] = vgsm
+                    df['Tpar'] = plasmadata[Tpar_proton_key]
+                    df['Tperp'] = plasmadata[Tperp_proton_key]
+                    df.index = plasmadata[epoch_key]
+                    plasma['cluster'+num] = df
             else:
-                df['n'] = plasmadata[n_proton_key]
-                xtime = [t.value for t in positions['cluster'+num].index]
-                ytime = [pd.Timestamp(t).value for t in plasmadata[epoch_key]]
-                dipole_angles = np.interp(ytime,xtime,posdata[gsmgse_key])
-                vgsm=rotate_gse_gsm(dipole_angles,plasmadata[u_proton_key])
-                df[['vx','vy','vz']] = vgsm
-                df['Tpar'] = plasmadata[Tpar_proton_key]
-                df['Tperp'] = plasmadata[Tperp_proton_key]
-                df.index = plasmadata[epoch_key]
-                plasma['cluster'+num] = df
-        else:
-            plasma['cluster'+num] = pd.DataFrame()
+                plasma['cluster'+num] = pd.DataFrame()
     if kwargs.get('writeData',True):
         ofilename = kwargs.get('ofilename','cluster')
         # Position
@@ -749,6 +772,47 @@ def collect_cluster(start, end, **kwargs):
         print('Created ',ofilename+'_plasma.h5 output file')
     return positions, bfield, plasma
 
+def collect_goes(start,end,**kwargs):
+    probelist = kwargs.get('probes',['14','15','16'])
+    buff = dt.timedelta(hours=12)
+    # Position
+    positions = {}
+    if not kwargs.get('skip_pos',False):
+        print('Gathering Position Data')
+        for num in probelist:
+            print('\tgoes',num)
+            df = pd.DataFrame()
+            pos_instrument = kwargs.get('pos_instrument',
+                                       f'GOES{num}_EPHEMERIS_SSC')
+            epoch_key = 'Epoch'
+            gsm_keys = ['XYZ_GSM']
+            status,posdata = cdas.get_data(pos_instrument,gsm_keys,
+                                           start-buff,end+buff)
+            if posdata:
+                df.index = posdata[epoch_key]
+                df[['x_gsm','y_gsm','z_gsm']] = posdata[gsm_keys[0]] # Re
+                df = df[(df.index>start)&(df.index<end)]
+            positions['goes'+num] = df
+        #gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
+        #gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
+        #gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in probelist]
+        #gse_keys.append(gseref_key)
+        #gse_keys.append(gsmgse_key)
+        #status,posdata = cdas.get_data(pos_instrument,gse_keys,start,end)
+    bfield = {}
+    if not kwargs.get('skip_bfield',False):
+        #TODO
+        bfield_instrument = kwargs.get('bfield_instrument',
+                                       'DN_MAGN-L2-HIRES_GZZ')
+    plasma = {}
+    if not kwargs.get('skip_plasma',False):
+        #TODO
+        pass
+    if not kwargs.get('writeData',True):
+        #TODO
+        pass
+    return positions, bfield, plasma
+
 def collect_orbits(start,end,sourcelist):
     gsm = coordsys.GSM
     for source in sourcelist:
@@ -765,17 +829,19 @@ if __name__ == '__main__':
     #end = dt.datetime(2019,5,15,12,0)
     #start = dt.datetime(2014,2,18,4,0)
     #end = dt.datetime(2014,2,25,0,0)
-    start = dt.datetime(2022,2,2,12)
-    end = dt.datetime(2022,2,3,12)
+    #start = dt.datetime(2022,2,2,12)
+    #end = dt.datetime(2022,2,3,12)
+    start = dt.datetime(2024,5,10,6)
+    end = dt.datetime(2024,5,13,0)
     outpath = './'
     plot_data = False
     #######################################################################
 
     #wind = collect_wind(start, end)
-    #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
+    cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
     mms_pos, mms_b,mms_plasma = collect_mms(start, end)
-    #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
-    #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
+    themis_pos, themis_b,themis_plasma = collect_themis(start, end)
+    geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
 
     ## For a list of all observatories for location plots use:
     #   observatories = ssc.get_observatories()

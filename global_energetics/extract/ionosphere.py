@@ -801,7 +801,7 @@ def analyze_ionosphere(zoneNorth,zoneSouth,north_ocflb,south_ocflb,**kwargs):
             '''
             #integrate power on created surface
             print('\nWorking on: '+zone.name+' surface')
-            surf_results = surface_tools.surface_analysis(zone,**kwargs,
+            surf_results,_ = surface_tools.surface_analysis(zone,**kwargs,
                                             zonelist=[zoneNorth,zoneSouth])
             surf_results['Time [UTC]'] = eventtime
             data_to_write.update({zone.name+'_surface':surf_results})

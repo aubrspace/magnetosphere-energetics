@@ -115,10 +115,12 @@ if __name__ == "__main__":
         pass
     # Set file paths/individual file
     #inpath = 'error_results/hitime_run/'
-    inpath = 'localdbug/parameter_study/MEDMED/'
+    #inpath = 'localdbug/parameter_study/MEDHIGH/'
+    inpath = 'localdbug/'
     #outpath = 'error_results/hitime_run/'
-    outpath = 'localdbug/parameter_study/MEDMED/'
-    head = '3d__var_1_*'
+    #outpath = 'localdbug/parameter_study/MEDHIGH/'
+    outpath = 'localdbug/'
+    head = '3d__var_3_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
     #gm_stylehead = 'ffj_vis.sty'
@@ -133,7 +135,7 @@ if __name__ == "__main__":
     i=0
     #for k,f in enumerate(filelist[0:1]):
     if True:
-        f = filelist[1]
+        f = filelist[0]
         filetime = makevideo.get_time(f)
         OUTPUTNAME = f.split('e')[-1].split('.')[0]
         if True:
@@ -174,24 +176,23 @@ if __name__ == "__main__":
                                                         disp_result=True,
                                     verbose=True,
                                     do_cms=False,
-                                    analysis_type='energy_mass',
+                                    analysis_type='energymassmag',
                                     modes=['iso_betastar','closed',
                                            'nlobe','slobe'],
                                     #modes=['perfectellipsoid','perfectsphere',
                                     #       'ellipsoid'],
-                                    inner_r=4,
+                                    inner_r=3,
                                     customTerms={'test':'TestArea [Re^2]'},
                                     do_interfacing=True,
-                                    tail_cap=-20,
+                                    tail_cap=-60,
                                     integrate_surface=True,
-                                    save_surface_flux_dist=True,
-                                    integrate_volume=False,
-                                    truegridfile=oggridfile,
+                                    save_surface_flux_dist=False,
+                                    integrate_volume=True,
+                                    #truegridfile=oggridfile,
                                     outputpath=outpath)
-                """
-                iedatafile, success = find_IE_matched_file(inpath,filetime)
+                #iedatafile, success = find_IE_matched_file(inpath,filetime)
                 #future_iefile, _ = find_IE_matched_file(inpath,futuretime)
-                ionosphere.read_maggrid_tec('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.tec')
+                #ionosphere.read_maggrid_tec('localdbug/parameter_study/MEDHIGH/mag_grid_e20220606-200000.tec')
                 do_north, do_south = False, False
                 #if os.path.exists(iedatafile):
                 if False:
@@ -224,7 +225,7 @@ if __name__ == "__main__":
                                               integrate_surface=True,
                                               integrate_line=False,
                                               integrate_contour=True,
-                                              do_cms=True,
+                                              do_cms=False,
                                               outputpath=outpath)
                 if False:
                     '''
@@ -249,7 +250,6 @@ if __name__ == "__main__":
                                     'cosmetic/dBn_night_north.sty',
                                     'cosmetic/longtail_Bz.sty'],
                                   outpath,OUTPUTNAME+'_'+str(i),filetime)
-                """
 
     if '-c' in sys.argv:
         tp.macro.execute_command('$!GlobalThreeD RotateOrigin{X = 0}')
