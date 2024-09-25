@@ -120,7 +120,7 @@ if __name__ == "__main__":
     #outpath = 'error_results/hitime_run/'
     #outpath = 'localdbug/parameter_study/MEDHIGH/'
     outpath = 'localdbug/'
-    head = '3d__var_3_*'
+    head = '3d__var_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
     #gm_stylehead = 'ffj_vis.sty'

@@ -575,7 +575,7 @@ def refactor(event,t0):
     # Calc dt
     ev['dt'] = [(t1-t0).seconds for t0,t1 in
                 zip(times[0:-1],times[1::])]
-    ev['dt'].append(times[-1])
+    ev['dt'].append(ev['dt'][-1])
 
     ## TOTAL
     #K1,5 from mp
