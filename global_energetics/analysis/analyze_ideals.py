@@ -1795,7 +1795,7 @@ def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
     ## ID types of events
     # Construction (test matrix) signatures
-    events['imf_transients'] = ID_imftransient(ev,**kwargs)
+    events['imf_transients'] = ID_imftransient(ev,run,**kwargs)
     # Internal process signatures
     events['DIPx'],events['DIPb'],events['DIP']=ID_dipolarizations(ev,**kwargs)
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
@@ -1805,21 +1805,21 @@ def build_events(ev,run,**kwargs):
     events['MGLbays'],events['MGLonsets'],events['MGLpsuedos'],_=ID_ALbays(ev,
                                                               al_series='MGL')
     # ID MPBs
-    events['substorm'] = np.ceil((events['DIPx']+
+    events['substorm'] = np.ceil((#events['DIPx']+
                                   events['DIPb']+
                                   events['plasmoids_volume']+
                                   events['plasmoids_mass']+
                                   events['MGLbays'])
                                   #events['MGLpsuedos'])
-                                  /5)
+                                  /4)
                                   #events['ALbays']/5
-    events['allsubstorm'] = np.floor((events['DIPx']+
+    events['allsubstorm'] = np.floor((#events['DIPx']+
                                   events['DIPb']+
                                   events['plasmoids_volume']+
                                   events['plasmoids_mass']+
                                   events['MGLbays'])
                                   #events['MGLpsuedos'])
-                                  /5)
+                                  /4)
                                   #events['ALbays']/5
     # Coupling variability signatures
     events['K1var'],events['K1unsteady'],events['K1err']=ID_variability(
@@ -1842,11 +1842,11 @@ def build_events(ev,run,**kwargs):
     #                                                                 ev['K5'])
     #events['K15var'],events['K15unsteady'],events['K15err'] = ID_variability(
     #                                                        ev['K1']+ev['K5'])
-    events['both'] = np.ceil((events['substorm']+events['imf_transients'])/2)
+    events['clean']=np.ceil((1+events['substorm']-events['imf_transients'])/2)
     # other combos
     return events
 
-def ID_imftransient(ev,window=30,**kwargs):
+def ID_imftransient(ev,run,**kwargs):
     """Function that puts a flag for when the imf change is affecting the
         integrated results
     Inputs
@@ -1855,6 +1855,13 @@ def ID_imftransient(ev,window=30,**kwargs):
         kwargs:
             None
     """
+    # If we assume the X length of the simulation domain
+    simX = kwargs.get('xmax',32)-kwargs.get('xmin',-224)
+    # X velocity denoted by the event name
+    vx_dict = {'HIGH':800,'MED':600,'LOW':400}
+    vx_str = run.split('n')[1].split('u')[0]
+    # Simple balistics
+    window = simX*6371/vx_dict[vx_str]/60
     # find the times when imf change has occured
     times = ev['mp'].index
     intervals = build_interval_list(TSTART,dt.timedelta(minutes=window),TJUMP,
@@ -2141,18 +2148,21 @@ def show_full_hist(events,path,**kwargs):
     moidv= np.array([])
     moidm= np.array([])
     mgl  = np.array([])
+    imf  = np.array([])
     for i,run in enumerate(testpoints):
         if run not in events.keys():
             continue
         evK1var = events[run]['K1var_10-10']/1e12
         evK1var2 = events[run]['K1var_10R10']
-        evAny  = events[run]['substorm']
-        evAll  = events[run]['allsubstorm']
-        evDipx = events[run]['DIPx']
-        evDipb = events[run]['DIPb']
-        evMoidv= events[run]['plasmoids_volume']
-        evMoidm= events[run]['plasmoids_mass']
-        evMgl  = events[run]['MGLbays']
+
+        evIMF  = events[run]['imf_transients']
+        evAny  =(events[run]['substorm']*(1-evIMF))
+        evAll  =(events[run]['allsubstorm']*(1-evIMF))
+        evDipx =(events[run]['DIPx']*(1-evIMF))
+        evDipb =(events[run]['DIPb']*(1-evIMF))
+        evMoidv=(events[run]['plasmoids_volume']*(1-evIMF))
+        evMoidm=(events[run]['plasmoids_mass']*(1-evIMF))
+        evMgl  =(events[run]['MGLbays']*(1-evIMF))
 
         allK1var = np.append(allK1var,evK1var.values)
         allK1var2 = np.append(allK1var2,evK1var2.values)
@@ -2163,6 +2173,7 @@ def show_full_hist(events,path,**kwargs):
         moidv = np.append(moidv,evMoidv.values)
         moidm = np.append(moidm,evMoidm.values)
         mgl   = np.append(mgl,evMgl.values)
+        imf   = np.append(imf,evIMF.values)
     dfK1var = pd.DataFrame({'K1var':allK1var,
                             'anysubstorm':anySubstorm,
                             'allsubstorm':allSubstorm,
@@ -2170,7 +2181,8 @@ def show_full_hist(events,path,**kwargs):
                             'DIPb':dipb,
                             'moidsv':moidv,
                             'moidsm':moidm,
-                            'MGL':mgl})
+                            'MGL':mgl,
+                            'IMF':imf})
     dfK1var2 = pd.DataFrame({'K1var':allK1var2,
                             'anysubstorm':anySubstorm,
                             'allsubstorm':allSubstorm,
@@ -2178,7 +2190,8 @@ def show_full_hist(events,path,**kwargs):
                             'DIPb':dipb,
                             'moidsv':moidv,
                             'moidsm':moidm,
-                            'MGL':mgl})
+                            'MGL':mgl,
+                            'IMF':imf})
     for ax,df,key in[(ax1,dfK1var,'anysubstorm'),(ax2,dfK1var2,'anysubstorm'),
                      (ax3,dfK1var2,'allsubstorm'),
                      (ax4,dfK1var2,'DIPx'),
@@ -2195,18 +2208,28 @@ def show_full_hist(events,path,**kwargs):
         #dfK1var.reset_index(drop=True,inplace=True)
         binsvar = np.linspace(df['K1var'].quantile(0.00),
                               df['K1var'].quantile(0.95),51)
-        # Create 2 stacks
-        layer1 = df['K1var'][df[key]==0]
-        layer2 = df['K1var'][df[key]==1]
+        # Create 3 stacks
+        layer1 = df['K1var'][(df[key]==0)&(df['IMF']==0)]
+        layer2 = df['K1var'][df['IMF']==1]
+        layer3 = df['K1var'][df[key]==1]
         y1,x = np.histogram(layer1,bins=binsvar)
         y2,x2 = np.histogram(layer2,bins=binsvar)
+        y3,x3 = np.histogram(layer3,bins=binsvar)
         # Variability
-        ax.stairs(y1+y2,edges=x,fill=True,fc='grey',alpha=0.4,label='total')
-        ax.stairs(y2,x,fill=True,fc='green',label=key,alpha=0.4)
+        ax.stairs(y1+y2+y3,edges=x,fill=True,fc='grey',alpha=0.4,label='total')
+        ax.stairs(y2,x,fill=True,fc='black',label=f'IMFTransit',alpha=0.4)
         ax.stairs(y1,x,fill=True,fc='blue',label=f'not-{key}',alpha=0.4)
-        ax.axvline(df['K1var'].quantile(0.50),c='black',lw=4)
+        ax.stairs(y3,x,fill=True,fc='green',label=key,alpha=0.4)
+        #
+        ax.stairs(y1+y2+y3,edges=x,ec='grey',label='_total')
+        ax.stairs(y2,x,ec='black',label=f'_IMFTransit')
+        ax.stairs(y1,x,ec='blue',label=f'_not-{key}')
+        ax.stairs(y3,x,ec='green',label=f'_{key}')
+        #
+        ax.axvline(df['K1var'].quantile(0.50),c='grey',lw=4)
         ax.axvline(layer1.quantile(0.50),c='darkblue',lw=2)
-        ax.axvline(layer2.quantile(0.50),c='darkgreen',lw=2)
+        ax.axvline(layer2.quantile(0.50),c='black',lw=2)
+        ax.axvline(layer3.quantile(0.50),c='darkgreen',lw=2)
         ax.legend(loc='center right')
         ax.set_ylabel('Counts')
         # Decorate
@@ -2345,22 +2368,24 @@ def show_events(ev,run,events,path,**kwargs):
         #ztimes = [ev['times'][0],ev['times'][-1]]
         ztimes = None
     #Create handy variables for marking found points on curves
-    foundDIPx = hide_zeros(ev['mp']['X_NEXL [Re]']*events[run]['DIPx'].values)
-    foundDIPb = hide_zeros(ev['closed']['u_db_night [J]']*
-                           events[run]['DIPb'].values)
+    Any  =events[run]['substorm']*(1-events[run]['imf_transients'])
+    All  =events[run]['allsubstorm']*(1-events[run]['imf_transients'])
+    Psu  =events[run]['MGLpsuedos']*(1-events[run]['imf_transients'])
+    Dipx =events[run]['DIPx']*(1-events[run]['imf_transients'])
+    Dipb =events[run]['DIPb']*(1-events[run]['imf_transients'])
+    Moidv=events[run]['plasmoids_volume']*(1-events[run]['imf_transients'])
+    Moidm=events[run]['plasmoids_mass']*(1-events[run]['imf_transients'])
+    Mgl  =events[run]['MGLbays']*(1-events[run]['imf_transients'])
+    foundIMF  = hide_zeros(events[run]['imf_transients'].values)
+    foundDIPx = hide_zeros(ev['mp']['X_NEXL [Re]']*Dipx.values)
+    foundDIPb = hide_zeros(ev['closed']['u_db_night [J]']*Dipb.values)
     foundK1 = hide_zeros(ev['K1']*events[run]['K1unsteady'].values)
-    foundVMOID = hide_zeros(ev['closed']['Volume [Re^3]']*
-                            events[run]['plasmoids_volume'].values)
-    foundMMOID = hide_zeros(ev['closed']['M [kg]']*
-                            events[run]['plasmoids_mass'].values)
-    foundGridL = hide_zeros(ev['GridL']*
-                            events[run]['MGLbays'].values)
-    foundPsuedos = hide_zeros(ev['GridL']*
-                            events[run]['MGLpsuedos'].values)
-    foundSubstorm = hide_zeros(ev['K1']*
-                            events[run]['substorm'].values)
-    varSubstorm = hide_zeros(events[run]['K1var']*
-                            events[run]['substorm'].values)
+    foundVMOID = hide_zeros(ev['closed']['Volume [Re^3]']*Moidv.values)
+    foundMMOID = hide_zeros(ev['closed']['M [kg]']*Moidm.values)
+    foundGridL = hide_zeros(ev['GridL']*Mgl.values)
+    foundPsuedos = hide_zeros(ev['GridL']*Psu.values)
+    foundSubstorm = hide_zeros(ev['K1']*Any.values)
+    varSubstorm = hide_zeros(events[run]['K1var']*Any.values)
     #############
     #setup figure
     fig1,axes = plt.subplots(7,1,figsize=[24,35],sharex=True)
@@ -2437,12 +2462,11 @@ def show_events(ev,run,events,path,**kwargs):
                           xlim=ztimes,
                           ylim=[-15,2],
                           timedelta=True)
-    nexl.margins(x=0.1)
-    udb.margins(x=0.1)
-    v_moids.margins(x=0.1)
-    m_moids.margins(x=0.1)
-    glbays.margins(x=0.1)
-    k1.margins(x=0.1)
+    for ax in [nexl,udb,v_moids,m_moids,glbays,k1,k1var]:
+        ax.fill_between(ev['times'],ax.get_ylim()[0]*foundIMF,
+                                    ax.get_ylim()[1]*foundIMF,
+                        fc='black',alpha=0.4)
+        ax.margins(x=0.1)
 
     #Save
     fig1.tight_layout(pad=1)
@@ -2789,7 +2813,7 @@ def initial_figures(dataset):
         #mpflux_vs_rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #errors(ev,run,path)
         #show_event_hist(ev,run,events,path)
-        #show_events(ev,run,events,path)
+        show_events(ev,run,events,path)
     #scatter_spectra(psds,path)
     show_full_hist(events,path)
     #plot_indices(dataset,path)
