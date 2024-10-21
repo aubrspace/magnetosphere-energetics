@@ -456,6 +456,8 @@ def plot_indices(dataset,path):
         times = [float(n.to_numpy()) for n in timedelta]
         supdelta = [t-T0 for t in dataset[event]['obs']['super_log'].index]
         suptimes = [float(n.to_numpy()) for n in supdelta]
+        griddelta = [t-T0 for t in dataset[event]['obs']['gridMin'].index]
+        gridtimes = [float(n.to_numpy()) for n in griddelta]
         inddelta = [t-T0 for t in dataset[event]['obs']['swmf_index'].index]
         indtimes = [float(n.to_numpy()) for n in inddelta]
         utimedelta = [t-T0 for t in dataset[event]['mpdict']['ms_full'].index]
@@ -473,7 +475,7 @@ def plot_indices(dataset,path):
         #axis3.plot(suptimes,dataset[event]['obs']['super_log']['SML'],
         #           label=event,c=colors[i],ls=styles[i],marker=markers[i],
         #           markevery=10)
-        axis3.plot(suptimes,dataset[event]['obs']['gridMin']['dBmin'],
+        axis3.plot(gridtimes,dataset[event]['obs']['gridMin']['dBmin'],
                    label=event,c=colors[i],ls=styles[i],
                    marker=markers[i],markevery=10)
         axis4.plot(times,dataset[event]['obs']['swmf_log']['cpcpn'],
@@ -1684,18 +1686,19 @@ def all_fluxes(ev,event,path,**kwargs):
     #Decorations
     general_plot_settings(Kexternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
-                          ylim=[-25,17],xlim=xlims,
+                          ylim=[-5,5],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
     Kexternal.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
                      ncol=3, fancybox=True, shadow=True)
     general_plot_settings(Kinternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
-                          ylim=[-30,10],xlim=xlims,
+                          ylim=[-5,5],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
     general_plot_settings(al,do_xlabel=False,legend=True,xlim=xlims,
                           ylabel=r'$\Delta B_{N} \left[nT\right]$',
                           timedelta=True,legend_loc='lower left')
     general_plot_settings(cpcp,do_xlabel=False,legend=True,xlim=xlims,
+                          ylim=[0,120],
                           ylabel=r'CPCP $\left[kV\right]$',
                           timedelta=True,legend_loc='upper left')
     general_plot_settings(Energy_dst,do_xlabel=True,legend=True,
@@ -1810,7 +1813,17 @@ def build_events(ev,run,**kwargs):
                                   #events['MGLpsuedos'])
                                   /5)
                                   #events['ALbays']/5
+    events['allsubstorm'] = np.floor((events['DIPx']+
+                                  events['DIPb']+
+                                  events['plasmoids_volume']+
+                                  events['plasmoids_mass']+
+                                  events['MGLbays'])
+                                  #events['MGLpsuedos'])
+                                  /5)
+                                  #events['ALbays']/5
     # Coupling variability signatures
+    events['K1var'],events['K1unsteady'],events['K1err']=ID_variability(
+                                                                    ev['K1'])
     events['K1var_10R10'],events['K1unsteady'],events['K1err']=ID_variability(
                                                                     ev['K1'],
                                                        lookbehind=10,
@@ -2118,24 +2131,61 @@ def show_full_hist(events,path,**kwargs):
     #setup figure
     #fig1,((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=[20,20])
     fig1,(ax1,ax2) = plt.subplots(1,2,figsize=[20,10])
+    fig2,((ax3,ax4,ax5),(ax6,ax7,ax8)) = plt.subplots(2,3,figsize=[30,20])
     allK1var = np.array([])
     allK1var2 = np.array([])
-    allK1err = np.array([])
+    anySubstorm = np.array([])
     allSubstorm = np.array([])
+    dipx = np.array([])
+    dipb = np.array([])
+    moidv= np.array([])
+    moidm= np.array([])
+    mgl  = np.array([])
     for i,run in enumerate(testpoints):
         if run not in events.keys():
             continue
         evK1var = events[run]['K1var_10-10']/1e12
         evK1var2 = events[run]['K1var_10R10']
-        evSubstorm = events[run]['substorm']
+        evAny  = events[run]['substorm']
+        evAll  = events[run]['allsubstorm']
+        evDipx = events[run]['DIPx']
+        evDipb = events[run]['DIPb']
+        evMoidv= events[run]['plasmoids_volume']
+        evMoidm= events[run]['plasmoids_mass']
+        evMgl  = events[run]['MGLbays']
 
         allK1var = np.append(allK1var,evK1var.values)
         allK1var2 = np.append(allK1var2,evK1var2.values)
-        allSubstorm = np.append(allSubstorm,evSubstorm.values)
-    dfK1var = pd.DataFrame({'K1var':allK1var,'substorm':allSubstorm})
-    dfK1var2 = pd.DataFrame({'K1var':allK1var2,'substorm':allSubstorm})
-    #for ax,df in [(ax1,dfK1var),(ax2,dfK1var2),(ax3,dfK1var3),(ax4,dfK1var4)]:
-    for ax,df in [(ax1,dfK1var),(ax2,dfK1var2)]:
+        anySubstorm = np.append(anySubstorm,evAny.values)
+        allSubstorm = np.append(allSubstorm,evAll.values)
+        dipx  = np.append(dipx,evDipx.values)
+        dipb  = np.append(dipb,evDipb.values)
+        moidv = np.append(moidv,evMoidv.values)
+        moidm = np.append(moidm,evMoidm.values)
+        mgl   = np.append(mgl,evMgl.values)
+    dfK1var = pd.DataFrame({'K1var':allK1var,
+                            'anysubstorm':anySubstorm,
+                            'allsubstorm':allSubstorm,
+                            'DIPx':dipx,
+                            'DIPb':dipb,
+                            'moidsv':moidv,
+                            'moidsm':moidm,
+                            'MGL':mgl})
+    dfK1var2 = pd.DataFrame({'K1var':allK1var2,
+                            'anysubstorm':anySubstorm,
+                            'allsubstorm':allSubstorm,
+                            'DIPx':dipx,
+                            'DIPb':dipb,
+                            'moidsv':moidv,
+                            'moidsm':moidm,
+                            'MGL':mgl})
+    for ax,df,key in[(ax1,dfK1var,'anysubstorm'),(ax2,dfK1var2,'anysubstorm'),
+                     (ax3,dfK1var2,'allsubstorm'),
+                     (ax4,dfK1var2,'DIPx'),
+                     (ax5,dfK1var2,'DIPb'),
+                     (ax6,dfK1var2,'moidsv'),
+                     (ax7,dfK1var2,'moidsm'),
+                     (ax8,dfK1var2,'MGL')]:
         # Scrub outliers twice
         #outliers = np.where((dfK1var['K1var']>2*dfK1var['K1var'].std()))[0]
         #dfK1var.drop(index=outliers,inplace=True)
@@ -2146,38 +2196,47 @@ def show_full_hist(events,path,**kwargs):
         binsvar = np.linspace(df['K1var'].quantile(0.00),
                               df['K1var'].quantile(0.95),51)
         # Create 2 stacks
-        layer1 = df['K1var'][df['substorm']==0]
-        layer2 = df['K1var'][df['substorm']==1]
+        layer1 = df['K1var'][df[key]==0]
+        layer2 = df['K1var'][df[key]==1]
         y1,x = np.histogram(layer1,bins=binsvar)
         y2,x2 = np.histogram(layer2,bins=binsvar)
         # Variability
         ax.stairs(y1+y2,edges=x,fill=True,fc='grey',alpha=0.4,label='total')
-        ax.stairs(y2,x,fill=True,fc='green',label='substorm',alpha=0.4)
-        ax.stairs(y1,x,fill=True,fc='blue',label='non-substorm',alpha=0.4)
+        ax.stairs(y2,x,fill=True,fc='green',label=key,alpha=0.4)
+        ax.stairs(y1,x,fill=True,fc='blue',label=f'not-{key}',alpha=0.4)
         ax.axvline(df['K1var'].quantile(0.50),c='black',lw=4)
         ax.axvline(layer1.quantile(0.50),c='darkblue',lw=2)
         ax.axvline(layer2.quantile(0.50),c='darkgreen',lw=2)
         ax.legend(loc='center right')
         ax.set_ylabel('Counts')
-    # Decorate
+        # Decorate
+        q50_var =df['K1var'].quantile(0.50)
+        if ax!=ax1:
+            ax.text(1,0.94,'Median'+f'={q50_var:.2f}[%]',
+                        transform=ax.transAxes,
+                        horizontalalignment='right')
+        ax.set_xlabel('Total Variation of \n'+
+                  r'$\int_{-10}^{10}\mathbf{K_1}\left[\%\right]$')
+    #ax1.set_xlabel('Total Variation of \n'+
+    #              r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
     q50_var =dfK1var['K1var'].quantile(0.50)
     ax1.text(1,0.94,'Median'+f'={q50_var:.2f}[TW]',
                         transform=ax1.transAxes,
                         horizontalalignment='right')
-    q50_var =dfK1var2['K1var'].quantile(0.50)
-    ax2.text(1,0.94,'Median'+f'={q50_var:.2f}[%]',
-                        transform=ax2.transAxes,
-                        horizontalalignment='right')
     ax1.set_xlabel('Total Variation of \n'+
-                    r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
-    ax2.set_xlabel('Total Variation of \n'+
-                    r'$\int_{-10}^{10}\mathbf{K_1}\left[\%\right]$')
+                     r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
 
     # Save
     fig1.tight_layout(pad=1)
-    figurename = path+'/hist_eventsK1_all.png'
+    figurename = path+'/hist_eventsK1_1.png'
     fig1.savefig(figurename)
     plt.close(fig1)
+    print('\033[92m Created\033[00m',figurename)
+
+    fig2.tight_layout(pad=1)
+    figurename = path+'/hist_eventsK1_2.png'
+    fig2.savefig(figurename)
+    plt.close(fig2)
     print('\033[92m Created\033[00m',figurename)
 
 def show_event_hist(ev,run,events,path,**kwargs):
@@ -2367,7 +2426,7 @@ def show_events(ev,run,events,path,**kwargs):
                           timedelta=True)
     general_plot_settings(glbays,do_xlabel=False,legend=False,
                           ylabel=r'GridL $\left[nT\right]$',
-                          xlim=ztimes,ylim=[-1200,0],
+                          xlim=ztimes,ylim=[-1800,0],
                           timedelta=True)
     general_plot_settings(k1var,do_xlabel=False,legend=False,
                           ylabel=r'Total Variation $\left[\%\right]$',
@@ -2376,7 +2435,7 @@ def show_events(ev,run,events,path,**kwargs):
     general_plot_settings(k1,do_xlabel=True,legend=False,
                           ylabel=r'$\int_S\mathbf{K}_1\left[TW\right]$',
                           xlim=ztimes,
-                          ylim=[-10,2],
+                          ylim=[-15,2],
                           timedelta=True)
     nexl.margins(x=0.1)
     udb.margins(x=0.1)
@@ -2688,12 +2747,12 @@ def initial_figures(dataset):
     tave,tv,corr,raw,events,psds = {},{},{},{},{},{}
     for i,run in enumerate(dataset.keys()):
         ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
-        if 'iedict' in dataset[run].keys():
-            ev2 = gmiono_refactor(dataset[run]['iedict'],
-                                  dt.datetime(2022,6,6,0))
-            for key in ev2.keys():
-                ev[key] = ev2[key]
-        #events[run] = build_events(ev,run)
+        #if 'iedict' in dataset[run].keys():
+        #    ev2 = gmiono_refactor(dataset[run]['iedict'],
+        #                          dt.datetime(2022,6,6,0))
+        #    for key in ev2.keys():
+        #        ev[key] = ev2[key]
+        events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
@@ -2725,12 +2784,14 @@ def initial_figures(dataset):
                           dt.datetime(2022,6,7,4,0))
         small_window =   (dt.datetime(2022,6,6,22,18),
                           dt.datetime(2022,6,6,22,25))
+        posterwindow = (dt.datetime(2022,6,6,23,0),
+                        dt.datetime(2022,6,7,3,0))
         #mpflux_vs_rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #errors(ev,run,path)
         #show_event_hist(ev,run,events,path)
-        show_events(ev,run,events,path)
+        #show_events(ev,run,events,path)
     #scatter_spectra(psds,path)
-    #show_full_hist(events,path)
+    show_full_hist(events,path)
     #plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
@@ -2765,9 +2826,10 @@ if __name__ == "__main__":
              'stretched_HIGHnMEDu',
              'stretched_HIGHnHIGHu',
              #
-             #'stretched_MEDnLOWu',
+             'stretched_MEDnLOWu',
              'stretched_MEDnMEDu',
-             #'stretched_MEDnHIGHu'
+             'stretched_MEDnHIGHu',
+             #'stretched_LOWnLOWucontinued',
              ]
              #'stretched_test']
              #'stretched_LOWnLOWucontinued']

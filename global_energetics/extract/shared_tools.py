@@ -1,9 +1,10 @@
-"""Tools that **DONT USE TECPLOT or PARAVIEW** that each can leverage
+"""Tools that **DONT REQUIRE TECPLOT or PARAVIEW** that each can leverage
 """
 
 from numpy import sign
 from numba import jit
 import numpy as np
+from numpy import deg2rad,sin,cos,arcsin,sqrt
 
 @jit#NOTE this restricts the types and methods available so take care
 def check_bin(x,theta_1,phi_1,inbin,state):

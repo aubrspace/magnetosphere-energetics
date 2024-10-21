@@ -113,6 +113,7 @@ def setup_pipeline(infile,**kwargs):
     pipeline = pv_tools.eqeval(alleq['basic_physics'],pipeline)
     if 'aux' in kwargs:
         pipeline = pv_tools.eqeval(alleq['dipole_coord'],pipeline)
+        pipeline = pv_tools.eqeval(alleq['dipole'],pipeline)
     ###Fix tracing
     if (pipeline.PointData['Status'].GetRange()[0] == -3 and
         'theta_1_deg' in pipeline.PointData.keys()):

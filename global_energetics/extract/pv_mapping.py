@@ -7,7 +7,34 @@ from numpy import sin,cos,pi
 #### import the simple module from paraview
 from paraview.simple import *
 ### interpackage
-from global_energetics.extract.shared_tools import check_bin
+#from global_energetics.extract.shared_tools import check_bin
+
+def bfield_project(Input,r1,r2,**kwargs):
+    # Calculate Latitude
+    colat = Calculator(registrationName='colat',Input=Input)
+    colat.Function = "acos(coordsZ/sqrt(mag(coords)))"
+    colat.ResultArrayName = 'colat'
+    # Expose XYZ coords using Calculator filter so PythonFilter can see
+    xyz = Calculator(registrationName='xyz',Input=colat)
+    xyz.Function = "coordsX*iHat+coordsY*jHat+coordsZ*kHat"
+    xyz.ResultArrayName = 'XYZ'
+    # Calculate Longitude
+    lon = PythonCalculator(registrationName='lon',Input=xyz)
+    lon.Expression = ("np.arctan2(inputs[0].PointData['XYZ'][:,1],"+
+                                 "inputs[0].PointData['XYZ'][:,0])")
+    lon.ArrayName = 'lon'
+    # Calculate Projected latitude along dipole field to new radius
+    colat2 = Calculator(registrationName='colat2',Input=lon)
+    colat2.Function = f"asin(sqrt({r2}/{r1}*sin(colat)^2))"
+    colat2.ResultArrayName = 'colat2'
+    # Stretch sphere into position at r2
+    stretch = Calculator(registrationName='stretch',Input=colat2)
+    stretch.Function = (f"{r2}*sin(colat2)*cos(lon)*iHat+"+
+                        f"{r2}*sin(colat2)*sin(lon)*jHat+"+
+                        f"sign(coordsZ)*{r2}*cos(colat2)*kHat")
+    stretch.ResultArrayName = 'stretch'
+    stretch.CoordinateResults = 1
+    return stretch
 
 def reversed_mapping(pipeline,statekey,**kwargs):
     rmap = get_reverse_map_filter(pipeline)

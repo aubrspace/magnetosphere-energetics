@@ -40,7 +40,7 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
     # Create iso surface
     iso1 = Contour(registrationName=name, Input=inputsource)
     iso1.ContourBy = ['POINTS', variable]
-    iso1.ComputeNormals = 0#NOTE if comptuted now, seem to cause trouble
+    iso1.ComputeNormals = 1#NOTE if comptuted now, seem to cause trouble
     iso1.Isosurfaces = [kwargs.get('iso_value',1)]
     iso1.PointMergeMethod = kwargs.get('mergemethod','Uniform Binning')
     outputsource = iso1
