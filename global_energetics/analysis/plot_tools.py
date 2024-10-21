@@ -575,7 +575,7 @@ def refactor(event,t0):
     # Calc dt
     ev['dt'] = [(t1-t0).seconds for t0,t1 in
                 zip(times[0:-1],times[1::])]
-    ev['dt'].append(times[-1])
+    ev['dt'].append(ev['dt'][-1])
 
     ## TOTAL
     #K1,5 from mp
@@ -665,7 +665,7 @@ def refactor(event,t0):
                   ev['M1']+ev['M5'])
     #ev['Kstatic']= ev['mp']['K_net [W]']-ev['inner']['K_net [W]']
     ev['Kstatic']=ev['Ks1']+ev['Ks3']+ev['Ks4']+ev['Ks5']+ev['Ks6']+ev['Ks7']
-    ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
+    #ev['dUdt'] = -ev['mp']['dUtotdt [J/s]']
 
     #from IPython import embed; embed()
     #time.sleep(3)

@@ -2,12 +2,180 @@
 import paraview
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
+import datetime as dt
 import numpy as np
-from numpy import sin,cos,pi
+from numpy import sin,cos,pi,arcsin,sqrt,deg2rad
 #### import the simple module from paraview
 from paraview.simple import *
 from geopack import geopack as gp
-#from equations import rotation
+from equations import rotation
+
+def haversine(XA,XB):
+    lat1 = deg2rad(np.array(XA[0]))
+    lat2 = deg2rad(np.array(XB[0]))
+    lon1 = deg2rad(np.array(XA[1]))
+    lon2 = deg2rad(np.array(XB[1]))
+    dlon = lon2-lon1
+    dlat = lat2-lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * arcsin(sqrt(a))
+    return c
+
+def merge_rad_mhd(pipeline,infile,**kwargs):
+    merge =ProgrammableFilter(registrationName='mergeRad',Input=pipeline)
+    merge.Script = f"""
+    #radiation belt merge w/ mhd
+    from radbelt import read_flux
+    import numpy as np
+    from numpy import sqrt,sin,cos,deg2rad
+    from scipy.interpolate import LinearNDInterpolator,RBFInterpolator
+    from pv_tools import haversine
+    # This filter takes mhd solution as input, this solution must contain:
+    #        theta_1,phi_1 - magnetic mapping variables
+    mhd = inputs[0]
+    mhd_th = mhd.PointData['theta_1_deg']# 0-90, in deg, 0=eq, 90=pole
+    mhd_phi = mhd.PointData['phi_1_deg']#0-360 in deg, 0=noon, 90=+Y(dusk)
+    MHD = list(zip(mhd_th,mhd_phi))
+    # Read in radiation belt file
+    inrad = "{infile}"
+    # flux variable is a 4D matrix of fluxes,
+    #   the dimensions correspond to: Lat,MLT,E,y=sin(pitch-angle)
+    #    eg. flux[3,9,11,11] - 3rd latitude bin (~30deg),
+    #                          9th MLT (4), 11th E bin (4000keV),
+    #                          11th pith-angle bin (y=0.98,~90deg)
+    lats,mlts,Es,ys,rs,flux = read_flux(inrad)
+    lons = [(24+lt-12)%24*360/24 for lt in mlts]
+    LATS,LONS = np.meshgrid(lats,lons)
+
+    interp = LinearNDInterpolator(list(zip(LATS.flatten(),LONS.flatten())),
+                                  flux[:,:,11,11].flatten())
+    y = list(zip(LATS.flatten(),LONS.flatten()))
+    d = flux[:,:,11,11].flatten()
+    rbfi = RBFInterpolator(y,d,neighbors=20,kernel='linear')
+
+    F = interp(mhd_th,mhd_phi)
+    F2 = rbfi(MHD)
+
+    output.ShallowCopy(mhd.VTKObject)
+    output.PointData.append(F,'E12_trapped_flux')
+    output.PointData.append(F2,'E12_trapped_rbfi')
+    """
+    return merge
+
+def project_to_iono(field,timestamp,**kwargs):
+    """Function projects 3D GM solution to ionosphere radius (~1.01Re) so
+        polar cap can be readily viewable
+    """
+    ##PARAMS##
+    lon_res = kwargs.get('lon_res',1800)
+    lat_res = kwargs.get('lat_res',900)
+    r_iono = kwargs.get('r_iono',1+300/6371)
+    lat_limit = kwargs.get('lat_limit',50)
+    ##########
+    # Create 2 'spheres' which cap above +-50deg latitude
+    ncap = Sphere(registrationName='nHemi')
+    ncap.Radius = r_iono
+    ncap.ThetaResolution = lon_res
+    ncap.PhiResolution = lat_res
+    ncap.StartPhi = 0
+    ncap.EndPhi = lat_limit
+
+    scap = Sphere(registrationName='sHemi')
+    scap.Radius = r_iono
+    scap.ThetaResolution = lon_res
+    scap.PhiResolution = lat_res
+    scap.StartPhi = 180-lat_limit
+    scap.EndPhi = 180
+    # Project mapping variables down to ionosphere radius
+    r = r_iono
+    nxyz_project = Calculator(registrationName='XYZ_project',Input=field)
+    nxyz_project.Function = (
+     f"{r}sin((90-theta_1_deg)*3.14159/180)*cos(phi_1_deg*3.14159/180)*iHat+"+
+     f"{r}sin((90-theta_1_deg)*3.14159/180)*sin(phi_1_deg*3.14159/180)*jHat+"+
+     f"{r}cos((90-theta_1_deg)*3.14159/180)*kHat")
+    nxyz_project.ResultArrayName = 'XYZ_project'
+    nxyz_project.CoordinateResults = 1
+
+    sxyz_project = Calculator(registrationName='XYZ_project',Input=field)
+    sxyz_project.Function = (
+     f"{r}*sin((90-theta_2_deg)*3.14159/180)*cos(phi_2_deg*3.14159/180)*iHat+"+
+     f"{r}*sin((90-theta_2_deg)*3.14159/180)*sin(phi_2_deg*3.14159/180)*jHat+"+
+     f"{r}*cos((90-theta_2_deg)*3.14159/180)*kHat")
+    sxyz_project.ResultArrayName = 'XYZ_project'
+    sxyz_project.CoordinateResults = 1
+    # Threshold Projected data to polar cap latitudes
+    nCap_only = Threshold(registrationName='nCap', Input=nxyz_project)
+    nCap_only.Scalars = ['POINTS', 'theta_1_deg']
+    nCap_only.ThresholdMethod = 'Above Upper Threshold'
+    nCap_only.UpperThreshold = lat_limit
+
+    sCap_only = Threshold(registrationName='sCap', Input=sxyz_project)
+    sCap_only.Scalars = ['POINTS', 'theta_2_deg']
+    sCap_only.ThresholdMethod = 'Between'
+    sCap_only.LowerThreshold = -1*lat_limit
+    sCap_only.UpperThreshold = -90
+    # Interpolate Thresholded data to created spheres
+    ninterp = PointDatasetInterpolator(registrationName='Interp',
+                                       Input=nCap_only,Source=ncap)
+    ninterp.Kernel = 'VoronoiKernel'
+    ninterp.Locator = 'Static Point Locator'
+
+    sinterp = PointDatasetInterpolator(registrationName='Interp',
+                                       Input=sCap_only,Source=scap)
+    ninterp.Kernel = 'VoronoiKernel'
+    ninterp.Locator = 'Static Point Locator'
+    # Rotate from MAG -> GSM coordinates
+    ngsm = mag_to_gsm(ninterp,timestamp)
+    sgsm = mag_to_gsm(sinterp,timestamp)
+    # Set XYZ GSM to be used as the new coordinates
+    nsetCoords = Calculator(registrationName='nPolarCap',Input=ngsm)
+    nsetCoords.Function = "x_gsm*iHat+y_gsm*jHat+z_gsm*kHat"
+    nsetCoords.ResultArrayName = 'xyzGSM'
+    nsetCoords.CoordinateResults = 1
+
+    ssetCoords = Calculator(registrationName='sPolarCap',Input=sgsm)
+    ssetCoords.Function = "x_gsm*iHat+y_gsm*jHat+z_gsm*kHat"
+    ssetCoords.ResultArrayName = 'xyzGSM'
+    ssetCoords.CoordinateResults = 1
+    return nsetCoords,ssetCoords
+
+def create_globe(timestamp,**kwargs):
+    """Function creates a sphere, wraps with Earth text and rotates to position
+    Inputs
+        timestamp (UT)
+        kwargs:
+    Returns
+        pipeline
+    """
+    # Get the file of the texture image
+    blue_marble_file = kwargs.get('blue_marble_loc',
+           '/home/aubr/Code/swmf-energetics/tutorial_data/bluemarble_map.png')
+    bluemarble_mapping = CreateTexture(blue_marble_file)
+    # Create a Sphere
+    sphere = Sphere(registrationName='Sphere')
+    sphere.Radius = 1.0
+    sphere.ThetaResolution = 100
+    sphere.PhiResolution = 100
+    sphere.StartTheta = 1e-5
+    sphere.EndTheta = 360
+    # Use the texture filter to wrap the image over the surface
+    texture = TextureMaptoSphere(registrationName='GlobeTexture',Input=sphere)
+    texture.PreventSeam = 0
+    # Expose XYZ coordinates using Calculator filter
+    xyz = Calculator(registrationName='XYZ',Input=texture)
+    xyz.Function = "coordsX*iHat+coordsY*jHat+coordsZ*kHat"
+    xyz.ResultArrayName = 'XYZ'
+    # Use the prog filter to rotate our globe into an orientation
+    # NOTE assuming that the globe comes in with 00UT facing +X, Z aligned
+    gsm = geo_to_gsm(xyz,timestamp)
+    # Set XYZ GSM to be used as the new coordinates
+    earth = Calculator(registrationName='Earth',Input=gsm)
+    earth.Function = "x_gsm*iHat+y_gsm*jHat+z_gsm*kHat"
+    earth.ResultArrayName = 'xyzGSM'
+    earth.CoordinateResults = 1
+    #earthDisplay = GetDisplayProperties(earth)
+    earthDisplay = Show(earth,GetActiveViewOrCreate('RenderView'))
+    earthDisplay.Texture = bluemarble_mapping
 
 def tec2para(instr):
     """Function takes a tecplot function evaluation string and makes it
@@ -275,6 +443,7 @@ def setup_outline(source,**kwargs):
     # Hide the scalar bar for this color map if not used.
     HideScalarBarIfNotNeeded(variableLUT, renderView)
 
+
 def get_ffj_filter1(pipeline,**kwargs):
     """Function to calculate the 'fourfieldjunction' to indicate a rxn site
     Inputs
@@ -502,6 +671,76 @@ def get_pressure_gradient(pipeline,**kwargs):
     """
     pipeline = gradP
     return pipeline
+
+def mag_to_gsm(pipeline,timestamp):
+    # Initialize the geopack routines by finding the universal time
+    t0 = dt.datetime(1970,1,1)
+    ut = (timestamp-t0).total_seconds()
+    gp.recalc(ut)
+    # Do the coord transform in a programmable filter
+    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
+    gsm.Script = update_mag2gsm()
+    return gsm
+
+def update_mag2gsm():
+    return """
+    import numpy as np
+    from geopack import geopack as gp
+    # Get input
+    data = inputs[0]
+    # Pull the XYZ GEO coordinates from the paraview objects
+    if 'XYZ' in data.PointData.keys():
+        x_mag = data.PointData['XYZ'][:,0]
+        y_mag = data.PointData['XYZ'][:,1]
+        z_mag = data.PointData['XYZ'][:,2]
+    elif 'x' in data.PointData.keys():
+        x_mag = data.PointData['x']
+        y_mag = data.PointData['y']
+        z_mag = data.PointData['z']
+    # Convert GEO -> GSM using geopack functions
+    x_gsm = np.zeros(len(x_mag))
+    y_gsm = np.zeros(len(x_mag))
+    z_gsm = np.zeros(len(x_mag))
+    for i,(xi,yi,zi) in enumerate(zip(x_mag,y_mag,z_mag)):
+        x_geo,y_geo,z_geo = gp.geomag(xi,yi,zi,-1)
+        x_gsm[i],y_gsm[i],z_gsm[i] = gp.geogsm(x_geo,y_geo,z_geo,1)
+    # Load the data back into the output of the Paraview filter
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(x_gsm,'x_gsm')
+    output.PointData.append(y_gsm,'y_gsm')
+    output.PointData.append(z_gsm,'z_gsm')
+    """
+
+def geo_to_gsm(pipeline,timestamp):
+    # Initialize the geopack routines by finding the universal time
+    t0 = dt.datetime(1970,1,1)
+    ut = (timestamp-t0).total_seconds()
+    gp.recalc(ut)
+    # Do the coord transform in a programmable filter
+    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
+    gsm.Script = update_geo2gsm()
+    return gsm
+
+def update_geo2gsm():
+    return """
+    import numpy as np
+    from geopack import geopack as gp
+    # Get input
+    data = inputs[0]
+    # Pull the XYZ GEO coordinates from the paraview objects
+    xyz_geo = data.PointData['XYZ']
+    # Convert GEO -> GSM using geopack functions
+    x_gsm = np.zeros(len(xyz_geo))
+    y_gsm = np.zeros(len(xyz_geo))
+    z_gsm = np.zeros(len(xyz_geo))
+    for i,(xi,yi,zi) in enumerate(xyz_geo):
+        x_gsm[i],y_gsm[i],z_gsm[i] = gp.geogsm(xi,yi,zi,1)
+    # Load the data back into the output of the Paraview filter
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(x_gsm,'x_gsm')
+    output.PointData.append(y_gsm,'y_gsm')
+    output.PointData.append(z_gsm,'z_gsm')
+    """
 
 def gsm_to_eci(pipeline,ut):
     gp.recalc(ut)

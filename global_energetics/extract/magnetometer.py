@@ -334,16 +334,33 @@ def read_virtual_SML(datafile):
         vsmldata.loc[timestamp,'mLon'] = locations.loc[station,'MLTshift']
     return vsmldata
 
-def readgrid(infile):
-    with open(infile,'r')as f:
-        title = f.readline()# 1st
-        simtime_string = f.readline()# 2nd
-        grid_info = f.readline()# 3rd
-        nlon,nlat = [int(n) for n in grid_info[0:-1].split()]
-        headers = f.readline()[0:-1].split()
+def readgrid(infile,**kwargs):
+    if kwargs.get('type','ascii')=='ascii':
+        with open(infile,'r')as f:
+            title = f.readline()# 1st
+            simtime_string = f.readline()# 2nd
+            grid_info = f.readline()# 3rd
+            nlon,nlat = [int(n) for n in grid_info[0:-1].split()]
+            headers = f.readline()[0:-1].split()
+            grid = np.zeros([nlon*nlat,len(headers)])
+            for k,line in enumerate(f.readlines()):
+                grid[k,:] = [float(n) for n in line[0:-1].split()]
+    elif kwargs.get('type')=='real4':
+        from spacepy import pybats as bats# Well use the IDLreader from spacepy
+        f = bats.IdlFile(infile)
+        title = f.attrs['header'].split('  ')[0]
+        simtime_string = f.attrs['times'][0]
+        nlon,nlat = np.array(f['grid'])
+        headers = [k for k in f.keys() if 'grid' not in k]
         grid = np.zeros([nlon*nlat,len(headers)])
-        for k,line in enumerate(f.readlines()):
-            grid[k,:] = [float(n) for n in line[0:-1].split()]
+        for i,key in enumerate(headers):
+            if key=='Lat':
+                grid[:,i] = np.array([f['Lon']]*len(f['Lat'])).flatten()
+            elif key=='Lon':
+                grid[:,i] = np.array([[lat]*len(f['Lon'])
+                                         for lat in f['Lat']]).flatten()
+            else:
+                grid[:,i] = f[key].flatten()
     return grid,headers
 
 def read_MGL(datapath,**kwargs):
@@ -380,8 +397,8 @@ def read_MGL(datapath,**kwargs):
         print('reading: ',infile)
         ftime = get_time(infile)
         ut = (ftime-t0).total_seconds()
-        #gp.recalc(ut)
-        grid,headers = readgrid(infile)
+        gp.recalc(ut)
+        grid,headers = readgrid(infile,**kwargs)
         #grid = pd.read_csv(f,sep='\s+',skiprows=[0,1,2])
         min_point = np.argmin(grid[:,headers.index('dBn')])
         dBmin[i] = grid[min_point,headers.index('dBn')]
@@ -389,9 +406,9 @@ def read_MGL(datapath,**kwargs):
         geoLon[i] = grid[min_point,headers.index('Lon')]
         smLat[i] = grid[min_point,headers.index('LatSm')]
         smLon[i] = grid[min_point,headers.index('LonSm')]%360
-        #x,y,z = gp.sphcar(1,grid[min_point,headers.index('Lat')],
-        #                    grid[min_point,headers.index('Lon')],1)
-        #gsmX[i],gsmY[i],gsmZ[i] = gp.geogsm(x,y,z,1)
+        x,y,z = gp.sphcar(1,grid[min_point,headers.index('Lat')],
+                            grid[min_point,headers.index('Lon')],1)
+        gsmX[i],gsmY[i],gsmZ[i] = gp.geogsm(x,y,z,1)
         dBMhd[i] = grid[min_point,headers.index('dBnMhd')]
         dBFac[i] = grid[min_point,headers.index('dBnFac')]
         dBPed[i] = grid[min_point,headers.index('dBnPed')]
@@ -427,31 +444,98 @@ def read_SML(datafile):
                         data[['year','month','day','hour','min','sec']].values]
     return data
 
-def out_to_tec(filein):
+def out_to_tec(filein,**kwargs):
     """Converts mag_grid_TIME.out to mag_grid_TIME.tec
     Inputs
         filein
     Returns
         fileout
     """
-    fileout = filein.replace('out','tec')
-    with open(filein, 'r') as f:
-        # Save the title as one line
-        titleline1 = f.readline()
-        titleline2 = f.readline()
-        titleline = titleline1.replace('\n','')+titleline2
-        title = 'TITLE="'+titleline.replace('\n','"\n')
+    inpath = '/'.join(filein.split('/')[0:-1])
+    #fileout = filein.replace('out','tec')
+    fileout = f'{inpath}{file_in.split(inpath)[-1].replace("out","tec")}'
+    if kwargs.get('type','ascii')=='ascii':
+        with open(filein, 'r') as f:
+            # Save the title as one line
+            titleline1 = f.readline()
+            titleline2 = f.readline()
+            titleline = titleline1.replace('\n','')+titleline2
+            title = 'TITLE="'+titleline.replace('\n','"\n')
+            # Get the structure from lat/lon numbers
+            structureline = f.readline()
+            nlon,nlat = structureline.split()
+            # Create tecplot 'ZONE' line
+            zone=f'ZONE T="MagGrid"\n I=  {nlon} J=  {nlat} F=POINT\n'
+            # Create tecplot 'VARIABLES' line
+            variableline = f.readline()
+            variables = ('VARIABLES="'+
+                            variableline.replace(' ','","').replace('\n','"\n'))
+            # Save rest of the data as one big string
+            data = f.readlines()
+    elif kwargs.get('type')=='real4':
+        from spacepy import pybats as bats# Well use the IDLreader spacepy
+        f = bats.IdlFile(filein)
+        # Pull title
+        titleline1 = f.attrs['header'].split('  ')[0]
+        title = f'TITLE="{titleline1}"\n'
+        # Setup geopack for coord transform
+        ftime = f.attrs['times'][0]
+        t0 = dt.datetime(1970,1,1)
+        ut = (ftime-t0).total_seconds()
+        gp.recalc(ut)
         # Get the structure from lat/lon numbers
-        structureline = f.readline()
-        nlon,nlat = structureline.split()
+        nlon,nlat = np.array(f['grid'])
         # Create tecplot 'ZONE' line
         zone=f'ZONE T="MagGrid"\n I=  {nlon} J=  {nlat} F=POINT\n'
+        # Reorder data from the datamodel into a flattened numpy array
+        headers = [k for k in f.keys() if 'grid' not in k]
+        grid = np.zeros([nlon*nlat,len(headers)+3])
+        xsm=1*np.sin(np.deg2rad(f['LatSm']+90))*np.cos(np.deg2rad(f['LonSm']))
+        ysm=1*np.sin(np.deg2rad(f['LatSm']+90))*np.sin(np.deg2rad(f['LonSm']))
+        zsm=1*np.cos(np.deg2rad(f['LatSm']+90))
+        for i,key in enumerate(headers):
+            print(i,key,3+i)
+            if key=='Lon':
+                #xgeo,ygeo,zgeo = [gp.geomag(x,y,z,-1) for x,y,z in
+                #                                          zip(xgsm,ygsm,zgsm)]
+                #grid[:,3+i] = np.zeros([len(grid)])
+                continue
+            elif key=='Lat':
+                #grid[:,3+i] = np.array([[lat]*len(f['Lon'])
+                #                         for lat in f['Lat']]).flatten()
+                continue
+            else:
+                grid[:,3+i] = f[key].flatten()
+        # Recover xyz because for some reason it's gone?
+        gsmX   = np.zeros([len(grid)])
+        gsmY   = np.zeros([len(grid)])
+        gsmZ   = np.zeros([len(grid)])
+        magX   = np.zeros([len(grid)])
+        magY   = np.zeros([len(grid)])
+        magZ   = np.zeros([len(grid)])
+        for i,(lat,lon) in enumerate(zip(grid[:,headers.index('LatSm')+3],
+                                         grid[:,headers.index('LonSm')+3])):
+            #x,y,z = gp.sphcar(1,np.deg2rad(lat+90),np.deg2rad(lon),1)
+            x = 1*np.sin(np.deg2rad(lat+90))*np.cos(np.deg2rad(lon))
+            y = 1*np.sin(np.deg2rad(lat+90))*np.sin(np.deg2rad(lon))
+            z = 1*np.cos(np.deg2rad(lat+90))
+            magX,magY,magZ = gp.magsm(x,y,z,-1)
+            geoX,geoY,geoZ = gp.geomag(magX,magY,magZ,-1)
+            gsmX[i],gsmY[i],gsmZ[i] = gp.geogsm(geoX,geoY,geoZ,1)
+        from IPython import embed; embed()
+        headers.insert(0,'X')
+        headers.insert(1,'Y')
+        headers.insert(2,'Z')
+        grid[:,0] = gsmX
+        grid[:,1] = gsmY
+        grid[:,2] = gsmZ
         # Create tecplot 'VARIABLES' line
-        variableline = f.readline()
-        variables = ('VARIABLES="'+
-                           variableline.replace(' ','","').replace('\n','"\n'))
-        # Save rest of the data as one big string
-        data = f.readlines()
+        strHeaders = '","'.join([str(k) for k in headers if 'grid' not in k])
+        variables = f'VARIABLES="{strHeaders}"'
+        # Convert numpy array to a big ol string
+        data = ''
+        for i,line in enumerate(grid):
+            data+=' '.join([f'{v:E}' for v in grid[i]])+'\n'
     with open(fileout,'w') as fout:
         fout.write(title)
         fout.write(variables)
@@ -468,9 +552,9 @@ if __name__ == "__main__":
     #file_in = ('ccmc_2022-02-02/magnetometers_e20220202-050000.mag')
     #file_in=('localdbug/parameter_study/MEDHIGH/mag_grid_e20220607-084400.out')
     inpath = sys.argv[sys.argv.index('-i')+1]
-    for file_in in glob.glob(inpath+'/GM/IO2/mag_grid*.out'):
+    for file_in in glob.glob(inpath+'/mag_grid*.out')[0:1]:
         if not os.path.exists(file_in.replace('out','tec')):
-            file_out = out_to_tec(file_in)
+            file_out = out_to_tec(file_in,type='real4')
     #sml_file = 'localdbug/mod_supermag_starlink.txt'
     #smldata = read_SML(sml_file)
     #vsmldata = read_virtual_SML(file_in)

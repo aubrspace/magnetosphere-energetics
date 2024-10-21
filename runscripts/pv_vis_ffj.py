@@ -27,12 +27,12 @@ if True:
     start_time = time.time()
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
-    inpath = os.path.join(herepath,'localdbug/starlink/')
-    outpath= os.path.join(inpath,'test_output/')
+    #inpath = os.path.join(herepath,'localdbug/starlink/')
+    #outpath= os.path.join(inpath,'test_output/')
     #inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
     #outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
-    #inpath = os.path.join(herepath,'localdbug/parameter_study/LOWnLOWu/')
-    #outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
+    inpath = os.path.join(herepath,'localdbug/parameter_study/LOWnLOWu/')
+    outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
 
     filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
                       key=time_sort)

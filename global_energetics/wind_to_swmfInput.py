@@ -65,15 +65,14 @@ def read_SWMF_IMF(filename):
         print('reading '+filename)
         with open(filename,'r') as IMF:
             skip = []
-            for line in enumerate(IMF):
-                if line[1].find('START')!=-1:
-                    skip.append(line[0])
+            for i,line in enumerate(IMF):
+                skip.append(i)
+                if 'year' in line:
+                    headers=line.split()
+                elif 'START' in line:
                     break
-                else:
-                    if line[0]!= 0:
-                        skip.append(line[0])
-        return pd.read_csv(filename,sep='\s+',header=0,skiprows=skip,
-                           parse_dates={'Time_UTC':['yr','mn','dy','hr',
+        return pd.read_csv(filename,sep='\s+',names=headers,skiprows=skip,
+                    parse_dates={'times':['year','month','day','hour',
                                                     'min','sec','msec']},
                            date_parser=datetimeparser,
                            infer_datetime_format=True, keep_date_col=True)
@@ -466,16 +465,19 @@ def collect_themis(start, end, **kwargs):
             n_ion_key = 'th'+num.lower()+'_peim_density'
             u_ion_key = 'th'+num.lower()+'_peim_velocity_gsm'
             p_ion_key = 'th'+num.lower()+'_peim_ptot'
+            quality_key = f'th{num.lower()}_peim_data_quality'
             epoch_key = 'th'+num.lower()+'_peim_epoch'
             status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
                                                                 u_ion_key,
-                                                                p_ion_key],
+                                                                p_ion_key,
+                                                                quality_key],
                                                         start-buff,end+buff)
             if plasmadata:
                 df.index = plasmadata[epoch_key]
                 df['n'] = plasmadata[n_ion_key] # n/cc
                 df[['vx','vy','vz']] = plasmadata[u_ion_key] # km/s
                 df['p'] = plasmadata[p_ion_key] # eV/cc
+                df['quality'] = plasmadata[quality_key]
                 df = df[(df.index>start)&(df.index<end)]
             plasma['themis'+num] = df
     if kwargs.get('writeData',True):

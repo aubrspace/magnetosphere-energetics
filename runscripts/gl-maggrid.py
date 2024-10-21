@@ -29,11 +29,15 @@ if __name__ == "__main__":
         outpath = sys.argv[sys.argv.index('--odir')+1]
     else:
         outpath = 'test_outputs/'
+    if '-b' in sys.argv:
+        filetype = 'real4'
+    else:
+        filetype = 'ascii'
     ########################################
     #make directories for output
     os.makedirs(outpath, exist_ok=True)
     ########################################
-    MGL = magnetometer.read_MGL(inpath)
+    MGL = magnetometer.read_MGL(inpath,type=filetype)
     mgl_file = os.path.join(outpath,'MGL.h5')
     MGL.to_hdf(mgl_file,key='gridMin')
     print('Created ',mgl_file)

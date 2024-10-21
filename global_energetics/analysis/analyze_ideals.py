@@ -5,6 +5,7 @@ import os,sys,glob,time
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt, rad2deg, matmul, deg2rad
 from scipy import signal
+from scipy import stats
 from scipy.stats import linregress
 import datetime as dt
 import pandas as pd
@@ -424,7 +425,7 @@ def test_matrix(event,ev,path):
 
 def plot_indices(dataset,path):
     interval_list = build_interval_list(TSTART,DT,TJUMP,
-                                       dataset['stretched_MEDnHIGHu']['time'])
+                                       dataset['stretched_MEDnMEDu']['time'])
     colors = ['#80b3ffff','#0066ffff','#0044aaff',
               '#80ffb3ff','#00aa44ff','#005500ff',
               '#ffe680ff','#ffcc00ff','#806600ff']
@@ -445,7 +446,8 @@ def plot_indices(dataset,path):
                   'stretched_HIGHnHIGHu']
     #############
     #setup figure
-    indices,(axis1,axis2,axis3) =plt.subplots(3,1,figsize=[20,20],sharex=True)
+    indices,(axis1,axis2,axis3,axis4) =plt.subplots(4,1,figsize=[20,20],
+                                                    sharex=True)
     for i,event in enumerate(testpoints):
         if event not in dataset.keys():
             continue
@@ -454,6 +456,8 @@ def plot_indices(dataset,path):
         times = [float(n.to_numpy()) for n in timedelta]
         supdelta = [t-T0 for t in dataset[event]['obs']['super_log'].index]
         suptimes = [float(n.to_numpy()) for n in supdelta]
+        griddelta = [t-T0 for t in dataset[event]['obs']['gridMin'].index]
+        gridtimes = [float(n.to_numpy()) for n in griddelta]
         inddelta = [t-T0 for t in dataset[event]['obs']['swmf_index'].index]
         indtimes = [float(n.to_numpy()) for n in inddelta]
         utimedelta = [t-T0 for t in dataset[event]['mpdict']['ms_full'].index]
@@ -468,14 +472,14 @@ def plot_indices(dataset,path):
                   dataset[event]['obs']['swmf_log']['dst_sm'],
                   label=event,c=colors[i],lw=3,ls=styles[i],marker=markers[i],
                   markevery=50)
-        #axis3.plot(indtimes,dataset[event]['obs']['swmf_index']['AL'],
-        #           label=event,c=colors[i])
         #axis3.plot(suptimes,dataset[event]['obs']['super_log']['SML'],
         #           label=event,c=colors[i],ls=styles[i],marker=markers[i],
         #           markevery=10)
-        axis3.plot(suptimes,dataset[event]['obs']['gridMin']['dBmin'],
+        axis3.plot(gridtimes,dataset[event]['obs']['gridMin']['dBmin'],
                    label=event,c=colors[i],ls=styles[i],
                    marker=markers[i],markevery=10)
+        axis4.plot(times,dataset[event]['obs']['swmf_log']['cpcpn'],
+                   label=event,c=colors[i])
     for interv in interval_list:
         axis1.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
@@ -483,17 +487,21 @@ def plot_indices(dataset,path):
                       c='grey')
         axis3.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                       c='grey')
+        axis4.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
+                      c='grey')
 
     general_plot_settings(axis1,do_xlabel=False,legend=False,
                           ylabel=r'Energy $\left[PJ\right]$',timedelta=True)
     general_plot_settings(axis2,do_xlabel=False,legend=False,
                           ylabel=r'Dst $\left[nT\right]$',timedelta=True)
-    general_plot_settings(axis3,do_xlabel=True,legend=False,
+    general_plot_settings(axis3,do_xlabel=False,legend=False,
                           ylabel=r'GridL $\left[nT\right]$',timedelta=True)
+    general_plot_settings(axis4,do_xlabel=True,legend=False,
+                        ylabel=r'CPCP North $\left[kV\right]$',timedelta=True)
     axis1.margins(x=0.01)
     axis2.margins(x=0.01)
     axis3.margins(x=0.01)
-    indices.tight_layout(pad=1)
+    indices.tight_layout(pad=0.5)
     figurename = path+'/indices.svg'
     indices.savefig(figurename)
     plt.close(indices)
@@ -1614,36 +1622,19 @@ def all_fluxes(ev,event,path,**kwargs):
                                         ev['mp'].index)
     #############
     #setup figure
-    Fluxes,(Kexternal,Energy_dst,al) = plt.subplots(3,1,figsize=[24,24],
-                                                    sharex=True)
+    Fluxes,(Kexternal,al,cpcp,Energy_dst) = plt.subplots(4,1,
+                                                            figsize=[24,24],
+                                                            sharex=True)
     test1,(Kinternal) = plt.subplots(1,1,figsize=[24,16],sharex=True)
     # Tighten up the window
     al_values = dataset[event]['obs']['swmf_index']['AL']
     sml_values = dataset[event]['obs']['super_log']['SML']
     dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
     if 'zoom' in kwargs:
-        xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in kwargs.get('zoom')]
+        xlims = [float(pd.Timedelta(t-T0).to_numpy())
+                 for t in kwargs.get('zoom')]
     else:
         xlims = None
-    '''
-        zoom = [tkwargs.get('zoom')
-        #zoom
-        zoom = kwargs.get('zoom')
-        mp_window = ((ev['mp'].index>zoom[0])&(ev['mp'].index<zoom[1]))
-        index_window = (
-                (dataset[event]['obs']['swmf_index']['AL'].index>zoom[0])&
-                (dataset[event]['obs']['swmf_index']['AL'].index<zoom[1]))
-        log_window = (
-                (dataset[event]['obs']['swmf_log']['dst_sm'].index>zoom[0])&
-                (dataset[event]['obs']['swmf_log']['dst_sm'].index<zoom[1]))
-        zoomed = {}
-        for key in ev.keys():
-            if len(mp_window)==len(ev[key]):
-                zoomed[key] = np.array(ev[key])[mp_window]
-        ev = zoomed
-        al_values = dataset[event]['obs']['swmf_index']['AL'][index_window]
-        dst_values = dataset[event]['obs']['swmf_log']['dst_sm'][log_window]
-    '''
     # Get time markings that match the format
     inddelta = [t-T0 for t in sml_values.index]
     indtimes = [float(n.to_numpy()) for n in inddelta]
@@ -1685,27 +1676,33 @@ def all_fluxes(ev,event,path,**kwargs):
     rax = Energy_dst.twinx()
     rax.plot(logtimes,dst_values,label='Dst (simulated)',color='black')
     # SML and GridL
-    #al.plot(indtimes,sml_values,label='SML (simulated)',color='black')
     colors=['grey','goldenrod','red','blue']
     for i,source in enumerate(['dBMhd','dBFac','dBPed','dBHal']):
        al.plot(ev['times'],ev['maggrid'][source],label=source,c=colors[i])
     al.plot(ev['times'],ev['GridL'],label='Total',color='black')
+    # Cross Polar Cap Potential
+    cpcp.plot(ev['simt'],ev['sim']['cpcpn'],label='North',c='orange')
+    cpcp.plot(ev['simt'],ev['sim']['cpcps'],label='South',c='blue')
     #Decorations
     general_plot_settings(Kexternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
-                          ylim=[-25,17],xlim=xlims,
+                          ylim=[-5,5],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
     Kexternal.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
                      ncol=3, fancybox=True, shadow=True)
     general_plot_settings(Kinternal,do_xlabel=False,legend=True,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
-                          ylim=[-30,10],xlim=xlims,
+                          ylim=[-5,5],xlim=xlims,
                           timedelta=True,legend_loc='lower left')
-    general_plot_settings(Energy_dst,do_xlabel=False,legend=True,
-                          ylabel=r'$\int_V U\left[PJ\right]$',xlim=xlims,
-                          timedelta=True,legend_loc='lower left')
-    general_plot_settings(al,do_xlabel=True,legend=True,xlim=xlims,
+    general_plot_settings(al,do_xlabel=False,legend=True,xlim=xlims,
                           ylabel=r'$\Delta B_{N} \left[nT\right]$',
+                          timedelta=True,legend_loc='lower left')
+    general_plot_settings(cpcp,do_xlabel=False,legend=True,xlim=xlims,
+                          ylim=[0,120],
+                          ylabel=r'CPCP $\left[kV\right]$',
+                          timedelta=True,legend_loc='upper left')
+    general_plot_settings(Energy_dst,do_xlabel=True,legend=True,
+                          ylabel=r'$\int_V U\left[PJ\right]$',xlim=xlims,
                           timedelta=True,legend_loc='lower left')
     rax.set_ylabel(r'$\Delta B \left[nT\right]$')
     rax.legend(loc='lower right')
@@ -1721,9 +1718,9 @@ def all_fluxes(ev,event,path,**kwargs):
                           c='grey')
         Kinternal.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
+        al.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
+        cpcp.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
         Energy_dst.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                          c='grey')
-        al.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
                           c='grey')
     Kexternal.axhline(0,c='black')
     Kinternal.axhline(0,c='black')
@@ -1761,11 +1758,44 @@ def all_fluxes(ev,event,path,**kwargs):
     '''
     plt.close(Fluxes)
 
+def power_spectra(ev,run,**kwargs):
+    """Function takes power spectra of a number of signals and stores info
+    about it for comparison across signals and across events
+    Inputs
+        ev
+        run
+        kwargs:
+    Returns
+        results
+    """
+    results = pd.DataFrame()
+    # Build intervals
+    interval_list = build_interval_list(TSTART,DT,TJUMP,
+                                        dataset['stretched_MEDnMEDu']['time'])
+    # Obtain series of interest for this event
+    flux = ev['K1']
+    energy = ev['U']
+    gridL = ev['GridL']
+    cpcpn = ev['sim']['cpcpn']
+    cpcps = ev['sim']['cpcps']
+    for save_key,full_series in [('K1',flux),('U',energy),('gridL',gridL),
+                                 ('cpcpn',cpcpn),('cpcps',cpcps)]:
+        results[save_key] = np.zeros(len(interval_list))
+        for i,(start,end) in enumerate(interval_list):
+            # Take power spectral density over the 2hours
+            series = full_series[(full_series.index>start) &
+                                 (full_series.index<end)]
+            f, Pxx = signal.periodogram(series,scaling='spectrum')
+            # Save period of max frequency (T[s] = 1/f[Hz])
+            T_peak = (1/f[Pxx==Pxx.max()][0]) #period in minutes
+            results[save_key][i] = T_peak
+    return results
+
 def build_events(ev,run,**kwargs):
     events = pd.DataFrame()
     ## ID types of events
     # Construction (test matrix) signatures
-    events['imf_transients'] = ID_imftransient(ev,**kwargs)
+    events['imf_transients'] = ID_imftransient(ev,run,**kwargs)
     # Internal process signatures
     events['DIPx'],events['DIPb'],events['DIP']=ID_dipolarizations(ev,**kwargs)
     events['plasmoids_volume'] = ID_plasmoids(ev,mode='volume')
@@ -1775,26 +1805,48 @@ def build_events(ev,run,**kwargs):
     events['MGLbays'],events['MGLonsets'],events['MGLpsuedos'],_=ID_ALbays(ev,
                                                               al_series='MGL')
     # ID MPBs
-    events['substorm'] = np.ceil((events['DIPx']+
+    events['substorm'] = np.ceil((#events['DIPx']+
                                   events['DIPb']+
                                   events['plasmoids_volume']+
                                   events['plasmoids_mass']+
                                   events['MGLbays'])
                                   #events['MGLpsuedos'])
-                                  /5)
+                                  /4)
+                                  #events['ALbays']/5
+    events['allsubstorm'] = np.floor((#events['DIPx']+
+                                  events['DIPb']+
+                                  events['plasmoids_volume']+
+                                  events['plasmoids_mass']+
+                                  events['MGLbays'])
+                                  #events['MGLpsuedos'])
+                                  /4)
                                   #events['ALbays']/5
     # Coupling variability signatures
-    events['K1var'],events['K1unsteady'],events['K1err'] = ID_variability(
-                                                                     ev['K1'])
-    events['K5var'],events['K5unsteady'],events['K5err'] = ID_variability(
-                                                                     ev['K5'])
-    events['K15var'],events['K15unsteady'],events['K15err'] = ID_variability(
-                                                            ev['K1']+ev['K5'])
-    events['both'] = np.ceil((events['substorm']+events['imf_transients'])/2)
+    events['K1var'],events['K1unsteady'],events['K1err']=ID_variability(
+                                                                    ev['K1'])
+    events['K1var_10R10'],events['K1unsteady'],events['K1err']=ID_variability(
+                                                                    ev['K1'],
+                                                       lookbehind=10,
+                                                       lookahead=10)
+    events['K1var_10-10'],_,__ = ID_variability(ev['K1'],relative=False,
+                                                       lookbehind=10,
+                                                       lookahead=10)
+    events['K1var_60R60'],events['K1unsteady'],events['K1err']=ID_variability(
+                                                                     ev['K1'],
+                                                       lookbehind=60,
+                                                       lookahead=60)
+    events['K1var_60-60'],_,__ = ID_variability(ev['K1'],relative=False,
+                                                       lookbehind=60,
+                                                       lookahead=60)
+    #events['K5var'],events['K5unsteady'],events['K5err'] = ID_variability(
+    #                                                                 ev['K5'])
+    #events['K15var'],events['K15unsteady'],events['K15err'] = ID_variability(
+    #                                                        ev['K1']+ev['K5'])
+    events['clean']=np.ceil((1+events['substorm']-events['imf_transients'])/2)
     # other combos
     return events
 
-def ID_imftransient(ev,window=30,**kwargs):
+def ID_imftransient(ev,run,**kwargs):
     """Function that puts a flag for when the imf change is affecting the
         integrated results
     Inputs
@@ -1803,6 +1855,13 @@ def ID_imftransient(ev,window=30,**kwargs):
         kwargs:
             None
     """
+    # If we assume the X length of the simulation domain
+    simX = kwargs.get('xmax',32)-kwargs.get('xmin',-224)
+    # X velocity denoted by the event name
+    vx_dict = {'HIGH':800,'MED':600,'LOW':400}
+    vx_str = run.split('n')[1].split('u')[0]
+    # Simple balistics
+    window = simX*6371/vx_dict[vx_str]/60
     # find the times when imf change has occured
     times = ev['mp'].index
     intervals = build_interval_list(TSTART,dt.timedelta(minutes=window),TJUMP,
@@ -2077,87 +2136,128 @@ def show_full_hist(events,path,**kwargs):
                   'stretched_HIGHnHIGHu']
     #############
     #setup figure
-    fig1,(k1) = plt.subplots(1,1,figsize=[10,10])
-    fig2,(k1err) = plt.subplots(1,1,figsize=[10,10])
+    #fig1,((ax1,ax2),(ax3,ax4)) = plt.subplots(2,2,figsize=[20,20])
+    fig1,(ax1,ax2) = plt.subplots(1,2,figsize=[20,10])
+    fig2,((ax3,ax4,ax5),(ax6,ax7,ax8)) = plt.subplots(2,3,figsize=[30,20])
     allK1var = np.array([])
-    allK1err = np.array([])
+    allK1var2 = np.array([])
+    anySubstorm = np.array([])
     allSubstorm = np.array([])
+    dipx = np.array([])
+    dipb = np.array([])
+    moidv= np.array([])
+    moidm= np.array([])
+    mgl  = np.array([])
+    imf  = np.array([])
     for i,run in enumerate(testpoints):
         if run not in events.keys():
             continue
-        evK1var = events[run]['K1var']
-        evK1err = events[run]['K1err']
-        evSubstorm = events[run]['substorm']
-        allK1var = np.append(allK1var,evK1var.values)
-        allK1err = np.append(allK1err,evK1err.values)
-        allSubstorm = np.append(allSubstorm,evSubstorm.values)
-    dfK1var = pd.DataFrame({'K1var':allK1var,'substorm':allSubstorm})
-    dfK1err = pd.DataFrame({'K1err':allK1err})
-    # Scrub outliers twice
-    #outliers = np.where((dfK1var['K1var']>2*dfK1var['K1var'].std()))[0]
-    #dfK1var.drop(index=outliers,inplace=True)
-    #dfK1var.reset_index(drop=True,inplace=True)
-    #outliers = np.where((dfK1var['K1var']>3*dfK1var['K1var'].std()))[0]
-    #dfK1var.drop(index=outliers,inplace=True)
-    #dfK1var.reset_index(drop=True,inplace=True)
-    binsvar = np.linspace(dfK1var['K1var'].quantile(0.00),
-                       dfK1var['K1var'].quantile(0.95),51)
-    binserr = np.linspace(-35,35,51)
-    # Create 2 stacks
-    layer1 = dfK1var['K1var'][dfK1var['substorm']==0]
-    layer2 = dfK1var['K1var'][dfK1var['substorm']==1]
-    y1,x = np.histogram(layer1,bins=binsvar)
-    y2,x2 = np.histogram(layer2,bins=binsvar)
-    # Variability
-    q50_var =dfK1var['K1var'].quantile(0.50)
-    mean_var =dfK1var['K1var'].mean()
-    #k1.hist(dfK1var['K1var'],bins=binsvar,fc='green')
-    #k1.bar(x[1::],y1,3,fc='green',label='quiet')
-    #k1.bar(x[1::],y2,3,bottom=y1,fc='magenta',label='substorm')
-    k1.stairs(y1+y2,edges=x,fill=True,fc='grey',alpha=0.4,label='total')
-    k1.stairs(y2,x,fill=True,fc='green',label='substorm',alpha=0.4)
-    k1.stairs(y1,x,fill=True,fc='blue',label='non-substorm',alpha=0.4)
-    k1.axvline(dfK1var['K1var'].quantile(0.50),c='black',lw=4)
-    k1.axvline(layer1.quantile(0.50),c='darkblue',lw=2)
-    k1.axvline(layer2.quantile(0.50),c='darkgreen',lw=2)
-    k1q50 = k1.text(1,0.94,'Median'+f'={q50_var:.1f}%',
-                     transform=k1.transAxes,
-                     horizontalalignment='right')
-    #k1mean = k1.text(1,0.94,r'Mean'+f'={mean_var:.1f}%',
-    #                 transform=k1.transAxes,c='black',
-    #                 horizontalalignment='right')
-    k1.legend(loc='center right')
-    # Error
-    q75_err =dfK1err['K1err'].quantile(0.75)
-    mean_err =dfK1err['K1err'].mean()
-    k1err.hist(dfK1err['K1err'],bins=binserr,fc='purple')
-    k1err.axvline(dfK1err['K1err'].quantile(0.75),c='black',lw=4)
-    k1errq75 = k1err.text(1,0.94,r'$75^{th}$ Percentile'+f'={q75_err:.1f}%',
-                     transform=k1.transAxes,
-                     horizontalalignment='right')
-    k1errmean = k1err.text(1,0.88,r'Mean'+f'={mean_err:.1f}%',
-                     transform=k1.transAxes,c='grey',
-                     horizontalalignment='right')
-    # Decorate
-    k1.set_xlabel('Total Variation of \n'+
-                 r'$\int_1\mathbf{K}\left[\%\right]$')
-    k1.set_ylabel('Counts')
-    k1.set_xlim(0,150)
+        evK1var = events[run]['K1var_10-10']/1e12
+        evK1var2 = events[run]['K1var_10R10']
 
-    k1err.set_xlabel('Rel.Error of \n'+
-                 r'$\int_{\Delta t}\int_1\mathbf{K}\left[\%\right]$')
-    k1err.set_ylabel('Counts')
-    k1err.set_xlim(-35,35)
+        evIMF  = events[run]['imf_transients']
+        evAny  =(events[run]['substorm']*(1-evIMF))
+        evAll  =(events[run]['allsubstorm']*(1-evIMF))
+        evDipx =(events[run]['DIPx']*(1-evIMF))
+        evDipb =(events[run]['DIPb']*(1-evIMF))
+        evMoidv=(events[run]['plasmoids_volume']*(1-evIMF))
+        evMoidm=(events[run]['plasmoids_mass']*(1-evIMF))
+        evMgl  =(events[run]['MGLbays']*(1-evIMF))
+
+        allK1var = np.append(allK1var,evK1var.values)
+        allK1var2 = np.append(allK1var2,evK1var2.values)
+        anySubstorm = np.append(anySubstorm,evAny.values)
+        allSubstorm = np.append(allSubstorm,evAll.values)
+        dipx  = np.append(dipx,evDipx.values)
+        dipb  = np.append(dipb,evDipb.values)
+        moidv = np.append(moidv,evMoidv.values)
+        moidm = np.append(moidm,evMoidm.values)
+        mgl   = np.append(mgl,evMgl.values)
+        imf   = np.append(imf,evIMF.values)
+    dfK1var = pd.DataFrame({'K1var':allK1var,
+                            'anysubstorm':anySubstorm,
+                            'allsubstorm':allSubstorm,
+                            'DIPx':dipx,
+                            'DIPb':dipb,
+                            'moidsv':moidv,
+                            'moidsm':moidm,
+                            'MGL':mgl,
+                            'IMF':imf})
+    dfK1var2 = pd.DataFrame({'K1var':allK1var2,
+                            'anysubstorm':anySubstorm,
+                            'allsubstorm':allSubstorm,
+                            'DIPx':dipx,
+                            'DIPb':dipb,
+                            'moidsv':moidv,
+                            'moidsm':moidm,
+                            'MGL':mgl,
+                            'IMF':imf})
+    for ax,df,key in[(ax1,dfK1var,'anysubstorm'),(ax2,dfK1var2,'anysubstorm'),
+                     (ax3,dfK1var2,'allsubstorm'),
+                     (ax4,dfK1var2,'DIPx'),
+                     (ax5,dfK1var2,'DIPb'),
+                     (ax6,dfK1var2,'moidsv'),
+                     (ax7,dfK1var2,'moidsm'),
+                     (ax8,dfK1var2,'MGL')]:
+        # Scrub outliers twice
+        #outliers = np.where((dfK1var['K1var']>2*dfK1var['K1var'].std()))[0]
+        #dfK1var.drop(index=outliers,inplace=True)
+        #dfK1var.reset_index(drop=True,inplace=True)
+        #outliers = np.where((dfK1var['K1var']>3*dfK1var['K1var'].std()))[0]
+        #dfK1var.drop(index=outliers,inplace=True)
+        #dfK1var.reset_index(drop=True,inplace=True)
+        binsvar = np.linspace(df['K1var'].quantile(0.00),
+                              df['K1var'].quantile(0.95),51)
+        # Create 3 stacks
+        layer1 = df['K1var'][(df[key]==0)&(df['IMF']==0)]
+        layer2 = df['K1var'][df['IMF']==1]
+        layer3 = df['K1var'][df[key]==1]
+        y1,x = np.histogram(layer1,bins=binsvar)
+        y2,x2 = np.histogram(layer2,bins=binsvar)
+        y3,x3 = np.histogram(layer3,bins=binsvar)
+        # Variability
+        ax.stairs(y1+y2+y3,edges=x,fill=True,fc='grey',alpha=0.4,label='total')
+        ax.stairs(y2,x,fill=True,fc='black',label=f'IMFTransit',alpha=0.4)
+        ax.stairs(y1,x,fill=True,fc='blue',label=f'not-{key}',alpha=0.4)
+        ax.stairs(y3,x,fill=True,fc='green',label=key,alpha=0.4)
+        #
+        ax.stairs(y1+y2+y3,edges=x,ec='grey',label='_total')
+        ax.stairs(y2,x,ec='black',label=f'_IMFTransit')
+        ax.stairs(y1,x,ec='blue',label=f'_not-{key}')
+        ax.stairs(y3,x,ec='green',label=f'_{key}')
+        #
+        ax.axvline(df['K1var'].quantile(0.50),c='grey',lw=4)
+        ax.axvline(layer1.quantile(0.50),c='darkblue',lw=2)
+        ax.axvline(layer2.quantile(0.50),c='black',lw=2)
+        ax.axvline(layer3.quantile(0.50),c='darkgreen',lw=2)
+        ax.legend(loc='center right')
+        ax.set_ylabel('Counts')
+        # Decorate
+        q50_var =df['K1var'].quantile(0.50)
+        if ax!=ax1:
+            ax.text(1,0.94,'Median'+f'={q50_var:.2f}[%]',
+                        transform=ax.transAxes,
+                        horizontalalignment='right')
+        ax.set_xlabel('Total Variation of \n'+
+                  r'$\int_{-10}^{10}\mathbf{K_1}\left[\%\right]$')
+    #ax1.set_xlabel('Total Variation of \n'+
+    #              r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
+    q50_var =dfK1var['K1var'].quantile(0.50)
+    ax1.text(1,0.94,'Median'+f'={q50_var:.2f}[TW]',
+                        transform=ax1.transAxes,
+                        horizontalalignment='right')
+    ax1.set_xlabel('Total Variation of \n'+
+                     r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
 
     # Save
     fig1.tight_layout(pad=1)
-    figurename = path+'/hist_eventsK1_all.png'
+    figurename = path+'/hist_eventsK1_1.png'
     fig1.savefig(figurename)
     plt.close(fig1)
     print('\033[92m Created\033[00m',figurename)
 
     fig2.tight_layout(pad=1)
-    figurename = path+'/hist_eventsK1err_all.png'
+    figurename = path+'/hist_eventsK1_2.png'
     fig2.savefig(figurename)
     plt.close(fig2)
     print('\033[92m Created\033[00m',figurename)
@@ -2245,6 +2345,17 @@ def show_event_hist(ev,run,events,path,**kwargs):
     print('\033[92m Created\033[00m',figurename)
 
 def show_events(ev,run,events,path,**kwargs):
+    #TODO
+    #   1. Find a potential example of a plasmoid release
+    #   2. run this function just around that time window ~+/- 1 hour
+    #   3. verify that it looks good for all signals
+    #   4. look in 3D data:
+    #       download 15ish files
+    #       plot meridional plane with some B traces
+    #       create movie/still frames
+    #       see if plasmoid is there
+    #   5. Return to 1 unless good example is found
+    #   6. Revisit still frames to make 'perfect' pictures
     sw_intervals = build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
     interval_list =build_interval_list(T0,dt.timedelta(minutes=15),
                                       dt.timedelta(minutes=15),ev['mp'].index)
@@ -2257,22 +2368,24 @@ def show_events(ev,run,events,path,**kwargs):
         #ztimes = [ev['times'][0],ev['times'][-1]]
         ztimes = None
     #Create handy variables for marking found points on curves
-    foundDIPx = hide_zeros(ev['mp']['X_NEXL [Re]']*events[run]['DIPx'].values)
-    foundDIPb = hide_zeros(ev['closed']['u_db_night [J]']*
-                           events[run]['DIPb'].values)
+    Any  =events[run]['substorm']*(1-events[run]['imf_transients'])
+    All  =events[run]['allsubstorm']*(1-events[run]['imf_transients'])
+    Psu  =events[run]['MGLpsuedos']*(1-events[run]['imf_transients'])
+    Dipx =events[run]['DIPx']*(1-events[run]['imf_transients'])
+    Dipb =events[run]['DIPb']*(1-events[run]['imf_transients'])
+    Moidv=events[run]['plasmoids_volume']*(1-events[run]['imf_transients'])
+    Moidm=events[run]['plasmoids_mass']*(1-events[run]['imf_transients'])
+    Mgl  =events[run]['MGLbays']*(1-events[run]['imf_transients'])
+    foundIMF  = hide_zeros(events[run]['imf_transients'].values)
+    foundDIPx = hide_zeros(ev['mp']['X_NEXL [Re]']*Dipx.values)
+    foundDIPb = hide_zeros(ev['closed']['u_db_night [J]']*Dipb.values)
     foundK1 = hide_zeros(ev['K1']*events[run]['K1unsteady'].values)
-    foundVMOID = hide_zeros(ev['closed']['Volume [Re^3]']*
-                            events[run]['plasmoids_volume'].values)
-    foundMMOID = hide_zeros(ev['closed']['M [kg]']*
-                            events[run]['plasmoids_mass'].values)
-    foundGridL = hide_zeros(ev['GridL']*
-                            events[run]['MGLbays'].values)
-    foundPsuedos = hide_zeros(ev['GridL']*
-                            events[run]['MGLpsuedos'].values)
-    foundSubstorm = hide_zeros(ev['K1']*
-                            events[run]['substorm'].values)
-    varSubstorm = hide_zeros(events[run]['K1var']*
-                            events[run]['substorm'].values)
+    foundVMOID = hide_zeros(ev['closed']['Volume [Re^3]']*Moidv.values)
+    foundMMOID = hide_zeros(ev['closed']['M [kg]']*Moidm.values)
+    foundGridL = hide_zeros(ev['GridL']*Mgl.values)
+    foundPsuedos = hide_zeros(ev['GridL']*Psu.values)
+    foundSubstorm = hide_zeros(ev['K1']*Any.values)
+    varSubstorm = hide_zeros(events[run]['K1var']*Any.values)
     #############
     #setup figure
     fig1,axes = plt.subplots(7,1,figsize=[24,35],sharex=True)
@@ -2338,7 +2451,7 @@ def show_events(ev,run,events,path,**kwargs):
                           timedelta=True)
     general_plot_settings(glbays,do_xlabel=False,legend=False,
                           ylabel=r'GridL $\left[nT\right]$',
-                          xlim=ztimes,ylim=[-1200,0],
+                          xlim=ztimes,ylim=[-1800,0],
                           timedelta=True)
     general_plot_settings(k1var,do_xlabel=False,legend=False,
                           ylabel=r'Total Variation $\left[\%\right]$',
@@ -2347,14 +2460,13 @@ def show_events(ev,run,events,path,**kwargs):
     general_plot_settings(k1,do_xlabel=True,legend=False,
                           ylabel=r'$\int_S\mathbf{K}_1\left[TW\right]$',
                           xlim=ztimes,
-                          ylim=[-10,2],
+                          ylim=[-15,2],
                           timedelta=True)
-    nexl.margins(x=0.1)
-    udb.margins(x=0.1)
-    v_moids.margins(x=0.1)
-    m_moids.margins(x=0.1)
-    glbays.margins(x=0.1)
-    k1.margins(x=0.1)
+    for ax in [nexl,udb,v_moids,m_moids,glbays,k1,k1var]:
+        ax.fill_between(ev['times'],ax.get_ylim()[0]*foundIMF,
+                                    ax.get_ylim()[1]*foundIMF,
+                        fc='black',alpha=0.4)
+        ax.margins(x=0.1)
 
     #Save
     fig1.tight_layout(pad=1)
@@ -2388,6 +2500,60 @@ def show_events(ev,run,events,path,**kwargs):
     plt.close(fig4)
     print('\033[92m Created\033[00m',figurename)
     '''
+
+def scatter_spectra(data,path):
+    #NOTE This didn't turn out well bc only ~120 data points in each sample
+    #       which I believe is limiting the possible signals present
+    #       this leads to many repeat values which is hard to interpret
+    #       Likely omit this from the paper
+    #           -AB
+    allk1 = np.array([])
+    allGridL = np.array([])
+    allcpcpn = np.array([])
+    allcpcps = np.array([])
+    allU = np.array([])
+    #############
+    #setup figure
+    spectra,(axis) =plt.subplots(1,1,figsize=[15,15])
+    testpoints = ['stretched_LOWnLOWu',
+                  'stretched_MEDnLOWu',
+                  'stretched_HIGHnLOWu',
+                  'stretched_LOWnMEDu',
+                  'stretched_MEDnMEDu',
+                  'stretched_HIGHnMEDu',
+                  'stretched_LOWnHIGHu',
+                  'stretched_MEDnHIGHu',
+                  'stretched_HIGHnHIGHu']
+    for testpoint in testpoints:
+        if testpoint not in data.keys():
+            continue
+        source = data[testpoint]
+        allk1 = np.append(allk1,source['K1'])
+        allGridL = np.append(allGridL,source['gridL'])
+        allU = np.append(allU,source['U'])
+        allcpcpn = np.append(allcpcpn,source['cpcpn'])
+        allcpcps = np.append(allcpcps,source['cpcps'])
+    # Count how many times each pair appears
+    for i,x in enumerate(np.unique(allk1)):
+        for y,label,color,m in [(allGridL,'GridL','black','o'),
+                              (allcpcpn,'CPCPn','red','x'),
+                              (allcpcps,'CPCPs','orange','s'),
+                              (allU,'U','blue','+')]:
+            if i!=0: label='_'+label
+            y_col = y[np.where(allk1==x)]
+            values,sizes = np.unique(y_col,return_counts=True)
+            axis.scatter(np.zeros(len(values))+x,values,s=sizes*250,
+                         color=color,label=label,alpha=0.4,ec=color,marker=m)
+    axis.set_xlabel(r'$T_{peak}\int\mathbf{K_1}\left[min\right]$')
+    axis.set_ylabel(r'$T_{peak}\left[min\right]$')
+    axis.legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
+                  ncol=4, fancybox=True, shadow=True)
+    spectra.tight_layout(pad=1)
+    figurename = path+'/spectraScatter.png'
+    spectra.savefig(figurename)
+    plt.close(spectra)
+    print('\033[92m Created\033[00m',figurename)
+
 
 def coupling_scatter(events,path):
     interval_list =build_interval_list(TSTART,DT,TJUMP,
@@ -2602,26 +2768,21 @@ def tab_ranges(dataset):
 
 def initial_figures(dataset):
     path = unfiled
-    tave,tv,corr,raw,events = {},{},{},{},{}
+    tave,tv,corr,raw,events,psds = {},{},{},{},{},{}
     for i,run in enumerate(dataset.keys()):
         ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
-        if 'iedict' in dataset[run].keys():
-            ev2 = gmiono_refactor(dataset[run]['iedict'],
-                                  dt.datetime(2022,6,6,0))
-            for key in ev2.keys():
-                ev[key] = ev2[key]
+        #if 'iedict' in dataset[run].keys():
+        #    ev2 = gmiono_refactor(dataset[run]['iedict'],
+        #                          dt.datetime(2022,6,6,0))
+        #    for key in ev2.keys():
+        #        ev[key] = ev2[key]
         events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
         #                                        yfactor=1e12)
+        #psds[run] = power_spectra(ev,run)
         #raw[run] = ev
-        #TODO plot and corellate ALL K1vsGridL, K1vsClosedMass, etc.
-        # use this to justify the ~0.2 range for the "skill" result
-        # Are there clear signatures for:
-        #   Which one affects it most?
-        #   Which one affects it least?
-        #   How does the total event count affect this?
         if 'iedict' in dataset[run].keys():
             #Zoomed versions
             #window = ((ev['mp'].index>dt.datetime(2022,6,7,8,0))&
@@ -2632,7 +2793,6 @@ def initial_figures(dataset):
             pass
         #test_matrix(event,ev,path)
         #internalflux_vs_rxn(ev,run,path)
-        #all_fluxes(ev,run,path)
         #rxn(ev,run,path)
         #Zoomed versions
         window1 = (dt.datetime(2022,6,6,11,30),
@@ -2648,21 +2808,13 @@ def initial_figures(dataset):
                           dt.datetime(2022,6,7,4,0))
         small_window =   (dt.datetime(2022,6,6,22,18),
                           dt.datetime(2022,6,6,22,25))
+        posterwindow = (dt.datetime(2022,6,6,23,0),
+                        dt.datetime(2022,6,7,3,0))
         #mpflux_vs_rxn(ev,run,path,zoom=example_window,tag='midzoom')
         #errors(ev,run,path)
-        #errors(ev,run,path,zoom=small_window,tag='closezoom')
-        #all_fluxes(ev,run,path,zoom=window1,tag='w1')
-        #all_fluxes(ev,run,path,zoom=window2,tag='w2')
-        #all_fluxes(ev,run,path,zoom=window3,tag='w3')
-        #rxn(ev,run,path,zoom=window1,tag='w1')
-        #rxn(ev,run,path,zoom=window2,tag='w2')
-        #rxn(ev,run,path,zoom=window3,tag='w3')
-        #show_event_hist(ev,run,events,path,zoom=example_window,tag='midzoom')
-        #show_events(ev,run,events,path)
-        #show_events(ev,run,events,path,zoom=example_window,tag='midzoom')
-        #tshift_scatter(ev,'GridL','K1',run,path)
-        #tshift_scatter(ev,'closedVolume','K1',run,path)
-        #tshift_scatter(ev,'K5','K1',run,path)
+        #show_event_hist(ev,run,events,path)
+        show_events(ev,run,events,path)
+    #scatter_spectra(psds,path)
     show_full_hist(events,path)
     #plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
@@ -2700,7 +2852,8 @@ if __name__ == "__main__":
              #
              'stretched_MEDnLOWu',
              'stretched_MEDnMEDu',
-             'stretched_MEDnHIGHu'
+             'stretched_MEDnHIGHu',
+             #'stretched_LOWnLOWucontinued',
              ]
              #'stretched_test']
              #'stretched_LOWnLOWucontinued']

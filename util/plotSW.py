@@ -11,8 +11,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator,AutoLocator,AutoMinorLocator)
-import swmfpy
-from swmfpy.io import read_imf_input, gather_times
+from global_energetics.wind_to_swmfInput import read_SWMF_IMF
+#import swmfpy
+#from swmfpy.io import read_imf_input, gather_times
 
 def plot_Temp(ax, data, ylabel, **kwargs):
     """plots B components
@@ -25,13 +26,14 @@ def plot_Temp(ax, data, ylabel, **kwargs):
             else:
                 raise KeyError (key+'not in dataset, check column names!')
     #plot components
-    ax.plot(data['times'],data['temp'],color='tomato')
+    #ax.plot(data['times'],data['temp'],color='tomato')
+    ax.scatter(data['times'],data['temp'],color='tomato')
     ax.set_ylabel(ylabel)
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
     ax.xaxis.set_minor_locator(AutoMinorLocator(6))
     #ax.xaxis.set_major_locator(AutoLocator(12))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
     if kwargs.get('do_xlabel',False):
         ax.set_xlabel(kwargs.get('xlabel',None))
 
@@ -46,7 +48,7 @@ def plot_Rho(ax, data, ylabel, **kwargs):
             else:
                 raise KeyError (key+'not in dataset, check column names!')
     #plot components
-    ax.plot(data['times'],data['dens'],color='green')
+    ax.scatter(data['times'],data['dens'],color='green')
     ax.set_ylabel(ylabel)
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -65,37 +67,38 @@ def plot_V(ax, data, ylabel, **kwargs):
             raise KeyError (key+'not in dataset, check column names!')
         v[key]=data[key]
     #plot components
-    colors = {'vx':'red','vy':'gold','vz':'plum'}
-    for comp in enumerate(['vz', 'vy', 'vx']):
-        ax.plot(v['times'],v[comp[1]],color=colors[comp[1]],
-                label=comp[1])
-    ax.axhline(0,color='grey')
-    ax.axhline(-400,color='black',ls='--')
-    ax.set_ylabel(ylabel)
-    ax.set_ylim([-700,200])
-    ax.tick_params(which='major', length=7)
-    ax.yaxis.set_minor_locator(AutoMinorLocator())
-    ax.xaxis.set_minor_locator(AutoMinorLocator(6))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    ax.legend(loc=kwargs.get('legend_loc',None))
+    ax[0].scatter(v['times'],v['vx'],color='red',label='Vx')
+    ax[1].scatter(v['times'],v['vy'],color='gold',label='Vy')
+    ax[1].scatter(v['times'],v['vz'],color='plum',label='Vz')
+    ax[1].axhline(0,color='grey')
+    for a in ax:
+        a.set_ylabel(r'$V\left[km/s\right]$')
+        a.axhline(0,color='grey')
+        a.tick_params(which='major', length=7)
+        a.yaxis.set_minor_locator(AutoMinorLocator())
+        a.xaxis.set_minor_locator(AutoMinorLocator(6))
+        a.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+        a.legend(loc=kwargs.get('legend_loc',None))
+    ax[0].axhline(-400,color='black',ls='--')
+    #ax.set_ylim([-700,200])
     if kwargs.get('do_xlabel',False):
-        ax.set_xlabel(kwargs.get('xlabel',None))
+        ax[1].set_xlabel(kwargs.get('xlabel',None))
 
 def plot_B(ax, data, ylabel, **kwargs):
     """plots B components
     Inputs
     """
     b = pd.DataFrame()
-    for key in ['times', 'bx', 'by', 'bz']:
-        if key not in data.keys():
-            raise KeyError (key+'not in dataset, check column names!')
-        b[key]=data[key]
-    ax.fill_between(data['times'],np.sqrt(b['bx']**2+b['by']**2+b['bz']**2)
-                    ,color='grey')
+    assert 'bx' in data.keys()
+    assert 'by' in data.keys()
+    assert 'bz' in data.keys()
+    ax.fill_between(data['times'],np.sqrt(data['bx']**2+
+                                          data['by']**2+data['bz']**2)
+                                          ,color='grey')
     ax.axhline(0,color='grey')
     colors = {'bx':'blue','by':'magenta','bz':'cyan'}
     for comp in ['bx', 'by', 'bz']:
-        ax.plot(data['times'], b[comp], color=colors[comp], label=comp)
+        ax.scatter(data['times'], data[comp], color=colors[comp], label=comp)
     ax.set_ylabel(ylabel)
     ax.tick_params(which='major', length=7)
     ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -180,7 +183,8 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
     """plots solar wind from IMF.dat
     """
     satlist = kwargs.get('SATLIST',['THEMIS','CLUSTER','MMS','GEOTAIL'])
-    imf = kwargs.get('WIND',read_imf_input(filename=imffile))
+    #imf = kwargs.get('WIND',read_imf_input(filename=imffile))
+    imf = read_SWMF_IMF(imffile)
     if 'times' not in imf.keys():
         imf_dic = {}
         for key in imf.keys():
@@ -192,7 +196,7 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
     y2label = r'$V \left(km/s\right)$'
     y3label = r'$\rho \left(amu/cc\right)$'
     y4label = r'$T \left(K\right)$'
-    rows=4;cols=1
+    rows=5;cols=1
     if check_omni or ('OMNI' in kwargs):
         omni =kwargs.get('OMNI',swmfpy.web.get_omni_data(imf['times'][0],
                                                          imf['times'][-1]))
@@ -216,12 +220,12 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
         ax.append(plt.subplot(rows/2,2,rows-1))
         ax.append(plt.subplot(rows/2,2,rows))
     plot_B(ax[0], imf, y1label,do_xlabel=doX)
-    plot_V(ax[1], imf, y2label,do_xlabel=doX)
-    plot_Rho(ax[2], imf, y3label,do_xlabel=doX)
-    plot_Temp(ax[3], imf, y4label,do_xlabel=doX)
+    plot_V(ax[1:3], imf, y2label,do_xlabel=doX)
+    plot_Rho(ax[3], imf, y3label,do_xlabel=doX)
+    plot_Temp(ax[4], imf, y4label,do_xlabel=doX)
     if check_omni or ('OMNI' in kwargs):
-        plot_symh(ax[4], omni, y5label,do_xlabel=doX)
-        plot_al(ax[5], omni, y6label,do_xlabel=True, xlabel=xlabel)
+        plot_symh(ax[5], omni, y5label,do_xlabel=doX)
+        plot_al(ax[6], omni, y6label,do_xlabel=True, xlabel=xlabel)
     #if not doX:
     #    ax[-1].set_xlabel(r'Time $\left[ UTC\right]$')
     #    ax[-1].xaxis.set_major_formatter(mdates.DateFormatter('%d-%H:%M'))
@@ -235,10 +239,10 @@ def plot_solarwind(*,imffile='IMF.dat', check_omni=False,
 #Main program
 if __name__ == '__main__':
     plt.rcParams.update({
-        "text.usetex": True,
-        "font.family": "sans-serif",
-        "font.size": 18,
-        "font.sans-serif": ["Helvetica"]})
+        "text.usetex": False,
+        #"font.family": "sans-serif",
+        "font.size": 18})
+        #"font.sans-serif": ["Helvetica"]})
     if '-i' in sys.argv:
         infile = sys.argv[sys.argv.index('-i')+1]
         plot_solarwind(imffile=infile)
