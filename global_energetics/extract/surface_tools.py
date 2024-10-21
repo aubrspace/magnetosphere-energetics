@@ -353,11 +353,19 @@ def get_open_close_integrands(zone, integrands):
                                            '{'+term[0]+'},0)',zones=[zone])
                 openClose_dict.update(
                                 {name+'OpenN':outputname+'OpenN '+units})
+                eq('{'+name+'ProCloseN}=IF({status_cc}>2&&{status_cc}<3,'+
+                           '{'+term[0]+'}*({status_cc}-2),0)',zones=[zone])
+                openClose_dict.update(
+                          {name+'ProCloseN':outputname+'ProCloseN '+units})
             if 'ionoNorth' not in zone.name:
                 eq('{'+name+'OpenS}=IF({status_cc}==1,'+
                                            '{'+term[0]+'},0)',zones=[zone])
                 openClose_dict.update(
                                 {name+'OpenS':outputname+'OpenS '+units})
+                eq('{'+name+'ProCloseS}=IF({status_cc}>1&&{status_cc}<3,'+
+                         '{'+term[0]+'}*({status_cc}-1)/2,0)',zones=[zone])
+                openClose_dict.update(
+                          {name+'ProCloseS':outputname+'ProCloseS '+units})
     return openClose_dict
 
 def conditional_mod(zone,integrands,conditions,modname,**kwargs):

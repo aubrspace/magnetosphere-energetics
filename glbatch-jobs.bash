@@ -2,28 +2,13 @@
 #'parallel' script for spawning lots of jobs
 
 #define variables
-INPUTDIR=./run_MEDnMEDu/GM/IO2/
-#OUTPUTDIR=./outputs_ellipsoid_dist_MEDnMEDu/
-#OUTPUTDIR=./outputs_r3_x120_b07_dist_MEDnMEDu/
-#OUTPUTDIR=./outputs_r4_x20_b07_dist_MEDnMEDu/
-#OUTPUTDIR=./outputs_r5_x150_b07_dist_MEDnMEDu/
-#OUTPUTDIR=./outputs_r2625_x120_b01_dist_MEDnMEDu/
-OUTPUTDIR=./outputs_r275_x120_b14_dist_MEDnMEDu/
-#INPUTDIR=./starlink2/IO2/
-
-# May6 Todo list:
-# HighMed
+INPUTDIR=./run_mothersday/GM/IO2/
+OUTPUTDIR=./outputs_mothersday1/
 
 filecount=0
 workercount=0
 
-#head=3d__var_1_e20140410-080
-#head=3d__var_1_e201404
-#head=3d__var_1_e202202
-head=3d__var_1_e202206
-#head=3d__var_1_e201505
-#head=it2206
-#head=3d__var_1_e202202
+head=3d__var_1_e202405
 
 #satpath=star2satloc
 
@@ -36,8 +21,8 @@ do
     minute=${file:${#INPUTDIR}+${#head}+5:2}
     
     # Filter by day/hour/minute
-    if [[ ${day#0} -eq 7 ]] && [[ ${hour#0} -lt 8 ]]
-    #if [[ 1 == 1 ]]
+    #if [[ ${day#0} -eq 7 ]] && [[ ${hour#0} -lt 8 ]]
+    if [[ 1 == 1 ]]
     then
         #echo "${file:${#INPUTDIR}} $day $hour"
 

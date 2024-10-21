@@ -127,6 +127,7 @@ def energetics_analysis(infiles,outpath):
                                       verbose=True,
                                       extract_flowline=False,
                                       outputpath=outpath)
+    '''
     # IE data
     inpath = '/'.join([f for f in infiles[0].split('/')][0:-3])+'/IE/ionosphere/'
     iedatafile, success = find_IE_matched_file(inpath,filetime)
@@ -151,8 +152,9 @@ def energetics_analysis(infiles,outpath):
         #if do_north*do_south:
     else:
         dataset = field_data
-    if True:
+    if False:
         ionosphere.get_ionosphere(dataset,
+                                        inner_r=3,
                                               verbose=False,
                                               hasGM=True,
                                               eventtime=filetime,
@@ -162,6 +164,7 @@ def energetics_analysis(infiles,outpath):
                                               integrate_contour=True,
                                               do_cms=True,
                                               outputpath=outpath)
+    '''
     print(os.path.join(outpath,'png',outputname+'.png'))
     with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
         png.close()
