@@ -462,18 +462,21 @@ def collect_themis(start, end, **kwargs):
             print('\tthemis',num)
             df = pd.DataFrame()
             plasma_instrument = 'TH'+num+'_L2_MOM'
+            n_e_key   = 'th'+num.lower()+'_peem_density'
             n_ion_key = 'th'+num.lower()+'_peim_density'
             u_ion_key = 'th'+num.lower()+'_peim_velocity_gsm'
             p_ion_key = 'th'+num.lower()+'_peim_ptot'
             quality_key = f'th{num.lower()}_peim_data_quality'
             epoch_key = 'th'+num.lower()+'_peim_epoch'
-            status,plasmadata = cdas.get_data(plasma_instrument,[n_ion_key,
+            status,plasmadata = cdas.get_data(plasma_instrument,[n_e_key,
+                                                                n_ion_key,
                                                                 u_ion_key,
                                                                 p_ion_key,
                                                                 quality_key],
                                                         start-buff,end+buff)
             if plasmadata:
                 df.index = plasmadata[epoch_key]
+                df['ne'] = plasmadata[n_e_key] # n/cc
                 df['n'] = plasmadata[n_ion_key] # n/cc
                 df[['vx','vy','vz']] = plasmadata[u_ion_key] # km/s
                 df['p'] = plasmadata[p_ion_key] # eV/cc
