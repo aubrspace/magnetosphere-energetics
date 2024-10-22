@@ -8,16 +8,21 @@ import tecplot as tp
 #Interpackage imports
 try:
     from global_energetics.makevideo import time_sort
+    nosort = False
 except ImportError:
-    print('global_energetics not found, unable to standardize names')
+    print('global_energetics not found cant sort files!')
+    nosort = True
 
 def weed_savedate(pathtofiles,keytime,keep_side,*,verbose):
     """
     #TODO
     """
     # Glob for the files at this path
-    filelist = sorted(glob.glob(f'{pathtofiles}/3d*var*.plt'),
-                      key=time_sort)
+    if nosort:
+        filelist = glob.glob(f'{pathtofiles}/3d*var*.plt')
+    else:
+        filelist = sorted(glob.glob(f'{pathtofiles}/3d*var*.plt'),
+                          key=time_sort)
     if verbose:
         print(filelist,'\n')
     keeps = [[]]*len(filelist)

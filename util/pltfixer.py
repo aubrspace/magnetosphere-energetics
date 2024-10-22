@@ -1,8 +1,9 @@
 #/usr/bin/env python
 """Modifies tecplot .plt files to be save for the VisIt reader in Paraview
 """
-import sys,os
-import glob
+import sys,os,glob,time
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import datetime as dt
 import tecplot as tp
 #Interpackage imports

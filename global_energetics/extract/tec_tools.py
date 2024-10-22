@@ -3096,7 +3096,7 @@ def calc_betastar_state(zonename, zones, **kwargs):
         created variable index
     """
     #Values needed to put into equation string passed to Tecplot
-    xmax = str(kwargs.get('x_subsolar','30'))
+    #xmax = str(kwargs.get('x_subsolar','30'))
     xmin = str(kwargs.get('tail_cap',-20))
     core_r = str(kwargs.get('inner_r',3))
     betamax = str(kwargs.get('mpbetastar',0.7))
@@ -3106,8 +3106,7 @@ def calc_betastar_state(zonename, zones, **kwargs):
         #PALEO variant for dipole facing subsolar point
         eqstr=('{'+zonename+'}=IF({X [R]}>'+xmin+'&&'+'{r [R]}>='+core_r)
     else:
-        eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+
-                                 '{X [R]} <'+xmax+'&&{r [R]} >='+core_r)
+        eqstr=('{'+zonename+'}=IF({X [R]} >'+xmin+'&&'+'{r [R]} >='+core_r)
     if 'Status' in zones[kwargs.get('mainZone',0)].dataset.variable_names:
         eqstr+='&&{Status}>0'
     eqstr=(eqstr+',IF({beta_star}<'+betamax+',1,')
