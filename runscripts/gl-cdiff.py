@@ -50,6 +50,15 @@ def find_IE_matched_file(path,filetime):
         success = True
     return iedatafile, success
 
+def save_gm_single(gm_style,outpath,OUTPUTNAME,filetime):
+    # Quickly duplicate date across 4 frames
+    tp.macro.execute_command('$!LoadColorMap  '+
+                 '"'+os.path.join(os.getcwd(),'cosmetic/energetics.map')+'"')
+    tp.active_frame().load_stylesheet(gm_style)
+    # Save
+    tp.save_png(os.path.join(outpath,'png',
+                             OUTPUTNAME+'.png'),width=1600)
+
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
     all_solution_times = sorted(glob.glob(inpath+'/3d__var_1*.plt'),
@@ -166,8 +175,12 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     '''
     print(os.path.join(outpath,'png',outputname+'.png'))
-    with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
-        png.close()
+    if True:
+        save_gm_single('cosmetic/xpos_densityXZ.sty',
+                       outpath,outputname,filetime)
+    else:
+        with open(os.path.join(outpath,'png',outputname+'.png'),'wb') as png:
+            png.close()
 
 if __name__ == "__main__":
     start_time = time.time()
