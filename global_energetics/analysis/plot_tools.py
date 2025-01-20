@@ -597,7 +597,8 @@ def bin_and_describe(X,Y,df,xbins,pLow,pHigh):
         variance_sub = (Y_sub).var()
 
         # not substorm like
-        Y_not        = Y[(X<bin_high)&(X>bin_low)&(1-df['anysubstorm'])]
+        Y_not        = Y[(X<bin_high)&(X>bin_low)&(1-df['anysubstorm'])&
+                                                  (1-df['IMF'])]
         pLow_not     = (Y_not).quantile(pLow)
         p50_not      = (Y_not).quantile(0.50)
         pHigh_not    = (Y_not).quantile(pHigh)
@@ -651,10 +652,10 @@ def refactor(event,t0):
     closed = event['msdict']['closed'][event['msdict']['closed'].index>tstart]
     inner = event['inner_mp'][event['inner_mp'].index>tstart]
     ev['mp'] = mp.resample('60S').asfreq()
-    ev['lobes'] = lobes.resample('60S').asfreq()
-    ev['closed'] = closed.resample('60S').asfreq()
-    ev['inner'] = inner.resample('60S').asfreq()
     use_i = ev['mp'].index
+    ev['lobes'] = lobes.reindex(use_i).resample('60S').asfreq()
+    ev['closed'] = closed.reindex(use_i).resample('60S').asfreq()
+    ev['inner'] = inner.reindex(use_i).resample('60S').asfreq()
     '''
     #NOTE fill gaps S.T. values fill forward to keep const dt
     sample = str((event['mpdict']['ms_full'].index[-1]-
@@ -674,7 +675,8 @@ def refactor(event,t0):
     if 'obs' in event.keys():
     #if False:
         ev['sim'] = event['obs']['swmf_log'].reindex(use_i)#,method='ffill')
-        ev['sw'] = event['obs']['swmf_sw'].drop_duplicates().reindex(use_i)#,
+        ev['sw'] = event['obs']['swmf_sw']
+        #ev['sw'] = event['obs']['swmf_sw'].drop_duplicates().reindex(use_i)#,
                                                                #method='ffill')
         ev['index']=event['obs']['swmf_index'].reindex(use_i)#,method='ffill')
         simtdelta = [t-t0 for t in ev['sim'].index]

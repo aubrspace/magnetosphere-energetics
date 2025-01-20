@@ -139,6 +139,6 @@ if __name__ == '__main__':
     # Modify files
     fix_plt_files(pathtofiles,verbose=doVerbose,
                   standardize=DOSTANDARDIZE,
-                  dimensionalize=True,
+                  dimensionalize=dimension,
                   keep=keepboth)
     print('DONE')

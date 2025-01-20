@@ -1550,7 +1550,7 @@ def plot_2by2_rxn(dataset,windows,path):
     #setup figure
     RXN,ax = plt.subplots(2,len(windows),figsize=[32,22])
     for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
-        ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
+        ev = refactor(dataset[run],T0)
         ev2 = gmiono_refactor(dataset[run]['iedict'],dt.datetime(2022,6,6,0))
         for key in ev2.keys():
             ev[key] = ev2[key]
@@ -1590,7 +1590,7 @@ def plot_2by2_flux(dataset,windows,path):
     #setup figure
     Fluxes,ax = plt.subplots(2,len(windows),figsize=[32,22])
     for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
-        ev = refactor(dataset[run],dt.datetime(2022,6,6,0))
+        ev = refactor(dataset[run],T0)
         for j,window in enumerate(windows):
             xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in window]
             # External Energy Flux
@@ -1598,13 +1598,13 @@ def plot_2by2_flux(dataset,windows,path):
                                  fc='blue')
             ax[i][j].fill_between(ev['times'],ev['K5']/1e12,
                                  label='K5 (ClosedMP)',fc='red')
-            ax[i][j].fill_between(ev['times'],ev['Ksum']/1e12,
-                                  label=r'$K_{net}$',fc='black',alpha=0.9)
             ax[i][j].fill_between(ev['times'],(ev['K1']+ev['K5'])/1e12,
-                           label=r'$K1+K5$',fc='lightgrey',alpha=0.4)
-            ax[i][j].plot(ev['times'],-ev['sw']['EinWang']/1e12,
+                           label=r'$K1+K5$',fc='black',alpha=0.9)
+            ax[i][j].plot(ev['times'],ev['Ksum']/1e12,
+                                  label=r'$K_{net}$',c='lightgrey',lw=3)
+            ax[i][j].plot(ev['swt'],-ev['sw']['EinWang']/1e12,
                      c='black',lw=4,label='Wang2014')
-            ax[i][j].plot(ev['times'],ev['sw']['Pstorm']/1e12,
+            ax[i][j].plot(ev['swt'],ev['sw']['Pstorm']/1e12,
                      c='grey',lw=4,label='Tenfjord and Østgaard 2013')
             # Decorate
             general_plot_settings(ax[i][j],do_xlabel=i==1,legend=False,
@@ -1656,17 +1656,21 @@ def all_fluxes(ev,event,path,**kwargs):
                    fc='red')
     #Kexternal.fill_between(ev['times'],ev['dUdt']/1e12,
     #                        label=r'$\frac{dU}{dt}$',fc='grey')
-    Kexternal.fill_between(ev['times'],ev['Ksum']/1e12,label=r'$K_{net}$',
-                           fc='black',alpha=0.9)
+    #Kexternal.fill_between(ev['times'],ev['Ksum']/1e12,label=r'$K_{net}$',
+    #                       fc='black',alpha=0.9)
+    if 'continued' in event:
+        from IPython import embed; embed()
+    Kexternal.plot(ev['times'],ev['Ksum']/1e12,label=r'$K_{net}$',
+                   c='lightgrey')
     Kexternal.fill_between(ev['times'],(ev['K1']+ev['K5'])/1e12,
-                           label=r'$K1+K5$',fc='lightgrey',alpha=0.4)
+                           label=r'$K1+K5$',fc='black',alpha=0.9)
     #Kexternal.plot(ev['times'],ev['Ks4']/1e12,label='K4 (OpenTail)',
     #               color='grey')
     #Kexternal.plot(ev['times'],ev['Ks6']/1e12,label='K6 (ClosedTail)',
     #               color='black')
-    Kexternal.plot(ev['times'],-ev['sw']['EinWang']/1e12,
+    Kexternal.plot(ev['swt'],-ev['sw']['EinWang']/1e12,
                    c='black',lw=4,label='Wang2014')
-    Kexternal.plot(ev['times'],ev['sw']['Pstorm']/1e12,
+    Kexternal.plot(ev['swt'],ev['sw']['Pstorm']/1e12,
                    c='grey',lw=4,label='Tenfjord and Østgaard 2013')
     # Internal Energy Flux
     Kinternal.fill_between(ev['times'],ev['K2a']/1e12,label='K2a (Cusp)',
@@ -1811,19 +1815,19 @@ def build_events(ev,run,**kwargs):
     # ID MPBs
     events['substorm'] = np.ceil((#events['DIPx']+
                                   events['DIPb']+
-                                  events['plasmoids_volume']+
+                                  #events['plasmoids_volume']+
                                   events['plasmoids_mass']+
                                   events['MGLbays'])
                                   #events['MGLpsuedos'])
-                                  /4)
+                                  /3)
                                   #events['ALbays']/5
     events['allsubstorm'] = np.floor((#events['DIPx']+
                                   events['DIPb']+
-                                  events['plasmoids_volume']+
+                                  #events['plasmoids_volume']+
                                   events['plasmoids_mass']+
                                   events['MGLbays'])
                                   #events['MGLpsuedos'])
-                                  /4)
+                                  /3)
                                   #events['ALbays']/5
     # Coupling variability signatures
     events['K1var'],events['K1unsteady'],events['K1err']=ID_variability(
@@ -1861,7 +1865,7 @@ def ID_imftransient(ev,run,**kwargs):
             None
     """
     # If we assume the X length of the simulation domain
-    simX = kwargs.get('xmax',32)-kwargs.get('xmin',-224)
+    simX = kwargs.get('xmax',32)-kwargs.get('xmin',-150)
     # X velocity denoted by the event name
     vx_dict = {'HIGH':800,'MED':600,'LOW':400}
     vx_str = run.split('n')[1].split('u')[0]
@@ -1924,8 +1928,10 @@ def ID_plasmoids(ev,**kwargs):
     volume = ev['closed']['Volume [Re^3]'].copy(deep=True).reset_index(
                                                                     drop=True)
     mass = ev['closed']['M_night [kg]'].copy(deep=True).reset_index(drop=True)
-    R1 = kwargs.get('volume_reduction_percent',15)
-    R2 = kwargs.get('mass_reduction_percent',10)
+    #R1 = kwargs.get('volume_reduction_percent',15)
+    #R2 = kwargs.get('mass_reduction_percent',10)
+    R1 = kwargs.get('volume_reduction_percent',5)
+    R2 = kwargs.get('mass_reduction_percent',12e3)
     # 1st measure: closed_nightside volume timeseries
     # R1% reduction in volume
     volume_reduction = np.zeros([len(volume)])
@@ -1935,7 +1941,8 @@ def ID_plasmoids(ev,**kwargs):
             # Skip point if we've already got it or the volume isnt shrinking
             if not volume_reduction[i] and volume[i+1]<volume[i]:
                 # Check xmin loc against lookahead points
-                if (v-volume[i:i+lookahead].min())/(v)>(R1/100):
+                #if (v-volume[i:i+lookahead].min())/(v)>(R1/100):
+                if (v-volume[i:i+lookahead].min())>(R1):
                     # If we've got one need to see how far it extends
                     i_min = volume[i:i+lookahead].idxmin()
                     volume_reduction[i:i_min+1] = 1
@@ -1961,7 +1968,8 @@ def ID_plasmoids(ev,**kwargs):
             # Skip point if we've already got it or the mass isnt shrinking
             if not mass_reduction[i] and mass[i+1]<mass[i]:
                 # Check xmin loc against lookahead points
-                if (m-mass[i:i+lookahead].min())/(m)>(R2/100):
+                #if (m-mass[i:i+lookahead].min())/(m)>(R2/100):
+                if (m-mass[i:i+lookahead].min())>(R2):
                     # If we've got one need to see how far it extends
                     i_min = mass[i:i+lookahead].idxmin()
                     mass_reduction[i:i_min+1] = 1
@@ -1993,11 +2001,12 @@ def ID_dipolarizations(ev,**kwargs):
         list(bools)
         list(bools)
     """
-    ibuffer = kwargs.get('DIP_buffer',4)
+    ibuffer = kwargs.get('DIP_buffer',0)#NOTE too complicated...
     lookahead = kwargs.get('DIP_ahead',10)
     xline = ev['mp']['X_NEXL [Re]'].copy(deep=True).reset_index(drop=True)
     R1 = kwargs.get('xline_reduction_percent',15)
-    R2 = kwargs.get('B1_reduction_amount',0.25e12)
+    #R2 = kwargs.get('B1_reduction_amount',0.25e12)
+    R2 = kwargs.get('B1_reduction_amount',0.3e15)
     # 1st measure: closed[X].min() timeseries
     # R1% reduction in -X_min distance at ANY point in the interval
     xline_reduction = np.zeros([len(xline)])
@@ -2027,7 +2036,7 @@ def ID_dipolarizations(ev,**kwargs):
     # R2% reduction in volume_int{B-Bd} at ANY point in the interval
     b1_reduction = np.zeros([len(xline)])
     udb = ev['closed']['u_db_night [J]'].copy(deep=True).reset_index(drop=True)
-    for i,testpoint in enumerate(xline.values[0:-10]):
+    for i,testpoint in enumerate(xline.values[ibuffer:-10]):
         b1 = udb[i]
         # Skip point if we've already got it and the distance isnt decreasing
         if not b1_reduction[i] and udb[i+1]>udb[i]:
@@ -2038,7 +2047,8 @@ def ID_dipolarizations(ev,**kwargs):
             else:
                 tdelta = np.sum(ev['dt'][i:i_min])
                 #if (b1-udb[i:i+lookahead].min())/(b1)>(R2/100):
-                if (b1-udb[i_min])/(tdelta)>(R2):
+                #if (b1-udb[i_min])/(tdelta)>(R2):
+                if (b1-udb[i_min])>(R2):
                     # If we've got one need to see how far it extends
                     b1_reduction[i:i_min+1] = 1
                     # If it's at the end of the window, check if its continuing
@@ -2160,8 +2170,8 @@ def show_full_hist(events,path,**kwargs):
     for i,run in enumerate(testpoints):
         if run not in events.keys():
             continue
-        evK1var = events[run]['K1var_10-10']/1e12
-        evK1var2 = events[run]['K1var_10R10']
+        evK1var = events[run]['K1var_5-5']/1e12
+        evK1var2 = events[run]['K1var']
 
         evIMF  = events[run]['imf_transients']
         evAny  =(events[run]['substorm']*(1-evIMF))
@@ -2225,12 +2235,13 @@ def show_full_hist(events,path,**kwargs):
         y3,x3 = np.histogram(layer3,bins=binsvar)
         # Variability
         ax.stairs(y1+y2+y3,edges=x,fill=True,fc='grey',alpha=0.4,label='total')
-        ax.stairs(y2,x,fill=True,fc='black',label=f'IMFTransit',alpha=0.4)
+        #ax.stairs(y2,x,fill=True,fc='black',label=f'IMFTransit',alpha=0.4)
+        #ax.stairs(y2,x,fill=False,c='black',label=f'IMFTransit',lw=2)
         ax.stairs(y1,x,fill=True,fc='blue',label=f'not-{key}',alpha=0.4)
         ax.stairs(y3,x,fill=True,fc='green',label=key,alpha=0.4)
         #
         ax.stairs(y1+y2+y3,edges=x,ec='grey',label='_total')
-        ax.stairs(y2,x,ec='black',label=f'_IMFTransit')
+        ax.stairs(y2,x,ec='black',label=f'IMFTransit',lw=4)
         ax.stairs(y1,x,ec='blue',label=f'_not-{key}')
         ax.stairs(y3,x,ec='green',label=f'_{key}')
         #
@@ -2246,8 +2257,8 @@ def show_full_hist(events,path,**kwargs):
             ax.text(1,0.94,'Median'+f'={q50_var:.2f}[%]',
                         transform=ax.transAxes,
                         horizontalalignment='right')
-        ax.set_xlabel('Total Variation of \n'+
-                  r'$\int_{-10}^{10}\mathbf{K_1}\left[\%\right]$')
+        ax.set_xlabel('Relative Total Variation of \n'+
+                  r'$\int_{-5}^{5}\mathbf{K_1}\left[\%\right]$')
     #ax1.set_xlabel('Total Variation of \n'+
     #              r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
     q50_var =dfK1var['K1var'].quantile(0.50)
@@ -2255,7 +2266,7 @@ def show_full_hist(events,path,**kwargs):
                         transform=ax1.transAxes,
                         horizontalalignment='right')
     ax1.set_xlabel('Total Variation of \n'+
-                     r'$\int_{-10}^{10}\mathbf{K_1}\left[ TW\right]$')
+                     r'$\int_{-5}^{5}\mathbf{K_1}\left[ TW\right]$')
 
     # Save
     fig1.tight_layout(pad=1)
@@ -2423,20 +2434,20 @@ def show_multi_events(evs,events,path,**kwargs):
     col_b[1].fill_between(t_b,K1var_b,fc='blue')
     col_b[1].fill_between(t_b,hide_zeros(K1var_b*Any_b.values),fc='green')
     #   deltaB
-    col_a[2].fill_between(t_a,dB_a,fc='blue')
-    col_a[2].fill_between(t_a,hide_zeros(dB_a*DIP_a.values),fc='green')
-    col_b[2].fill_between(t_b,dB_b,fc='blue')
-    col_b[2].fill_between(t_b,hide_zeros(dB_b*DIP_b.values),fc='green')
+    col_a[2].fill_between(t_a,dB_a,fc='grey')
+    col_a[2].fill_between(t_a,hide_zeros(dB_a*DIP_a.values),fc='pink')
+    col_b[2].fill_between(t_b,dB_b,fc='grey')
+    col_b[2].fill_between(t_b,hide_zeros(dB_b*DIP_b.values),fc='pink')
     #   Volume + Mass
-    col_a[3].fill_between(t_a,M_a,fc='blue')
-    col_a[3].fill_between(t_a,hide_zeros(M_a*Moidm_a.values),fc='green')
-    col_b[3].fill_between(t_b,M_b,fc='blue')
-    col_b[3].fill_between(t_b,hide_zeros(M_b*Moidm_b.values),fc='green')
+    col_a[3].fill_between(t_a,M_a,fc='grey')
+    col_a[3].fill_between(t_a,hide_zeros(M_a*Moidm_a.values),fc='pink')
+    col_b[3].fill_between(t_b,M_b,fc='grey')
+    col_b[3].fill_between(t_b,hide_zeros(M_b*Moidm_b.values),fc='pink')
     #   GridL
-    col_a[4].fill_between(t_a,gridL_a,fc='blue')
-    col_a[4].fill_between(t_a,hide_zeros(gridL_a*grid_bay_a.values),fc='green')
-    col_b[4].fill_between(t_b,gridL_b,fc='blue')
-    col_b[4].fill_between(t_b,hide_zeros(gridL_b*grid_bay_b.values),fc='green')
+    col_a[4].fill_between(t_a,gridL_a,fc='grey')
+    col_a[4].fill_between(t_a,hide_zeros(gridL_a*grid_bay_a.values),fc='pink')
+    col_b[4].fill_between(t_b,gridL_b,fc='grey')
+    col_b[4].fill_between(t_b,hide_zeros(gridL_b*grid_bay_b.values),fc='pink')
     # Decorate
     for ax in col_a:
         for interv in interval_list:
@@ -2769,6 +2780,7 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
     raw_data, Ebyrun                    = plt.subplots(1,1,figsize=[24,24])
     model_vs_sim, ([ax1,ax2],[ax3,ax4]) = plt.subplots(2,2,figsize=[24,24])
     model_vs_sim2,([ax5,ax6],[ax7,ax8]) = plt.subplots(2,2,figsize=[24,24])
+    model_vs_sim3,([ax9,ax10]) = plt.subplots(2,1,figsize=[12,24])
     cpcp          = ax1
     Ebycategory   = ax2
     cpcp_variance = ax3
@@ -2778,6 +2790,9 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
     energy        = ax6
     sat_variance  = ax7
     energy_var    = ax8
+    #
+    energy2       = ax9
+    energy2_var   = ax10
     colors = ['#80b3ffff','#0066ffff','#0044aaff',
               '#80ffb3ff','#00aa44ff','#005500ff',
               '#ffe680ff','#ffcc00ff','#806600ff']
@@ -2831,7 +2846,7 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
 
         # Plot this subset of data with color and marker style
         Ebyrun.scatter(evEin,K1,c=colors[i],marker=markers[i],s=50,
-                       alpha=0.5)
+                       alpha=0.3)
 
         # Append subset of data to a full data array for further vis
         allK1var    = np.append(allK1var,evK1var.values)
@@ -2866,6 +2881,10 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
                             df_summary['U'].quantile(0.99),11)
     Udict     = bin_and_describe(df_summary['U'],df_summary['K1'],
                                  df_summary,U_bins,0.05,0.95)
+    K_bins    = np.linspace(df_summary['K1'].quantile(0.01),
+                            df_summary['K1'].quantile(0.99),11)
+    Kdict     = bin_and_describe(df_summary['K1'],df_summary['U'],
+                                 df_summary,K_bins,0.05,0.95)
     # Lines on plots
     Ebyrun.plot(df_summary['Ein'],df_summary['Ein'],ls='--',c='grey')
     Ebyrun.plot(df_summary['Ein'],df_summary['Ein2'],ls='--',c='grey')
@@ -2873,160 +2892,207 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
     # Ax1
     Ebycategory.scatter(df_summary['Ein']*df_summary['IMF'],
                        df_summary['K1']*df_summary['IMF'],
-                       c='black',s=50,label='IMF Transit',alpha=0.2)
+                     marker='+',c='black',s=50,label='IMF Transit',alpha=0.2)
     Ebycategory.scatter(df_summary['Ein']*df_summary['anysubstorm'],
                        df_summary['K1']*df_summary['anysubstorm'],
-                       c='green',s=50,label='Any Substorm',alpha=0.2)
-    Ebycategory.scatter(df_summary['Ein']*(1-df_summary['anysubstorm']),
-                       df_summary['K1']*(1-df_summary['anysubstorm']),
+                     marker='x',c='green',s=50,label='Any Substorm',alpha=0.2)
+    Ebycategory.scatter(df_summary['Ein']*(1-df_summary['anysubstorm'])
+                                         *(1-df_summary['IMF']),
+                       df_summary['K1']*(1-df_summary['anysubstorm'])
+                                         *(1-df_summary['IMF']),
                        c='blue',s=50,label='Not Any Substorm',alpha=0.2)
     extended_fill_between(Ebycategory,Ein_bins,
+                          Eindict['pLow_imf'],Eindict['pHigh_imf'],
+                          'black',0.2)
+    extended_fill_between(Ebycategory,Ein_bins,
                           Eindict['pLow_not'],Eindict['pHigh_not'],
-                          'blue',0.3)
+                          'blue',0.2)
     extended_fill_between(Ebycategory,Ein_bins,
                           Eindict['pLow_sub'],Eindict['pHigh_sub'],
-                          'green',0.3)
-    extended_fill_between(Ebycategory,Ein_bins,
-                          Eindict['pLow_imf'],Eindict['pHigh_imf'],
-                          'black',0.3)
-    Ebycategory.plot(Ein_bins,Eindict['p50_not'],c='blue',ls='--')
-    Ebycategory.plot(Ein_bins,Eindict['p50_sub'],c='green',ls='--')
-    Ebycategory.plot(Ein_bins,Eindict['p50_imf'],c='black',ls='--')
+                          'green',0.2)
+    Ebycategory.plot(Ein_bins,Eindict['p50_not'],c='blue',ls='--',lw=4)
+    Ebycategory.plot(Ein_bins,Eindict['p50_sub'],c='green',ls='--',lw=4)
+    Ebycategory.plot(Ein_bins,Eindict['p50_imf'],c='black',ls='--',lw=4)
     # Ax2
     cpcp.scatter(df_summary['CPCP']*df_summary['IMF'],
                        df_summary['K1']*df_summary['IMF'],
-                       c='black',s=50,label='IMF Transit',alpha=0.2)
+                      marker='+',c='black',s=50,label='IMF Transit',alpha=0.2)
     cpcp.scatter(df_summary['CPCP']*df_summary['anysubstorm'],
                        df_summary['K1']*df_summary['anysubstorm'],
-                       c='green',s=50,label='Any Substorm',alpha=0.2)
-    cpcp.scatter(df_summary['CPCP']*(1-df_summary['anysubstorm']),
-                       df_summary['K1']*(1-df_summary['anysubstorm']),
+                      marker='x',c='green',s=50,label='Any Substorm',alpha=0.2)
+    cpcp.scatter(df_summary['CPCP']*(1-df_summary['anysubstorm'])
+                                   *(1-df_summary['IMF']),
+                       df_summary['K1']*(1-df_summary['anysubstorm'])
+                                       *(1-df_summary['IMF']),
                        c='blue',s=50,label='Not Any Substorm',alpha=0.2)
     extended_fill_between(cpcp,CPCP_bins,
+                          CPCPdict['pLow_imf'],CPCPdict['pHigh_imf'],
+                          'black',0.2)
+    extended_fill_between(cpcp,CPCP_bins,
                           CPCPdict['pLow_not'],CPCPdict['pHigh_not'],
-                          'blue',0.3)
+                          'blue',0.2)
     extended_fill_between(cpcp,CPCP_bins,
                           CPCPdict['pLow_sub'],CPCPdict['pHigh_sub'],
-                          'green',0.3)
-    extended_fill_between(cpcp,CPCP_bins,
-                          CPCPdict['pLow_imf'],CPCPdict['pHigh_imf'],
-                          'black',0.3)
-    cpcp.plot(CPCP_bins,CPCPdict['p50_not'],c='blue',ls='--')
-    cpcp.plot(CPCP_bins,CPCPdict['p50_sub'],c='green',ls='--')
-    cpcp.plot(CPCP_bins,CPCPdict['p50_imf'],c='black',ls='--')
+                          'green',0.2)
+    cpcp.plot(CPCP_bins,CPCPdict['p50_not'],c='blue',ls='--',lw=4)
+    cpcp.plot(CPCP_bins,CPCPdict['p50_sub'],c='green',ls='--',lw=4)
+    cpcp.plot(CPCP_bins,CPCPdict['p50_imf'],c='black',ls='--',lw=4)
 
     # Ax3
-    Evariance.plot(Ein_bins,Eindict['variance_imf']**0.5,c='black',marker='o')
-    Evariance.plot(Ein_bins,Eindict['variance_sub']**0.5,c='green',marker='o')
+    Evariance.plot(Ein_bins,Eindict['variance_imf']**0.5,c='black',marker='+')
+    Evariance.plot(Ein_bins,Eindict['variance_sub']**0.5,c='green',marker='x')
     Evariance.plot(Ein_bins,Eindict['variance_not']**0.5,c='blue',marker='o')
     Evariance.plot(Ein_bins,Eindict['variance_all']**0.5,c='grey',marker='o')
     Evariance_r = Evariance.twinx()
-    Evariance_r.bar(Ein_bins,Eindict['nAll'],alpha=0.5,
+    Evariance_r.bar(Ein_bins,Eindict['nAll'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='grey')
-    Evariance_r.bar(Ein_bins,Eindict['nSub'],alpha=0.5,
+    Evariance_r.bar(Ein_bins,Eindict['nSub'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='green')
-    Evariance_r.bar(Ein_bins,Eindict['nNot'],alpha=0.5,
+    Evariance_r.bar(Ein_bins,Eindict['nNot'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='blue')
-    Evariance_r.bar(Ein_bins,Eindict['nIMF'],alpha=0.5,
+    Evariance_r.bar(Ein_bins,Eindict['nIMF'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='black')
 
     # Ax4
     cpcp_variance.plot(CPCP_bins,CPCPdict['variance_imf']**0.5,c='black',
-                       marker='o')
+                       marker='+')
     cpcp_variance.plot(CPCP_bins,CPCPdict['variance_sub']**0.5,c='green',
-                       marker='o')
+                       marker='x')
     cpcp_variance.plot(CPCP_bins,CPCPdict['variance_not']**0.5,c='blue',
                        marker='o')
     cpcp_variance.plot(CPCP_bins,CPCPdict['variance_all']**0.5,c='grey',
                        marker='o')
     cpcp_variance_r = cpcp_variance.twinx()
-    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nAll'],alpha=0.5,
+    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nAll'],alpha=1,
                   width=(CPCP_bins[1]-CPCP_bins[0])/2,fill=False,ec='grey')
-    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nSub'],alpha=0.5,
+    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nSub'],alpha=1,
                   width=(CPCP_bins[1]-CPCP_bins[0])/2,fill=False,ec='green')
-    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nNot'],alpha=0.5,
+    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nNot'],alpha=1,
                   width=(CPCP_bins[1]-CPCP_bins[0])/2,fill=False,ec='blue')
-    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nIMF'],alpha=0.5,
+    cpcp_variance_r.bar(CPCP_bins,CPCPdict['nIMF'],alpha=1,
                   width=(CPCP_bins[1]-CPCP_bins[0])/2,fill=False,ec='black')
 
     # Ax5
     saturate.scatter(df_summary['Ein']*df_summary['IMF'],
                        df_summary['CPCP']*df_summary['IMF'],
-                       c='black',s=50,label='IMF Transit',alpha=0.2)
+                     marker='+',c='black',s=50,label='IMF Transit',alpha=0.2)
     saturate.scatter(df_summary['Ein']*df_summary['anysubstorm'],
                        df_summary['CPCP']*df_summary['anysubstorm'],
-                       c='green',s=50,label='Any Substorm',alpha=0.2)
-    saturate.scatter(df_summary['Ein']*(1-df_summary['anysubstorm']),
-                       df_summary['CPCP']*(1-df_summary['anysubstorm']),
+                     marker='x',c='green',s=50,label='Any Substorm',alpha=0.2)
+    saturate.scatter(df_summary['Ein']*(1-df_summary['anysubstorm'])
+                                      *(1-df_summary['IMF']),
+                       df_summary['CPCP']*(1-df_summary['anysubstorm'])
+                                         *(1-df_summary['IMF']),
                        c='blue',s=50,label='Not Any Substorm',alpha=0.2)
+    extended_fill_between(saturate,Ein_bins,
+                          Satdict['pLow_imf'],Satdict['pHigh_imf'],
+                          'black',0.3)
     extended_fill_between(saturate,Ein_bins,
                           Satdict['pLow_not'],Satdict['pHigh_not'],
                           'blue',0.3)
     extended_fill_between(saturate,Ein_bins,
                           Satdict['pLow_sub'],Satdict['pHigh_sub'],
                           'green',0.3)
-    extended_fill_between(saturate,Ein_bins,
-                          Satdict['pLow_imf'],Satdict['pHigh_imf'],
-                          'black',0.3)
-    saturate.plot(Ein_bins,Satdict['p50_not'],c='blue',ls='--')
-    saturate.plot(Ein_bins,Satdict['p50_sub'],c='green',ls='--')
-    saturate.plot(Ein_bins,Satdict['p50_imf'],c='black',ls='--')
+    saturate.plot(Ein_bins,Satdict['p50_not'],c='blue',ls='--',lw=4)
+    saturate.plot(Ein_bins,Satdict['p50_sub'],c='green',ls='--',lw=4)
+    saturate.plot(Ein_bins,Satdict['p50_imf'],c='black',ls='--',lw=4)
     # Ax6
     energy.scatter(df_summary['U']*df_summary['IMF'],
                        df_summary['K1']*df_summary['IMF'],
-                       c='black',s=50,label='IMF Transit',alpha=0.2)
+                     marker='+',c='black',s=50,label='IMF Transit',alpha=0.2)
     energy.scatter(df_summary['U']*df_summary['anysubstorm'],
                        df_summary['K1']*df_summary['anysubstorm'],
-                       c='green',s=50,label='Any Substorm',alpha=0.2)
-    energy.scatter(df_summary['U']*(1-df_summary['anysubstorm']),
-                       df_summary['K1']*(1-df_summary['anysubstorm']),
+                     marker='x',c='green',s=50,label='Any Substorm',alpha=0.2)
+    energy.scatter(df_summary['U']*(1-df_summary['anysubstorm'])
+                                  *(1-df_summary['IMF']),
+                       df_summary['K1']*(1-df_summary['anysubstorm'])
+                                       *(1-df_summary['IMF']),
                        c='blue',s=50,label='Not Any Substorm',alpha=0.2)
     extended_fill_between(energy,U_bins,
+                          Udict['pLow_imf'],Udict['pHigh_imf'],
+                          'black',0.2)
+    extended_fill_between(energy,U_bins,
                           Udict['pLow_not'],Udict['pHigh_not'],
-                          'blue',0.3)
+                          'blue',0.2)
     extended_fill_between(energy,U_bins,
                           Udict['pLow_sub'],Udict['pHigh_sub'],
-                          'green',0.3)
-    extended_fill_between(energy,U_bins,
-                          Udict['pLow_imf'],Udict['pHigh_imf'],
-                          'black',0.3)
-    energy.plot(U_bins,Udict['p50_not'],c='blue',ls='--')
-    energy.plot(U_bins,Udict['p50_sub'],c='green',ls='--')
-    energy.plot(U_bins,Udict['p50_imf'],c='black',ls='--')
+                          'green',0.2)
+    energy.plot(U_bins,Udict['p50_not'],c='blue',ls='--',lw=4)
+    energy.plot(U_bins,Udict['p50_sub'],c='green',ls='--',lw=4)
+    energy.plot(U_bins,Udict['p50_imf'],c='black',ls='--',lw=4)
 
     # Ax7
     sat_variance.plot(Ein_bins,Satdict['variance_imf']**0.5,c='black',
-                      marker='o')
+                      marker='+')
     sat_variance.plot(Ein_bins,Satdict['variance_sub']**0.5,c='green',
-                      marker='o')
+                      marker='x')
     sat_variance.plot(Ein_bins,Satdict['variance_not']**0.5,c='blue',
                       marker='o')
     sat_variance.plot(Ein_bins,Satdict['variance_all']**0.5,c='grey',
                       marker='o')
     sat_variance_r = sat_variance.twinx()
-    sat_variance_r.bar(Ein_bins,Satdict['nAll'],alpha=0.5,
+    sat_variance_r.bar(Ein_bins,Satdict['nAll'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='grey')
-    sat_variance_r.bar(Ein_bins,Satdict['nSub'],alpha=0.5,
+    sat_variance_r.bar(Ein_bins,Satdict['nSub'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='green')
-    sat_variance_r.bar(Ein_bins,Satdict['nNot'],alpha=0.5,
+    sat_variance_r.bar(Ein_bins,Satdict['nNot'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='blue')
-    sat_variance_r.bar(Ein_bins,Satdict['nIMF'],alpha=0.5,
+    sat_variance_r.bar(Ein_bins,Satdict['nIMF'],alpha=1,
                   width=(Ein_bins[1]-Ein_bins[0])/2,fill=False,ec='black')
 
     # Ax8
-    energy_var.plot(U_bins,Udict['variance_imf']**0.5,c='black',marker='o')
-    energy_var.plot(U_bins,Udict['variance_sub']**0.5,c='green',marker='o')
+    energy_var.plot(U_bins,Udict['variance_imf']**0.5,c='black',marker='+')
+    energy_var.plot(U_bins,Udict['variance_sub']**0.5,c='green',marker='x')
     energy_var.plot(U_bins,Udict['variance_not']**0.5,c='blue',marker='o')
     energy_var.plot(U_bins,Udict['variance_all']**0.5,c='grey',marker='o')
     energy_var_r = energy_var.twinx()
-    energy_var_r.bar(U_bins,Udict['nAll'],alpha=0.5,
+    energy_var_r.bar(U_bins,Udict['nAll'],alpha=1,
                   width=(U_bins[1]-U_bins[0])/2,fill=False,ec='grey')
-    energy_var_r.bar(U_bins,Udict['nSub'],alpha=0.5,
+    energy_var_r.bar(U_bins,Udict['nSub'],alpha=1,
                   width=(U_bins[1]-U_bins[0])/2,fill=False,ec='green')
-    energy_var_r.bar(U_bins,Udict['nNot'],alpha=0.5,
+    energy_var_r.bar(U_bins,Udict['nNot'],alpha=1,
                   width=(U_bins[1]-U_bins[0])/2,fill=False,ec='blue')
-    energy_var_r.bar(U_bins,Udict['nIMF'],alpha=0.5,
+    energy_var_r.bar(U_bins,Udict['nIMF'],alpha=1,
                   width=(U_bins[1]-U_bins[0])/2,fill=False,ec='black')
+
+    # Ax9
+    energy2.scatter(df_summary['K1']*df_summary['IMF'],
+                       df_summary['U']*df_summary['IMF'],
+                     marker='+',c='black',s=50,label='IMF Transit',alpha=0.2)
+    energy2.scatter(df_summary['K1']*df_summary['anysubstorm'],
+                       df_summary['U']*df_summary['anysubstorm'],
+                     marker='x',c='green',s=50,label='Any Substorm',alpha=0.2)
+    energy2.scatter(df_summary['K1']*(1-df_summary['anysubstorm'])
+                                  *(1-df_summary['IMF']),
+                       df_summary['U']*(1-df_summary['anysubstorm'])
+                                       *(1-df_summary['IMF']),
+                       c='blue',s=50,label='Not Any Substorm',alpha=0.2)
+    extended_fill_between(energy2,K_bins,
+                          Kdict['pLow_imf'],Kdict['pHigh_imf'],
+                          'black',0.2)
+    extended_fill_between(energy2,K_bins,
+                          Kdict['pLow_not'],Kdict['pHigh_not'],
+                          'blue',0.2)
+    extended_fill_between(energy2,K_bins,
+                          Kdict['pLow_sub'],Kdict['pHigh_sub'],
+                          'green',0.2)
+    energy2.plot(K_bins,Kdict['p50_not'],c='blue',ls='--',lw=4)
+    energy2.plot(K_bins,Kdict['p50_sub'],c='green',ls='--',lw=4)
+    energy2.plot(K_bins,Kdict['p50_imf'],c='black',ls='--',lw=4)
+    # Ax10
+    energy2_var.plot(K_bins,Kdict['variance_imf']**0.5,c='black',marker='+')
+    energy2_var.plot(K_bins,Kdict['variance_sub']**0.5,c='green',marker='x')
+    energy2_var.plot(K_bins,Kdict['variance_not']**0.5,c='blue',marker='o')
+    energy2_var.plot(K_bins,Kdict['variance_all']**0.5,c='grey',marker='o')
+    energy2_var_r = energy2_var.twinx()
+    energy2_var_r.bar(K_bins,Kdict['nAll'],alpha=1,
+                  width=(K_bins[1]-K_bins[0])/2,fill=False,ec='grey')
+    energy2_var_r.bar(K_bins,Kdict['nSub'],alpha=1,
+                  width=(K_bins[1]-K_bins[0])/2,fill=False,ec='green')
+    energy2_var_r.bar(K_bins,Kdict['nNot'],alpha=1,
+                  width=(K_bins[1]-K_bins[0])/2,fill=False,ec='blue')
+    energy2_var_r.bar(K_bins,Kdict['nIMF'],alpha=1,
+                  width=(K_bins[1]-K_bins[0])/2,fill=False,ec='black')
 
     ##Decorate the plots
     Ebyrun.set_xlim(0,25)
@@ -3045,13 +3111,13 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
     cpcp.set_ylim(0,25)
 
     Evariance.set_xlim(0,25)
-    Evariance.set_ylim(0,6)
+    Evariance.set_ylim(0,6.7)
     Evariance.set_xlabel(r'$E_{in}\left[TW\right]$ Wang et al. 2014')
     Evariance.set_ylabel(r'$\sigma\left[TW\right]$')
     Evariance_r.set_ylabel(r'Counts')
 
     cpcp_variance.set_xlim(20,180)
-    cpcp_variance.set_ylim(0,6)
+    cpcp_variance.set_ylim(0,6.7)
     cpcp_variance.set_xlabel(r'CPCP $\left[kV\right]$')
     cpcp_variance.set_ylabel(r'$\sigma\left[TW\right]$')
     cpcp_variance_r.set_ylabel(r'Counts')
@@ -3072,10 +3138,22 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
     sat_variance_r.set_ylabel(r'Counts')
 
     energy_var.set_xlim(30,70)
-    energy_var.set_ylim(0,6)
+    energy_var.set_ylim(0,6.7)
     energy_var.set_xlabel(r'$\int\mathbf{U}$ Energy $\left[PJ\right]$')
     energy_var.set_ylabel(r'$\sigma\left[TW\right]$')
     energy_var_r.set_ylabel(r'Counts')
+
+    energy2.set_xlim(0,25)
+    energy2.set_xlabel(r'$\int\mathbf{K}_1$ Power $\left[TW\right]$')
+    energy2.set_ylabel(r'$\int\mathbf{U}$ Energy $\left[PJ\right]$')
+    energy2.set_ylim(30,70)
+
+    #energy2_var.set_xlim(30,70)
+    #energy2_var.set_ylim(0,6.7)
+    energy2_var.set_xlabel(r'$\int\mathbf{K}_1$ Power $\left[TW\right]$')
+    #energy2.set_ylim(0,25)
+    energy2_var.set_ylabel(r'$\sigma\left[PJ\right]$')
+    energy2_var_r.set_ylabel(r'Counts')
 
     #Save the plots
     raw_data.tight_layout(pad=1)
@@ -3094,6 +3172,12 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
     figurename = path+'/coupling_vs_sim2.png'
     model_vs_sim2.savefig(figurename)
     plt.close(model_vs_sim2)
+    print('\033[92m Created\033[00m',figurename)
+
+    model_vs_sim3.tight_layout(pad=1)
+    figurename = path+'/coupling_vs_sim3.png'
+    model_vs_sim3.savefig(figurename)
+    plt.close(model_vs_sim3)
     print('\033[92m Created\033[00m',figurename)
 
 def tab_contingency(events,path):
@@ -3236,7 +3320,7 @@ def make_figures(dataset):
         #                          dt.datetime(2022,6,6,0))
         #    for key in ev2.keys():
         #        ev[key] = ev2[key]
-        events[run] = build_events(ev,run)
+        #events[run] = build_events(ev,run)
         #tave[run] = interval_average(ev)
         #tv[run] = interval_totalvariation(ev)
         #corr[run],lags = interval_correlation(ev,'RXN_Day','K1',xfactor=1e3,
@@ -3265,7 +3349,7 @@ def make_figures(dataset):
                    dt.datetime(2022,6,7,20,30))
         window4 = (dt.datetime(2022,6,6,20,0),
                    dt.datetime(2022,6,7,2,0))
-        #all_fluxes(ev,run,path)
+        all_fluxes(ev,run,path)
         example_window = (dt.datetime(2022,6,6,14,0),
                           dt.datetime(2022,6,7,4,0))
         small_window =   (dt.datetime(2022,6,6,22,18),
@@ -3282,7 +3366,7 @@ def make_figures(dataset):
     #plot_indices(dataset,path)
     #coupling_scatter(dataset,path)
     #tab_contingency(events,path)
-    coupling_model_vs_sim(dataset,events,path)
+    #coupling_model_vs_sim(dataset,events,path)
     #plot_2by2_flux(dataset,[window1,window2,window3],path)
     #plot_2by2_rxn(dataset,[window1,window2,window3],path)
 
@@ -3319,7 +3403,7 @@ if __name__ == "__main__":
              'stretched_MEDnLOWu',
              'stretched_MEDnMEDu',
              'stretched_MEDnHIGHu',
-             #'stretched_LOWnLOWucontinued',
+             'stretched_LOWnLOWucontinued',
              ]
 
     ## Analysis Data

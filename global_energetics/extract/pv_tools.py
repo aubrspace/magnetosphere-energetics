@@ -112,8 +112,8 @@ def project_to_iono(field,timestamp,**kwargs):
     sCap_only = Threshold(registrationName='sCap', Input=sxyz_project)
     sCap_only.Scalars = ['POINTS', 'theta_2_deg']
     sCap_only.ThresholdMethod = 'Between'
-    sCap_only.LowerThreshold = -1*lat_limit
-    sCap_only.UpperThreshold = -90
+    sCap_only.LowerThreshold = -90
+    sCap_only.UpperThreshold = -1*lat_limit
     # Interpolate Thresholded data to created spheres
     ninterp = PointDatasetInterpolator(registrationName='Interp',
                                        Input=nCap_only,Source=ncap)
@@ -122,11 +122,19 @@ def project_to_iono(field,timestamp,**kwargs):
 
     sinterp = PointDatasetInterpolator(registrationName='Interp',
                                        Input=sCap_only,Source=scap)
-    ninterp.Kernel = 'VoronoiKernel'
-    ninterp.Locator = 'Static Point Locator'
+    sinterp.Kernel = 'VoronoiKernel'
+    sinterp.Locator = 'Static Point Locator'
+    # Get back the coordinates as XYZ
+    nXYZmag = Calculator(registrationName='XYZmag', Input=ninterp)
+    nXYZmag.Function = ('coordsX*iHat+coordsY*jHat+coordsZ*kHat')
+    nXYZmag.ResultArrayName = 'XYZ'
+
+    sXYZmag = Calculator(registrationName='XYZmag', Input=sinterp)
+    sXYZmag.Function = ('coordsX*iHat+coordsY*jHat+coordsZ*kHat')
+    sXYZmag.ResultArrayName = 'XYZ'
     # Rotate from MAG -> GSM coordinates
-    ngsm = mag_to_gsm(ninterp,timestamp)
-    sgsm = mag_to_gsm(sinterp,timestamp)
+    ngsm = mag_to_gsm(nXYZmag,timestamp)
+    sgsm = mag_to_gsm(sXYZmag,timestamp)
     # Set XYZ GSM to be used as the new coordinates
     nsetCoords = Calculator(registrationName='nPolarCap',Input=ngsm)
     nsetCoords.Function = "x_gsm*iHat+y_gsm*jHat+z_gsm*kHat"
@@ -598,9 +606,9 @@ def rotate2GSM(pipeline,tilt,**kwargs):
     ###Probably extraenous calculator to export the xyz to the actual
     #   coordinate values bc I don't know how to do that in the progfilt
     rGSM = Calculator(registrationName='stations',Input=rotationFilter)
-    rGSM.Function = 'x*iHat+y*jHat+z*kHat'
+    rGSM.Function = 'x_gsm*iHat+y_gsm*jHat+z_gsm*kHat'
     rGSM.AttributeType = 'Point Data'
-    rGSM.ResultArrayName = 'rGSM'
+    rGSM.ResultArrayName = 'XYZgsm'
     rGSM.CoordinateResults = 1
     return rGSM
 
@@ -609,18 +617,24 @@ def update_rotation(tilt):
     import numpy as np
     data = inputs[0]
     angle = """+str(-tilt*np.pi/180)+"""
-    x_mag = data.Points[:,0]
-    y_mag = data.Points[:,1]
-    z_mag = data.Points[:,2]
+    if 'XYZ' in data.PointData.keys():
+        x_mag = data.PointData['XYZ'][:,0]
+        y_mag = data.PointData['XYZ'][:,1]
+        z_mag = data.PointData['XYZ'][:,2]
+    elif 'x' in data.PointData.keys():
+        x_mag = data.PointData['x']
+        y_mag = data.PointData['y']
+        z_mag = data.PointData['z']
 
     rot = [[ np.cos(angle), 0, np.sin(angle)],
            [0,              1,             0],
            [-np.sin(angle), 0, np.cos(angle)]]
 
     x,y,z = np.matmul(rot,[x_mag,y_mag,z_mag])
-    output.PointData.append(x,'x')
-    output.PointData.append(y,'y')
-    output.PointData.append(z,'z')"""
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.PointData.append(x,'x_gsm')
+    output.PointData.append(y,'y_gsm')
+    output.PointData.append(z,'z_gsm')"""
 
 def magPoints2Gsm(pipeline,localtime,tilt,**kwargs):
     """Function creates a run of filters to convert a table of MAG coord vals
