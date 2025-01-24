@@ -2,15 +2,24 @@
 #'parallel' script for spawning lots of jobs
 
 #define variables
-INPUTDIR=./run_mothersday/GM/IO2/
-OUTPUTDIR=./outputs_mothersday1/
+INPUTDIR=./theta_aurora1997/GM/IO2/
+OUTPUTDIR=./outputs_theta_aurora/
+
+#INPUTDIR=./run_LOWnMEDu/GM/IO2/
+#OUTPUTDIR=./outputs_may6_LOWnMEDu/
+
+#INPUTDIR=./Starlink_Pleiades/
+#OUTPUTDIR=./outputs_starlink_hires/
 
 filecount=0
 workercount=0
 
-head=3d__var_1_e202405
+head=3d__var_3_e199701
+#head=3d__var_1_e202206
+#head=3d__var_1_e202202
 
 #satpath=star2satloc
+#satpath=mothersday_sats/interp/
 
 i=0
 #execute script on tecplot output files
@@ -21,8 +30,8 @@ do
     minute=${file:${#INPUTDIR}+${#head}+5:2}
     
     # Filter by day/hour/minute
-    #if [[ ${day#0} -eq 7 ]] && [[ ${hour#0} -lt 8 ]]
-    if [[ 1 == 1 ]]
+    if [[ ${day#0} -eq 10 ]] && [[ ${hour#0} -lt 4 ]] && [[ ${hour#0} -gt 1 ]]
+    #if [[ 1 == 1 ]]
     then
         #echo "${file:${#INPUTDIR}} $day $hour"
 

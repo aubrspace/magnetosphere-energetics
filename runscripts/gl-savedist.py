@@ -86,8 +86,9 @@ def save_gm_multi(gm_style_list,outpath,OUTPUTNAME,filetime):
 
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(inpath+'/3d__var_1*.plt'),
+    all_solution_times = sorted(glob.glob(inpath+'/3d__var_*.plt'),
                                 key=makevideo.time_sort)[0::]
+    head = all_solution_times[0].split('/')[-1].split('e')[0]
     # Prune any repeat times
     times = [makevideo.get_time(f) for f in all_solution_times]
     _,unique_i = np.unique(times,return_index=True)
@@ -96,12 +97,13 @@ def parse_infiles(inpath,outpath):
     if os.path.exists(os.path.join(outpath,'energeticsdata')):
         parseddonelist, parsednotdone = [], []
         donelist = glob.glob(outpath+'/png/*.png')
-        for png in donelist:
-            parseddonelist.append(png.split('/')[-1].split('.')[0])
-        for plt in all_solution_times:
-            parsednotdone.append(plt.split('e')[-1].split('.')[0])
-        solution_times=[os.path.join(inpath,'3d__var_1_e'+item+'.plt')for item
-                        in parsednotdone if item not in parseddonelist]
+        parseddonelist = [p.split('/')[-1].split('.')[0] for p in donelist]
+        parsednotdonelist = [p.split('/')[-1].split('e')[-1].split('.')[0] for
+                            p in all_solution_times if
+                            p.split('/')[-1].split('e')[-1].split('.')[0]
+                            not in parseddonelist]
+        solution_times=[os.path.join(inpath,head+'e'+item+'.plt')for item
+                        in parsednotdonelist]
     else:
         solution_times = all_solution_times
     print('files remaining: ',len(solution_times))
@@ -132,10 +134,10 @@ def energetics_analysis(infiles,outpath):
                                       analysis_type='energy_mass',
             #### COMPARING THE FOLLOWING #####
                 #modes=['perfectellipsoid','perfectsphere','ellipsoid'],
-                modes=['iso_betastar'],
-                inner_r=2.75,
+                modes=['iso_betastar','closed','nlobe','slobe','plasmasheet'],
+                inner_r=3,
                 tail_cap=-120,
-                mpbetastar=1.4,
+                mpbetastar=0.7,
                                       customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=False,
                                       integrate_surface=True,
@@ -198,8 +200,11 @@ if __name__ == "__main__":
         elif '--file' in sys.argv:
             infile = sys.argv[sys.argv.index('--file')+1]
         nowfile = os.path.join(inpath,infile)
-        if nowfile not in file_list:
-            print('MAIN '+nowfile+' already done....')
+        if nowfile not in full_list:
+            print('DIST '+nowfile+' not in list....')
+            exit()
+        elif nowfile not in file_list:
+            print('DIST '+nowfile+' already done....')
             exit()
 
         try:

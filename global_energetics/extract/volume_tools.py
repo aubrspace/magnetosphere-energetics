@@ -547,6 +547,7 @@ def volume_analysis(state_var, **kwargs):
         integrands.update(get_biotsavart_integrands(state_var))
     if 'trackIM' in analysis_type:
         integrands.update(get_imtrack_integrands(state_var))
+    base_integrands = integrands.copy()
     #integrands.update(kwargs.get('customTerms', {}))
     ###################################################################
     #Integral bounds modifications THIS ACCOUNTS FOR SURFACE MOTION
@@ -561,16 +562,15 @@ def volume_analysis(state_var, **kwargs):
                                              **kwargs)
         '''
     if kwargs.get('do_interfacing',False) and kwargs.get('do_cms',False):
-        #interface_terms = get_volume_trades(global_zone,integrands,
-        #                                        **kwargs,state_var=state_var)
-        #integrands.update(interface_terms)
-        pass
+        interface_terms = get_volume_trades(global_zone,base_integrands,
+                                                **kwargs,state_var=state_var)
+        integrands.update(interface_terms)
     if kwargs.get('do_cms',False):
-        ddt_terms = get_ddt_terms(global_zone,state_var,integrands,**kwargs)
+        ddt_terms = get_ddt_terms(global_zone,state_var,base_integrands,**kwargs)
         integrands.update(ddt_terms)
     if ('Lshell' in analysis_type) and ('closed' in state_var.name):
         integrands.update(get_lshell_integrands(global_zone,state_var,
-                                                integrands,**kwargs))
+                                                base_integrands,**kwargs))
     ###################################################################
     #Evaluate integrals
     if 'truegridfile' in kwargs:

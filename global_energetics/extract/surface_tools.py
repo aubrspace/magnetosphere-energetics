@@ -1171,6 +1171,27 @@ def surface_analysis(zone, **kwargs):
             distribution, keep = save_distribution('x_cc',zone,**kwargs)
             if keep:
                 flux_dists['X'] = distribution
+            distribution, keep = save_distribution('y_cc',zone,**kwargs)
+            if keep:
+                flux_dists['Y'] = distribution
+            distribution, keep = save_distribution('z_cc',zone,**kwargs)
+            if keep:
+                flux_dists['Z'] = distribution
+            distribution, keep = save_distribution('theta_1_cc',zone,**kwargs)
+            if keep:
+                flux_dists['th1'] = distribution
+            distribution, keep = save_distribution('theta_2_cc',zone,**kwargs)
+            if keep:
+                flux_dists['th2'] = distribution
+            distribution, keep = save_distribution('phi_1_cc',zone,**kwargs)
+            if keep:
+                flux_dists['phi1'] = distribution
+            distribution, keep = save_distribution('phi_2_cc',zone,**kwargs)
+            if keep:
+                flux_dists['phi2'] = distribution
+            distribution, keep = save_distribution('daynight_cc',zone,**kwargs)
+            if keep:
+                flux_dists['daynight'] = distribution
     ###################################################################
     #Post integration manipulations
     if 'virial' in analysis_type:
