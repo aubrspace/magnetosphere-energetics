@@ -31,8 +31,10 @@ if True:
     #outpath= os.path.join(inpath,'test_output/')
     #inpath = os.path.join(herepath,'ccmc_2022-02-02/copy_paraview/')
     #outpath= os.path.join(herepath,'jgr2023/figures/unfiled/')
-    inpath = os.path.join(herepath,'localdbug/parameter_study/LOWnLOWu/')
-    outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
+    #inpath = os.path.join(herepath,'localdbug/parameter_study/LOWnLOWu/')
+    #outpath= os.path.join(herepath,'parameter_study/figures/unfiled/')
+    inpath = os.path.join(herepath,'theta_aurora/outputs/data/')
+    outpath= os.path.join(herepath,'theta_aurora/outputs/figures/unfiled/')
 
     filelist = sorted(glob.glob(inpath+'*paraview*.plt'),
                       key=time_sort)

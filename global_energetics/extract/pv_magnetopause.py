@@ -114,6 +114,8 @@ def setup_pipeline(infile,**kwargs):
     if 'aux' in kwargs:
         pipeline = pv_tools.eqeval(alleq['dipole_coord'],pipeline)
         pipeline = pv_tools.eqeval(alleq['dipole'],pipeline)
+    if kwargs.get('doEntropy',False):
+        pipeline = pv_tools.eqeval(alleq['entropy'],pipeline)
     ###Fix tracing
     if (pipeline.PointData['Status'].GetRange()[0] == -3 and
         'theta_1_deg' in pipeline.PointData.keys()):

@@ -540,10 +540,123 @@ def plot_pearson_r(ax, tx, ty, xseries, yseries, **kwargs):
         ax.set_ylabel(kwargs.get('ylabel'))
     return r
 
+def bin_and_describe(X,Y,df,xbins,pLow,pHigh):
+    """bins given dataframe according to X and Y, then returns some key
+        statistics based on percentiles pLow and pHigh
+    Inputs
+        X
+        xbins
+        pLow,pHigh
+    Returns
+        Ydict
+    """
+    Ydict = {'pLow_all':np.array([]),
+            'p50_all':np.array([]),
+            'pHigh_all':np.array([]),
+            'variance_all':np.array([]),
+            'pLow_imf':np.array([]),
+            'p50_imf':np.array([]),
+            'pHigh_imf':np.array([]),
+            'variance_imf':np.array([]),
+            'pLow_sub':np.array([]),
+            'p50_sub':np.array([]),
+            'pHigh_sub':np.array([]),
+            'variance_sub':np.array([]),
+            'pLow_not':np.array([]),
+            'p50_not':np.array([]),
+            'pHigh_not':np.array([]),
+            'variance_not':np.array([]),
+            'nAll':np.array([]),
+            'nIMF':np.array([]),
+            'nSub':np.array([]),
+            'nNot':np.array([])}
+    for cbin in xbins:
+        binwidth = xbins[1]-xbins[0]
+        bin_low = cbin-binwidth/2
+        bin_high = cbin+binwidth/2
+
+        # all data
+        Y_all        = Y[(X<bin_high)&(X>bin_low)]
+        pLow_all     = (Y_all).quantile(pLow)
+        p50_all      = (Y_all).quantile(0.50)
+        pHigh_all    = (Y_all).quantile(pHigh)
+        variance_all = (Y_all).var()
+
+        # imf transits
+        Y_imf        = Y[(X<bin_high)&(X>bin_low)&(df['IMF'])]
+        pLow_imf     = (Y_imf).quantile(pLow)
+        p50_imf      = (Y_imf).quantile(0.50)
+        pHigh_imf    = (Y_imf).quantile(pHigh)
+        variance_imf = (Y_imf).var()
+
+        # substorm like
+        Y_sub        = Y[(X<bin_high)&(X>bin_low)&(df['anysubstorm'])]
+        pLow_sub     = (Y_sub).quantile(pLow)
+        p50_sub      = (Y_sub).quantile(0.50)
+        pHigh_sub    = (Y_sub).quantile(pHigh)
+        variance_sub = (Y_sub).var()
+
+        # not substorm like
+        Y_not        = Y[(X<bin_high)&(X>bin_low)&(1-df['anysubstorm'])&
+                                                  (1-df['IMF'])]
+        pLow_not     = (Y_not).quantile(pLow)
+        p50_not      = (Y_not).quantile(0.50)
+        pHigh_not    = (Y_not).quantile(pHigh)
+        variance_not = (Y_not).var()
+
+        # load into new arrays
+        Ydict['pLow_all']     = np.append(Ydict['pLow_all'],pLow_all)
+        Ydict['p50_all']      = np.append(Ydict['p50_all'],p50_all)
+        Ydict['pHigh_all']    = np.append(Ydict['pHigh_all'],pHigh_all)
+        Ydict['variance_all'] = np.append(Ydict['variance_all'],variance_all)
+
+        Ydict['pLow_imf']     = np.append(Ydict['pLow_imf'],pLow_imf)
+        Ydict['p50_imf']      = np.append(Ydict['p50_imf'],p50_imf)
+        Ydict['pHigh_imf']    = np.append(Ydict['pHigh_imf'],pHigh_imf)
+        Ydict['variance_imf'] = np.append(Ydict['variance_imf'],variance_imf)
+
+        Ydict['pLow_sub']     = np.append(Ydict['pLow_sub'],pLow_sub)
+        Ydict['p50_sub']      = np.append(Ydict['p50_sub'],p50_sub)
+        Ydict['pHigh_sub']    = np.append(Ydict['pHigh_sub'],pHigh_sub)
+        Ydict['variance_sub'] = np.append(Ydict['variance_sub'],variance_sub)
+
+        Ydict['pLow_not']     = np.append(Ydict['pLow_not'],pLow_not)
+        Ydict['p50_not']      = np.append(Ydict['p50_not'],p50_not)
+        Ydict['pHigh_not']    = np.append(Ydict['pHigh_not'],pHigh_not)
+        Ydict['variance_not'] = np.append(Ydict['variance_not'],variance_not)
+
+        Ydict['nAll']     = np.append(Ydict['nAll'],len(Y_all))
+        Ydict['nIMF']     = np.append(Ydict['nIMF'],len(Y_imf))
+        Ydict['nSub']     = np.append(Ydict['nSub'],len(Y_sub))
+        Ydict['nNot']     = np.append(Ydict['nNot'],len(Y_not))
+    return Ydict
+
+def extended_fill_between(ax,X,upper,lower,facecolor,alpha):
+    # Extend the fill by duplicating the first and last points
+    # we want to show how far the fill spans given centered bins...
+    Xstart = [X[0] - (X[1]-X[0])/2]
+    Xend   = [X[-1]+ (X[1]-X[0])/2]
+    X_extend     = np.concatenate((Xstart,X,Xend))
+    upper_extend = np.concatenate(([upper[0]],upper,[upper[-1]]))
+    lower_extend = np.concatenate(([lower[0]],lower,[lower[-1]]))
+    ax.fill_between(X_extend,lower_extend,upper_extend,
+                    fc=facecolor,alpha=alpha)
 
 def refactor(event,t0):
     # Gather segments of the event to pass directly to figure functions
     ev = {}
+    # Only use data starting at 'tstart' where the sw is actually different
+    tstart = t0+dt.timedelta(minutes=10)
+    mp = event['mpdict']['ms_full'][event['mpdict']['ms_full'].index>tstart]
+    lobes = event['msdict']['lobes'][event['msdict']['lobes'].index>tstart]
+    closed = event['msdict']['closed'][event['msdict']['closed'].index>tstart]
+    inner = event['inner_mp'][event['inner_mp'].index>tstart]
+    ev['mp'] = mp.resample('60S').asfreq()
+    use_i = ev['mp'].index
+    ev['lobes'] = lobes.reindex(use_i).resample('60S').asfreq()
+    ev['closed'] = closed.reindex(use_i).resample('60S').asfreq()
+    ev['inner'] = inner.reindex(use_i).resample('60S').asfreq()
+    '''
     #NOTE fill gaps S.T. values fill forward to keep const dt
     sample = str((event['mpdict']['ms_full'].index[-1]-
                   event['mpdict']['ms_full'].index[-2]).seconds)+'S'
@@ -554,21 +667,25 @@ def refactor(event,t0):
     ev['inner'] = event['inner_mp'].reindex(use_i,method='ffill')
     #ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
     #ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
+    '''
     times =  ev['mp'].index
     ev['rawtimes']=times
     timedelta = [t-t0 for t in times]
     ev['times']=[float(n.to_numpy()) for n in timedelta]
     if 'obs' in event.keys():
     #if False:
-        ev['sim'] = event['obs']['swmf_log'].reindex(use_i,method='ffill')
-        ev['sw'] = event['obs']['swmf_sw'].drop_duplicates().reindex(use_i,method='ffill')
-        ev['index'] = event['obs']['swmf_index'].reindex(use_i,method='ffill')
+        ev['sim'] = event['obs']['swmf_log'].reindex(use_i)#,method='ffill')
+        ev['sw'] = event['obs']['swmf_sw']
+        #ev['sw'] = event['obs']['swmf_sw'].drop_duplicates().reindex(use_i)#,
+                                                               #method='ffill')
+        ev['index']=event['obs']['swmf_index'].reindex(use_i)#,method='ffill')
         simtdelta = [t-t0 for t in ev['sim'].index]
         swtdelta = [t-t0 for t in ev['sw'].index]
         ev['simt']=[float(n.to_numpy()) for n in simtdelta]
         ev['swt']=[float(n.to_numpy()) for n in swtdelta]
     if 'gridMin' in event['obs'].keys():
-        ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
+        #ev['maggrid'] = event['obs']['gridMin'].reindex(use_i,method='bfill')
+        ev['maggrid'] = event['obs']['gridMin'].reindex(use_i)
         ev['GridL'] = ev['maggrid']['dBmin']
     ev['closedVolume'] = ev['closed']['Volume [Re^3]']
 

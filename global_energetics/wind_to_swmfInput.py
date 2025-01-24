@@ -813,7 +813,14 @@ def collect_goes(start,end,**kwargs):
     if not kwargs.get('skip_plasma',False):
         #TODO
         pass
-    if not kwargs.get('writeData',True):
+    if kwargs.get('writeData',True):
+        ofilename = kwargs.get('ofilename','goes')
+        # Position
+        posfile = pd.HDFStore(ofilename+'_pos.h5')
+        for key in positions.keys():
+            posfile[key] = positions[key]
+        posfile.close()
+        print('Created ',ofilename+'_pos.h5 output file')
         #TODO
         pass
     return positions, bfield, plasma

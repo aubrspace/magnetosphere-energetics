@@ -30,7 +30,7 @@ def get_time(infile,**kwargs):
                                                   seconds=int(date_string[6:8]))
             time_dt = time_dt.replace(microsecond=0)
         else:
-            date_string = infile.split('/')[-1].split('e')[-1].split('.')[0]
+            date_string = infile.split('/')[-1].split('e')[-1].split('.')[0].split('_')[0]
             if len(date_string)==19:
                 time_dt = dt.datetime.strptime(date_string,'%Y%m%d-%H%M%S-%f')
                 time_dt = time_dt.replace(microsecond=0)

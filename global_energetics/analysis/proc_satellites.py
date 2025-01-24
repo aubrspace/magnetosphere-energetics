@@ -800,28 +800,29 @@ def themis_to_df(obsdict, *, satkey='themis', crosskey='crossings'):
             dflist.append(df.append(nametag,ignore_index=True))
             print('{} loaded'.format(nametag))
     return dflist
-def simdata_to_df(simdict, satkey):
+def simdata_to_df(satfiles):
     """Function returns data frame using dict to find file and satkey for
         which satellite data to pull
     Inputs
-        simdict- dictionary with filepaths for different satellites
-        satkey- satellite key for dictionary
+        satfiles- list of full paths (str) to file containing satellite data
     Outputs
-        dflist
+        dfdict
     """
-    dflist = []
-    for satfile in simdict.get(satkey,[]):
+    dfdict = {}
+    for satfile in satfiles:
         if os.path.exists(satfile):
+            print(f'\tReading {satfile.split("/")[-1]}...')
             df = pd.read_csv(satfile, sep='\s+', skiprows=1,
                           parse_dates={'Time [UTC]':['year','mo','dy','hr',
                                                          'mn','sc','msc']},
                           date_parser=datetimeparser,
                           infer_datetime_format=True, keep_date_col=True)
-            df['Time [UTC]'] = df['Time [UTC]']+dt.timedelta(minutes=45)
+            df.index = df['Time [UTC]']
+            df.drop(columns=['Time [UTC]'],inplace=True)
+            #df['Time [UTC]'] = df['Time [UTC]']+dt.timedelta(minutes=45)
             name = satfile.split('/')[-1].split('_')[1]
-            nametag = pd.Series({'name':name})
-            dflist.append(df.append(nametag,ignore_index=True))
-    return dflist
+            dfdict[name] = df
+    return dfdict
 def interp_combine_dfs(from_df,to_df, from_xkey, to_xkey, *,
                        using_datetimes=True):
     """Function combines two dataframes by interpolating based on given
