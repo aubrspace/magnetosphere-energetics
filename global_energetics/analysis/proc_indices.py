@@ -651,6 +651,9 @@ def get_swmf_data(datapath,**kwargs):
             swdata['eps'] = (swdata['B']**2*swdata['v']*
                                         np.sin(swdata['clock']/2)**4*l**2*
                                                 1e3*1e-9**2 / (4*np.pi*1e-7))
+            # Kan and Lee 1979 Solar wind E-field (from Newell 2007.)
+            swdata['Esw'] = (swdata['v']*(swdata['B_T']*1e9)*
+                            (sin(swdata['clock']/2)**2))
             #Wang2014
             swdata['EinWang'] = (3.78e7*swdata['density']**0.24*
                                 swdata['v']**1.47*(swdata['B_T']*1e9)**0.86*

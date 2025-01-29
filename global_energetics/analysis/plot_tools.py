@@ -582,53 +582,63 @@ def bin_and_describe(X,Y,df,xbins,pLow,pHigh):
         pHigh_all    = (Y_all).quantile(pHigh)
         variance_all = (Y_all).var()
 
-        # imf transits
-        Y_imf        = Y[(X<bin_high)&(X>bin_low)&(df['IMF'])]
-        pLow_imf     = (Y_imf).quantile(pLow)
-        p50_imf      = (Y_imf).quantile(0.50)
-        pHigh_imf    = (Y_imf).quantile(pHigh)
-        variance_imf = (Y_imf).var()
-
-        # substorm like
-        Y_sub        = Y[(X<bin_high)&(X>bin_low)&(df['anysubstorm'])]
-        pLow_sub     = (Y_sub).quantile(pLow)
-        p50_sub      = (Y_sub).quantile(0.50)
-        pHigh_sub    = (Y_sub).quantile(pHigh)
-        variance_sub = (Y_sub).var()
-
-        # not substorm like
-        Y_not        = Y[(X<bin_high)&(X>bin_low)&(1-df['anysubstorm'])&
-                                                  (1-df['IMF'])]
-        pLow_not     = (Y_not).quantile(pLow)
-        p50_not      = (Y_not).quantile(0.50)
-        pHigh_not    = (Y_not).quantile(pHigh)
-        variance_not = (Y_not).var()
-
         # load into new arrays
         Ydict['pLow_all']     = np.append(Ydict['pLow_all'],pLow_all)
         Ydict['p50_all']      = np.append(Ydict['p50_all'],p50_all)
         Ydict['pHigh_all']    = np.append(Ydict['pHigh_all'],pHigh_all)
         Ydict['variance_all'] = np.append(Ydict['variance_all'],variance_all)
 
-        Ydict['pLow_imf']     = np.append(Ydict['pLow_imf'],pLow_imf)
-        Ydict['p50_imf']      = np.append(Ydict['p50_imf'],p50_imf)
-        Ydict['pHigh_imf']    = np.append(Ydict['pHigh_imf'],pHigh_imf)
-        Ydict['variance_imf'] = np.append(Ydict['variance_imf'],variance_imf)
-
-        Ydict['pLow_sub']     = np.append(Ydict['pLow_sub'],pLow_sub)
-        Ydict['p50_sub']      = np.append(Ydict['p50_sub'],p50_sub)
-        Ydict['pHigh_sub']    = np.append(Ydict['pHigh_sub'],pHigh_sub)
-        Ydict['variance_sub'] = np.append(Ydict['variance_sub'],variance_sub)
-
-        Ydict['pLow_not']     = np.append(Ydict['pLow_not'],pLow_not)
-        Ydict['p50_not']      = np.append(Ydict['p50_not'],p50_not)
-        Ydict['pHigh_not']    = np.append(Ydict['pHigh_not'],pHigh_not)
-        Ydict['variance_not'] = np.append(Ydict['variance_not'],variance_not)
-
         Ydict['nAll']     = np.append(Ydict['nAll'],len(Y_all))
-        Ydict['nIMF']     = np.append(Ydict['nIMF'],len(Y_imf))
-        Ydict['nSub']     = np.append(Ydict['nSub'],len(Y_sub))
-        Ydict['nNot']     = np.append(Ydict['nNot'],len(Y_not))
+
+        if 'IMF' in df.keys():
+            # imf transits
+            Y_imf        = Y[(X<bin_high)&(X>bin_low)&(df['IMF'])]
+            pLow_imf     = (Y_imf).quantile(pLow)
+            p50_imf      = (Y_imf).quantile(0.50)
+            pHigh_imf    = (Y_imf).quantile(pHigh)
+            variance_imf = (Y_imf).var()
+
+            Ydict['pLow_imf']     = np.append(Ydict['pLow_imf'],pLow_imf)
+            Ydict['p50_imf']      = np.append(Ydict['p50_imf'],p50_imf)
+            Ydict['pHigh_imf']    = np.append(Ydict['pHigh_imf'],pHigh_imf)
+            Ydict['variance_imf'] = np.append(Ydict['variance_imf'],
+                                              variance_imf)
+
+            Ydict['nIMF']     = np.append(Ydict['nIMF'],len(Y_imf))
+
+        if 'anysubstorm' in df.keys():
+            # substorm like
+            Y_sub        = Y[(X<bin_high)&(X>bin_low)&(df['anysubstorm'])]
+            pLow_sub     = (Y_sub).quantile(pLow)
+            p50_sub      = (Y_sub).quantile(0.50)
+            pHigh_sub    = (Y_sub).quantile(pHigh)
+            variance_sub = (Y_sub).var()
+
+            Ydict['pLow_sub']     = np.append(Ydict['pLow_sub'],pLow_sub)
+            Ydict['p50_sub']      = np.append(Ydict['p50_sub'],p50_sub)
+            Ydict['pHigh_sub']    = np.append(Ydict['pHigh_sub'],pHigh_sub)
+            Ydict['variance_sub'] = np.append(Ydict['variance_sub'],
+                                              variance_sub)
+
+            Ydict['nSub']     = np.append(Ydict['nSub'],len(Y_sub))
+
+        if 'anysubstorm' in df.keys() and 'IMF' in df.keys():
+            # not substorm like
+            Y_not        = Y[(X<bin_high)&(X>bin_low)&(1-df['anysubstorm'])&
+                                                    (1-df['IMF'])]
+            pLow_not     = (Y_not).quantile(pLow)
+            p50_not      = (Y_not).quantile(0.50)
+            pHigh_not    = (Y_not).quantile(pHigh)
+            variance_not = (Y_not).var()
+
+            Ydict['pLow_not']     = np.append(Ydict['pLow_not'],pLow_not)
+            Ydict['p50_not']      = np.append(Ydict['p50_not'],p50_not)
+            Ydict['pHigh_not']    = np.append(Ydict['pHigh_not'],pHigh_not)
+            Ydict['variance_not'] = np.append(Ydict['variance_not'],
+                                              variance_not)
+
+            Ydict['nNot']     = np.append(Ydict['nNot'],len(Y_not))
+
     return Ydict
 
 def extended_fill_between(ax,X,upper,lower,facecolor,alpha):
