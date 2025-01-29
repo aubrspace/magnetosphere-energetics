@@ -232,10 +232,20 @@ def prep_field_data(field_data, **kwargs):
             truegrid = field_data.zone(-1)
             truegrid.name = 'truegrid'
             if 'dvol [R]^3' in field_data.variable_names:
-                #TODO come back to this and figure out a different system
-                eq('{trueCellVolume} = {dvol [R]^3}['
-                                         +str(field_data.zone(-1).index+1)+']')
-                                                    #zones=[field_data.zone(0)])
+                tp.data.operate.interpolate_linear(
+                                    field_data.zone('global_field'),
+                                    source_zones=truegrid,
+                                    variables=field_data.variable('dvol *'))
+                if do_cms:
+                    tp.data.operate.interpolate_linear(
+                                    field_data.zone('past'),
+                                    source_zones=truegrid,
+                                    variables=field_data.variable('dvol *'))
+                    tp.data.operate.interpolate_linear(
+                                    field_data.zone('future'),
+                                    source_zones=truegrid,
+                                    variables=field_data.variable('dvol *'))
+                eq('{trueCellVolume} = {dvol [R]^3}')
             else:
                 ## Extract the dual and true grid info and sort using pandas
                 field_data.add_variable('trueCellVolume')
@@ -432,8 +442,10 @@ def generate_3Dobj(sourcezone, **kwargs):
         zone,inner_zone,state_index=calc_state(m, sources,**kwargs,
                                                mainZoneIndex=sourcezone.index)
         print(m,zone,state_index)
-        state_name = zone.dataset.variable(state_index).name
+        #if 'nlobe' in m:
+        #    from IPython import embed; embed()
         if (type(zone)!=type(None)or type(inner_zone)!=type(None)):
+            state_name = zone.dataset.variable(state_index).name
             if 'zone_rename' in kwargs:
                 zone.name = kwargs.get('zone_rename','')+'_'+m
             if 'terminator' in m:

@@ -116,10 +116,10 @@ if __name__ == "__main__":
     # Set file paths/individual file
     #inpath = 'error_results/hitime_run/'
     #inpath = 'localdbug/parameter_study/MEDHIGH/'
-    inpath = 'localdbug/mothersday/'
+    inpath = 'localdbug/starlink/'
     #outpath = 'error_results/hitime_run/'
     #outpath = 'localdbug/parameter_study/MEDHIGH/'
-    outpath = 'localdbug/mothersday/'
+    outpath = 'localdbug/starlink/'
     head = '3d__var_*'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
                       key=makevideo.time_sort)
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
-    oggridfile = ''
+    oggridfile = 'localdbug/starlink/3d__var_1_e20240510-173300-033.plt'
 
     i=0
     #for k,f in enumerate(filelist[0:1]):
