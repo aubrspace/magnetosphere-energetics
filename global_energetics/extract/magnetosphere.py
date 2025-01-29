@@ -431,6 +431,7 @@ def generate_3Dobj(sourcezone, **kwargs):
     for m in modes:
         zone,inner_zone,state_index=calc_state(m, sources,**kwargs,
                                                mainZoneIndex=sourcezone.index)
+        print(m,zone,state_index)
         state_name = zone.dataset.variable(state_index).name
         if (type(zone)!=type(None)or type(inner_zone)!=type(None)):
             if 'zone_rename' in kwargs:

@@ -131,7 +131,7 @@ def energetics_analysis(infiles,outpath):
                                       integrate_line=False,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                                      truegridfile='',
+                        truegridfile='starlink2/IO2/3d__volume_e20220202.plt',
                                       verbose=True,
                                       extract_flowline=False,
                                       outputpath=outpath)
