@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Extraction routine for ionosphere surface
 """
-import sys
-import os
+import sys,os
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import time
 import glob
 import numpy as np
@@ -238,16 +239,23 @@ def interpolate_satellite_loc(satfile,source_files,ofilepath):
         vsat_df = pd.DataFrame()
         vsat_df['time'] = source_times
         # Interpolate locations and loc_times to source_times
-        loc_times = locfile[sat]['time']
+        loc_times = locfile[sat].index
         xtimes = [float(t) for t in loc_times.values]
         ytimes = [pd.Timestamp(t).value for t in source_times]
-        vsat_df['Xgsm'] = np.interp(ytimes,xtimes,locfile[sat]['Xgsm'].values)
-        vsat_df['Ygsm'] = np.interp(ytimes,xtimes,locfile[sat]['Ygsm'].values)
-        vsat_df['Zgsm'] = np.interp(ytimes,xtimes,locfile[sat]['Zgsm'].values)
+        vsat_df['Xgsm'] = np.interp(ytimes,xtimes,locfile[sat]['x_gsm'].values)
+        vsat_df['Ygsm'] = np.interp(ytimes,xtimes,locfile[sat]['y_gsm'].values)
+        vsat_df['Zgsm'] = np.interp(ytimes,xtimes,locfile[sat]['z_gsm'].values)
         interp_dict[sat] = vsat_df
         i+=1
     locfile.close()
+    print(f'Creating {os.path.join(ofilepath,satfile.split("/")[-1])}')
+    outfile = pd.HDFStore(os.path.join(ofilepath,satfile.split('/')[-1]))
+    for sat in interp_dict.keys():
+        outfile[sat] = interp_dict[sat]
+        print(f'\tWriting {sat} to file')
+    '''
     i=1
+    from IPython import embed; embed()
     for sourcefile in source_files:
         eventtime = get_time(sourcefile)
         print('{:.1%} Packaging '.format(i/ntimes),eventtime)
@@ -255,13 +263,14 @@ def interpolate_satellite_loc(satfile,source_files,ofilepath):
         datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                           str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                           str(eventtime.minute))
-        outfile = pd.HDFStore(os.path.join(ofilepath,ofilepath+
+        outfile = pd.HDFStore(os.path.join(ofilepath,sat+
                                            '_'+datestring+'.h5'))
         for sat in interp_dict.keys():
             save_df = interp_dict[sat][interp_dict[sat]['time']==eventtime]
             outfile[sat] = save_df
         outfile.close()
         i+=1
+    '''
     return ofilepath
 
 def extract_satellite(sourcefile,satfile):
@@ -286,6 +295,8 @@ def extract_satellite(sourcefile,satfile):
     for sat in locfile.keys():
         X,Y,Z = locfile[sat][locfile[sat]['time']==sourcetime][[
                                               'Xgsm','Ygsm','Zgsm']].values[0]
+        #X,Y,Z = locfile[sat][locfile[sat].index==sourcetime][[
+        #                                      'x','y','z']].values[0]
         # Load tecplot source data file at the timestamp and extract
         print('{:.1%} Extracting '.format(i/nsat),sat,' at ',sourcetime)
         probe = tp.data.query.probe_at_position(X,Y,Z)[0]
@@ -303,17 +314,21 @@ if __name__ == "__main__":
         tp.new_layout()
     if False:
         # Convert observed .txt file to hdf
-        hdffile = txt_to_hdf5('mysatdata.txt')
+        #hdffile = txt_to_hdf5('mysatdata.txt')
+        for infile in glob.glob('inputs/*.txt'):
+            hdf = txt_to_hdf5(infile)
     else:
         hdffile = 'obssatloc.h5'
     if True:
         # Convert observed .h5 file to interpolated (event specific)
-        MHDDIR = 'ccmc_2022-02-02/'
+        MHDDIR = 'run_mothersday/GM/IO2/'
         # glob for the available 3d files and get source_times
         source_files = sorted(glob.glob(MHDDIR+'3d__var*.plt'),
                               key=time_sort)
-        ofilepath = interpolate_satellite_loc(hdffile,source_files,
-                                              'star2satloc')
+        for satfile in glob.glob('mothersday_sats/*.h5'):
+            print(f'satellite: {satfile}')
+            interpolate_satellite_loc(satfile,source_files,
+                                              'mothersday_sats/interp/')
     else:
         ofilepath = 'star2satloc'
 

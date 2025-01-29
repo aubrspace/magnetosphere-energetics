@@ -47,23 +47,22 @@ def parse_infiles(inpath,outpath):
     return solution_times, all_solution_times
 
 def virtualsat_extractions(infile,satpath,outpath):
-    # Find the matching satfile
+    # Get time from the filename
     eventtime = makevideo.get_time(infile)
-    satlist = sorted(glob.glob(os.path.join(satpath,'*.h5')),
-                     key=makevideo.time_sort)
-    sattimes = [makevideo.get_time(f.split('/')[-1]) for f in satlist]
-    satfile = satlist[sattimes.index(eventtime)]
-    # Extrat the data from the input source file
-    results = satellites.extract_satellite(infile,satfile)
     # Create 'virtual_sat_out' file
     datestring = (str(eventtime.year)+'-'+str(eventtime.month)+'-'+
                   str(eventtime.day)+'-'+str(eventtime.hour)+'-'+
                   str(eventtime.minute))
-    outfile = pd.HDFStore(os.path.join(outpath,'satellites',
-                                       'virtual_sats_'+datestring+'.h5'))
-    # Load the created file with the extracted data
-    for sat in results.keys():
-        outfile[sat] = results[sat]
+    outname = os.path.join(outpath,'satellites',
+                                       'virtual_sats_'+datestring+'.h5')
+    print(f"Creating {outname}")
+    outfile = pd.HDFStore(outname)
+    # Extract the data from the input source file
+    for satfile in glob.glob(os.path.join(satpath,'*.h5')):
+        results = satellites.extract_satellite(infile,satfile)
+        # Load the created file with the extracted data
+        for sat in results.keys():
+            outfile[sat] = results[sat]
     outfile.close()
     # Write a file.png to mark that this one is now done
     outputname = infile.split('e')[-1].split('.plt')[0]+'.png'
@@ -136,7 +135,7 @@ if __name__ == "__main__":
 
     # Get the whole file list remaining
     file_list, full_list = parse_infiles(inpath,outpath)
-    [print(str(f)+'\n') for f in file_list]
+    #[print(str(f)+'\n') for f in file_list]
     # If satellite file is given
     dosat = False
     if '-s' in sys.argv or '--satpath' in sys.argv:

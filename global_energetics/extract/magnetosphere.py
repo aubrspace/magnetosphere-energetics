@@ -367,7 +367,8 @@ def prep_field_data(field_data, **kwargs):
             closed_zone = None
     print('closed_zone: '+closed_zone.name)
     #Update global variables with the centroid adjusted magnetic mapping
-    if kwargs.get('do_interfacing',False) and ('phi_1 [deg]' in
+    if (kwargs.get('do_interfacing',False) or
+        'plasmasheet' in kwargs.get('modes')) and ('phi_1 [deg]' in
                                                field_data.variable_names):
         eq('{trace_limits}=if({Status}==3 && '+
                             '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
@@ -430,6 +431,7 @@ def generate_3Dobj(sourcezone, **kwargs):
     for m in modes:
         zone,inner_zone,state_index=calc_state(m, sources,**kwargs,
                                                mainZoneIndex=sourcezone.index)
+        print(m,zone,state_index)
         state_name = zone.dataset.variable(state_index).name
         if (type(zone)!=type(None)or type(inner_zone)!=type(None)):
             if 'zone_rename' in kwargs:

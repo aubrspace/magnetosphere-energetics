@@ -1,13 +1,14 @@
 #/usr/bin/env python
 """Modifies tecplot .plt files to be save for the VisIt reader in Paraview
 """
-import sys,os
-import glob
+import sys,os,glob,time
+sys.path.append(os.getcwd().split('swmf-energetics')[0]+
+                                      'swmf-energetics/')
 import datetime as dt
 import tecplot as tp
 #Interpackage imports
 try:
-    from global_energetics.makevideo import time_sort
+    from global_energetics.makevideo import time_sort,get_time
     nosort = False
 except ImportError:
     print('global_energetics not found cant sort files!')
@@ -23,82 +24,43 @@ def weed_savedate(pathtofiles,keytime,keep_side,*,verbose):
     else:
         filelist = sorted(glob.glob(f'{pathtofiles}/3d*var*.plt'),
                           key=time_sort)
+    times = [get_time(f) for f in filelist]
     if verbose:
         print(filelist,'\n')
-    keeps = [[]]*len(filelist)
-    savedates = [[]]*len(filelist)
+    kills = []
+    skip = 0
     for i,infile in enumerate(filelist):
+        if skip>0:
+            skip-=1
+            continue
         if verbose:
-            print(f'\topening {infile.split("/")[-1]} ...')
-        # Read file with tecplot and scrape the aux data
-        tp.new_layout()
-        ds = tp.data.load_tecplot(infile)
-        aux = ds.zone(0).aux_data.as_dict()
-        savedate = dt.datetime.strptime(aux['SAVEDATE'],
+            print(f'\t{i}/761 opening {infile.split("/")[-1]} ...')
+        # Check that this timestamp is only included once
+        ftime = get_time(infile)
+        count = times.count(ftime)
+        if count>1:
+            skip = count-1
+            savedates = [[]]*count
+            for k in range(0,count):
+                # Read file with tecplot and scrape the aux data
+                tp.new_layout()
+                ds = tp.data.load_tecplot(filelist[i+k])
+                aux = ds.zone(0).aux_data.as_dict()
+                savedate = dt.datetime.strptime(aux['SAVEDATE'],
                                              'Save Date: %Y/%m/%d at %H:%M:%S')
-        savedates[i]=savedate
-        # Determine keep or delete based on save date relative to key time
-        isafter = (savedate-keytime).total_seconds()>0
-        if keep_side == 'before':
-            keeps[i] = not isafter
-        else:
-            keeps[i] = isafter
-    # Display the result
-    if verbose:
-        print(f'\033[92m KEEP \033[00m')
-        print(f'\033[95m DELETE \033[00m')
-        print('\tFile\t\tSAVEDATE')
-        print('***************************')
-        for i,infile in enumerate(filelist):
-            if keeps[i]:
-                color = 92
-            else:
-                color = 95
-            print(f'\t\033[{color}m {infile.split("/")[-1]}\t'
-                  f' {savedates[i]}\033[00m')
-    else:
-        print(f'\033[95m DELETE \033[00m')
-        print('***************************')
-        for i,infile in enumerate(filelist):
-            if not keeps[i]:
-                print(f'\t\033[95m {infile} \033[00m')
-    if not all(keeps):
-        # Ask user to confirm deletion
-        done = False
-        i==0
-        while not done:
-            i+=1
-            if i==1:
-                delete_entry = input('\nDelete these files? [y/n]\n')
-            if (delete_entry!='y') and (delete_entry!='n'):
-                delete_entry = input('\noops, try again. Delete? [y/n]\n')
-            elif delete_entry=='y':
-                doDelete = True
-                done = True
-            elif delete_entry=='n':
-                doDelete = False
-                done = True
-            if i>3:
-                done = True
-                doDelete = False
-        if doDelete:
-            for i,infile in enumerate(filelist):
-                if not keeps[i]:
-                    os.remove(infile)
-                    print(f'\tdeleted: {infile.split("/")[-1]}')
-    else:
-        print('Nothing to delete, all files pass')
-    # init:
-    #   savedates
-    # for each file
-    #   get aux
-    #   add aux to savedates array
-    # if verbose:
-    #   print all file sorted by save date
-    #   color by delete or keep
-    #   print a key as first line
-    # else:
-    #   print dates which are after savedate
+                savedates[k] = savedate
+            # keep only the one that was created most recently
+            savevalues = [(s-savedates[0]).total_seconds() for s in savedates]
+            for k,v in enumerate(savevalues):
+                if v!=min(savevalues):
+                    kills.append(filelist[i+k])
+                    if verbose:
+                        print(f'Flagging {i+k}: {filelist[i+k]}')
+    if len(kills)>0:
+        os.makedirs(os.path.join(pathtofiles,'trash'),exist_ok=True)
+    for f in kills:
+        # Move file to a trash file
+        os.rename(f,f.replace('3d__','trash/3d__'))
 
 if __name__ == '__main__':
     if '-h' in sys.argv or '--help' in sys.argv:

@@ -813,8 +813,8 @@ def get_surf_geom_variables(zone,**kwargs):
     #Generate cellcentered versions of postitional variables
     for var in ['X [R]','Y [R]','Z [R]','r [R]','Xd [R]','Zd [R]',
                 'B_x [nT]','B_y [nT]','B_z [nT]','Bdx','Bdy','Bdz',
-                'theta_1 [deg]','phi_1 [deg]',
-                'Utot [J/Re^3]','Status']:
+                'theta_1 [deg]','phi_1 [deg]','theta_2 [deg]','phi_2 [deg]',
+                'daynight','Utot [J/Re^3]','Status']:
         if var in zone.dataset.variable_names:
             newvar = var.split(' ')[0].lower()+'_cc'
             if (newvar in zone.dataset.variable_names and
@@ -1835,8 +1835,8 @@ def make_trade_eq(from_state,to_state,tagname,tstep,**kwargs):
         Fix to states with [2] designating the futurezone
               Reverse for opposite sign
 
-          ex. if( dayclosed[now] & ext[future]) then +M5a[now]/dt
-              elif( dayclosed[future] & ext[now] then -M5a[future]/dt
+          ex. if( dayclosed[past] & ext[future]) then +M5a[now]/dt
+              elif( dayclosed[future] & ext[past] then -M5a[now]/dt
     Inputs
         from_state,to_state (str(variablename))- denotes sign convention
         tagname (str)- tag put on variable

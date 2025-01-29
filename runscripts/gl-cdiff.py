@@ -61,7 +61,7 @@ def save_gm_single(gm_style,outpath,OUTPUTNAME,filetime):
 
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(inpath+'/3d__var_1*.plt'),
+    all_solution_times = sorted(glob.glob(inpath+'/3d__var_*.plt'),
                                 key=makevideo.time_sort)[0::]
     # Prune any repeat times
     times = [makevideo.get_time(f) for f in all_solution_times]
@@ -74,8 +74,8 @@ def parse_infiles(inpath,outpath):
         for png in donelist:
             parseddonelist.append(png.split('/')[-1].split('.')[0])
         for plt in all_solution_times:
-            parsednotdone.append(plt.split('e')[-1].split('.')[0])
-        solution_times=[os.path.join(inpath,'3d__var_1_e'+item+'.plt')for item
+            parsednotdone.append(plt.split('3d__')[-1].split('.')[0])
+        solution_times=[os.path.join(inpath,'3d__'+item+'.plt')for item
                         in parsednotdone if item not in parseddonelist]
     else:
         solution_times = all_solution_times
@@ -83,11 +83,10 @@ def parse_infiles(inpath,outpath):
     return solution_times, all_solution_times
 
 def energetics_analysis(infiles,outpath):
+    print(infiles)
     #Reset session
     tp.new_layout()
     #python objects
-    #oggridfile = 'ideal_conserve/GM/IO2/3d__volume.plt'
-    oggridfile = ''
     pasttime = makevideo.get_time(infiles[0])
     filetime = makevideo.get_time(infiles[1])
     futuretime = makevideo.get_time(infiles[2])
@@ -132,7 +131,7 @@ def energetics_analysis(infiles,outpath):
                                       integrate_line=False,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                                      truegridfile=oggridfile,
+                        truegridfile='starlink2/IO2/3d__volume_e20220202.plt',
                                       verbose=True,
                                       extract_flowline=False,
                                       outputpath=outpath)
