@@ -14,7 +14,7 @@
 #SBATCH --ntasks-per-node=1
 
 # Number of cores or threads per node
-#SBATCH --cpus-per-task=3
+#SBATCH --cpus-per-task=6
 
 # Memory per cpu
 #SBATCH --mem-per-cpu=5g

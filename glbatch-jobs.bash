@@ -49,11 +49,11 @@ do
         #sbatch batchjob_park.gl -f ${file:${#INPUTDIR}}
 
         # If you only want to process n files from the list
-        i=$((i+1))
-        if [ $i == 8 ]
-        then
-            exit
-        fi
+        #i=$((i+1))
+        #if [ $i == 8 ]
+        #then
+        #    exit
+        #fi
         #exit
 
     fi
