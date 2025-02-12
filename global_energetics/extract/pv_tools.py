@@ -7,8 +7,75 @@ import numpy as np
 from numpy import sin,cos,pi,arcsin,sqrt,deg2rad
 #### import the simple module from paraview
 from paraview.simple import *
+from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from geopack import geopack as gp
 from equations import rotation
+
+def slice_and_calc_applied_voltage(tracenames,field,**kwargs):
+    """Function takes a set of projected B field traces and calculates the
+       effective applied voltage across them (assuming B -equipotential)
+    Inputs
+        tracenames (list['str'])
+        field (Source)
+        kwargs:
+            slice_radius
+            update
+    Return
+        results (list[float,float]) - Voltage drop North, then South
+    """
+    #   Then use stream trace w/ custom source for B
+    Bslice_points = {}
+    for i,tracename in enumerate(tracenames):
+        trace = FindSource(tracename)
+        head = tracename.split('_')[0]
+        tag = tracename.split(head)[-1]
+        # Slice through just made stream and determine average XYZ
+        BSlice = Slice(registrationName='Slice'+tag,Input=trace)
+        BSlice.SliceType = 'Cylinder'
+        BSlice.SliceType.Center = [0.0,0.0,0.0]
+        BSlice.SliceType.Axis   = [1.0,0.0,0.0]
+        BSlice.SliceType.Radius = kwargs.get('slice_radius',60)
+        # Update a dict with the info
+        slice_points = servermanager.Fetch(BSlice)
+        slice_points = dsa.WrapDataObject(slice_points)
+        P_x = np.mean(slice_points.PointData['x'])
+        P_y = np.mean(slice_points.PointData['y'])
+        P_z = np.mean(slice_points.PointData['z'])
+        Bslice_points['P'+tag] = (P_x,P_y,P_z)
+    results = {}
+    for i,hemi in enumerate(['N','S']):
+        P = Bslice_points
+        if i==0:
+            up_x,up_y,up_z = Bslice_points['P_N_up']
+            dn_x,dn_y,dn_z = Bslice_points['P_N_down']
+        else:
+            up_x,up_y,up_z = Bslice_points['P_S_up']
+            dn_x,dn_y,dn_z = Bslice_points['P_S_down']
+        L_AB = np.sqrt((up_x-dn_x)**2+(up_y-dn_y)**2+(up_z-dn_z)**2)
+        AB_x = (up_x-dn_x)/L_AB
+        AB_y = (up_y-dn_y)/L_AB
+        AB_z = (up_z-dn_z)/L_AB
+        results['Length_'+hemi] = L_AB
+        # Calculate E dot AB_vec between centers of the up/down currents
+        E_AB = Calculator(registrationName='E_AB',Input=field)
+        E_AB.Function = (f"dot(E_mV_m,({AB_x}*iHat+{AB_y}*jHat+0*kHat))")
+        E_AB.ResultArrayName = 'E_AB_mV_m'
+        AB_line = PointLineInterpolator(registrationName='Line'+hemi,
+                                        Input=E_AB)
+        if i==0:
+            AB_line.Source.Point1 = Bslice_points['P_N_up']
+            AB_line.Source.Point2 = Bslice_points['P_N_down']
+        else:
+            AB_line.Source.Point1 = Bslice_points['P_S_up']
+            AB_line.Source.Point2 = Bslice_points['P_S_down']
+        result = IntegrateVariables(Input=AB_line,
+                               registrationName='LineIntegral_'+head+'_'+hemi)
+        result.DivideCellDataByVolume = 1
+        result_data = servermanager.Fetch(result)
+        result_data = dsa.WrapDataObject(result_data)
+        dV = result_data.PointData['E_AB_mV_m']*6.371 # NOTE mV/m * Re
+        results['dV_'+hemi] = dV
+    return results
 
 def haversine(XA,XB):
     lat1 = deg2rad(np.array(XA[0]))
@@ -605,7 +672,7 @@ def rotate2GSM(pipeline,tilt,**kwargs):
     rotationFilter.Script = update_rotation(tilt)
     ###Probably extraenous calculator to export the xyz to the actual
     #   coordinate values bc I don't know how to do that in the progfilt
-    rGSM = Calculator(registrationName='stations',Input=rotationFilter)
+    rGSM = Calculator(registrationName='XYZgsm',Input=rotationFilter)
     rGSM.Function = 'x_gsm*iHat+y_gsm*jHat+z_gsm*kHat'
     rGSM.AttributeType = 'Point Data'
     rGSM.ResultArrayName = 'XYZgsm'

@@ -7,6 +7,24 @@ import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
 
+def find_IE_matched_file(path,filetime):
+    """Function returns the IE file at a specific time, if it exists
+    Inputs
+        path (str)
+        filetime (datetime)
+    Returns
+        iedatafile (str)
+    """
+    iedatafile = (path+
+                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
+    return iedatafile
+
 def read_aux(infile):
     """Reads in auxillary data file stripped from a .plt tecplot file
     Inputs
