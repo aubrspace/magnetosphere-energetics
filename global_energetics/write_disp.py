@@ -292,6 +292,7 @@ if __name__ == "__main__":
     import makevideo
     PATH = sys.argv[1]
     OPATH = sys.argv[2]
+    print(f"inPATH: {PATH}\noutPath: {OPATH}\nFlags: {sys.argv[3::]}")
     kwargs = {}
     if '-c' in sys.argv:
         kwargs['combo_name'] = sys.argv[sys.argv.index('-c')+1]

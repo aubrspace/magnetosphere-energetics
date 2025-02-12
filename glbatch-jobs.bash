@@ -8,18 +8,21 @@
 #INPUTDIR=./Starlink_Pleiades/
 #OUTPUTDIR=./outputs_starlink_hires/
 
-INPUTDIR=./starlink2/IO2/
-OUTPUTDIR=./outputs_ccmcStarlink/
+#INPUTDIR=./starlink2/IO2/
+#OUTPUTDIR=./outputs_ccmcStarlink/
 
 #INPUTDIR=./run_mothersday_ne/GM/IO2/
 #OUTPUTDIR=./outputs_mothersday_ne/
+
+INPUTDIR=./run_MEDnMEDu/GM/IO2/
+OUTPUTDIR=./outputs_r3_x120_b07_dist_MEDnMEDu/
 
 filecount=0
 workercount=0
 
 #head=3d__var_3_e199701
-#head=3d__var_1_e202206
-head=3d__var_1_e202202
+head=3d__var_1_e202206
+#head=3d__var_1_e202202
 #head=3d__var_1_e202405
 
 #satpath=star2satloc
@@ -34,8 +37,9 @@ do
     minute=${file:${#INPUTDIR}+${#head}+5:2}
     
     # Filter by day/hour/minute
-    #if [[ ${day#0} -eq 10 ]] && [[ ${hour#0} -lt 4 ]] && [[ ${hour#0} -gt 1 ]]
-    if [[ 1 == 1 ]]
+    if [[ ${day#0} -eq 7 ]] && [[ ${hour#0} -lt 8 ]]
+    #&& [[ ${hour#0} -gt 1 ]]
+    #if [[ 1 == 1 ]]
     then
         #echo "${file:${#INPUTDIR}} $day $hour"
 
