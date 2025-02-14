@@ -3,3 +3,34 @@
 # https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
 requires = ["setuptools>=43.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
+
+#[project]
+#name="magnetsophere-energetics"
+#version="0.0.1"
+#authors = [{name="A. Brenner",email="aubr@umich.edu"},]
+#readme  = "README.md"
+#requires-python = ">=3.9"
+#classifiers=[
+#        # How mature is this project? Common values are
+#        #   3 - Alpha
+#        #   4 - Beta
+#        #   5 - Production/Stable
+#        "Development Status :: 3 - Alpha",
+#        # Indicate who your project is intended for
+#        "Intended Audience :: Space Physics Modelers",
+#        "Topic :: Magnetosphere Physics :: Simulation Analysis Tools",
+#        # Pick your license as you wish
+#        "License :: OSI Approved :: MIT License",
+#        # Specify the Python versions you support here. In particular, ensure
+#        # that you indicate you support Python 3. These classifiers are *not*
+#        # checked by 'pip install'. See instead 'python_requires' below.
+#        "Programming Language :: Python :: 3",
+#        "Programming Language :: Python :: 3.9",
+#        "Programming Language :: Python :: 3.10",
+#        "Programming Language :: Python :: 3 :: Only",
+#    ]
+#license = "MIT"
+#license-files = ["LICENSE"]
+#
+#[project.urls]
+#Homepage = "https://github.com/aubrspace/magnetosphere-energetics"
