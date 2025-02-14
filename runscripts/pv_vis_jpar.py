@@ -31,9 +31,9 @@ if True:
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
     inpath = os.path.join(herepath,'gannon-storm/data/large/')
-    GMpath = os.path.join(inpath,'GM/')
-    IEpath = os.path.join(inpath,'IE/')
-    IMpath = os.path.join(inpath,'IM/')
+    GMpath = os.path.join(inpath,'GM/IO2/')
+    IEpath = os.path.join(inpath,'IE/ionosphere/')
+    IMpath = os.path.join(inpath,'IM/plots/')
     outpath= os.path.join(herepath,'gannon-storm/outputs/vis/')
 
     filelist = sorted(glob.glob(GMpath+'*paraview*.plt'),
@@ -44,7 +44,7 @@ if True:
 
     # Load master state
     LoadState(outpath+'cpcp_vis_state2.pvsm')
-    for i,infile in enumerate(filelist):
+    for i,infile in enumerate(filelist[0:1]):
         aux = read_aux(infile.replace('.plt','.aux'))
         localtime = get_time(infile)
         timestamp = FindSource('time')
