@@ -4,7 +4,6 @@
 import os
 import sys
 import time
-from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
 import tecplot as tp
