@@ -26,14 +26,14 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name="magnetsophere-energetics",  # Required
+    name="magnetosphere-energetics",  # Required
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
     #
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/guides/single-sourcing-package-version/
-    version="0.0.1",  # Required
+    version="0.0.5",  # Required
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
@@ -79,8 +79,8 @@ setup(
         #   5 - Production/Stable
         "Development Status :: 3 - Alpha",
         # Indicate who your project is intended for
-        "Intended Audience :: Space Physics Modelers",
-        "Topic :: Magnetosphere Physics :: Simulation Analysis Tools",
+        "Intended Audience :: Science/Research",
+        "Topic :: Scientific/Engineering :: Physics",
         # Pick your license as you wish
         "License :: OSI Approved :: MIT License",
         # Specify the Python versions you support here. In particular, ensure
@@ -100,7 +100,7 @@ setup(
     #keywords="sample, setuptools, development",  # Optional
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    package_dir={"": "global_energetics"},  # Optional
+    #package_dir={"": "src"},  # Optional
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
     #
@@ -108,9 +108,49 @@ setup(
     # the `py_modules` argument instead as follows, which will expect a file
     # called `my_module.py` to exist:
     #
-    #   py_modules=["my_module"],
+    #py_modules=["global_energetics"],
     #
-    #packages=find_packages(where="src"),  # Required
+    #packages=find_packages(where="global_energetics"),  # Required
+    py_modules=["global_energetics",
+              "global_energetics.makevideo",
+              "global_energetics.image_stitch",
+              "global_energetics.link_modules",
+              "global_energetics.makevideo",
+              "global_energetics.preplot",
+              "global_energetics.wind_to_swmfInput",
+              "global_energetics.write_disp",
+              "global_energetics.extract.equations",
+              "global_energetics.extract.innermag",
+              "global_energetics.extract.ionosphere",
+              "global_energetics.extract.line_tools",
+              "global_energetics.extract.magnetometer",
+              "global_energetics.extract.magnetosphere",
+              "global_energetics.extract.magnetosphere2D",
+              "global_energetics.extract.mapping",
+              "global_energetics.extract.plasmasheet",
+              "global_energetics.extract.pv_equations",
+              "global_energetics.extract.pv_fte",
+              "global_energetics.extract.pv_input_tools",
+              "global_energetics.extract.pv_ionosphere",
+              "global_energetics.extract.pv_magnetopause",
+              "global_energetics.extract.pv_mapping",
+              "global_energetics.extract.pv_surface_tools",
+              "global_energetics.extract.pv_tabular_tools",
+              "global_energetics.extract.pv_tools",
+              "global_energetics.extract.pv_visuals",
+              "global_energetics.extract.pv_volume_tools",
+              "global_energetics.extract.radbelt",
+              "global_energetics.extract.satellites",
+              "global_energetics.extract.shared_tools",
+              "global_energetics.extract.shue",
+              "global_energetics.extract.surface_construct",
+              "global_energetics.extract.surface_tools",
+              "global_energetics.extract.swmf_access",
+              "global_energetics.extract.tec_tools",
+              "global_energetics.extract.thermos",
+              "global_energetics.extract.view_set",
+              "global_energetics.extract.volume_tools"
+              ],
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. See
@@ -122,12 +162,12 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/discussions/install-requires-vs-requirements/
-    install_requires=["sys","os","warnings","time",
-                      "glob","PIL",
-                      "numpy","scipy","datetime","pandas",
-                      "tecplot",
-                      "cdasws","sscws","swmfpy","geopack"
-                      ],  # Optional
+    #install_requires=["sys","os","warnings","time",
+    #                  "glob","PIL",
+    #                  "numpy","scipy","datetime","pandas",
+    #                  "tecplot",
+    #                  "cdasws","sscws","swmfpy","geopack"
+    #                  ],  # Optional
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
     # syntax, for example:
