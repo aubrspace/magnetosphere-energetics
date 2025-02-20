@@ -83,6 +83,7 @@ def prepend_names(pipeline,prepend,**kwargs):
 
 def fix_ie_names(pipeline,**kwargs):
     names = ProgrammableFilter(registrationName='names', Input=pipeline)
+    #NOTE JR is mislabeled and is in mA not microA!!!! (flips table)
     names.Script = """
         #Get upstream data
         data = inputs[0]

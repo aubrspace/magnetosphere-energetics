@@ -206,7 +206,8 @@ def check_timing(df,times):
         interp_df[key] = df[key]
     #NOTE method='time' used to work with older version of pandas...
     #interp_df.interpolate(method='time',inplace=True)
-    interp_df.interpolate(method='ffill',inplace=True)
+    #interp_df.interpolate(method='ffill',inplace=True)
+    interp_df.ffill(inplace=True)
     return interp_df
 
 def check_units(df,*, smallunit='[nT]', bigunit='[J]', factor=-8e13):

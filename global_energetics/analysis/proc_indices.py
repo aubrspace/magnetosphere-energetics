@@ -498,12 +498,48 @@ def get_maggrid_data(datapath,**kwargs):
         magstore.close()
     return data
 
+def csv_to_pandas(csvfile,**kwargs):
+    """ helper function for a particular read_csv call
+    inputs
+        csvfile
+        kwargs:
+            skiprows (1)
+            tdict (dict) - dict(year:'year'
+                                month:'mo'
+                                day:'dy'
+                                hour:'hr'
+                                minute:'mn'
+                                second:'sc',
+                                millisecond:'msc')
+            tshift (int) - in minutes
+    Returns
+        df (DataFrame)
+    """
+    tdict = kwargs.get('tdict',{'year':'year','month':'mo','day':'dy',
+                                'hour':'hr','minute':'mn','second':'sc',
+                                'millisecond':'msc'})
+    df = pd.read_csv(csvfile, sep='\s+', skiprows=kwargs.get('skiprows',1))
+    df['Time [UTC]']=pd.to_datetime(dict(year=df[tdict['year']],
+                                         month=df[tdict['month']],
+                                         day=df[tdict['day']],
+                                         hour=df[tdict['hour']],
+                                         minute=df[tdict['minute']],
+                                         second=df[tdict['second']]))
+    df['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+    df.index = df['Time [UTC]']
+    dropcols = list(tdict.values())
+    dropcols.append('Time [UTC]')
+    if 'it' in df.columns:
+        dropcols.append('it')
+    df.drop(columns=dropcols,inplace=True)
+    return df
+
 def get_swmf_data(datapath,**kwargs):
     """Function reads in swmf geoindex log and log
     Inputs
         datapath- path where log files are
     Outputs
-        geoindexdata, swmflogdata- pandas DataFrame with data
+        geoindex, swmflogdata- pandas DataFrame with data
     """
     #read files
     geopath = os.path.join(datapath,kwargs.get('prefix','')+'geo*.log')
@@ -512,11 +548,11 @@ def get_swmf_data(datapath,**kwargs):
     iepath = os.path.join(datapath,kwargs.get('prefix','')+'IE_*.log')
     superpath=os.path.join(datapath,kwargs.get('prefix','')+'superindex_*.log')
     if glob.glob(geopath) != []:
-        geoindex = glob.glob(geopath)[0]
+        geoindexlog = glob.glob(geopath)[0]
         skip_geo = False
     else:
         skip_geo=True
-        geoindexdata = pd.DataFrame()
+        geoindex = pd.DataFrame()
     if glob.glob(logpath) != []:
         swmflog = glob.glob(logpath)[0]
         skip_log = False
@@ -544,65 +580,40 @@ def get_swmf_data(datapath,**kwargs):
     #get dataset names
     print('reading: ')
     if not skip_geo:
-        geoindexname = geoindex.split('/')[-1].split('.log')[0]
-        print('\t{}'.format(geoindex))
+        geoindexname = geoindexlog.split('/')[-1].split('.log')[0]
+        print(f"\t{geoindexname}.log")
     if not skip_log:
         swmflogname = swmflog.split('/')[-1].split('.log')[0]
-        print('\t{}'.format(swmflog))
+        print(f'\t{swmflogname}.log')
     if not skip_super:
         superlogname = superlog.split('/')[-1].split('.log')[0]
-        print('\t{}'.format(superlog))
+        print(f'\t{superlogname}.log')
     if not skip_sw:
         solarwindname = solarwind.split('/')[-1].split('.dat')[0]
-        print('\t{}'.format(solarwind))
+        print(f'\t{solarwindname}.log')
     ##SIMULATION INDICES
     if not skip_geo:
-        geoindexdata = pd.read_csv(geoindex, sep='\s+', skiprows=1,
-            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
-        geoindexdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-        geoindexdata.index = geoindexdata['Time [UTC]']
-        geoindexdata.drop(columns=['Time [UTC]'],inplace=True)
+        geoindex = csv_to_pandas(geoindexlog,tshift=kwargs.get('tshift',0))
     ##SIMULATION LOG (GM)
     if not skip_log:
-        swmflogdata = pd.read_csv(swmflog, sep='\s+', skiprows=1,
-            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
-        swmflogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-        swmflogdata.index = swmflogdata['Time [UTC]']
-        swmflogdata.drop(columns=['Time [UTC]'],inplace=True)
+        swmflogdata = csv_to_pandas(swmflog,tshift=kwargs.get('tshift',0))
     ##SUPERMAG LOG (GM)
     if not skip_super:
-        superlogdata = pd.read_csv(superlog, sep='\s+', skiprows=1,
-            parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
-        superlogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-        superlogdata.index = superlogdata['Time [UTC]']
-        superlogdata.drop(columns=['Time [UTC]'],inplace=True)
+        superlogdata = csv_to_pandas(superlog,tshift=kwargs.get('tshift',0))
     ##IE SIMULATION LOG
     if not skip_ie:
-        ielogdata = pd.read_csv(ielog,sep='\s+',skiprows=1,
-           parse_dates={'Time [UTC]':['year','mo','dy','hr','mn','sc','msc']},
-           date_parser=datetimeparser,infer_datetime_format=True,
-           keep_date_col=True)
-        ielogdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
-        ielogdata.index = ielogdata['Time [UTC]']
-        ielogdata.drop(columns=['Time [UTC]'],inplace=True)
+        ielogdata = csv_to_pandas(ielog,tshift=kwargs.get('tshift',0))
     ##SIMULATION SOLARWIND
     if not skip_sw:
-        coordsys = pd.read_csv(solarwind).loc[2][0]#NOTE come back to this
-        swdata = pd.read_csv(solarwind, sep='\s+', skiprows=[0,1,2,4,5,6,7],
-            parse_dates={'Time [UTC]':['year','month','day',
-                                   'hour','min','sec','msec']},
-            date_parser=datetimeparser,
-            infer_datetime_format=True, keep_date_col=True)
-            #infer_datetime_format=True, keep_date_col=True).drop(index=[0,1,2])
-        swdata['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
+        coordsys = pd.read_csv(solarwind).loc[2].values[0]
+        sw_tdict = {'year':'year','month':'month','day':'day',
+                    'hour':'hour','minute':'min','second':'sec',
+                    'millisecond':'msec'}
+        swdata = csv_to_pandas(solarwind,tshift=kwargs.get('tshift',0),
+                                tdict=sw_tdict,skiprows=[0,1,2,4,5,6,7])
         if coordsys=='GSE':
             print('GSE solarwind data found!!! Converting to GSM...')
+            swdata['Time [UTC]'] = swdata.index
             swdata = df_coord_transform(swdata, 'Time [UTC]', ['vx','vy','vz'],
                                   ('GSE','car'), ('GSM','car'))
             swdata = df_coord_transform(swdata, 'Time [UTC]', ['bx','by','bz'],
@@ -610,10 +621,10 @@ def get_swmf_data(datapath,**kwargs):
             for key in ['bx','by','bz','vx','vy','vz']:
                 swdata[key] = swdata[key+'_GSM']
                 swdata.drop(columns=[key+'_GSM'])
-        swdata.index = swdata['Time [UTC]']
-        swdata.drop(columns=['Time [UTC]'],inplace=True)
-        #swdata=swdata[swdata.index < geoindexdata.index[-1]]
-        #swdata =swdata[swdata.index > geoindexdata.index[0]]
+            #swdata.index = swdata['Time [UTC]']
+            swdata.drop(columns=['Time [UTC]'],inplace=True)
+        #swdata=swdata[swdata.index < geoindex.index[-1]]
+        #swdata =swdata[swdata.index > geoindex.index[0]]
         #solar wind dynamic pressure
         convert = 1.6726e-27*1e6*(1e3)**2*1e9
         swdata['v']=np.sqrt(swdata['vx']**2+swdata['vy']**2+swdata['vz']**2)
@@ -664,7 +675,7 @@ def get_swmf_data(datapath,**kwargs):
                             135/(5e-5*swdata['bz']**3+1)*6371e3**2)
     #times Time [UTC]
     if not skip_geo:
-        geoindexdata['times'] = geoindexdata.index
+        geoindex['times'] = geoindex.index
     if not skip_log:
         swmflogdata['times'] = swmflogdata.index
     if not skip_super:
@@ -675,7 +686,7 @@ def get_swmf_data(datapath,**kwargs):
 
     #trim according to kwargs passed
     if not skip_geo:
-        geoindexdata = geoindexdata.truncate(before=kwargs.get('start'),
+        geoindex = geoindex.truncate(before=kwargs.get('start'),
                                          after=kwargs.get('end'))
     if not skip_log:
         swmflogdata = swmflogdata.truncate(before=kwargs.get('start'),
@@ -691,7 +702,7 @@ def get_swmf_data(datapath,**kwargs):
                                        after=kwargs.get('end'))
 
     data = {}
-    data.update({'swmf_index':geoindexdata})
+    data.update({'swmf_index':geoindex})
     data.update({'swmf_log':swmflogdata})
     data.update({'swmf_sw':swdata})
     data.update({'ie_log':ielogdata})
