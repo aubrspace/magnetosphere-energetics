@@ -6,7 +6,6 @@ import os
 import sys
 import time
 import glob
-from array import array
 import numpy as np
 from numpy import abs, pi, cos, sin, sqrt
 import datetime as dt

@@ -17,6 +17,7 @@ import swmfpy
 #interpackage imports
 from global_energetics.analysis.analyze_energetics import mark_times
 from global_energetics.analysis.proc_indices import (read_indices,
+                                                     csv_to_pandas,
                                                      datetimeparser,
                                                      datetimeparser2,
                                                      datetimeparser3,
@@ -812,14 +813,7 @@ def simdata_to_df(satfiles):
     for satfile in satfiles:
         if os.path.exists(satfile):
             print(f'\tReading {satfile.split("/")[-1]}...')
-            df = pd.read_csv(satfile, sep='\s+', skiprows=1,
-                          parse_dates={'Time [UTC]':['year','mo','dy','hr',
-                                                         'mn','sc','msc']},
-                          date_parser=datetimeparser,
-                          infer_datetime_format=True, keep_date_col=True)
-            df.index = df['Time [UTC]']
-            df.drop(columns=['Time [UTC]'],inplace=True)
-            #df['Time [UTC]'] = df['Time [UTC]']+dt.timedelta(minutes=45)
+            df = csv_to_pandas(satfile)
             name = satfile.split('/')[-1].split('_')[1]
             dfdict[name] = df
     return dfdict
