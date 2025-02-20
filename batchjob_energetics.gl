@@ -43,6 +43,7 @@ do
         o) output=${OPTARG};;
         f) file=${OPTARG};;
         s) satpath=${OPTARG};;
+        n) countn=${OPTARG};;
     esac
 done
 echo "Submitting using path:$input output:$output file:$file"
@@ -53,4 +54,5 @@ printf "START TIME: `date +%Y%m%d`\n"
 #tec360-env -- python3 runscripts/gl-satextract.py -i $input -o $output\cdiff/ -f $file -s $satpath
 #tec360-env -- python3 gl-ie.py -i $input -o $output\ie/ -f $file
 #tec360-env -- python3 gl-maptest.py -i $input -o $output\maptest/ -f $file
-tec360-env -- python3 runscripts/gl-savedist.py -i $input -o $output\dist/ -f $file
+#tec360-env -- python3 runscripts/gl-savedist.py -i $input -o $output\dist/ -f $file
+xvfb-run -d -s "-screen 0 3840x2160x24" pvbatch runscripts/pv_batch_jpar.py -i $input -o $output -f $file

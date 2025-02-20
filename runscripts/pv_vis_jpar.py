@@ -13,7 +13,17 @@ import pandas as pd
 #### import the simple module from paraview
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
-#import global_energetics.extract.pv_magnetopause
+from global_energetics.extract import pv_magnetopause
+from global_energetics.makevideo import (get_time, time_sort)
+from global_energetics.extract.pv_tools import (update_rotation)
+from global_energetics.extract.pv_input_tools import (read_aux, read_tecplot,find_IE_matched_file)
+from global_energetics.extract import pv_surface_tools
+from global_energetics.extract.pv_magnetopause import (setup_pipeline)
+#from global_energetics.extract import magnetometer
+#from global_energetics.extract.magnetometer import(get_stations_now,update_stationHead)
+from global_energetics.extract import pv_ionosphere
+from global_energetics.extract.pv_visuals import (display_visuals)
+'''
 import pv_magnetopause
 from makevideo import (get_time, time_sort)
 from pv_tools import (update_rotation)
@@ -24,6 +34,7 @@ import magnetometer
 from magnetometer import(get_stations_now,update_stationHead)
 import pv_ionosphere
 from pv_visuals import (display_visuals)
+'''
 
 #if __name__ == "__main__":
 if True:
@@ -31,8 +42,8 @@ if True:
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
     inpath = os.path.join(herepath,'gannon-storm/data/large/')
-    GMpath = os.path.join(inpath,'GM/IO2/')
-    IEpath = os.path.join(inpath,'IE/ionosphere/')
+    GMpath = os.path.join(inpath,'GM/IO2/IO2/')
+    IEpath = os.path.join(inpath,'IE/ionosphere/ionosphere/')
     IMpath = os.path.join(inpath,'IM/plots/')
     outpath= os.path.join(herepath,'gannon-storm/outputs/vis/')
 
@@ -44,12 +55,12 @@ if True:
 
     # Load master state
     LoadState(outpath+'cpcp_vis_state2.pvsm')
-    for i,infile in enumerate(filelist[0:1]):
-        aux = read_aux(infile.replace('.plt','.aux'))
+    for i,infile in enumerate(filelist[0:4]):
         localtime = get_time(infile)
         timestamp = FindSource('time')
         timestamp.Text = str(localtime)
 
+        aux = read_aux(infile.replace('.plt','.aux'))
         print(f"\t{i+1}/{len(filelist)}\t{infile.split('/')[-1]}")
         # Locate the start of the pipeline and the old data
         pipehead = FindSource('MergeBlocks1')
@@ -59,16 +70,22 @@ if True:
         pipehead.Input = newData
         Delete(oldData)
         del oldData
+        print('GM file successfully replaced')
 
         # Find corresponding IE file
         iefile = find_IE_matched_file(IEpath,localtime)
-        iehead = FindSource('MergeBlocks')
-        oldIE = iehead.Input
-        # Read in new data and feed into the pipe, delete old data
-        newIE = read_tecplot(iefile,binary=False)
-        iehead.Input = newIE
-        Delete(oldIE)
-        del oldIE
+        if os.path.exists(iefile):
+            iehead = FindSource('MergeBlocks')
+            oldIE = iehead.Input
+            # Read in new data and feed into the pipe, delete old data
+            newIE = read_tecplot(iefile,binary=False)
+            iehead.Input = newIE
+            Delete(oldIE)
+            del oldIE
+            print('IE file successfully replaced')
+        else:
+            print(f'No IE file found {iefile}')
+            continue
 
         # Update dipole
         tilt = float(aux['BTHETATILT'])
@@ -86,6 +103,7 @@ if True:
 
         IErotate = FindSource('rotate2GSM')
         IErotate.Script = update_rotation(tilt)
+        print('Dipole sources successfully updated')
 
         # Find new up/down FAC contour levels
         north_data = servermanager.Fetch(FindSource('rCurrents_north'))
@@ -109,6 +127,7 @@ if True:
         contour_south_up.Isosurfaces = Jpar_south_up
         contour_south_down = FindSource('contourS_down')
         contour_south_down.Isosurfaces = Jpar_south_down
+        print('New FAC countour levels selected')
 
         # Update null points
         null_XYZ = FindSource('XYZ')
@@ -126,9 +145,11 @@ if True:
                 stream.SeedType.Center = P_left
             else:
                 stream.SeedType.Center = P_right
+        print('New null points selected')
 
         # Find new sliced points
         Bslice_points = {}
+        print('Finding B projection points')
         for slice_source in ['Bstream_Slice_N_up','Bstream_Slice_N_down',
                              'Bstream_Slice_S_up','Bstream_Slice_S_down',
                              'Null_Slice_N_up','Null_Slice_N_down',
@@ -144,8 +165,10 @@ if True:
             P_y = np.mean(slice_points.PointData['y'])
             P_z = np.mean(slice_points.PointData['z'])
             Bslice_points['P_'+head+tag] = (P_x,P_y,P_z)
+            print(f'\t{slice_source} point found')
         # Find new lengths and voltage drops across points
         results = {}
+        print('Calculating results')
         for length in ['Bstream_N','Bstream_S',
                        'Null_N','Null_S']:
             P = Bslice_points
@@ -170,14 +193,17 @@ if True:
             result_data = dsa.WrapDataObject(result_data)
             dV = result_data.PointData['E_AB_mV_m']*6.371 # NOTE mV/m * Re
             results['dV_'+length] = dV
+            print(f'\t{length} calculated')
 
         results['time'] = localtime
         all_results = pd.concat([all_results,pd.DataFrame(data=results)])
         # Save screenshot(s)
         outfile = ('-'.join(infile.split('_')[-2::]).replace('plt','png'))
         layouts = GetLayouts()
-        for i,layout in enumerate(layouts.values()):
-            SaveScreenshot(outpath+outfile.replace('.png',f'_{i}.png'),layout)
+        print('Saving screenshots')
+        for j,layout in enumerate(layouts.values()):
+            print(j)
+            SaveScreenshot(outpath+outfile.replace('.png',f'_{j}.png'),layout)
     all_results.index = all_results['time']
     all_results.drop(columns=['time'],inplace=True)
     all_results.to_csv(outpath+'calc_potentials.csv')

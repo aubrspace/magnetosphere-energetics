@@ -30,9 +30,9 @@ if True:
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
     inpath = os.path.join(herepath,'gannon-storm/data/large/')
-    GMpath = os.path.join(inpath,'GM/')
-    IEpath = os.path.join(inpath,'IE/')
-    IMpath = os.path.join(inpath,'IM/')
+    GMpath = os.path.join(inpath,'GM/IO2/')
+    IEpath = os.path.join(inpath,'IE/ionosphere/')
+    IMpath = os.path.join(inpath,'IM/plots/')
     outpath= os.path.join(herepath,'gannon-storm/outputs/vis/')
 
     filelist = sorted(glob.glob(GMpath+'*paraview*.plt'),
