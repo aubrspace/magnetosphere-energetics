@@ -21,9 +21,12 @@ if True:
     start_time = time.time()
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
-    inpath = os.path.join(herepath,'gannon-storm/data/large/')
-    IEpath = os.path.join(inpath,'IE/ionosphere/')
-    outpath= os.path.join(herepath,'gannon-storm/outputs/vis/')
+    #inpath = os.path.join(herepath,'gannon-storm/data/large/')
+    #IEpath = os.path.join(inpath,'IE/ionosphere/')
+    #outpath= os.path.join(herepath,'gannon-storm/outputs/vis/')
+    inpath = os.path.join(herepath,'localdbug/starlink/')
+    IEpath = os.path.join(inpath,'hires_IE/')
+    outpath= os.path.join(inpath,'hires_test/')
 
     filelist = sorted(glob.glob(IEpath+'*.tec'),
                       key=time_sort)

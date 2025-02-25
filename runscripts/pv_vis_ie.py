@@ -34,7 +34,7 @@ if True:
     # Load master state
     print(f'Saving images at {outpath}:')
     LoadState(outpath+'ie_only_state.pvsm')
-    for i,infile in enumerate(filelist):
+    for i,infile in enumerate(filelist[1000:1001]):
         localtime = get_time(infile)
         outfile = infile.split('/')[-1].replace('.tec','.png')
         # Find corresponding IE file

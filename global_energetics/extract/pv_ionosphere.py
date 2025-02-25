@@ -210,16 +210,30 @@ def calc_average_lats(plus,minus,**kwargs):
     """
     distances = {}
     Ys = {}
-    #As = {}
+    Vs = {}
     Polarity = {}
+    regions = {}
     for i,source in enumerate([plus,minus]):
         data = servermanager.Fetch(source)
         data = dsa.WrapDataObject(data)
+        Jr = data.CellData['J_R_uA_m^2']
         Y  = data.CellData['y']
+        V  = data.CellData['PHI_kV']
         Th = data.CellData['Theta_deg']
         Area = data.CellData['Area']
         ID_data = data.CellData['RegionId']+100*i
         IDs = np.unique(ID_data)
+        # Get the lats of the max/min in each hemi
+        Jr_north = Jr[Th<90]
+        ID_north = ID_data[Th<90]
+        Jr_south = Jr[Th>90]
+        ID_south = ID_data[Th>90]
+        if i==0:
+            dusk_north_maxID = ID_north[Jr_north==Jr_north.max()][0]
+            dusk_south_maxID = ID_south[Jr_south==Jr_south.max()][0]
+        else:
+            dawn_north_minID = ID_north[Jr_north==Jr_north.min()][0]
+            dawn_south_minID = ID_south[Jr_south==Jr_south.min()][0]
         for ID in IDs:
             Polarity[ID] = i*-2+1
             if len(Area[ID_data==ID])>0:
@@ -227,12 +241,13 @@ def calc_average_lats(plus,minus,**kwargs):
                                   Area[ID_data==ID])/np.sum(Area[ID_data==ID])
                 Ys[ID] = np.sum(Y[ID_data==ID]*
                                   Area[ID_data==ID])/np.sum(Area[ID_data==ID])
-                #As[ID] = np.sum(Area[ID_data==ID])
+                Vs[ID] = np.sum(V[ID_data==ID]*
+                                  Area[ID_data==ID])/np.sum(Area[ID_data==ID])
+                regions[ID] = 0
             else:
                 distances[ID] = 0
                 Ys[ID] = -1
                 print('WARNING: bad case found!')
-    regions = {}
     #Athresh = np.array([As[i] for i in As.keys()]).max()/4
     #north_dusk_lats = np.array([distances[i] for i in distances.keys()
     #                        if distances[i]<90 and Ys[i]>0] and As[i]>Athresh)
@@ -248,33 +263,54 @@ def calc_average_lats(plus,minus,**kwargs):
     #south_lats = np.array([distances[i] for i in distances.keys()
     #                      if distances[i]>90])
     #south_theta_limit = (south_lats.min()+south_lats.max())/2
+    # Get the R1 regions first, since the 0 potential (throat?) works well
     for ID in distances.keys():
-        if distances[ID]<90 and Ys[ID]>0:
+        if distances[ID]<90 and (
+           distances[ID]>distances[dusk_north_maxID] and Ys[ID]>0) or (
+           distances[ID]<=distances[dusk_north_maxID] and Vs[ID]<0):
+            # North, dusk: +Jr is up, R1 is up, R2 is down
             if Polarity[ID]==1:
                 regions[ID] = 1
             else:
                 regions[ID] = 2
-        elif distances[ID]<90 and Ys[ID]<0:
-            if Polarity[ID]==1:
-                regions[ID] = 2
-            else:
-                regions[ID] = 1
-        elif distances[ID]>90 and Ys[ID]>0:
-            if Polarity[ID]==1:
+        if distances[ID]<90 and (
+           distances[ID]>distances[dawn_north_minID] and Ys[ID]<0) or (
+           distances[ID]<=distances[dawn_north_minID] and Vs[ID]>0):
+            # North, dawn: +Jr is up, R1 is down, R2 is up
+            if Polarity[ID]==-1:
                 regions[ID] = 1
             else:
                 regions[ID] = 2
-        elif distances[ID]>90 and Ys[ID]<0:
+        if distances[ID]>90 and (
+           distances[ID]<distances[dusk_south_maxID] and Ys[ID]>0) or (
+           distances[ID]>=distances[dusk_south_maxID] and Vs[ID]<0):
+            # South, dusk: +Jr is up, R1 is up, R2 is down
             if Polarity[ID]==1:
-                regions[ID] = 2
-            else:
                 regions[ID] = 1
+            else:
+                regions[ID] = 2
+        if distances[ID]>90 and (
+           distances[ID]<distances[dawn_south_minID] and Ys[ID]<0) or (
+           distances[ID]>=distances[dawn_south_minID] and Vs[ID]>0):
+            # South, dawn: +Jr means Up, R1 is down, R2 is up
+            if Polarity[ID]==-1:
+                regions[ID] = 1
+            else:
+                regions[ID] = 2
+
         '''
-        if ((distances[ID]<north_theta_limit) or
-            (distances[ID]>south_theta_limit)):
-            regions[ID] = 1 #region 1 closer to poles (0 and 180deg)
-        else:
-            regions[ID] = 2 #region 2 closter to equator (90)
+        if distances[ID]<90 and Vs[ID]<0 and distances[ID]<:
+            if Polarity[ID]==1:
+                regions[ID] = 1
+        elif distances[ID]<90 and Vs[ID]>0:
+            if Polarity[ID]==-1:
+                regions[ID] = 1
+        elif distances[ID]>90 and Vs[ID]<0:
+            if Polarity[ID]==1:
+                regions[ID] = 1
+        elif distances[ID]>90 and Vs[ID]>0:
+            if Polarity[ID]==-1:
+                regions[ID] = 1
         '''
     return regions
 
@@ -300,9 +336,9 @@ def integrate_regional_currents(plus,minus,region_dict):
         Region = np.array([region_dict[id] for id in ID_data])
         # integrate
         if i==0:
-            FAC['DOWN_R1_N'] = np.sum(Jr[(Z>0) & (Region==1)]*
+            FAC['UP_R1_N'] = np.sum(Jr[(Z>0) & (Region==1)]*
                                     Area[(Z>0) & (Region==1)])*6371**2*1e-6
-            FAC['DOWN_R2_N'] = np.sum(Jr[(Z>0) & (Region==2)]*
+            FAC['UP_R2_N'] = np.sum(Jr[(Z>0) & (Region==2)]*
                                     Area[(Z>0) & (Region==2)])*6371**2*1e-6
 
             FAC['UP_R1_S']   = np.sum(Jr[(Z<0) & (Region==1)]*
@@ -310,9 +346,9 @@ def integrate_regional_currents(plus,minus,region_dict):
             FAC['UP_R2_S']   = np.sum(Jr[(Z<0) & (Region==2)]*
                                     Area[(Z<0) & (Region==2)])*6371**2*1e-6
         elif i==1:
-            FAC['UP_R1_N']   = np.sum(Jr[(Z>0) & (Region==1)]*
+            FAC['DOWN_R1_N']   = np.sum(Jr[(Z>0) & (Region==1)]*
                                     Area[(Z>0) & (Region==1)])*6371**2*1e-6
-            FAC['UP_R2_N']   = np.sum(Jr[(Z>0) & (Region==2)]*
+            FAC['DOWN_R2_N']   = np.sum(Jr[(Z>0) & (Region==2)]*
                                     Area[(Z>0) & (Region==2)])*6371**2*1e-6
 
             FAC['DOWN_R1_S'] = np.sum(Jr[(Z<0) & (Region==1)]*
