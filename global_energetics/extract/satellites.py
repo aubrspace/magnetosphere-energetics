@@ -293,8 +293,9 @@ def extract_satellite(sourcefile,satfile):
     tp.data.load_tecplot(sourcefile)
     variable_names = tp.active_frame().dataset.variable_names
     for sat in locfile.keys():
-        X,Y,Z = locfile[sat][locfile[sat]['time']==sourcetime][[
-                                              'Xgsm','Ygsm','Zgsm']].values[0]
+        #X,Y,Z = locfile[sat][locfile[sat]['time']==sourcetime][[
+        #                                      'Xgsm','Ygsm','Zgsm']].values[0]
+        t,X,Y,Z = locfile[sat].values[0]
         #X,Y,Z = locfile[sat][locfile[sat].index==sourcetime][[
         #                                      'x','y','z']].values[0]
         # Load tecplot source data file at the timestamp and extract
