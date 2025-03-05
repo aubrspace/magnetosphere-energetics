@@ -140,20 +140,16 @@ def fix_names(pipeline,**kwargs):
     names.Script = """
         #Get upstream data
         data = inputs[0]
-        #These are the variables names that cause issues
-        rho = data.PointData["Rho_amu_cm^3"]
-        jx = data.PointData["J_x_`mA_m^2"]
-        jy = data.PointData["J_y_`mA_m^2"]
-        jz = data.PointData["J_z_`mA_m^2"]
-        volume = data.PointData["dvol_R^3"]
-        #Copy input to output so we don't lose any data
-        output.ShallowCopy(inputs[0].VTKObject)#maintaining other variables
-        #Now append the copies of the variables with better names
-        output.PointData.append(rho,'Rho_amu_cm3')
-        output.PointData.append(jx,'J_x_uA_m2')
-        output.PointData.append(jy,'J_y_uA_m2')
-        output.PointData.append(jz,'J_z_uA_m2')
-        output.PointData.append(volume,'dvol_R3')
+        name_dict = {"Rho_amu_cm^3":"Rho_amu_cm3",
+                     "dvol_R^3":"dvol_R3",
+                     "J_x_`mA_m^2":"J_x_uA_m2",
+                     "J_y_`mA_m^2":"J_y_uA_m2",
+                     "J_z_`mA_m^2":"J_z_uA_m2"}
+        for var in data.PointData.keys():
+            if var not in name_dict.keys():
+                output.PointData.append(data.PointData[var],var)
+            else:
+                output.PointData.append(data.PointData[var],name_dict[var])
     """
     pipeline = names
     return pipeline

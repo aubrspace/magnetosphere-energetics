@@ -279,6 +279,113 @@ def tec2para(instr):
     #print('WAS: ',instr,'\tIS: ',outstr)
     return outstr
 
+def all_evaluate(evaluation_set: dict, pipeline: filter) -> filter:
+    # Get name of point data arrays
+    point_data_array_names = pipeline.PointData.keys()
+    # Create and populate prog filter
+    evaluation =ProgrammableFilter(registrationName='equations',Input=pipeline)
+    evaluation.Script = update_evaluate(evaluation_set, point_data_array_names)
+    return evaluation
+
+def update_evaluate(evaluation_set: dict,
+                    point_data_array_names: list) -> str:
+    script = f"""
+    import numpy as np
+    from numpy import sqrt,sin,cos,arcsin,arctan2,trunc
+
+    #Assign to output
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+
+    # reveal all point data arrays as variables with the same name
+    if True:
+    """
+    for i,var in enumerate(point_data_array_names):
+        script +=f"""
+        {point_data_array_names[i]} = inputs[0].PointData['{var}']
+        """
+    for lhs,rhs in evaluation_set.items():
+        script +=f"""
+        {lhs.replace('lambda','lam')} = {rhs.replace(
+                                                     '^','**').
+                                             replace('asin','arcsin').
+                                             replace('atan2','arctan2').
+                                             replace('lambda','lam')}
+        output.PointData.append({lhs.replace('lambda','lam')},
+                               '{lhs.replace('lambda','lam')}')
+        """
+    return script
+
+def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
+    """Function adds the equation to the set that will be evaluated
+    Inputs
+        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
+                                must be converted with 'tec2para' before they
+                                can be evaluated!!
+        evaluation_set ({}) - where attach the new filter
+        kwargs:
+    Returns
+        evaluation_set ({}) - a new endpoint of the pipeline
+    """
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        evaluation_set.update({lhs:rhs})
+    return evaluation_set
+
+def eqeval(eqset,pipeline,**kwargs):
+    """Function creates a calculator object which evaluates the given function
+    Inputs
+        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
+                                must be converted with 'tec2para' before they
+                                can be evaluated!!
+        pipeline (pipeline) - where attach the new filter
+        kwargs:
+    Returns
+        pipeline (pipeline) - a new endpoint of the pipeline
+    """
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        var = Calculator(registrationName=lhs, Input=pipeline)
+        var.Function = rhs
+        var.ResultArrayName = lhs
+        pipeline = var
+    return pipeline
+
+def get_sphere_filter(pipeline,**kwargs):
+    """Function calculates a sphere variable, NOTE:will still need to
+        process variable into iso surface then cleanup iso surface!
+    Inputs
+        pipeline (filter/source)- upstream that calculator will process
+        kwargs:
+            betastar_max (float)- default 0.7
+            status_closed (float)- default 3
+    Returns
+        pipeline (filter)- last filter applied keeping a straight pipeline
+    """
+    #Must have the following conditions met first
+    assert FindSource('r_R') != None
+    radius = kwargs.get('radius',3)
+    r_state =ProgrammableFilter(registrationName='r_state',Input=pipeline)
+    pass
+
+def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
+    """Function adds the equation to the set that will be evaluated
+    Inputs
+        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
+                                must be converted with 'tec2para' before they
+                                can be evaluated!!
+        evaluation_set ({}) - where attach the new filter
+        kwargs:
+    Returns
+        evaluation_set ({}) - a new endpoint of the pipeline
+    """
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        evaluation_set.update({lhs:rhs})
+    return evaluation_set
+
 def eqeval(eqset,pipeline,**kwargs):
     """Function creates a calculator object which evaluates the given function
     Inputs
