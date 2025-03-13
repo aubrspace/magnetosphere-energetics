@@ -518,7 +518,9 @@ def csv_to_pandas(csvfile,**kwargs):
     tdict = kwargs.get('tdict',{'year':'year','month':'mo','day':'dy',
                                 'hour':'hr','minute':'mn','second':'sc',
                                 'millisecond':'msc'})
-    df = pd.read_csv(csvfile, sep='\s+', skiprows=kwargs.get('skiprows',1))
+    df = pd.read_csv(csvfile, sep='\s+', skiprows=kwargs.get('skiprows',1),
+                     header=kwargs.get('header','infer'),
+                     names=kwargs.get('names'))
     df['Time [UTC]']=pd.to_datetime(dict(year=df[tdict['year']],
                                          month=df[tdict['month']],
                                          day=df[tdict['day']],
