@@ -23,7 +23,7 @@ def central_diff(dataframe,**kwargs):
     """
     times = dataframe.copy(deep=True).index
     df = dataframe.copy(deep=True)
-    df = df.reset_index(drop=True).fillna(method='ffill')
+    df = df.reset_index(drop=True).ffill()
     df_fwd = df.copy(deep=True)
     df_bck = df.copy(deep=True)
     df_fwd.index -= 1
@@ -571,7 +571,7 @@ def bin_and_describe(X,Y,df,xbins,pLow,pHigh):
             'nSub':np.array([]),
             'nNot':np.array([])}
     for cbin in xbins:
-        binwidth = xbins[1]-xbins[0]
+        binwidth = (xbins[1]-xbins[0])*3
         bin_low = cbin-binwidth/2
         bin_high = cbin+binwidth/2
 
@@ -661,11 +661,11 @@ def refactor(event,t0):
     lobes = event['msdict']['lobes'][event['msdict']['lobes'].index>tstart]
     closed = event['msdict']['closed'][event['msdict']['closed'].index>tstart]
     inner = event['inner_mp'][event['inner_mp'].index>tstart]
-    ev['mp'] = mp.resample('60S').asfreq()
+    ev['mp'] = mp.resample('60s').asfreq()
     use_i = ev['mp'].index
-    ev['lobes'] = lobes.reindex(use_i).resample('60S').asfreq()
-    ev['closed'] = closed.reindex(use_i).resample('60S').asfreq()
-    ev['inner'] = inner.reindex(use_i).resample('60S').asfreq()
+    ev['lobes'] = lobes.reindex(use_i).resample('60s').asfreq()
+    ev['closed'] = closed.reindex(use_i).resample('60s').asfreq()
+    ev['inner'] = inner.reindex(use_i).resample('60s').asfreq()
     '''
     #NOTE fill gaps S.T. values fill forward to keep const dt
     sample = str((event['mpdict']['ms_full'].index[-1]-
@@ -675,8 +675,8 @@ def refactor(event,t0):
     ev['lobes'] = event['msdict']['lobes'].reindex(use_i,method='ffill')
     ev['closed'] = event['msdict']['closed'].reindex(use_i,method='ffill')
     ev['inner'] = event['inner_mp'].reindex(use_i,method='ffill')
-    #ev['lobes'] = event['msdict']['lobes'].resample('60S').ffill()
-    #ev['closed'] = event['msdict']['closed'].resample('60S').ffill()
+    #ev['lobes'] = event['msdict']['lobes'].resample('60s').ffill()
+    #ev['closed'] = event['msdict']['closed'].resample('60s').ffill()
     '''
     times =  ev['mp'].index
     ev['rawtimes']=times
@@ -865,10 +865,12 @@ def gmiono_refactor(event,t0):
 def ie_refactor(event,t0):
     # Name the top level
     ev = {}
-    ev['ie_surface_north'] = event['ionosphere_north_surface'].resample('60S').ffill()
-    ev['ie_surface_south'] = event['ionosphere_south_surface'].resample('60S').ffill()
-    ev['ocflb_north'] = event['ionosphere_north_line'].resample('60S').ffill()
-    ev['ocflb_south'] = event['ionosphere_south_line'].resample('60S').ffill()
+    ev['ie_surface_north'] = event['ionosphere_north_surface'].resample(
+                                                                '60s').ffill()
+    ev['ie_surface_south'] = event['ionosphere_south_surface'].resample(
+                                                                '60s').ffill()
+    ev['ocflb_north'] = event['ionosphere_north_line'].resample('60s').ffill()
+    ev['ocflb_south'] = event['ionosphere_south_line'].resample('60s').ffill()
     # Data collected piece wise so it doesn't always stack up time-wise
     surf_index = ev['ie_surface_north'].index
     line_index = ev['ocflb_north'].index

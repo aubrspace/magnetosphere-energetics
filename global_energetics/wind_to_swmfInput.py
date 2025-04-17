@@ -783,7 +783,7 @@ def collect_goes(start,end,**kwargs):
     # Position
     positions = {}
     if not kwargs.get('skip_pos',False):
-        print('Gathering Position Data')
+        print('Gathering GOES Position Data...')
         for num in probelist:
             print('\tgoes',num)
             df = pd.DataFrame()
@@ -800,15 +800,27 @@ def collect_goes(start,end,**kwargs):
             positions['goes'+num] = df
         #gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
         #gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
-        #gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in probelist]
+        #gse_keys=['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX'for num in probelist]
         #gse_keys.append(gseref_key)
         #gse_keys.append(gsmgse_key)
         #status,posdata = cdas.get_data(pos_instrument,gse_keys,start,end)
     bfield = {}
     if not kwargs.get('skip_bfield',False):
-        #TODO
-        bfield_instrument = kwargs.get('bfield_instrument',
-                                       'DN_MAGN-L2-HIRES_GZZ')
+        print('Gathering GOES B field Data...')
+        for num in probelist:
+            print('\tgoes',num)
+            df = pd.DataFrame()
+            bfield_instrument = kwargs.get('bfield_instrument',
+                                          f'DN_MAGN-L2-HIRES_G{num}')
+            epoch_key = 'Epoch'
+            b_gsm_key = 'b_gsm'
+            status,bdata = cdas.get_data(bfield_instrument,b_gsm_key,
+                                         start-buff,end+buff)
+            if bdata:
+                df.index = bdata[epoch_key]
+                df[['bx_gsm','by_gsm','bz_gsm']] = bdata[b_gsm_key] # nT
+                df = df[(df.index>start)&(df.index<end)]
+            bfield['goes'+num] = df
     plasma = {}
     if not kwargs.get('skip_plasma',False):
         #TODO

@@ -6,7 +6,7 @@ paraview.compatibility.minor = 10
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 import numpy as np
-from numpy import sqrt,arctan2,sin,cos,deg2rad
+from numpy import sqrt,arctan2,sin,cos,deg2rad,pi
 import pv_input_tools
 from pv_tools import mag_to_gsm, rotate2GSM
 
@@ -36,7 +36,7 @@ def load_ie(infile,**kwargs):
     position.Function = f'{r_iono}*("X [R]"*iHat+"Y [R]"*jHat+"Z [R]"*kHat)'
     position.CoordinateResults = 1
     ###Adjust some names for consistency
-    pipeline = pv_input_tools.fix_ie_names(position,**kwargs)
+    names = pv_input_tools.fix_ie_names(position,**kwargs)
     if kwargs.get('coord','MAG')=='GSM':
         ### Rotate into GSM coordinates
         #tevent = kwargs.get('tevent')
@@ -50,6 +50,20 @@ def load_ie(infile,**kwargs):
         pipeline.ResultArrayName = 'XYZgsm'
         pipeline.CoordinateResults = 1
         '''
+    ###Create some generally nice to have contours
+    lats = Contour(registrationName='Lats',Input=names)
+    lats.ContourBy = ['POINTS','Theta_deg']
+    lats.Isosurfaces = [10,20,30,40,50,   130,140,150,160,170]
+
+    lons = Contour(registrationName='Lons',Input=names)
+    lons.ContourBy = ['POINTS','Psi_deg']
+    lons.Isosurfaces = [0.1,90,180,270]
+
+    ocflb = Contour(registrationName='Ocflb',Input=names)
+    ocflb.ContourBy = ['POINTS','RT_1_B_1_T']
+    ocflb.Isosurfaces = [-1e5]
+
+    pipeline = ocflb
 
     return pipeline
 
@@ -322,6 +336,138 @@ def update_R1R2(regions,offset):
     Region = np.array([regions[id] for id in ID])
     output.CellData.append(Region,'Region')
     """
+
+def find_oval_dims(J:np.array,th:np.array,psi:np.array,hemi:str) -> dict:
+    oval = {}
+    # Get theta mean from Jmax along each longitude
+    th_max_array = np.zeros(len(np.unique(psi)))
+    J_max_array = np.zeros(len(np.unique(psi)))
+    for i,psi_search in enumerate(np.unique(psi)):
+        J_max_array[i] = J[psi==psi_search].max()
+        th_max_array[i] = th[(psi==psi_search) & (J==J_max_array[i])][0]
+    th_mean = np.sum(th_max_array*J_max_array)/np.sum(J_max_array)
+    # Get the day/night shift from noon/midnight values
+    J_noon = J[psi==0].max()
+    J_midnight = J[psi==180].max()
+    th_noon = th[(psi==0) & (J==J_noon)][0]
+    th_midnight = th[(psi==180) & (J==J_midnight)][0]
+
+    dtheta = (J_noon*(th_noon-th_mean)-J_midnight*(th_midnight-th_mean))/(
+                                    J_noon+J_midnight)
+
+    oval['dtheta'] = dtheta
+    if hemi=='N':
+        oval['theta_mean'] = np.max([th_mean,15])
+        oval['theta_day'] = oval['theta_mean']+oval['dtheta']+2.5
+        oval['theta_night'] = oval['theta_mean']-oval['dtheta']-2.5
+        oval['Aoval'] = 2*pi*1*(1-cos(deg2rad(oval['theta_mean'])))
+    else:
+        oval['theta_mean'] = np.min([th_mean,165])
+        oval['theta_day'] = oval['theta_mean']-oval['dtheta']-2.5
+        oval['theta_night'] = oval['theta_mean']+oval['dtheta']+2.5
+        oval['Aoval'] = 2*pi*1*(1-cos(pi-deg2rad(oval['theta_mean'])))
+    return oval
+
+
+def id_RIM_oval(ionosphere:Calculator) -> dict:
+    oval = {}
+    iono = servermanager.Fetch(ionosphere)
+    iono = dsa.WrapDataObject(iono)
+    J = iono.PointData['J_R_uA_m^2']
+    th = iono.PointData['Theta_deg']
+    psi = iono.PointData['Psi_deg']
+    # Split hemispheres
+    J_N = J[th<90]
+    th_N = th[th<90]
+    psi_N = psi[th<90]
+    oval_N = find_oval_dims(J_N,th_N,psi_N,'N')
+    for key in oval_N:
+        oval[key+'_N'] = oval_N[key]
+
+    J_S = J[th>90]
+    th_S = th[th>90]
+    psi_S = psi[th>90]
+    oval_S = find_oval_dims(J_S,th_S,psi_S,'S')
+    for key in oval_S:
+        oval[key+'_S'] = oval_S[key]
+
+    return oval
+
+def save_ocflb_stats(polarcap:Threshold,hemi:str) -> dict:
+    stats = {}
+    ## Get the total area
+    # point data to cell data 
+    pc_cell=PointDatatoCellData(registrationName=f"cell{hemi}",Input=polarcap)
+    pc_cell.PassPointData = 1
+    # reveal cell areas
+    pc_area = CellSize(registrationName=f"area{hemi}",Input=pc_cell)
+    # fetch the data
+    pc_data = servermanager.Fetch(pc_area)
+    pc_data = dsa.WrapDataObject(pc_data)
+    area_cc = pc_data.CellData['Area']
+    area_total = np.sum(area_cc)
+
+    ## Get the max/min latitudes
+    th_point = pc_data.PointData['Theta_deg']
+    psi_point = pc_data.PointData['Psi_deg']
+    lat_max = th_point.max()
+    lat_min = th_point.min()
+    if hemi=='N':
+        lat_noon = th_point[psi_point==0].max()
+        if any(psi_point==180):
+            lat_midnight = th_point[psi_point==180].max()
+        else:
+            lat_midnight = th_point[psi_point==0].min()
+    elif hemi=='S':
+        lat_noon = th_point[psi_point==0].min()
+        if any(psi_point==180):
+            lat_midnight = th_point[psi_point==180].min()
+        else:
+            lat_midnight = th_point[psi_point==0].max()
+
+    ## Load output dict
+    stats['open_area'] = area_total
+    stats['theta_max'] = lat_max
+    stats['theta_min'] = lat_min
+    stats['theta_noon'] = lat_noon
+    stats['theta_midnight'] = lat_midnight
+
+    return stats
+
+
+
+def id_ocflb(ionosphere:Calculator) -> dict:
+    ocflb = {}
+    # Separate hemispheres
+    north_iono = Threshold(registrationName='North',Input=ionosphere)
+    north_iono.Scalars = 'Theta_deg'
+    north_iono.ThresholdMethod = 1 # 0- between, 1- below, 2- above
+    north_iono.LowerThreshold = 90
+
+    south_iono = Threshold(registrationName='South',Input=ionosphere)
+    south_iono.Scalars = 'Theta_deg'
+    south_iono.ThresholdMethod = 2 # 0- between, 1- below, 2- above
+    south_iono.UpperThreshold = 90
+    # Threshold the variable from #TRACEIE
+    north_cap = Threshold(registrationName='NorthCap',Input=north_iono)
+    north_cap.Scalars = 'RT_1_B_1_T'
+    north_cap.ThresholdMethod = 1
+    north_cap.LowerThreshold = -1e5
+
+    south_cap = Threshold(registrationName='SouthCap',Input=south_iono)
+    south_cap.Scalars = 'RT_1_B_1_T'
+    south_cap.ThresholdMethod = 1
+    south_cap.LowerThreshold = -1e5
+    # Save some quick statistics
+    north_stats = save_ocflb_stats(north_cap,'N')
+    for key in north_stats:
+        ocflb[key+'N'] = north_stats[key]
+    south_stats = save_ocflb_stats(south_cap,'S')
+    for key in south_stats:
+        ocflb[key+'S'] = south_stats[key]
+
+    return ocflb
+
 
 def integrate_regional_currents(plus,minus,region_dict):
     FAC = {}

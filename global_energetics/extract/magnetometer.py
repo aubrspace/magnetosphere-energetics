@@ -6,7 +6,7 @@ sys.path.append(os.getcwd().split('swmf-energetics')[0]+
                                       'swmf-energetics/')
 import glob
 import numpy as np
-from numpy import (sin,cos,deg2rad,pi)
+from numpy import (sin,cos,deg2rad,pi,rad2deg,arccos,sign,sqrt)
 import datetime as dt
 import pandas as pd
 from geopack import geopack as gp
@@ -333,6 +333,62 @@ def read_virtual_SML(datafile):
         vsmldata.loc[timestamp,'mLat'] = locations.loc[station,'MAGLAT']
         vsmldata.loc[timestamp,'mLon'] = locations.loc[station,'MLTshift']
     return vsmldata
+
+def readmagnetometers(infile:str,**kwargs:dict) -> dict:
+    magnetometers = {}
+    if kwargs.get('type','ascii')=='ascii':
+        with open(infile,'r')as f:
+            stations = f.readline()
+            stations = stations.split(':')[-1].split()
+            headers = f.readline().split()
+            raw = f.readlines()
+        data = np.zeros([len(raw),len(headers)])
+        for i,line in enumerate(raw):
+            data[i] = [float(n) for n in line.split()]
+        for j,key in enumerate(headers):
+            magnetometers[key] = data[:,j]
+    else:
+        print('non-ASCII file! not ready yet')
+    magnetometers['IAGA'] = [stations[int(i)-1]
+                                            for i in magnetometers['station']]
+    return magnetometers
+
+def loadmagnetometers(infile:str,**kwargs:dict) -> pd.DataFrame:
+    magdict = readmagnetometers(infile,**kwargs)
+    # convert dict to DataFrame and handle time nicely
+    tdict = kwargs.get('tdict',{'year':'year','month':'mo','day':'dy',
+                                'hour':'hr','minute':'mn','second':'sc',
+                                'millisecond':'msc'})
+    df = pd.DataFrame(magdict)
+    df['time']=pd.to_datetime(dict(year=df[tdict['year']],
+                                         month=df[tdict['month']],
+                                         day=df[tdict['day']],
+                                         hour=df[tdict['hour']],
+                                         minute=df[tdict['minute']],
+                                         second=df[tdict['second']]))
+    df['X'] = df['X']/(6371*1000)
+    df['Y'] = df['Y']/(6371*1000)
+    df['Z'] = df['Z']/(6371*1000)
+    gp.recalc((df['time'][0]-dt.datetime(1970,1,1)).total_seconds())
+    #xyz_mag = np.array([gp.geomag(x,y,z,1) for x,y,z in
+    #                                                df[['X','Y','Z']].values])
+    r_th_ph = np.array([gp.sphcar(x,y,z,-1) for x,y,z in #xyz_mag])
+                                                    df[['X','Y','Z']].values])
+    #df['x_mag']  = xyz_mag[:,0]
+    #df['y_mag']  = xyz_mag[:,1]
+    #df['z_mag']  = xyz_mag[:,2]
+    df['r_mag']  = r_th_ph[:,0]
+    df['th_mag'] = r_th_ph[:,1]
+    df['ph_mag'] = r_th_ph[:,2]
+    df['mlt']    = (180+(df['ph_mag']*180/pi))%360*12/180
+    #df['phi2']   = rad2deg(sign(df['y_mag'])*arccos(df['x_mag']/
+    #                                 sqrt(df['x_mag']**2+df['y_mag']**2)))
+
+    df.index = df['time']
+    dropcols = list(tdict.values())
+    dropcols.append('time')
+    df.drop(columns=dropcols,inplace=True)
+    return df
 
 def readgrid(infile,**kwargs):
     if kwargs.get('type','ascii')=='ascii':

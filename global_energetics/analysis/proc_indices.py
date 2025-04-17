@@ -498,6 +498,19 @@ def get_maggrid_data(datapath,**kwargs):
         magstore.close()
     return data
 
+def read_pc(csvfile:str,**kwargs) -> pd.DataFrame:
+    # https://pcindex.org/
+    #NOTE made quick mods to the file using vim
+    df = pd.read_csv(csvfile)
+    df.index = pd.to_datetime(df['time'])
+    df.drop(columns=['time'],inplace=True)
+    df.replace(999.00,np.nan,inplace=True)
+    # Calculate CPCP from Ridley and Kihn formula doi:10.1029/2003GL019113
+    T = (df.index.month-1*np.pi/12)
+    df['cpcpn'] = 29.28-3.31*np.sin(T+1.49)+17.81*df['PCN']
+    df['cpcps'] = 29.28-3.31*np.sin(T+1.49)+17.81*df['PCS']
+    return df
+
 def csv_to_pandas(csvfile,**kwargs):
     """ helper function for a particular read_csv call
     inputs
@@ -664,9 +677,6 @@ def get_swmf_data(datapath,**kwargs):
             swdata['eps'] = (swdata['B']**2*swdata['v']*
                                         np.sin(swdata['clock']/2)**4*l**2*
                                                 1e3*1e-9**2 / (4*np.pi*1e-7))
-            # Kan and Lee 1979 Solar wind E-field (from Newell 2007.)
-            swdata['Esw'] = (swdata['v']*(swdata['B_T']*1e9)*
-                            (sin(swdata['clock']/2)**2))
             #Wang2014
             swdata['EinWang'] = (3.78e7*swdata['density']**0.24*
                                 swdata['v']**1.47*(swdata['B_T']*1e9)**0.86*
@@ -675,6 +685,29 @@ def get_swmf_data(datapath,**kwargs):
             swdata['Pstorm'] = (swdata['B_T']**2*swdata['vx']*1e3/(4*pi*1e-7)*
                             swdata['M_A']*abs(sin(swdata['clock']/2))**4*
                             135/(5e-5*swdata['bz']**3+1)*6371e3**2)
+        if kwargs.get('doCPCP',True):
+            cpcp_viscous = 1e-7*swdata['v']**2
+            sigmaP = 10
+            ptot = swdata['pdyn']+swdata['B']**2/(4*np.pi*1e-7*1e9)
+            # Kan and Lee 1979 Solar wind E-field (from Newell 2007.)
+            swdata['Esw'] = (swdata['v']*(swdata['B_T']*1e9)*
+                            (sin(swdata['clock']/2)**2))
+            # Boyle cpcp 1997
+            swdata['CPCP_B97'] = abs(cpcp_viscous+
+                                11.7*swdata['B']*sin(swdata['clock']/2)**3)
+            # Siscoe-Hill cpcp 2002
+            zeta = 4.45-1.08*np.log10(sigmaP)
+            swdata['CPCP_S02'] = (cpcp_viscous +
+                        1.82e6*swdata['Esw']*ptot**(1/3)/
+                      (ptot**(1/2)+4e-4*zeta*sigmaP*swdata['Esw']))/1e6
+            # Kivelson-Ridley cpcp 2008
+            sigmaA = 1/(4*pi*1e-7*swdata['Va'])
+            swdata['CPCP_K08'] = (cpcp_viscous+
+                 1.35e6*swdata['Esw']*ptot**(-1/6)*sigmaA/(sigmaA+sigmaP))/1e7
+            # Rquick from Borovsky 2008
+            swdata['Rquick']=(6.9*swdata['P']**(1/2)*swdata['density']**(1/2)*
+               swdata['v']**2*sin(swdata['clock']/2)**2*swdata['Ma']**(-1.35)*
+                                (1+680*swdata['Ma']**(-3.30))**(-1/4))
     #times Time [UTC]
     if not skip_geo:
         geoindex['times'] = geoindex.index

@@ -40,8 +40,7 @@ def test_matrix(event,ev,path):
     axis.fill_between(ev['swt'],np.sqrt(ev['sw']['by']**2+ev['sw']['bz']**2),
                                         fc='black',label=r'B',alpha=0.4)
     for interv in interval_list:
-        axis.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                      c='grey',alpha=0.2)
+        axis.axvline((interv[0]-T0).total_seconds()*1e9,c='grey',alpha=0.2)
     general_plot_settings(axis,do_xlabel=True,legend=True,
                           legend_loc='upper left',
                           ylabel=r'IMF $\left[nT\right]$',timedelta=True)
@@ -108,14 +107,10 @@ def plot_indices(dataset,path):
                    label=event,c=colors[i],ls=styles[i],
                    marker=markers[i],markevery=50)
     for interv in interval_list:
-        axis1.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                      c='grey')
-        axis2.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                      c='grey')
-        axis3.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                      c='grey')
-        axis4.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                      c='grey')
+        axis1.axvline((interv[0]-T0).total_seconds()*1e9,c='grey')
+        axis2.axvline((interv[0]-T0).total_seconds()*1e9,c='grey')
+        axis3.axvline((interv[0]-T0).total_seconds()*1e9,c='grey')
+        axis4.axvline((interv[0]-T0).total_seconds()*1e9,c='grey')
 
     general_plot_settings(axis1,do_xlabel=False,legend=False,
                           ylabel=r'Energy $\left[PJ\right]$',timedelta=True)
@@ -143,7 +138,8 @@ def plot_2by2_flux(dataset,windows,path):
     for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
         ev = refactor(dataset[run],T0)
         for j,window in enumerate(windows):
-            xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in window]
+            #xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in window]
+            xlims = [(t-T0).total_seconds()*1e9 for t in window]
             # External Energy Flux
             ax[i][j].fill_between(ev['times'],ev['K1']/1e12,label='K1 (OpenMP)',
                                  fc='blue')
@@ -164,8 +160,7 @@ def plot_2by2_flux(dataset,windows,path):
                           timedelta=True,legend_loc='lower left')
             if j!=0: ax[i][j].set_ylabel(None)
             for interv in interval_list:
-                ax[i][j].axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                                 c='grey')
+                ax[i][j].axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
             ax[i][j].margins(x=0.01)
     ax[0][2].legend(loc='lower right', bbox_to_anchor=(1.0, 1.05),
                     ncol=6, fancybox=True, shadow=True)
@@ -189,11 +184,13 @@ def all_fluxes(ev,event,path,**kwargs):
     sml_values = dataset[event]['obs']['super_log']['SML']
     dst_values = dataset[event]['obs']['swmf_log']['dst_sm']
     if 'zoom' in kwargs:
-        xlims = [float(pd.Timedelta(t-T0).to_numpy())
-                 for t in kwargs.get('zoom')]
+        #xlims = [float(pd.Timedelta(t-T0).to_numpy())
+        #         for t in kwargs.get('zoom')]
+        xlims = [(t-T0).total_seconds()*1e9 for t in kwargs.get('zoom')]
     else:
-        xlims = [float(pd.Timedelta(t-T0).to_numpy())
-                 for t in [TSTART,TEND]]
+        #xlims = [float(pd.Timedelta(t-T0).to_numpy())
+        #         for t in [TSTART,TEND]]
+        xlims = [(t-T0).total_seconds()*1e9 for t in [TSTART,TEND]]
     # Get time markings that match the format
     inddelta = [t-T0 for t in sml_values.index]
     indtimes = [float(n.to_numpy()) for n in inddelta]
@@ -273,14 +270,11 @@ def all_fluxes(ev,event,path,**kwargs):
         rax.set_ylim([dst_values.min(),0])
         pass
     for interv in interval_list:
-        Kexternal.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                          c='grey')
-        Kinternal.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                          c='grey')
-        al.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
-        cpcp.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
-        Energy_dst.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),
-                          c='grey')
+        Kexternal.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
+        Kinternal.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
+        al.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
+        cpcp.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
+        Energy_dst.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
     Kexternal.axhline(0,c='black')
     Kinternal.axhline(0,c='black')
     Energy_dst.axhline(0,c='black')
@@ -665,9 +659,12 @@ def show_multi_events(evs,events,path,**kwargs):
     window1 = (dt.datetime(2022,6,6,11,30),dt.datetime(2022,6,6,14,30))
     window2 = (dt.datetime(2022,6,6,15,30),dt.datetime(2022,6,6,18,30))
     window3 = (dt.datetime(2022,6,7,17,30),dt.datetime(2022,6,7,20,30))
-    xlims1 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window1]
-    xlims2 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window2]
-    xlims3 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window3]
+    #xlims1 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window1]
+    #xlims2 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window2]
+    #xlims3 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window3]
+    xlims1 = [(t-T0).total_seconds()*1e9 for t in window1]
+    xlims2 = [(t-T0).total_seconds()*1e9 for t in window2]
+    xlims3 = [(t-T0).total_seconds()*1e9 for t in window3]
     runs = ['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']
     # Pull the things we're gonna plot
     run_a = runs[0]
@@ -740,7 +737,7 @@ def show_multi_events(evs,events,path,**kwargs):
     # Decorate
     for ax in col_a:
         for interv in interval_list:
-            ax.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
+            ax.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
         ax.fill_between(t_a,ax.get_ylim()[0]*hide_zeros(IMF_a.values),
                         ax.get_ylim()[1]*IMF_a,
                         fc='black',alpha=0.3)
@@ -749,7 +746,7 @@ def show_multi_events(evs,events,path,**kwargs):
         ax.yaxis.tick_right()
         ax.yaxis.set_label_position('right')
         for interv in interval_list:
-            ax.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
+            ax.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
         ax.fill_between(t_b,ax.get_ylim()[0]*hide_zeros(IMF_b.values),
                         ax.get_ylim()[1]*IMF_b,
                         fc='black',alpha=0.3)
@@ -815,11 +812,13 @@ def show_events(ev,run,events,path,**kwargs):
     interval_list =build_interval_list(TSTART,DT,TJUMP,ev['mp'].index)
     #Set the zoom
     if 'zoom' in kwargs:
-        xlims = [float(pd.Timedelta(t-T0).to_numpy())
-                 for t in kwargs.get('zoom')]
+        xlims = [(t-T0).total_seconds()*1e9 for t in kwargs.get('zoom')]
+        #xlims = [float(pd.Timedelta(t-T0).to_numpy())
+        #         for t in kwargs.get('zoom')]
     else:
-        xlims = [float(pd.Timedelta(t-T0).to_numpy())
-                 for t in [TSTART,TEND]]
+        xlims = [(t-T0).total_seconds()*1e9 for t in [TSTART,TEND]]
+        #xlims = [float(pd.Timedelta(t-T0).to_numpy())
+        #         for t in [TSTART,TEND]]
     #Create handy variables for marking found points on curves
     # Time
     t        = ev['times']
@@ -890,7 +889,7 @@ def show_events(ev,run,events,path,**kwargs):
                           timedelta=True)
     for ax in axes:
         for interv in interval_list:
-            ax.axvline(float(pd.Timedelta(interv[0]-T0).to_numpy()),c='grey')
+            ax.axvline(((interv[0]-T0).total_seconds()*1e9),c='grey')
         ax.fill_between(t,ax.get_ylim()[0]*hide_zeros(IMF.values),
                         ax.get_ylim()[1]*IMF,
                         fc='black',alpha=0.3)
@@ -987,7 +986,7 @@ def coupling_model_vs_sim(dataset,events,path,**kwargs):
         tstart = T0+dt.timedelta(minutes=10)
         mp = dataset[run]['mpdict']['ms_full'][
                                dataset[run]['mpdict']['ms_full'].index>tstart]
-        mp = mp.resample('60S').asfreq()
+        mp = mp.resample('60s').asfreq()
         # Get data to a common time axis
         index_log = dataset[run]['obs']['swmf_log'].index
         index_sw = dataset[run]['obs']['swmf_sw'].index
