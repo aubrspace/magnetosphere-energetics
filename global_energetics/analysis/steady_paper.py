@@ -135,7 +135,9 @@ def plot_2by2_flux(dataset,windows,path):
     #############
     #setup figure
     Fluxes,ax = plt.subplots(2,len(windows),figsize=[32,22])
-    for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
+    #for i,run in enumerate(['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']):
+    ylims = [[-6,5],[-20,15]]
+    for i,run in enumerate(['stretched_LOWnLOWu','stretched_HIGHnHIGHu']):
         ev = refactor(dataset[run],T0)
         for j,window in enumerate(windows):
             #xlims = [float(pd.Timedelta(t-T0).to_numpy()) for t in window]
@@ -156,7 +158,9 @@ def plot_2by2_flux(dataset,windows,path):
             # Decorate
             general_plot_settings(ax[i][j],do_xlabel=i==1,legend=False,
                           ylabel=r' $\int_S\mathbf{K}\left[TW\right]$',
-                          ylim=[-25,17],xlim=xlims,
+                          #ylim=[-25,17],
+                          ylim=ylims[i],
+                          xlim=xlims,
                           timedelta=True,legend_loc='lower left')
             if j!=0: ax[i][j].set_ylabel(None)
             for interv in interval_list:
@@ -659,17 +663,22 @@ def show_multi_events(evs,events,path,**kwargs):
     window1 = (dt.datetime(2022,6,6,11,30),dt.datetime(2022,6,6,14,30))
     window2 = (dt.datetime(2022,6,6,15,30),dt.datetime(2022,6,6,18,30))
     window3 = (dt.datetime(2022,6,7,17,30),dt.datetime(2022,6,7,20,30))
+    window4 = (dt.datetime(2022,6,6,9,30),dt.datetime(2022,6,6,12,30))
     #xlims1 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window1]
     #xlims2 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window2]
     #xlims3 = [float(pd.Timedelta(t-T0).to_numpy()) for t in window3]
     xlims1 = [(t-T0).total_seconds()*1e9 for t in window1]
     xlims2 = [(t-T0).total_seconds()*1e9 for t in window2]
     xlims3 = [(t-T0).total_seconds()*1e9 for t in window3]
-    runs = ['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']
+    xlims4 = [(t-T0).total_seconds()*1e9 for t in window4]
+    #runs = ['stretched_MEDnHIGHu','stretched_HIGHnHIGHu']
+    runs = ['stretched_LOWnLOWu','stretched_HIGHnHIGHu']
     # Pull the things we're gonna plot
     run_a = runs[0]
     run_b = runs[0]
-    xlimsa = xlims1
+    #xlimsa = xlims1
+    #xlimsb = xlims2
+    xlimsa = xlims4
     xlimsb = xlims2
     # IMF transits
     IMF_a = events[run_a]['imf_transients']
@@ -754,21 +763,25 @@ def show_multi_events(evs,events,path,**kwargs):
     general_plot_settings(col_a[0],do_xlabel=False,legend=False,
                           ylabel=r'$\int\mathbf{K}_1\left[TW\right]$',
                           xlim=xlimsa,
-                          ylim=[-20,0],
+                          #ylim=[-20,0],
+                          ylim=[-6,0],
                           timedelta=True)
     general_plot_settings(col_b[0],do_xlabel=False,legend=False,
                           ylabel=r'$\int\mathbf{K}_1\left[TW\right]$',
                           xlim=xlimsb,
-                          ylim=[-20,0],
+                          #ylim=[-20,0],
+                          ylim=[-6,0],
                           timedelta=True)
     general_plot_settings(col_a[1],do_xlabel=False,legend=False,
                           ylabel=r'$TV\left(\int\mathbf{K}_1\right)$',
                           xlim=xlimsa,
+                          #ylim=[0,6],
                           ylim=[0,6],
                           timedelta=True)
     general_plot_settings(col_b[1],do_xlabel=False,legend=False,
                           ylabel=r'$TV\left(\int\mathbf{K}_1\right)$',
                           xlim=xlimsb,
+                          #ylim=[0,6],
                           ylim=[0,6],
                           timedelta=True)
     general_plot_settings(col_a[2],do_xlabel=False,legend=False,
@@ -803,7 +816,7 @@ def show_multi_events(evs,events,path,**kwargs):
                           timedelta=True)
     # Save
     fig.tight_layout(pad=1)
-    figurename = path+'/vis_events_multi.pdf'
+    figurename = path+'/vis_events_multi.svg'
     fig.savefig(figurename)
     plt.close(fig)
     print('\033[92m Created\033[00m',figurename)
@@ -1358,6 +1371,8 @@ def make_figures(dataset):
                    dt.datetime(2022,6,7,20,30))
         bonuswindow  = (dt.datetime(2022,6,8,0,0),
                         dt.datetime(2022,6,9,0,0))
+        window4 = (dt.datetime(2022,6,6,9,30),
+                   dt.datetime(2022,6,6,12,30))
         # Make event level figures
         test_matrix(run,ev,path)#NOTE only need to run this once
         if 'continued' in run:
@@ -1372,7 +1387,8 @@ def make_figures(dataset):
     plot_indices(dataset,path)
     coupling_scatter(dataset,path)
     coupling_model_vs_sim(dataset,events,path)
-    plot_2by2_flux(dataset,[window1,window2,window3],path)
+    #plot_2by2_flux(dataset,[window1,window2,window3],path)
+    plot_2by2_flux(dataset,[window4,window1,window2],path)
 
 if __name__ == "__main__":
     # Constants
