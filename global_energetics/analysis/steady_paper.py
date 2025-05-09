@@ -676,10 +676,10 @@ def show_multi_events(evs,events,path,**kwargs):
     # Pull the things we're gonna plot
     run_a = runs[0]
     run_b = runs[0]
-    #xlimsa = xlims1
-    #xlimsb = xlims2
-    xlimsa = xlims4
+    xlimsa = xlims1
     xlimsb = xlims2
+    #   xlimsa = xlims4
+    #   xlimsb = xlims2
     # IMF transits
     IMF_a = events[run_a]['imf_transients']
     IMF_b = events[run_b]['imf_transients']
@@ -1387,8 +1387,8 @@ def make_figures(dataset):
     plot_indices(dataset,path)
     coupling_scatter(dataset,path)
     coupling_model_vs_sim(dataset,events,path)
-    #plot_2by2_flux(dataset,[window1,window2,window3],path)
-    plot_2by2_flux(dataset,[window4,window1,window2],path)
+    plot_2by2_flux(dataset,[window1,window2,window3],path)
+    #plot_2by2_flux(dataset,[window4,window1,window2],path)
 
 if __name__ == "__main__":
     # Constants
