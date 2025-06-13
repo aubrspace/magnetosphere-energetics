@@ -308,6 +308,9 @@ def extract_satellite(sourcefile,satfile):
     locfile.close()
     return vsatdict
 
+def read_cimi_sat_flux(satfile:str) -> pd.DataFrame:
+    pass
+
 if __name__ == "__main__":
     start_time = time.time()
     if '-c' in sys.argv:

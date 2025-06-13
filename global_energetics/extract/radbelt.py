@@ -77,6 +77,7 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
                 done = True
             if i>(nLat+nE+nAlpha):
                 print(f'FAILED i={i}... check file')
+            i+=1
         data_start = f.tell()
         i_first_parmod = -999
         for i,line in enumerate(f.readlines()):
@@ -215,10 +216,10 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
 def main() -> None:
     start_time = time.time()
     herepath=os.getcwd()
-    #inpath = os.path.join('/Users/ambrenne/Code/SWMF/run/IM/plots/')
-    #outpath = os.path.join(herepath,'gannon_rad_belt/analysis/')
-    inpath = os.path.join(herepath,'month_CIMI/')
-    outpath = os.path.join(herepath,'month_CIMI/')
+    inpath = os.path.join('/Users/ambrenne/Code/SWMF/run/IM/plots/')
+    outpath = os.path.join(herepath,'gannon_rad_belt/analysis/')
+    #inpath = os.path.join(herepath,'month_CIMI/')
+    #outpath = os.path.join(herepath,'month_CIMI/')
     filelist = glob.glob(f'{inpath}*_e.fls')
     print(f'INPATH: {inpath}')
     #renderView = GetActiveViewOrCreate('RenderView')
