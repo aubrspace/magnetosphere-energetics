@@ -122,7 +122,7 @@ def add_Lstar_time(data:np.lib.npyio.NpzFile,axis:plt.axis,
     #T,L = np.meshgrid(data['times'],Lstar_bins_c)
     times = [T0+dt.timedelta(hours=t) for t in data['times']]
     T,L = np.meshgrid(times,Lstar_bins_c)
-    clevels = kwargs.get('clevels',np.logspace(2.0,6.0))
+    clevels = kwargs.get('clevels',np.logspace(2.0,7.0))
     cs = axis.contourf(T,L,L_ave_flux.T,clevels,cmap=mpl.cm.plasma,
                                  norm=mpl.colors.LogNorm(),extend='both')
     return cs
@@ -172,7 +172,7 @@ def plot_figure2(flux:np.lib.npyio.NpzFile,
     #   - Update L label and check that it's consistent w real & vsat
 
     # Create figure
-    fig,[ax1,ax2,ax3] = plt.subplots(3,1,figsize=[24,12],sharex=True)
+    fig,ax1 = plt.subplots(1,1,figsize=[24,6],sharex=True)
 
     # Add L*-time all CIMI
     cs1   = add_Lstar_time(flux,ax1,Erange=[15,24])
@@ -180,33 +180,37 @@ def plot_figure2(flux:np.lib.npyio.NpzFile,
     rax = ax1.twinx()
     add_dst(cimi_db,omni,rax)
 
+    '''
     # Add L*-time from virtual sat
     scat2 = add_Lstar_time_vsat(vobs,ax2)
     cbar2 = fig.colorbar(scat2,format="{x:.1e}",pad=0.1,extend='both')
 
-    # Add L*-time from virtual sat
+    # Add L*-time from real sat
     scat3 = add_Lstar_time_rbsp(mageis,rept,ax3)
     cbar3 = fig.colorbar(scat3,format="{x:.1e}",pad=0.1,extend='both')
+    '''
 
     # Decorate
     cbar1.set_label(
             f"Flux {flux['E_lvls'][15]:.0f}-{flux['E_lvls'][23]:.0f} keV\n"+
             r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
+    '''
     cbar2.set_label(
             f"Flux {vobs['E_lvls'][43]:.0f}-{vobs['E_lvls'][54]:.0f} keV\n"+
             r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
     cbar3.set_label(
             f"Flux {464:.0f}-{4216:.0f} keV\n"+
             r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
+    '''
 
     ax1.text(0,0.84,"Jan 2018",transform=ax1.transAxes,
               horizontalalignment='left')
-    for axis in [ax1,ax2,ax3]:
+    for axis in [ax1]:
         axis.set_ylim([1,10])
         axis.xaxis.set_major_formatter(mdates.DateFormatter('%d'))
         axis.set_ylabel(r'$L^*\left[R_E\right]$')
         axis.margins(x=0.01)
-    ax3.set_xlabel('Day')
+    #ax3.set_xlabel('Day')
     rax.set_ylabel(r'Dst/Sym-H $\left[nT\right]$')
     rax.set_ylim([-100,40])
     rax.legend(loc='lower right')
@@ -248,7 +252,7 @@ def add_eq_flux(itime:int,data:np.lib.npyio.NpzFile,
     flux_PAave[:,nMLT] = flux_PAave[:,0]
 
     # Plot
-    clevels = np.logspace(2.0,6)
+    clevels = np.logspace(2.0,7)
     cs = axis.contourf(x_eq,y_eq,flux_PAave,clevels,cmap=mpl.cm.plasma,
                                  norm=mpl.colors.LogNorm(),extend='both')
     return cs
@@ -364,16 +368,19 @@ def main() -> None:
     flux = np.load(f"{INPATH}/{FLUXFILE}",allow_pickle=True)
     #cimi_db = read_db_file(f"{INPATH}/{DBFILE}")
     #rbspA_mageis,rbspA_rept = call_cdaweb_rbsp(T0,TEND,'A')
-    rbsp_reptL2 = {}
     #v_rbsp = np.load(f"{INPATH}/{VSATFILE}")
+    cimi_db = {}
+    rbspA_mageis,rbspA_rept = {},{}
+    v_rbsp = {}
     omni = swmfpy.web.get_omni_data(T0,TEND)
 
     # Draw figures
     #plot_figure0(cimi_db,omni)
-    for i,t in enumerate(flux['times'][0::60]):
-        plot_figure1(flux,i)
-        pass
-    #plot_figure2(flux,cimi_db,rbspA_mageis,rbspA_rept,omni,v_rbsp)
+    #plot_figure1(flux,1080)
+    #for i in range(0,len(flux['times'])):
+    #    plot_figure1(flux,i)
+    #    pass
+    plot_figure2(flux,cimi_db,rbspA_mageis,rbspA_rept,omni,v_rbsp)
 
 if __name__ == "__main__":
     # Globals

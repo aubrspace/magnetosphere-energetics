@@ -272,6 +272,21 @@ def main() -> None:
     print(f"Converting {infile.split('/')[-1]} -> "+
           f"{infile.replace('.fls','_fls.npz').split('/')[-1]}")
     np.savez_compressed(infile.replace('.fls','_fls.npz'),**flux_dict)
+    # TODO
+    # - see Roeder 1970 book section IV.4 application for mapping flux
+    #    in B-L coordinates
+    # - Then Suk-Bins code calc_Lstar2.f90 from cimipak bb from 2015
+    # - Implement numerical integrations to recover Lstar if only given particle
+    #    fluxes and foot points
+    # - See how the same calculations can be leveraged to provide better Lstar
+    #    values for data-model comparison (use sim fields to get integrals)
+    # - Is there a way to more easily extract this info from BATSRUS?
+
+    # TODO
+    # Try to feed in RBE flux to sat_flux.f90
+    #   - might have to trick it by rewriting the flux file to look like the
+    #       cimi one...
+    #   - alternatively, could try to also rewrite this part in python but ...
 
 if __name__ == "__main__":
     main()
