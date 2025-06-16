@@ -140,6 +140,16 @@ def add_swmf_vars(df):
     df['msec'] = msec
     return df
 
+def gather_times(imf_data:dict,**kwargs:dict) -> list:
+    dtlist = []
+    timekeys = kwargs.get('timekeys',['year','month','day','hour',
+                                      'min','sec','msec'])
+    dtlist = [dt.datetime(y,mo,dy,hr,m,sec) for y,mo,dy,hr,m,sec in
+              zip(imf_data[timekeys[0]],imf_data[timekeys[1]],
+                  imf_data[timekeys[2]],imf_data[timekeys[3]],
+                  imf_data[timekeys[4]],imf_data[timekeys[5]])]
+    return dtlist
+
 def toIMFdict(df, **kwargs):
     """Function converts pandas DataFrame back to dictionary
     Inputs
@@ -156,7 +166,7 @@ def toIMFdict(df, **kwargs):
                                        'bx','by','bz','vx','vy','vz',
                                        'dens', 'temp']):
         imf_dict[key] = df[key].values
-    imf_dict['times'] = swmfpy.io.gather_times(imf_dict)
+    imf_dict['times'] = gather_times(imf_dict)
     imf_dict['density'] = imf_dict['dens']
     imf_dict['temperature'] = imf_dict['temp']
     return imf_dict
@@ -783,7 +793,7 @@ def collect_goes(start,end,**kwargs):
     # Position
     positions = {}
     if not kwargs.get('skip_pos',False):
-        print('Gathering Position Data')
+        print('Gathering GOES Position Data...')
         for num in probelist:
             print('\tgoes',num)
             df = pd.DataFrame()
@@ -800,15 +810,27 @@ def collect_goes(start,end,**kwargs):
             positions['goes'+num] = df
         #gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
         #gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
-        #gse_keys =['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX' for num in probelist]
+        #gse_keys=['sc_dr'+str(num)+'_xyz_gse__CL_SP_AUX'for num in probelist]
         #gse_keys.append(gseref_key)
         #gse_keys.append(gsmgse_key)
         #status,posdata = cdas.get_data(pos_instrument,gse_keys,start,end)
     bfield = {}
     if not kwargs.get('skip_bfield',False):
-        #TODO
-        bfield_instrument = kwargs.get('bfield_instrument',
-                                       'DN_MAGN-L2-HIRES_GZZ')
+        print('Gathering GOES B field Data...')
+        for num in probelist:
+            print('\tgoes',num)
+            df = pd.DataFrame()
+            bfield_instrument = kwargs.get('bfield_instrument',
+                                          f'DN_MAGN-L2-HIRES_G{num}')
+            epoch_key = 'Epoch'
+            b_gsm_key = 'b_gsm'
+            status,bdata = cdas.get_data(bfield_instrument,b_gsm_key,
+                                         start-buff,end+buff)
+            if bdata:
+                df.index = bdata[epoch_key]
+                df[['bx_gsm','by_gsm','bz_gsm']] = bdata[b_gsm_key] # nT
+                df = df[(df.index>start)&(df.index<end)]
+            bfield['goes'+num] = df
     plasma = {}
     if not kwargs.get('skip_plasma',False):
         #TODO
@@ -839,21 +861,21 @@ if __name__ == '__main__':
     path_to_ori_file = None
     #start = dt.datetime(2019,5,13,12,0)
     #end = dt.datetime(2019,5,15,12,0)
-    #start = dt.datetime(2014,2,18,4,0)
-    #end = dt.datetime(2014,2,25,0,0)
+    start = dt.datetime(2018,1,1,0,0)
+    end   = dt.datetime(2018,2,1,0,0)
     #start = dt.datetime(2022,2,2,12)
     #end = dt.datetime(2022,2,3,12)
-    start = dt.datetime(2024,5,10,6)
-    end = dt.datetime(2024,5,13,0)
+    #start = dt.datetime(2024,5,10,6)
+    #end = dt.datetime(2024,5,13,0)
     outpath = './'
     plot_data = False
     #######################################################################
 
-    #wind = collect_wind(start, end)
-    cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
-    mms_pos, mms_b,mms_plasma = collect_mms(start, end)
-    themis_pos, themis_b,themis_plasma = collect_themis(start, end)
-    geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
+    wind = collect_wind(start, end)
+    #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
+    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
+    #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
+    #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
 
     ## For a list of all observatories for location plots use:
     #   observatories = ssc.get_observatories()

@@ -2,14 +2,15 @@
 import paraview
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
+import os
 import datetime as dt
 import numpy as np
 from numpy import sin,cos,pi,arcsin,sqrt,deg2rad
 #### import the simple module from paraview
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
-#from geopack import geopack as gp
 from global_energetics.extract.equations import rotation
+from global_energetics.makevideo import get_time
 
 def slice_and_calc_applied_voltage(tracenames,field,**kwargs):
     """Function takes a set of projected B field traces and calculates the
@@ -214,7 +215,197 @@ def project_to_iono(field,timestamp,**kwargs):
     ssetCoords.CoordinateResults = 1
     return nsetCoords,ssetCoords
 
-def create_globe(timestamp,**kwargs):
+def readgrid(infile:str,**kwargs:dict) -> [np.array,list[str]]:
+    #NOTE Duplicate function TODO refactor this!!!
+    if kwargs.get('type','ascii')=='ascii':
+        with open(infile,'r')as f:
+            title = f.readline()# 1st
+            simtime_string = f.readline()# 2nd
+            grid_info = f.readline()# 3rd
+            nlon,nlat = [int(n) for n in grid_info[0:-1].split()]
+            headers = f.readline()[0:-1].split()
+            grid = np.zeros([nlon*nlat,len(headers)])
+            for k,line in enumerate(f.readlines()):
+                grid[k,:] = [float(n) for n in line[0:-1].split()]
+    elif kwargs.get('type')=='real4':
+        print("binary mag grid files not supported yet!")
+        return None,None
+    return grid,headers
+
+def load_maggrid(infile:str,**kwargs:dict) -> Calculator:
+    r = kwargs.get('radius',1.01)#for visual separation
+    timestamp = get_time(infile)
+    # Read the file into python objects
+    grid,header = readgrid(infile)
+    lat = grid[:,header.index('Lat')]
+    lon = grid[:,header.index('Lon')]
+    dims = [len(np.unique(lat)), len(np.unique(lon))]
+    # Create a sphere with the same dimensions
+    empty = Sphere(registrationName='emptySphere')
+    empty.Radius = r
+    empty.PhiResolution = dims[0]#NOTE opposite definitions from us!!
+    empty.ThetaResolution = dims[1]+1
+    empty.StartPhi = 1e-5
+    empty.EndPhi = 180
+    empty.StartTheta = 1e-5
+    empty.EndTheta = 360
+    # Use progfilter to load empty sphere directly
+    loaded = ProgrammableFilter(registrationName='loaded',Input=empty)
+    loaded.Script = update_loaded_sphere(infile)
+    # Get XYZ and assign as the new positions
+    arranged = Calculator(registrationName='arranged',Input=loaded)
+    arranged.Function = (
+                   f"{r}sin((90-Lat)*3.14159/180)*cos(Lon*3.14159/180)*iHat+"+
+                   f"{r}sin((90-Lat)*3.14159/180)*sin(Lon*3.14159/180)*jHat+"+
+                   f"{r}cos((90-Lat)*3.14159/180)*kHat")
+    arranged.ResultArrayName = 'xyzMag'
+    arranged.CoordinateResults = 1
+    # Re interpolate bc I cant seem to place the points just right...
+    remapped = PointDatasetInterpolator(registrationName='remapped',
+                                        Input=arranged,Source=empty)
+
+def update_loaded_sphere(infile:str) -> str:
+    return f"""
+    import numpy as np
+    infile = "{infile}"
+    with open(infile,'r')as f:
+        title = f.readline()# 1st
+        simtime_string = f.readline()# 2nd
+        grid_info = f.readline()# 3rd
+        nlon,nlat = [int(n) for n in grid_info[0:-1].split()]
+        headers = f.readline()[0:-1].split()
+        grid = np.zeros([nlon*nlat,len(headers)])
+        for k,line in enumerate(f.readlines()):
+            grid[k,:] = [float(n) for n in line[0:-1].split()]
+    for var in headers:
+        output.PointData.append(grid[:,headers.index(var)],var)
+    """
+
+def load_maggrid2(infile:str,**kwargs:dict) -> Calculator:
+    r = kwargs.get('radius',1.01)#for visual separation
+    timestamp = get_time(infile)
+    table = CSVReader(FileName=infile,registrationName=infile.split('/')[-1])
+    if kwargs.get('coord','mag')=='mag':
+        xyzMag = ProgrammableFilter(registrationName='xyzMag',Input=table)
+        xyzMag.Script = update_magsph_to_xyz(timestamp,kwargs.get('r',1.01))
+        points = TableToPoints(registrationName='points',Input=xyzMag)
+        points.XColumn = 'x_mag'
+        points.YColumn = 'y_mag'
+        points.ZColumn = 'z_mag'
+        points.KeepAllDataArrays = 1
+    else:
+        print(f"Coord {kwargs.get('coord','mag')} not recognized!")
+        return table
+    return points
+
+def update_magsph_to_xyz(timestamp:dt.datetime,r:float) -> str:
+    return f"""
+    import numpy as np
+    import datetime as dt
+    from numpy import pi,rad2deg,deg2rad
+    import geopack.geopack as gp
+    # Setup geopack for performing transformations
+    timestamp = dt.datetime({timestamp.year},
+                            {timestamp.month},
+                            {timestamp.day},
+                            {timestamp.hour},
+                            {timestamp.minute},
+                            {timestamp.second})
+    t0 = dt.datetime(1970,1,1)
+    ut = (timestamp-t0).total_seconds()
+    gp.recalc(ut)
+
+    # Access input data
+    data = inputs[0]
+    mlat = data.RowData['Lat']
+    mlon = data.RowData['Lon']
+    mr   = np.ones(len(mlat))*{r}
+
+    # Get xyz MAG
+    xyz_mag = np.array([gp.sphcar(r,deg2rad(90-lat),deg2rad(lon),1)
+                                          for r,lat,lon in zip(mr,mlat,mlon)])
+
+    # Convert MAG to GEO
+    xyz_geo = np.array([gp.geomag(x,y,z,-1) for x,y,z in xyz_mag])
+
+    # Add to output data
+    output.ShallowCopy(data.VTKObject)#So rest of inputs flow
+    output.RowData.append(xyz_geo[:,0],'x_geo')
+    output.RowData.append(xyz_geo[:,1],'y_geo')
+    output.RowData.append(xyz_geo[:,2],'z_geo')
+    output.RowData.append(xyz_mag[:,0],'x_mag')
+    output.RowData.append(xyz_mag[:,1],'y_mag')
+    output.RowData.append(xyz_mag[:,2],'z_mag')
+    """
+
+def label_stations(stations:TableToPoints,**kwargs:dict) -> None:
+    # Assign labels to all the stations
+    r = kwargs.get('r',1.01)
+    data = servermanager.Fetch(stations)
+    data = dsa.WrapDataObject(data)
+    view = GetActiveViewOrCreate('RenderView')
+    for i,(x,y,z) in enumerate(zip(data.PointData['x_mag'],
+                                   data.PointData['y_mag'],
+                                   data.PointData['z_mag'])):
+        stationID = data.PointData['IAGA'].GetValue(i)
+        text = Text(registrationName=stationID)
+        text.Text = stationID
+        textDisplay = GetDisplayProperties(text,view=view)
+        textDisplay.TextPropMode = 'Billboard 3D Text'
+        textDisplay.BillboardPosition = [r*x,r*y,r*z]
+
+def create_stations(timestamp:dt.datetime,**kwargs:dict) -> Calculator:
+    locationfile = kwargs.get('file',
+                              os.path.join(os.getcwd(),'data/stations.csv'))
+    table = CSVReader(FileName=locationfile,registrationName='stations.csv')
+    # Rotate according to local time on the geographic coordinates
+    xyzGeo = ProgrammableFilter(registrationName='xyzGeo',Input=table)
+    xyzGeo.Script = update_xyzGeoTable(timestamp)
+    # Convert GEO to MAG (with X pointed towards the sun)
+    xyzMag = geo_to_mag(xyzGeo,timestamp,XYZkey='xyz_geo',isRow=True)
+    # Use geo coords to get xyz geo, then xyz mag
+    points = TableToPoints(registrationName='points',Input=xyzMag)
+    points.XColumn = 'x_mag'
+    points.YColumn = 'y_mag'
+    points.ZColumn = 'z_mag'
+    points.KeepAllDataArrays = 1
+    return points
+
+def update_xyzGeoTable(timestamp):
+    return f"""
+    import numpy as np
+    import datetime as dt
+    from numpy import pi,rad2deg,deg2rad
+    import geopack.geopack as gp
+    # Setup geopack for performing transformations
+    timestamp = dt.datetime({timestamp.year},
+                            {timestamp.month},
+                            {timestamp.day},
+                            {timestamp.hour},
+                            {timestamp.minute},
+                            {timestamp.second})
+    t0 = dt.datetime(1970,1,1)
+    gp.recalc((timestamp-t0).total_seconds())
+
+    # Access input data
+    data = inputs[0]
+    glat = data.RowData['GEOLAT']
+    glon = data.RowData['GEOLON']
+    gr   = np.ones(len(glat))
+
+    # Get xyz GEO
+    xyz_geo = np.array([gp.sphcar(r,deg2rad(90-lat),deg2rad(lon),1)
+                                          for r,lat,lon in zip(gr,glat,glon)])
+
+    # Add to output data
+    output.ShallowCopy(data.VTKObject)#So rest of inputs flow
+    output.RowData.append(xyz_geo,'xyz_geo')
+    """
+
+def rotate_localtime():
+    pass
+
+def create_globe(timestamp:dt.datetime,**kwargs:dict) -> Calculator:
     """Function creates a sphere, wraps with Earth text and rotates to position
     Inputs
         timestamp (UT)
@@ -242,15 +433,24 @@ def create_globe(timestamp,**kwargs):
     xyz.ResultArrayName = 'XYZ'
     # Use the prog filter to rotate our globe into an orientation
     # NOTE assuming that the globe comes in with 00UT facing +X, Z aligned
-    gsm = geo_to_gsm(xyz,timestamp)
-    # Set XYZ GSM to be used as the new coordinates
-    earth = Calculator(registrationName='Earth',Input=gsm)
-    earth.Function = "x_gsm*iHat+y_gsm*jHat+z_gsm*kHat"
-    earth.ResultArrayName = 'xyzGSM'
-    earth.CoordinateResults = 1
+    if kwargs.get('coord','gsm') == 'gsm':
+        gsm = geo_to_gsm(xyz,timestamp)
+        # Set XYZ GSM to be used as the new coordinates
+        earth = Calculator(registrationName='Earth',Input=gsm)
+        earth.Function = "x_gsm*iHat+y_gsm*jHat+z_gsm*kHat"
+        earth.ResultArrayName = 'xyzGSM'
+        earth.CoordinateResults = 1
+    elif kwargs.get('coord','gsm') == 'mag':
+        mag = geo_to_mag(xyz,timestamp)
+        # Set XYZ MAG to be used as the new coordinates
+        earth = Calculator(registrationName='Earth',Input=mag)
+        earth.Function = "x_mag*iHat+y_mag*jHat+z_mag*kHat"
+        earth.ResultArrayName = 'xyzMAG'
+        earth.CoordinateResults = 1
     #earthDisplay = GetDisplayProperties(earth)
     earthDisplay = Show(earth,GetActiveViewOrCreate('RenderView'))
     earthDisplay.Texture = bluemarble_mapping
+    return earth
 
 def tec2para(instr):
     """Function takes a tecplot function evaluation string and makes it
@@ -278,6 +478,113 @@ def tec2para(instr):
         outstr = ''.join(outstr.split(bc))
     #print('WAS: ',instr,'\tIS: ',outstr)
     return outstr
+
+def all_evaluate(evaluation_set: dict, pipeline: filter) -> filter:
+    # Get name of point data arrays
+    point_data_array_names = pipeline.PointData.keys()
+    # Create and populate prog filter
+    evaluation =ProgrammableFilter(registrationName='equations',Input=pipeline)
+    evaluation.Script = update_evaluate(evaluation_set, point_data_array_names)
+    return evaluation
+
+def update_evaluate(evaluation_set: dict,
+                    point_data_array_names: list) -> str:
+    script = f"""
+    import numpy as np
+    from numpy import sqrt,sin,cos,arcsin,arctan2,trunc
+
+    #Assign to output
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+
+    # reveal all point data arrays as variables with the same name
+    if True:
+    """
+    for i,var in enumerate(point_data_array_names):
+        script +=f"""
+        {point_data_array_names[i]} = inputs[0].PointData['{var}']
+        """
+    for lhs,rhs in evaluation_set.items():
+        script +=f"""
+        {lhs.replace('lambda','lam')} = {rhs.replace(
+                                                     '^','**').
+                                             replace('asin','arcsin').
+                                             replace('atan2','arctan2').
+                                             replace('lambda','lam')}
+        output.PointData.append({lhs.replace('lambda','lam')},
+                               '{lhs.replace('lambda','lam')}')
+        """
+    return script
+
+def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
+    """Function adds the equation to the set that will be evaluated
+    Inputs
+        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
+                                must be converted with 'tec2para' before they
+                                can be evaluated!!
+        evaluation_set ({}) - where attach the new filter
+        kwargs:
+    Returns
+        evaluation_set ({}) - a new endpoint of the pipeline
+    """
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        evaluation_set.update({lhs:rhs})
+    return evaluation_set
+
+def eqeval(eqset,pipeline,**kwargs):
+    """Function creates a calculator object which evaluates the given function
+    Inputs
+        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
+                                must be converted with 'tec2para' before they
+                                can be evaluated!!
+        pipeline (pipeline) - where attach the new filter
+        kwargs:
+    Returns
+        pipeline (pipeline) - a new endpoint of the pipeline
+    """
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        var = Calculator(registrationName=lhs, Input=pipeline)
+        var.Function = rhs
+        var.ResultArrayName = lhs
+        pipeline = var
+    return pipeline
+
+def get_sphere_filter(pipeline,**kwargs):
+    """Function calculates a sphere variable, NOTE:will still need to
+        process variable into iso surface then cleanup iso surface!
+    Inputs
+        pipeline (filter/source)- upstream that calculator will process
+        kwargs:
+            betastar_max (float)- default 0.7
+            status_closed (float)- default 3
+    Returns
+        pipeline (filter)- last filter applied keeping a straight pipeline
+    """
+    #Must have the following conditions met first
+    assert FindSource('r_R') != None
+    radius = kwargs.get('radius',3)
+    r_state =ProgrammableFilter(registrationName='r_state',Input=pipeline)
+    pass
+
+def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
+    """Function adds the equation to the set that will be evaluated
+    Inputs
+        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
+                                must be converted with 'tec2para' before they
+                                can be evaluated!!
+        evaluation_set ({}) - where attach the new filter
+        kwargs:
+    Returns
+        evaluation_set ({}) - a new endpoint of the pipeline
+    """
+    for lhs_tec,rhs_tec in eqset.items():
+        lhs = tec2para(lhs_tec)
+        rhs = tec2para(rhs_tec)
+        evaluation_set.update({lhs:rhs})
+    return evaluation_set
 
 def eqeval(eqset,pipeline,**kwargs):
     """Function creates a calculator object which evaluates the given function
@@ -754,19 +1061,20 @@ def get_pressure_gradient(pipeline,**kwargs):
     return pipeline
 
 def mag_to_gsm(pipeline,timestamp):
-    # Initialize the geopack routines by finding the universal time
+    # Do the coord transform in a programmable filter
+    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
+    gsm.Script = update_mag2gsm(timestamp)
+    return gsm
+
+def update_mag2gsm(timestamp):
+    return f"""
+    import numpy as np
+    import datetime as dt
+    from geopack import geopack as gp
+    timestamp = {timestamp}
     t0 = dt.datetime(1970,1,1)
     ut = (timestamp-t0).total_seconds()
     gp.recalc(ut)
-    # Do the coord transform in a programmable filter
-    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
-    gsm.Script = update_mag2gsm()
-    return gsm
-
-def update_mag2gsm():
-    return """
-    import numpy as np
-    from geopack import geopack as gp
     # Get input
     data = inputs[0]
     # Pull the XYZ GEO coordinates from the paraview objects
@@ -792,20 +1100,80 @@ def update_mag2gsm():
     output.PointData.append(z_gsm,'z_gsm')
     """
 
-def geo_to_gsm(pipeline,timestamp):
+def geo_to_mag(pipeline,timestamp,**kwargs):
+    # Do the coord transform in a programmable filter
+    mag =ProgrammableFilter(registrationName='mag',Input=pipeline)
+    mag.Script = update_geo2mag(timestamp,kwargs.get('XYZkey','XYZ'),
+                                isRow=kwargs.get('isRow',False))
+    return mag
+
+def update_geo2mag(timestamp,XYZkey,**kwargs):
+    if kwargs.get('isRow'):
+        dataType = 'RowData'
+    else:
+        dataType = 'PointData'
+    return f"""
+    import numpy as np
+    import datetime as dt
+    from geopack import geopack as gp
     # Initialize the geopack routines by finding the universal time
+    timestamp = dt.datetime({timestamp.year},
+                            {timestamp.month},
+                            {timestamp.day},
+                            {timestamp.hour},
+                            {timestamp.minute},
+                            {timestamp.second})
+    t0 = dt.datetime(1970,1,1)
+    gp.recalc((timestamp-t0).total_seconds())
+
+    # Get input
+    data = inputs[0]
+
+    # Pull the XYZ GEO coordinates from the paraview objects
+    xyz_geo = data.{dataType}['{XYZkey}']
+
+    ## Rotate so that 12-MLT (noon) is pointing toward the sun (+X,Y=0)
+    # Get rotation due to geo->mag conversion
+    xyz_test_geo = [1,0,0]
+    xyz_test_mag = gp.geomag(*xyz_test_geo,1)
+    angle_dmag = gp.sphcar(*xyz_test_mag,-1)[2]-gp.sphcar(*xyz_test_geo,-1)[2]
+
+    # Get rotation due to local time (plus 180 bc 0UT is midnight in London)
+    angle_localtime = (timestamp.hour*60+timestamp.minute+
+                       timestamp.second)/(12*60)*np.pi
+
+    rotation_angle = np.pi + angle_localtime  - angle_dmag
+    T = [[np.cos(rotation_angle), -np.sin(rotation_angle), 0],
+         [np.sin(rotation_angle),  np.cos(rotation_angle), 0],
+         [0                     ,  0                     , 1]] #about Z
+    xyz_local_geo = np.array([np.matmul(T,[x,y,z]) for x,y,z in xyz_geo])
+
+    # Convert GEO -> GSM using geopack functions
+    xyz_mag = np.array([gp.geomag(x,y,z,1) for x,y,z in xyz_local_geo])
+
+    # Load the data back into the output of the Paraview filter
+    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+    output.{dataType}.append(xyz_mag[:,0],'x_mag')
+    output.{dataType}.append(xyz_mag[:,1],'y_mag')
+    output.{dataType}.append(xyz_mag[:,2],'z_mag')
+    """
+
+def geo_to_gsm(pipeline,timestamp):
+    # Do the coord transform in a programmable filter
+    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
+    gsm.Script = update_geo2gsm(timestamp)
+    return gsm
+
+def update_geo2gsm(timestamp):
+    return f"""
+    import numpy as np
+    import datetime as dt
+    from geopack import geopack as gp
+    # Initialize the geopack routines by finding the universal time
+    timestamp = {timestamp}
     t0 = dt.datetime(1970,1,1)
     ut = (timestamp-t0).total_seconds()
     gp.recalc(ut)
-    # Do the coord transform in a programmable filter
-    gsm =ProgrammableFilter(registrationName='gsm',Input=pipeline)
-    gsm.Script = update_geo2gsm()
-    return gsm
-
-def update_geo2gsm():
-    return """
-    import numpy as np
-    from geopack import geopack as gp
     # Get input
     data = inputs[0]
     # Pull the XYZ GEO coordinates from the paraview objects
@@ -829,6 +1197,7 @@ def gsm_to_eci(pipeline,ut):
     eci =ProgrammableFilter(registrationName='eci',Input=pipeline)
     eci.Script = """
     import numpy as np
+    import datetime as dt
     from geopack import geopack as gp
     # Get input
     data = inputs[0]

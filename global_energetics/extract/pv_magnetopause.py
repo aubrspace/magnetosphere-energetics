@@ -61,6 +61,7 @@ def get_magnetopause_filter(pipeline,**kwargs):
     return pipeline
 
 def setup_pipeline(infile,**kwargs):
+    #TODO: make this more efficient by having fewer individual filters
     """Function takes single data file and builds pipeline to find and
         visualize magnetopause
     Inputs
@@ -109,13 +110,15 @@ def setup_pipeline(infile,**kwargs):
         pipeline = pv_input_tools.fix_names(pipeline,**kwargs)
     ###Build functions up to betastar
     alleq = equations.equations(**kwargs)
-    pipeline = pv_tools.eqeval(alleq['basic3d'],pipeline)
-    pipeline = pv_tools.eqeval(alleq['basic_physics'],pipeline)
+    evaluation_set = {}
+    evaluation_set = pv_tools.eq_add(alleq['basic3d'],evaluation_set)
+    evaluation_set = pv_tools.eq_add(alleq['basic_physics'],evaluation_set)
     if 'aux' in kwargs:
-        pipeline = pv_tools.eqeval(alleq['dipole_coord'],pipeline)
-        pipeline = pv_tools.eqeval(alleq['dipole'],pipeline)
+        evaluation_set = pv_tools.eq_add(alleq['dipole_coord'],evaluation_set)
+        evaluation_set = pv_tools.eq_add(alleq['dipole'],evaluation_set)
     if kwargs.get('doEntropy',False):
-        pipeline = pv_tools.eqeval(alleq['entropy'],pipeline)
+        evaluation_set = pv_tools.eq_add(alleq['entropy'],evaluation_set)
+    pipeline = pv_tools.all_evaluate(evaluation_set,pipeline)
     ###Fix tracing
     if (pipeline.PointData['Status'].GetRange()[0] == -3 and
         'theta_1_deg' in pipeline.PointData.keys()):
