@@ -267,7 +267,7 @@ def main() -> None:
             print(f"\t{i+1}/{len(filelist)}\t{infile.split('/')[-1]} ...")
             flux_dict = flux
         for key in flux:
-            if len(flux[key].shape) > 2:
+            if len(flux[key].shape) > 2 or 'time' in key:
                 flux_dict[key] = np.concat([flux_dict[key],flux[key]])
     print(f"Converting {infile.split('/')[-1]} -> "+
           f"{infile.replace('.fls','_fls.npz').split('/')[-1]}")

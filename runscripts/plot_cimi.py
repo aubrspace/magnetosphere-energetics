@@ -220,7 +220,8 @@ def plot_figure2(flux:np.lib.npyio.NpzFile,
 
 #############################################################################
 def add_eq_flux(itime:int,data:np.lib.npyio.NpzFile,
-                 axis:plt.axis,**kwargs:dict) -> mpl.contour.QuadContourSet:
+                 axis:plt.axis,ilowE:int,ihighE:int,
+                                **kwargs:dict) -> mpl.contour.QuadContourSet:
     # Pull necessary pieces from data
     r_eq   = data['ro'][itime]
     mlt_eq = data['mlto'][itime]
@@ -235,8 +236,8 @@ def add_eq_flux(itime:int,data:np.lib.npyio.NpzFile,
     y_eq[:,nMLT] = y_eq[:,0]
     # Z - flux @ energy level
     #iE,energy_keV = find_nearest(data['E_lvls'],kwargs.get('energy_keV',500))
-    flux_single_E = np.trapezoid(data['flux'][itime,:,:,15::,:],
-                                 x=data['E_lvls'][15::],axis=2)
+    flux_single_E = np.trapezoid(data['flux'][itime,:,:,ilowE:ihighE+1,:],
+                                 x=data['E_lvls'][ilowE:ihighE+1],axis=2)
 
     # Integrate over pitch angles
     flux_PAave = np.zeros((nLat,nMLT+1))
@@ -253,7 +254,8 @@ def add_eq_flux(itime:int,data:np.lib.npyio.NpzFile,
     return cs
 
 def add_eq_aniso(itime:int,data:np.lib.npyio.NpzFile,
-                  axis:plt.axis,**kwargs:dict) -> mpl.contour.QuadContourSet:
+                  axis:plt.axis,ilowE:int,ihighE:int,
+                                **kwargs:dict) -> mpl.contour.QuadContourSet:
     # Pull necessary pieces from data
     r_eq   = data['ro'][itime]
     mlt_eq = data['mlto'][itime]
@@ -267,9 +269,8 @@ def add_eq_aniso(itime:int,data:np.lib.npyio.NpzFile,
     y_eq[:,0:nMLT] = r_eq * np.sin(mlt2rad(mlt_eq))# Lat,MLT
     y_eq[:,nMLT] = y_eq[:,0]
     # Z - flux @ energy level
-    Erange = kwargs.get('Erange',[15,24])
-    Elvls = data['E_lvls'][Erange[0]:Erange[1]]
-    flux_Echannel =np.trapezoid(data['flux'][itime,:,:,Erange[0]:Erange[-1],:],
+    Elvls = data['E_lvls'][ilowE:ihighE+1]
+    flux_Echannel =np.trapezoid(data['flux'][itime,:,:,ilowE:ihighE+1,:],
                                  x=Elvls,axis=2)# Lat,MLT,PA
     #iE,energy_keV = find_nearest(data['E_lvls'],kwargs.get('energy_keV',500))
     #flux_single_E = data['flux'][itime,:,:,iE,:]
@@ -291,21 +292,23 @@ def add_eq_aniso(itime:int,data:np.lib.npyio.NpzFile,
 def plot_figure1(data:np.lib.npyio.NpzFile,itime:int,**kwargs:dict) -> None:
     """ Plot of equatorial plane flux at a specific energy level
     """
+    ilowE  = kwargs.get('ilowE',7)
+    ihighE = kwargs.get('ihightE',11)
     # Create figure
     fig,[ax1,ax2] = plt.subplots(1,2,figsize=[30,12])
 
     # Add flux equatorial panel
-    cs1 = add_eq_flux(itime,data,ax1)
+    cs1 = add_eq_flux(itime,data,ax1,ilowE,ihighE)
     cbar1 = fig.colorbar(cs1,format="{x:.2e}")
 
     # Add pitch angle anisotropy panel
-    cs2 = add_eq_aniso(itime,data,ax2)
+    cs2 = add_eq_aniso(itime,data,ax2,ilowE,ihighE)
     cbar2 = fig.colorbar(cs2,format="{x:.2f}")
 
     # Decorate
     #iE,energy_keV = find_nearest(data['E_lvls'],kwargs.get('energy_keV',500))
     cbar1.set_label(
-                 f"Flux {data['E_lvls'][15]:.0f}-{data['E_lvls'][23]:.0f} keV")
+        f"Flux {data['E_lvls'][ilowE]:.0f}-{data['E_lvls'][ihighE]:.0f} keV")
     cbar2.set_label("Pitch Angle Anisotropy"+
                     r"$\left[\frac{f_{\perp}-f_{\|}}{f_{tot}}\right]$")
     for axis in [ax1,ax2]:
@@ -313,7 +316,12 @@ def plot_figure1(data:np.lib.npyio.NpzFile,itime:int,**kwargs:dict) -> None:
         axis.set_ylim([-10,10])
         axis.set_xlabel(r'X $\left[R_E\right]$')
         axis.set_ylabel(r'Y $\left[R_E\right]$')
-        axis.text(1,0.94,f'Time:{T0+dt.timedelta(hours=itime)}',
+        if type(data['times'][itime])==dt.datetime:
+            axis.text(1,0.94,f"Time:{data['times'][itime]}",
+                        transform=axis.transAxes,
+                        horizontalalignment='right')
+        else:
+            axis.text(1,0.94,f'Time:{T0+dt.timedelta(hours=itime)}',
                         transform=axis.transAxes,
                         horizontalalignment='right')
         axis.margins(x=0.01)
@@ -353,17 +361,17 @@ def plot_figure0(cimi_db,omni:dict,**kwargs:dict) -> None:
 
 def main() -> None:
     # Collect data
-    flux = np.load(f"{INPATH}/{FLUXFILE}")
-    cimi_db = read_db_file(f"{INPATH}/{DBFILE}")
+    flux = np.load(f"{INPATH}/{FLUXFILE}",allow_pickle=True)
+    #cimi_db = read_db_file(f"{INPATH}/{DBFILE}")
     #rbspA_mageis,rbspA_rept = call_cdaweb_rbsp(T0,TEND,'A')
     rbsp_reptL2 = {}
-    v_rbsp = np.load(f"{INPATH}/{VSATFILE}")
+    #v_rbsp = np.load(f"{INPATH}/{VSATFILE}")
     omni = swmfpy.web.get_omni_data(T0,TEND)
 
     # Draw figures
     #plot_figure0(cimi_db,omni)
-    for t in flux['times']:
-        plot_figure1(flux,int(t))
+    for i,t in enumerate(flux['times'][0::60]):
+        plot_figure1(flux,i)
         pass
     #plot_figure2(flux,cimi_db,rbspA_mageis,rbspA_rept,omni,v_rbsp)
 
@@ -371,12 +379,13 @@ if __name__ == "__main__":
     # Globals
     global T0,INPATH,INFILE,OUTPATH
 
-    T0 = dt.datetime(2018,1,1,0,0)
-    TEND = dt.datetime(2018,2,1,0,0)
-    INPATH = os.getcwd()
-    FLUXFILE = "2018p001_e_fls.npz"
-    DBFILE = "2018p001.db"
-    VSATFILE = "2018p001_rbsp-A_e_flux.npz"
+    T0 = dt.datetime(2024,5,10,13,0)
+    TEND = dt.datetime(2024,5,11,17,0)
+    INPATH = "gannon_rad_belt/analysis"
+    #FLUXFILE = "20240511_170000_e_fls.npz"
+    FLUXFILE = "new_fls.npz"
+    #DBFILE = "2018p001.db"
+    #VSATFILE = "2018p001_rbsp-A_e_flux.npz"
     OUTPATH = os.path.join(INPATH,"output")
 
     # Set pyplot configurations
