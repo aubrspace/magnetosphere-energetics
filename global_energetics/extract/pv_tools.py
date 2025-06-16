@@ -8,8 +8,8 @@ from numpy import sin,cos,pi,arcsin,sqrt,deg2rad
 #### import the simple module from paraview
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
-from geopack import geopack as gp
-from equations import rotation
+#from geopack import geopack as gp
+from global_energetics.extract.equations import rotation
 
 def slice_and_calc_applied_voltage(tracenames,field,**kwargs):
     """Function takes a set of projected B field traces and calculates the

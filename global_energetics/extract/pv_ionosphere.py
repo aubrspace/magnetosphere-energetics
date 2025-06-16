@@ -7,8 +7,8 @@ from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 import numpy as np
 from numpy import sqrt,arctan2,sin,cos,deg2rad
-import pv_input_tools
-from pv_tools import mag_to_gsm, rotate2GSM
+from global_energetics.extract import pv_input_tools
+from global_energetics.extract.pv_tools import mag_to_gsm, rotate2GSM
 
 def load_ie(infile,**kwargs):
     """Function loads IE file into a paraview environment

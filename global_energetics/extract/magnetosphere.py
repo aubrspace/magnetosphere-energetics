@@ -87,7 +87,8 @@ def todimensional(dataset, **kwargs):
              'theta_1':'[deg]',
              'theta_2':'[deg]',
              'phi_1':'[deg]',
-             'phi_2':'[deg]'
+             'phi_2':'[deg]',
+             'dvol':'[R]^3'
             }
     for var in dataset.variable_names:
         if 'status' not in var.lower() and '[' not in var:
@@ -231,7 +232,7 @@ def prep_field_data(field_data, **kwargs):
             tp.data.load_tecplot(kwargs.get('truegridfile'),reset_style=False)
             truegrid = field_data.zone(-1)
             truegrid.name = 'truegrid'
-            if 'dvol [R]^3' in field_data.variable_names:
+            if 'dvol [R]^3' in field_data.variable_names:#Added along w zone
                 tp.data.operate.interpolate_linear(
                                     field_data.zone('global_field'),
                                     source_zones=truegrid,

@@ -5,8 +5,8 @@
 #INPUTDIR=./theta_aurora1997/GM/IO2/
 #OUTPUTDIR=./outputs_theta_aurora/
 
-INPUTDIR=./Starlink_Pleiades/
-OUTPUTDIR=./outputs_starlink_hires/
+INPUTDIR=./Starlink_lowres/
+OUTPUTDIR=./outputs_starlink_lowres/
 
 #INPUTDIR=./starlink2/IO2/
 #OUTPUTDIR=./outputs_ccmcStarlink/
@@ -45,10 +45,10 @@ do
     minute=${file:${#GMDIR}+${#head}+5:2}
     
     # Filter by day/hour/minute
-    #if [[ ${day#0} -eq 10 ]] && [[ ${hour#0} -lt 15 ]] \
-    #                         && [[ ${minute#0} -gt 10 ]]
+    if [[ ${day#0} -eq  3 ]] && [[ ${hour#0} -ge 11 ]] \
+                             && [[ ${hour#0} -lt 13 ]]
     #&& [[ ${hour#0} -gt 1 ]]
-    if [[ 1 == 1 ]]
+    #if [[ 1 == 1 ]]
     then
         #echo "${file:${#GMDIR}} $day $hour"
 

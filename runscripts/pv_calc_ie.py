@@ -24,9 +24,9 @@ if True:
     #inpath = os.path.join(herepath,'gannon-storm/data/large/')
     #IEpath = os.path.join(inpath,'IE/ionosphere/')
     #outpath= os.path.join(herepath,'gannon-storm/outputs/vis/')
-    inpath = os.path.join(herepath,'localdbug/starlink/')
-    IEpath = os.path.join(inpath,'hires_IE/')
-    outpath= os.path.join(inpath,'hires_test/')
+    inpath = os.path.join(herepath,'Starlink_Pleiades/')
+    IEpath = os.path.join(inpath,'IE/')
+    outpath= os.path.join(herepath,'outputs_starlink_hires/ie/')
 
     filelist = sorted(glob.glob(IEpath+'*.tec'),
                       key=time_sort)
@@ -34,7 +34,7 @@ if True:
     renderView1 = GetActiveViewOrCreate('RenderView')
 
     FAC_all = pd.DataFrame()
-    for i,infile in enumerate(filelist):
+    for i,infile in enumerate(filelist[0:1]):
         localtime = get_time(infile)
         print(localtime)
         outfile = 't'+str(i)+infile.split('_1_')[-1].split('.')[0]+'.png'

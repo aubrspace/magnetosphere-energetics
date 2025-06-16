@@ -143,7 +143,8 @@ def energetics_analysis(infiles,outpath):
                                       integrate_surface=True,
                                       save_surface_flux_dist=True,#NOTE
                                       integrate_volume=False,
-                        truegridfile='starlink2/IO2/3d__volume_e20220202.plt',
+                        #truegridfile='starlink2/IO2/3d__volume_e20220202.plt',
+                        truegridfile='starlink_volume_grab/GM/IO2/3d__volume.plt',
                                       outputpath=outpath)
     if False:
         save_gm_multi([
