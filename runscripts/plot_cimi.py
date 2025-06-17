@@ -17,6 +17,7 @@ from global_energetics.analysis.plot_tools import (pyplotsetup,
                                                    bin_and_describe,
                                                    extended_fill_between,
                                                    refactor)
+from global_energetics.analysis import proc_indices
 from cdasws import CdasWs
 cdas = CdasWs()
 #from plot_rbsp import call_cdaweb_rbsp
@@ -86,42 +87,39 @@ def find_nearest(array:np.ndarray, value:float) -> tuple[int,float]:
 
 #############################################################################
 def add_Lstar_time(data:np.lib.npyio.NpzFile,axis:plt.axis,
+                  ilowE:int,ihighE:int,
                                 **kwargs:dict) -> mpl.contour.QuadContourSet:
     # Average flux @Energy level over all pitch angles
-    Erange = kwargs.get('Erange',[16,25])
-    Elvls = data['E_lvls'][Erange[0]:Erange[1]]
-    flux_Echannel = np.trapezoid(data['flux'][:,:,:,Erange[0]:Erange[-1],:],
+    Elvls = data['E_lvls'][ilowE:ihighE]
+    flux_Echannel = np.trapezoid(data['flux'][:,:,:,ilowE:ihighE,:],
                                  x=Elvls,axis=3)# t,Lat,MLT,PA
     flux_PAave,flux_para,flux_perp = integrate_f_dAlpha(data['alpha_lvls'],
                                                         flux_Echannel,3)
-    #sina = data['alpha_lvls']
-    #mu_bins_left  = np.concat([[0],[0.5*(sina[i]+sina[i-1])
-    #                                    for i in range(1,len(sina))]])
-    #mu_bins_right = np.concat([[0.5*(sina[i+1]+sina[i])
-    #                                    for i in range(0,len(sina)-1)],[1]])
-    #dmu = np.sqrt(1-mu_bins_left**2)-np.sqrt(1-mu_bins_right**2)
-    #flux_PAave = np.sum(flux_Echannel*dmu,axis=3)# t,Lat,MLT
 
+    if 'Lstar' not in list(data.keys()): #TODO handle this better
+        lats = data['latN']
+        Lparam = 1/np.cos(np.deg2rad(lats))**2
+    else:
+        Lparam = data['Lstar']
     # Creat L* bins and take average at each bin
-    Lstar_bins = np.linspace(-10,10,len(data['lat_lvls'])+1)
-    L_ave_flux = np.zeros([len(data['times']),len(Lstar_bins)-1])
+    L_bins = np.linspace(-10,10,len(data['lat_lvls'])+1)
+    L_ave_flux = np.zeros([len(data['times']),len(L_bins)-1])
     for it in range(0,len(data['times'])):
         flux_now  = flux_PAave[it,:,:]
-        lstar_now = data['Lstar'][it,:,:]
-        for iL in range(0,len(Lstar_bins)-1):
-            flux_at_L = flux_now[(lstar_now>=Lstar_bins[iL])&
-                                 (lstar_now<=Lstar_bins[iL+1])]
+        L_now     = Lparam[it,:,:]
+        for iL in range(0,len(L_bins)-1):
+            flux_at_L = flux_now[(L_now>=L_bins[iL])&
+                                 (L_now<=L_bins[iL+1])]
             if flux_at_L.size>0:
                 L_ave_flux[it,iL] = flux_at_L.mean()
             else:
                 L_ave_flux[it,iL] = 0
 
     # Plot in log scale
-    Lstar_bins_c = [(Lstar_bins[i]+Lstar_bins[i+1])/2
-                                         for i in range(0,len(Lstar_bins)-1)]
-    #T,L = np.meshgrid(data['times'],Lstar_bins_c)
-    times = [T0+dt.timedelta(hours=t) for t in data['times']]
-    T,L = np.meshgrid(times,Lstar_bins_c)
+    L_bins_c = [(L_bins[i]+L_bins[i+1])/2 for i in range(0,len(L_bins)-1)]
+    T,L = np.meshgrid(data['times'],L_bins_c)
+    #times = [T0+dt.timedelta(hours=t) for t in data['times']]
+    #T,L = np.meshgrid(times,L_bins_c)
     clevels = kwargs.get('clevels',np.logspace(2.0,7.0))
     cs = axis.contourf(T,L,L_ave_flux.T,clevels,cmap=mpl.cm.plasma,
                                  norm=mpl.colors.LogNorm(),extend='both')
@@ -149,71 +147,51 @@ def add_Lstar_time_rbsp(mageis,rept,axis:plt.axis) -> plt.scatter:
                         cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
     return scat
 
-def add_dst(cimi_db:dict,omni:dict,axis:plt.axis) -> None:
+def add_dst(swmf_log:pd.DataFrame,omni:dict,axis:plt.axis) -> None:
     # could return lines as list[mpl.lines.Line2D]
     # Omni Sym-H
     axis.plot(omni['times'],omni['sym_h'],c='black',lw=2,label='Dst')
-    # CIMI magnetic perturbation
-    #cimi_times = [T0+dt.timedelta(hours=t) for t in cimi_db['hour']]
-    #axis.plot(cimi_times,cimi_db['DstRC'],c='black',lw=2,ls='--',label='CIMI')
+    # SWMF dB
+    axis.plot(swmf_log.index,swmf_log['dst_sm'],c='navy',lw=2,ls='--',
+              label='SWMF')
     return
             
 
 def plot_figure2(flux:np.lib.npyio.NpzFile,
-                 cimi_db:dict,
+                 swmf_log:dict,
                  mageis,rept,
                  omni:dict,
                  vobs:np.lib.npyio.NpzFile,**kwargs:dict) -> None:
-    """ Plot L*-time plot with flux at a certain energy level
+    """ Plot L-time plot with flux at a certain energy level
     """
-    #TODO
-    #   - add Mageis/Rept actual data as third panel
-    #   - Fix the channels/contour limits for fair comparison
-    #   - Update L label and check that it's consistent w real & vsat
+    ilowE  = kwargs.pop('ilowE',7)
+    ihighE = kwargs.pop('ihighE',11)
 
     # Create figure
-    fig,ax1 = plt.subplots(1,1,figsize=[24,6],sharex=True)
+    fig,ax1 = plt.subplots(1,1,figsize=[24,8],sharex=True)
 
-    # Add L*-time all CIMI
-    cs1   = add_Lstar_time(flux,ax1,Erange=[15,24])
+    # Add L-time all CIMI
+    cs1   = add_Lstar_time(flux,ax1,ilowE,ihighE,**kwargs)
     cbar1 = fig.colorbar(cs1,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
     rax = ax1.twinx()
-    add_dst(cimi_db,omni,rax)
-
-    '''
-    # Add L*-time from virtual sat
-    scat2 = add_Lstar_time_vsat(vobs,ax2)
-    cbar2 = fig.colorbar(scat2,format="{x:.1e}",pad=0.1,extend='both')
-
-    # Add L*-time from real sat
-    scat3 = add_Lstar_time_rbsp(mageis,rept,ax3)
-    cbar3 = fig.colorbar(scat3,format="{x:.1e}",pad=0.1,extend='both')
-    '''
+    add_dst(swmf_log['swmf_log'],omni,rax)
 
     # Decorate
     cbar1.set_label(
-            f"Flux {flux['E_lvls'][15]:.0f}-{flux['E_lvls'][23]:.0f} keV\n"+
-            r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
-    '''
-    cbar2.set_label(
-            f"Flux {vobs['E_lvls'][43]:.0f}-{vobs['E_lvls'][54]:.0f} keV\n"+
-            r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
-    cbar3.set_label(
-            f"Flux {464:.0f}-{4216:.0f} keV\n"+
-            r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
-    '''
+      f"Flux {flux['E_lvls'][ilowE]:.0f}-{flux['E_lvls'][ihighE]:.0f} keV\n"+
+        r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
 
-    ax1.text(0,0.84,"Jan 2018",transform=ax1.transAxes,
+    ax1.text(0.01,0.90,"May 2024",transform=ax1.transAxes,
               horizontalalignment='left')
     for axis in [ax1]:
         axis.set_ylim([1,10])
-        axis.xaxis.set_major_formatter(mdates.DateFormatter('%d'))
-        axis.set_ylabel(r'$L^*\left[R_E\right]$')
+        axis.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H'))
+        axis.set_ylabel(r'$L\left[R_E\right]$')
         axis.margins(x=0.01)
-    #ax3.set_xlabel('Day')
-    rax.set_ylabel(r'Dst/Sym-H $\left[nT\right]$')
-    rax.set_ylim([-100,40])
-    rax.legend(loc='lower right')
+    ax1.set_xlabel('Day-Hour')
+    rax.set_ylabel(r'Sym-H $\left[nT\right]$')
+    rax.set_ylim([-500,200])
+    rax.legend(loc='upper right')
     fig.tight_layout(pad=1)
 
     # Save
@@ -338,21 +316,21 @@ def plot_figure1(data:np.lib.npyio.NpzFile,itime:int,**kwargs:dict) -> None:
     print('\033[92m Created\033[00m',figurename)
 #############################################################################
 
-def plot_figure0(cimi_db,omni:dict,**kwargs:dict) -> None:
+def plot_figure0(swmf_log:dict,omni:dict,**kwargs:dict) -> None:
     """ Plot of equatorial plane flux at a specific energy level
     """
     # Create figure
     fig,axis = plt.subplots(1,1,figsize=[24,8])
 
     # Plot dst
-    #add_dst(cimi_db,omni,axis)
+    add_dst(swmf_log['swmf_log'],omni,axis)
     axis.plot(omni['times'],omni['sym_h'],c='black',lw=2,label='Dst')
 
     # Decorate
-    axis.set_xlabel('Day')
-    axis.xaxis.set_major_formatter(mdates.DateFormatter('%d'))
+    axis.set_xlabel('Day-Hour')
+    axis.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H'))
     axis.set_ylabel(r'Sym-H $\left[nT\right]$')
-    axis.set_ylim([-100,40])
+    axis.set_ylim([-500,200])
     fig.tight_layout(pad=1)
 
     # Save
@@ -366,21 +344,20 @@ def plot_figure0(cimi_db,omni:dict,**kwargs:dict) -> None:
 def main() -> None:
     # Collect data
     flux = np.load(f"{INPATH}/{FLUXFILE}",allow_pickle=True)
-    #cimi_db = read_db_file(f"{INPATH}/{DBFILE}")
-    #rbspA_mageis,rbspA_rept = call_cdaweb_rbsp(T0,TEND,'A')
-    #v_rbsp = np.load(f"{INPATH}/{VSATFILE}")
-    cimi_db = {}
     rbspA_mageis,rbspA_rept = {},{}
     v_rbsp = {}
     omni = swmfpy.web.get_omni_data(T0,TEND)
+    swmf_log = proc_indices.read_indices("gannon-storm/data/logs/",
+                                         read_supermag=False)
 
     # Draw figures
-    #plot_figure0(cimi_db,omni)
+    plot_figure0(swmf_log,omni)
     #plot_figure1(flux,1080)
     #for i in range(0,len(flux['times'])):
     #    plot_figure1(flux,i)
     #    pass
-    plot_figure2(flux,cimi_db,rbspA_mageis,rbspA_rept,omni,v_rbsp)
+    plot_figure2(flux,swmf_log,rbspA_mageis,rbspA_rept,omni,v_rbsp,
+                 ilowE=3,ihighE=5,clevels=np.logspace(4,8))
 
 if __name__ == "__main__":
     # Globals
