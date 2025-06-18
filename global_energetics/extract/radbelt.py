@@ -179,8 +179,6 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
         else:
             mltangles = mlt_lvls # already in radians for mLon
         for itime in range(0,ntimes):
-            if kwargs.get('verbose',False):
-                print(f'\t\tLoading time:{itime+1}/{ntimes}')
             params1 = f.readline().split('!')[0].split()
             times[itime] = params1[0]
             lstarMax[itime]  = params1[1]
@@ -247,8 +245,10 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
 def main() -> None:
     start_time = time.time()
     herepath=os.getcwd()
-    inpath = os.path.join('/Users/ambrenne/Code/run_mothersday_ne/RB/plots/')
-    outpath = os.path.join(herepath,'gannon_rad_belt/analysis/')
+    inpath = os.path.join('gannon-storm/data/large/RB/')
+    outpath = herepath
+    #inpath = os.path.join('/Users/ambrenne/Code/run_mothersday_ne/RB/plots/')
+    #outpath = os.path.join(herepath,'gannon_rad_belt/analysis/')
     #inpath = os.path.join(herepath,'month_CIMI/')
     #outpath = os.path.join(herepath,'month_CIMI/')
     filelist = sorted(glob.glob(f'{inpath}*_e.fls'),key=time_sort)
@@ -256,7 +256,7 @@ def main() -> None:
     #renderView = GetActiveViewOrCreate('RenderView')
     t0 = dt.datetime(1970,1,1)
     flux_dict = {}
-    for i,infile in tqdm(enumerate(filelist)):
+    for i,infile in enumerate(tqdm(filelist)):
         fname = infile.split('/')[-1][:-6]
         tevent = dt.datetime.strptime(fname,'%Y%m%d_%H%M%S')
         #tevent = dt.datetime(2024,5,10,13,0)
@@ -264,7 +264,6 @@ def main() -> None:
         gp.recalc(ut)
         flux = read_flux(infile,maxtimes=999,verbose=i==0)
         if i==0:
-            print(f"\t{i+1}/{len(filelist)}\t{infile.split('/')[-1]} ...")
             flux_dict = flux
         for key in flux:
             if len(flux[key].shape) > 2 or 'time' in key:

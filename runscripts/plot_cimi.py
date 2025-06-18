@@ -22,6 +22,15 @@ from cdasws import CdasWs
 cdas = CdasWs()
 #from plot_rbsp import call_cdaweb_rbsp
 
+def match_up_E(sim_lvls,hep,Elow,Ehigh)-> list[int,int,int,int]:
+    E_lvls_L = hep['FEDO_L_Energy_MEAN']
+    E_lvls_H = hep['FEDO_H_Energy_MEAN']
+    iEmatch_L = np.where([(E_lvls_L>=Elow)&(E_lvls_L<=Ehigh)])[1]
+    iEmatch_H = np.where([(E_lvls_H>=Elow)&(E_lvls_H<=Ehigh)])[1]
+
+    return iEmatch_L[0],iEmatch_L[-1],iEmatch_H[0],iEmatch_H[-1]
+
+
 def call_cdaweb_rbsp(start:dt.datetime,
                        end:dt.datetime,probe,**kwargs):
     """ Returns 2 cdaweb spacepy.pycdf.CDFCopy for MagEIS and REPT (electrons)
@@ -43,6 +52,20 @@ def call_cdaweb_rbsp(start:dt.datetime,
     #                     FESA is time x energies
     # https://cdaweb.gsfc.nasa.gov/misc/NotesR.html#RBSPA_REL03_ECT-REPT-SCI-L3
     return data_MagEIS,data_REPT
+
+def call_cdaweb_arase(start:dt.datetime,
+                       end:dt.datetime,**kwargs):
+    """ Returns 2 cdaweb spacepy.pycdf.CDFCopy for HEP and XEP (electrons)
+    """
+    print(f"Calling CDAWeb for ARASE \n\t from {start} to {end}")
+    status,hep = cdas.get_data('ERG_HEP_L2_OMNIFLUX',['FEDO_H', 'FEDO_L'],
+                               start,end)
+    status,orb = cdas.get_data('ERG_ORB_L2',['pos_Lm'],start,end)
+    hep_time = [(t-T0).total_seconds() for t in hep['Epoch_L']]
+    orb_time = [(t-T0).total_seconds() for t in orb['epoch']]
+    hep['L'] = np.interp(hep_time,orb_time,orb['pos_Lm'][:,2])
+    #status,xep = cdas.get_data('ERG_XEP_L2_OMNIFLUX',['FEDO_SSD'],start,end)
+    return hep
 
 def read_db_file(infile:str) -> dict[str:np.ndarray]:
     data_dict = {}
@@ -147,6 +170,26 @@ def add_Lstar_time_rbsp(mageis,rept,axis:plt.axis) -> plt.scatter:
                         cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
     return scat
 
+def add_Lstar_time_arase(hep,ax1:plt.axis,ax2:plt.axis,
+                        ilowE_L:int,ihighE_L:int,ilowE_H:int,
+                        ihighE_H:int) -> list[plt.scatter,plt.scatter]:
+    # Get all flux from 800keV onwards
+    #TODO identify which energy channels on MAGEIS to integrate over
+    #       - then maybe also include all REPT channels??
+    #           see how the magnitudes turn out
+    flux_L =np.trapezoid(hep['FEDO_L'][:,ilowE_L:ihighE_L],
+                         x=hep['FEDO_L_Energy_MEAN'][ilowE_L:ihighE_L],axis=1)
+    flux_H =np.trapezoid(hep['FEDO_H'][:,ilowE_H:ihighE_H],
+                         x=hep['FEDO_H_Energy_MEAN'][ilowE_H:ihighE_H],axis=1)
+
+    scat_L = ax1.scatter(hep['Epoch_L'][hep['L']>0],hep['L'][hep['L']>0],
+                          c=flux_L[hep['L']>0],
+                          cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
+    scat_H = ax2.scatter(hep['Epoch_H'][hep['L']>0],hep['L'][hep['L']>0],
+                          c=flux_H[hep['L']>0],
+                          cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
+    return scat_L,scat_H
+
 def add_dst(swmf_log:pd.DataFrame,omni:dict,axis:plt.axis) -> None:
     # could return lines as list[mpl.lines.Line2D]
     # Omni Sym-H
@@ -155,11 +198,10 @@ def add_dst(swmf_log:pd.DataFrame,omni:dict,axis:plt.axis) -> None:
     axis.plot(swmf_log.index,swmf_log['dst_sm'],c='navy',lw=2,ls='--',
               label='SWMF')
     return
-            
 
 def plot_figure2(flux:np.lib.npyio.NpzFile,
                  swmf_log:dict,
-                 mageis,rept,
+                 hep,
                  omni:dict,
                  vobs:np.lib.npyio.NpzFile,**kwargs:dict) -> None:
     """ Plot L-time plot with flux at a certain energy level
@@ -168,7 +210,7 @@ def plot_figure2(flux:np.lib.npyio.NpzFile,
     ihighE = kwargs.pop('ihighE',11)
 
     # Create figure
-    fig,ax1 = plt.subplots(1,1,figsize=[24,8],sharex=True)
+    fig,[ax1,ax2,ax3] = plt.subplots(3,1,figsize=[24,15],sharex=True)
 
     # Add L-time all CIMI
     cs1   = add_Lstar_time(flux,ax1,ilowE,ihighE,**kwargs)
@@ -176,19 +218,35 @@ def plot_figure2(flux:np.lib.npyio.NpzFile,
     rax = ax1.twinx()
     add_dst(swmf_log['swmf_log'],omni,rax)
 
+    # Add L-time from ARASE
+    ilow_L,ihigh_L,ilow_H,ihigh_H = match_up_E(flux['E_lvls'],hep,
+                                               flux['E_lvls'][ilowE],
+                                               flux['E_lvls'][ihighE])
+    cs2a,cs2b = add_Lstar_time_arase(hep,ax2,ax3,ilow_L,ihigh_L,ilow_H,ihigh_H)
+    cbar2a = fig.colorbar(cs2a,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
+    cbar2b = fig.colorbar(cs2b,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
+
     # Decorate
     cbar1.set_label(
       f"Flux {flux['E_lvls'][ilowE]:.0f}-{flux['E_lvls'][ihighE]:.0f} keV\n"+
         r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
+    cbar2a.set_label(
+      f"Flux {hep['FEDO_L_Energy_MEAN'][ilow_L]:.0f}-"+
+           f"{hep['FEDO_L_Energy_MEAN'][ihigh_L]:.0f} keV\n"+
+        r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
+    cbar2b.set_label(
+      f"Flux {hep['FEDO_H_Energy_MEAN'][ilow_H]:.0f}-"+
+           f"{hep['FEDO_H_Energy_MEAN'][ihigh_H]:.0f} keV\n"+
+        r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
 
     ax1.text(0.01,0.90,"May 2024",transform=ax1.transAxes,
               horizontalalignment='left')
-    for axis in [ax1]:
+    for axis in [ax1,ax2,ax3]:
         axis.set_ylim([1,10])
         axis.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H'))
         axis.set_ylabel(r'$L\left[R_E\right]$')
         axis.margins(x=0.01)
-    ax1.set_xlabel('Day-Hour')
+    ax3.set_xlabel('Day-Hour')
     rax.set_ylabel(r'Sym-H $\left[nT\right]$')
     rax.set_ylim([-500,200])
     rax.legend(loc='upper right')
@@ -344,20 +402,20 @@ def plot_figure0(swmf_log:dict,omni:dict,**kwargs:dict) -> None:
 def main() -> None:
     # Collect data
     flux = np.load(f"{INPATH}/{FLUXFILE}",allow_pickle=True)
-    rbspA_mageis,rbspA_rept = {},{}
-    v_rbsp = {}
+    hep = call_cdaweb_arase(T0,TEND)
+    v_arase = {}
     omni = swmfpy.web.get_omni_data(T0,TEND)
     swmf_log = proc_indices.read_indices("gannon-storm/data/logs/",
                                          read_supermag=False)
 
     # Draw figures
-    plot_figure0(swmf_log,omni)
+    #plot_figure0(swmf_log,omni)
     #plot_figure1(flux,1080)
     #for i in range(0,len(flux['times'])):
     #    plot_figure1(flux,i)
     #    pass
-    plot_figure2(flux,swmf_log,rbspA_mageis,rbspA_rept,omni,v_rbsp,
-                 ilowE=3,ihighE=5,clevels=np.logspace(4,8))
+    plot_figure2(flux,swmf_log,hep,omni,v_arase)
+                 #ilowE=3,ihighE=5,clevels=np.logspace(4,8))
 
 if __name__ == "__main__":
     # Globals
@@ -365,12 +423,14 @@ if __name__ == "__main__":
 
     T0 = dt.datetime(2024,5,10,13,0)
     TEND = dt.datetime(2024,5,11,17,0)
-    INPATH = "gannon_rad_belt/analysis"
+    #INPATH = "gannon_rad_belt/analysis"
+    INPATH = "gannon-storm/data/large/RB"
     #FLUXFILE = "20240511_170000_e_fls.npz"
     FLUXFILE = "new_fls.npz"
     #DBFILE = "2018p001.db"
     #VSATFILE = "2018p001_rbsp-A_e_flux.npz"
-    OUTPATH = os.path.join(INPATH,"output")
+    #OUTPATH = os.path.join(INPATH,"output")
+    OUTPATH = os.path.join("gem2025")
 
     # Set pyplot configurations
     #plt.rcParams.update(pyplotsetup(mode='print'))
