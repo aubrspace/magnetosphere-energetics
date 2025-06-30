@@ -60,10 +60,14 @@ def call_cdaweb_arase(start:dt.datetime,
     print(f"Calling CDAWeb for ARASE \n\t from {start} to {end}")
     status,hep = cdas.get_data('ERG_HEP_L2_OMNIFLUX',['FEDO_H', 'FEDO_L'],
                                start,end)
+    hep['FEDO_L'][hep['FEDO_L']<0] = 1#low but non-negative flux
+    hep['FEDO_H'][hep['FEDO_H']<0] = 1
     status,orb = cdas.get_data('ERG_ORB_L2',['pos_Lm'],start,end)
     hep_time = [(t-T0).total_seconds() for t in hep['Epoch_L']]
-    orb_time = [(t-T0).total_seconds() for t in orb['epoch']]
-    hep['L'] = np.interp(hep_time,orb_time,orb['pos_Lm'][:,2])
+    orb_time = [(t-T0).total_seconds()
+                                  for t in orb['epoch'][orb['pos_Lm'][:,2]>0]]
+    hep['L'] = np.interp(hep_time,orb_time,
+                         orb['pos_Lm'][:,2][orb['pos_Lm'][:,2]>0])
     #status,xep = cdas.get_data('ERG_XEP_L2_OMNIFLUX',['FEDO_SSD'],start,end)
     return hep
 
@@ -182,12 +186,12 @@ def add_Lstar_time_arase(hep,ax1:plt.axis,ax2:plt.axis,
     flux_H =np.trapezoid(hep['FEDO_H'][:,ilowE_H:ihighE_H],
                          x=hep['FEDO_H_Energy_MEAN'][ilowE_H:ihighE_H],axis=1)
 
-    scat_L = ax1.scatter(hep['Epoch_L'][hep['L']>0],hep['L'][hep['L']>0],
-                          c=flux_L[hep['L']>0],
-                          cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
-    scat_H = ax2.scatter(hep['Epoch_H'][hep['L']>0],hep['L'][hep['L']>0],
-                          c=flux_H[hep['L']>0],
-                          cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
+    scat_L = ax1.scatter(hep['Epoch_L'],hep['L'],
+                         c=flux_L,alpha=0.8,
+                         cmap=cm.plasma,vmin=1e2,vmax=1e6,norm='log')
+    scat_H = ax2.scatter(hep['Epoch_H'],hep['L'],
+                         c=flux_H,alpha=0.8,
+                         cmap=cm.plasma,vmin=1e2,vmax=1e4,norm='log')
     return scat_L,scat_H
 
 def add_dst(swmf_log:pd.DataFrame,omni:dict,axis:plt.axis) -> None:
@@ -206,47 +210,58 @@ def plot_figure2(flux:np.lib.npyio.NpzFile,
                  vobs:np.lib.npyio.NpzFile,**kwargs:dict) -> None:
     """ Plot L-time plot with flux at a certain energy level
     """
-    ilowE  = kwargs.pop('ilowE',7)
-    ihighE = kwargs.pop('ihighE',11)
+    #ilowE  = kwargs.pop('ilowE',7)
+    #ihighE = kwargs.pop('ihighE',11)
 
     # Create figure
-    fig,[ax1,ax2,ax3] = plt.subplots(3,1,figsize=[24,15],sharex=True)
+    fig,[ax1,ax2,ax3,ax4] = plt.subplots(4,1,figsize=[24,15],sharex=True)
 
-    # Add L-time all CIMI
-    cs1   = add_Lstar_time(flux,ax1,ilowE,ihighE,**kwargs)
+    # Add L-time for two different energy ranges
+    cs1   = add_Lstar_time(flux,ax1,7,9,**kwargs)
     cbar1 = fig.colorbar(cs1,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
     rax = ax1.twinx()
     add_dst(swmf_log['swmf_log'],omni,rax)
 
+    cs2   = add_Lstar_time(flux,ax2,9,11,**kwargs)
+    cbar2 = fig.colorbar(cs2,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
+
     # Add L-time from ARASE
-    ilow_L,ihigh_L,ilow_H,ihigh_H = match_up_E(flux['E_lvls'],hep,
-                                               flux['E_lvls'][ilowE],
-                                               flux['E_lvls'][ihighE])
-    cs2a,cs2b = add_Lstar_time_arase(hep,ax2,ax3,ilow_L,ihigh_L,ilow_H,ihigh_H)
-    cbar2a = fig.colorbar(cs2a,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
-    cbar2b = fig.colorbar(cs2b,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6])
+    #ilow_L,ihigh_L,ilow_H,ihigh_H = match_up_E(flux['E_lvls'],hep,
+    #                                           flux['E_lvls'][ilowE],
+    #                                           flux['E_lvls'][ihighE])
+    #cs3,cs4 = add_Lstar_time_arase(hep,ax3,ax4,ilow_L,ihigh_L,ilow_H,ihigh_H)
+    cs3,cs4 = add_Lstar_time_arase(hep,ax3,ax4,9,15,6,10)
+    cbar3 = fig.colorbar(cs3,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6],
+                         extend='both')
+    cbar4 = fig.colorbar(cs4,format="{x:.1e}",pad=0.1,ticks=[1e2,1e4,1e6],
+                         extend='both')
 
     # Decorate
     cbar1.set_label(
-      f"Flux {flux['E_lvls'][ilowE]:.0f}-{flux['E_lvls'][ihighE]:.0f} keV\n"+
+      f"Flux {flux['E_lvls'][7]:.0f}-{flux['E_lvls'][9]:.0f} keV\n"+
         r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
-    cbar2a.set_label(
-      f"Flux {hep['FEDO_L_Energy_MEAN'][ilow_L]:.0f}-"+
-           f"{hep['FEDO_L_Energy_MEAN'][ihigh_L]:.0f} keV\n"+
+    cbar2.set_label(
+      f"Flux {flux['E_lvls'][9]:.0f}-{flux['E_lvls'][11]:.0f} keV\n"+
         r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
-    cbar2b.set_label(
-      f"Flux {hep['FEDO_H_Energy_MEAN'][ilow_H]:.0f}-"+
-           f"{hep['FEDO_H_Energy_MEAN'][ihigh_H]:.0f} keV\n"+
+    cbar3.set_label(
+      f"Flux {hep['FEDO_L_Energy_MEAN'][9]:.0f}-"+
+           f"{hep['FEDO_L_Energy_MEAN'][15]:.0f} keV\n"+
+        r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
+    cbar4.set_label(
+      f"Flux {hep['FEDO_H_Energy_MEAN'][6]:.0f}-"+
+           f"{hep['FEDO_H_Energy_MEAN'][10]:.0f} keV\n"+
         r'$\left[cm^{-2}sr^{-1}s^{-1}\right]$')
 
     ax1.text(0.01,0.90,"May 2024",transform=ax1.transAxes,
               horizontalalignment='left')
-    for axis in [ax1,ax2,ax3]:
+    for axis in [ax1,ax2,ax3,ax4]:
         axis.set_ylim([1,10])
         axis.xaxis.set_major_formatter(mdates.DateFormatter('%d-%H'))
         axis.set_ylabel(r'$L\left[R_E\right]$')
+        axis.set_yticks([2,3,4,5,6,7,8,9,10])
+        axis.grid()
         axis.margins(x=0.01)
-    ax3.set_xlabel('Day-Hour')
+    ax4.set_xlabel('Day-Hour')
     rax.set_ylabel(r'Sym-H $\left[nT\right]$')
     rax.set_ylim([-500,200])
     rax.legend(loc='upper right')
@@ -423,14 +438,14 @@ if __name__ == "__main__":
 
     T0 = dt.datetime(2024,5,10,13,0)
     TEND = dt.datetime(2024,5,11,17,0)
-    #INPATH = "gannon_rad_belt/analysis"
-    INPATH = "gannon-storm/data/large/RB"
+    INPATH = "gannon_rad_belt/analysis"
+    #INPATH = "gannon-storm/data/large/RB"
     #FLUXFILE = "20240511_170000_e_fls.npz"
     FLUXFILE = "new_fls.npz"
     #DBFILE = "2018p001.db"
     #VSATFILE = "2018p001_rbsp-A_e_flux.npz"
-    #OUTPATH = os.path.join(INPATH,"output")
-    OUTPATH = os.path.join("gem2025")
+    OUTPATH = os.path.join(INPATH,"output")
+    #OUTPATH = os.path.join("gem2025")
 
     # Set pyplot configurations
     #plt.rcParams.update(pyplotsetup(mode='print'))
