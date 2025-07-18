@@ -245,12 +245,12 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
 def main() -> None:
     start_time = time.time()
     herepath=os.getcwd()
-    inpath = os.path.join('gannon-storm/data/large/RB/')
-    outpath = herepath
+    #inpath = os.path.join('gannon-storm/data/large/RB/')
+    #outpath = herepath
     #inpath = os.path.join('/Users/ambrenne/Code/run_mothersday_ne/RB/plots/')
     #outpath = os.path.join(herepath,'gannon_rad_belt/analysis/')
-    #inpath = os.path.join(herepath,'month_CIMI/')
-    #outpath = os.path.join(herepath,'month_CIMI/')
+    inpath = os.path.join(herepath,'run_quiet_RBSP/')
+    outpath = os.path.join(herepath,'run_quiet_RBSP/')
     filelist = sorted(glob.glob(f'{inpath}*_e.fls'),key=time_sort)
     print(f'INPATH: {inpath}')
     #renderView = GetActiveViewOrCreate('RenderView')
@@ -258,8 +258,8 @@ def main() -> None:
     flux_dict = {}
     for i,infile in enumerate(tqdm(filelist)):
         fname = infile.split('/')[-1][:-6]
-        tevent = dt.datetime.strptime(fname,'%Y%m%d_%H%M%S')
-        #tevent = dt.datetime(2024,5,10,13,0)
+        #tevent = dt.datetime.strptime(fname,'%Y%m%d_%H%M%S')
+        tevent = dt.datetime(2018,1,1,0,0)
         ut = (tevent-t0).total_seconds()
         gp.recalc(ut)
         flux = read_flux(infile,maxtimes=999,verbose=i==0)

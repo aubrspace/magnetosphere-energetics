@@ -30,6 +30,22 @@ from global_energetics.extract.mapping import (port_mapping_to_ie,
 from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 
+def create_ie_npz(inpath:str) -> str:
+    outfile = ''
+    return outfile
+
+def read_ie_npz(infile:str) -> dict[np.ndarray]:
+    pass
+
+def read_dmsp(inpath:str) -> dict[np.ndarray]:
+    # for file in path
+    #   read file
+    #   construct .npz???
+    pass
+
+def integrate_E(traj:dict[np.ndarray],ie:dict[np.ndarray]) -> np.ndarray:
+    pass
+
 def isfloat(num):
     try:
         float(num)

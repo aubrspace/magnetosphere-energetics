@@ -39,11 +39,11 @@ def call_cdaweb_rbsp(start:dt.datetime,
     #status,data =cdas.get_data(f'RBSP{probe}_REL03_ECT-REPT-SCI-L3',
     #                           ['Position','L_star','FEDU'],start,end)
     status,data_MagEIS = cdas.get_data(f'RBSP{probe}_REL03_ECT-MAGEIS-L2',
-                                 ['Position','MLT','L_star','FESA'],
+                                 ['Position','MLT','L','L_star','FESA'],
                                                                     start,end)
     data_MagEIS['FESA']=np.nan_to_num(data_MagEIS['FESA'].replace_invalid(),0)
     status,data_REPT = cdas.get_data(f'RBSP{probe}_REL03_ECT-REPT-SCI-L2',
-                                 ['Position','MLT','L_star','FESA','FEDU'],
+                                ['Position','MLT','L','L_star','FESA','FEDU'],
                                                                     start,end)
     data_REPT['FESA'] = np.nan_to_num(data_REPT['FESA'].replace_invalid(),0)
                             #-dt.timedelta(minutes=kwargs.get('padtime',360)),
