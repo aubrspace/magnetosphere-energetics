@@ -14,13 +14,24 @@ from tqdm import tqdm
 ##
 from global_energetics.makevideo import time_sort
 
+def is_data_line(line:str) -> bool:
+    return all([e.replace('.','').replace('-','').isnumeric()
+                for e in line.split('!')[0].split()])
+
 def read_flux(infile:str,**kwargs:dict) -> dict:
     flux_dict = {}
     if kwargs.get('verbose',False):
         print(f"\t\treading file")
     with open(infile,'r') as f:
         # Grid
-        gridline = f.readline()
+        line = f.readline()
+        if is_data_line(line):
+            gridline = line
+        else:
+            gridline = f.readline()
+            if not is_data_line(gridline):
+                print('ERROR!! bad gridline')
+                return
         rinner,nLat,nMLT,nE,nAlpha = gridline.split('!')[0].split()[0:5]
         rinner = float(rinner)
         ntimes = 0
@@ -36,12 +47,15 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
         grid_start = f.tell()
         total_ngrid = 0
         done = False
+        no_grid_headers = True
         while not done:
             line = f.readline()
             if 'parmod' in line:
                 done = True
-            else:
+            elif is_data_line(line):
                 total_ngrid += len(line.split())
+            else:#we've found a header line
+                no_grid_headers = False
         if total_ngrid - (nLat+nMLT+nE+nAlpha)<0: #MLT grid inferred
             # MLT bins
             if kwargs.get('verbose',False):
@@ -51,6 +65,8 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
         else:
             skip_mlt = False
         f.seek(grid_start)
+        if not no_grid_headers:
+            grid_header = f.readline()
         done = False
         i = 0
         unknown_lvls = np.array([])
@@ -60,36 +76,43 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
         if not skip_mlt:
             mlt_lvls = np.array([])
         while not done:
-            lvl_line = [float(v) for v in f.readline().split()]
-            unknown_lvls = np.concat([unknown_lvls,lvl_line])
-            if len(unknown_lvls)==nE and max(unknown_lvls)>90:
-                E_lvls = unknown_lvls
-                if kwargs.get('verbose',False):
-                    print(f'\t\t\t{nE} Energy Levels')
-                unknown_lvls = np.array([])
-            elif len(unknown_lvls)==nMLT and not skip_mlt:
-                mlt_lvls = unknown_lvls
-                if kwargs.get('verbose',False):
-                    print(f'\t\t\t{nLat} MLT Levels')
-                unknown_lvls = np.array([])
-            elif len(unknown_lvls)==nAlpha and max(unknown_lvls)<1:
-                alpha_lvls = unknown_lvls
-                if kwargs.get('verbose',False):
-                    print(f'\t\t\t{nAlpha} Pitch Angle Levels')
-                unknown_lvls = np.array([])
-            elif len(unknown_lvls)==nLat and max(unknown_lvls)<90:
-                lat_lvls = unknown_lvls
-                if kwargs.get('verbose',False):
-                    print(f'\t\t\t{nLat} Latitude/Radial Levels')
-                unknown_lvls = np.array([])
-            if all([E_lvls.any(),alpha_lvls.any(),
-                    lat_lvls.any(),mlt_lvls.any()]):
-                done = True
-            if i>(nLat+nE+nAlpha):
-                if kwargs.get('verbose',False):
-                    print(f'FAILED i={i}... check file')
-            i+=1
+            line = f.readline()
+            if is_data_line(line):
+                lvl_line = [float(v) for v in line.split()]
+                unknown_lvls = np.concat([unknown_lvls,lvl_line])
+                if len(unknown_lvls)==nE and max(unknown_lvls)>90:
+                    E_lvls = unknown_lvls
+                    if kwargs.get('verbose',False):
+                        print(f'\t\t\t{nE} Energy Levels')
+                    unknown_lvls = np.array([])
+                elif len(unknown_lvls)==nMLT and not skip_mlt:
+                    mlt_lvls = unknown_lvls
+                    if kwargs.get('verbose',False):
+                        print(f'\t\t\t{nLat} MLT Levels')
+                    unknown_lvls = np.array([])
+                elif len(unknown_lvls)==nAlpha and max(unknown_lvls)<1:
+                    alpha_lvls = unknown_lvls
+                    if kwargs.get('verbose',False):
+                        print(f'\t\t\t{nAlpha} Pitch Angle Levels')
+                    unknown_lvls = np.array([])
+                elif len(unknown_lvls)==nLat and max(unknown_lvls)<90:
+                    lat_lvls = unknown_lvls
+                    if kwargs.get('verbose',False):
+                        print(f'\t\t\t{nLat} Latitude/Radial Levels')
+                    unknown_lvls = np.array([])
+                if all([E_lvls.any(),alpha_lvls.any(),
+                        lat_lvls.any(),mlt_lvls.any()]):
+                    done = True
+                if i>(nLat+nE+nAlpha):
+                    done = True
+                    if kwargs.get('verbose',False):
+                        print(f'FAILED i={i}... check file')
+                i+=1
+            else:
+                grid_header = line
         data_start = f.tell()
+        #TODO - check for header lines with parmod info
+        #     - then verify that the things are still the same...
         i_first_parmod = -999
         for i,line in enumerate(f.readlines()):
             if 'parmod' in line:
@@ -249,8 +272,8 @@ def main() -> None:
     #outpath = herepath
     #inpath = os.path.join('/Users/ambrenne/Code/run_mothersday_ne/RB/plots/')
     #outpath = os.path.join(herepath,'gannon_rad_belt/analysis/')
-    inpath = os.path.join(herepath,'run_quiet_RBSP/')
-    outpath = os.path.join(herepath,'run_quiet_RBSP/')
+    inpath = os.path.join(herepath,'run_quiet_RBSP2/')
+    outpath = os.path.join(herepath,'run_quiet_RBSP2/')
     filelist = sorted(glob.glob(f'{inpath}*_e.fls'),key=time_sort)
     print(f'INPATH: {inpath}')
     #renderView = GetActiveViewOrCreate('RenderView')

@@ -104,7 +104,7 @@ def read_sat_flux(infile:str) -> np.ndarray:
                 if Ecount > 2*nE:
                     print(f'FAILED len(iflux)={Ecount}...')
                     return {}
-            flux_dict['flux'][itime,:] = iflux            
+            flux_dict['flux'][itime,:] = iflux
     # Gather in dictionary
     flux_dict.update({'E_lvls':E_lvls})
 
