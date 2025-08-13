@@ -1,6 +1,6 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+paraview.compatibility.major = 6
+paraview.compatibility.minor = 0
 
 import numpy as np
 import datetime as dt
@@ -24,6 +24,18 @@ def find_IE_matched_file(path,filetime):
                       filetime.minute,
                       filetime.second))
     return iedatafile
+
+def read_npz(infile:str,sourcename:str) -> ProgrammableSource:
+    source = ProgrammableSource(registrationName=sourcename)
+    source.OutputDataSetType = 'vtkPolyData'
+    source.Script = f"""
+    import numpy as np
+    infile = "{infile}"
+    data = dict(np.load(infile,allow_pickle=True))
+    for var in [v for v in data if 'time' not in v]:
+        output.RowData.append(data[var],var)
+    """
+    return source
 
 def read_aux(infile):
     """Reads in auxillary data file stripped from a .plt tecplot file
@@ -135,26 +147,57 @@ def fix_ie_names(pipeline,**kwargs):
     pipeline = names
     return pipeline
 
-def fix_names(pipeline,**kwargs):
-    names = ProgrammableFilter(registrationName='names', Input=pipeline)
-    names.Script = """
-        #Get upstream data
-        data = inputs[0]
-        name_dict = {"Rho_amu_cm^3":"Rho_amu_cm3",
-                     "dvol_R^3":"dvol_R3",
-                     "J_x_`mA_m^2":"J_x_uA_m2",
-                     "J_y_`mA_m^2":"J_y_uA_m2",
-                     "J_z_`mA_m^2":"J_z_uA_m2"}
-        for var in data.PointData.keys():
-            if var not in name_dict.keys():
-                output.PointData.append(data.PointData[var],var)
-            else:
-                output.PointData.append(data.PointData[var],name_dict[var])
-    """
-    pipeline = names
-    return pipeline
+def fix_names(pipeline:object,**kwargs:dict) -> object|str:
+    script = """
+#Get upstream data
+data = inputs[0]
+name_dict = {"Rho_amu_cm^3":"Rho_amu_cm3",
+             "dvol_R^3":"dvol_R3",
+             "J_x_`mA_m^2":"J_x_uA_m2",
+             "J_y_`mA_m^2":"J_y_uA_m2",
+             "J_z_`mA_m^2":"J_z_uA_m2"}
+for var in data.PointData.keys():
+    if var not in name_dict.keys():
+        output.PointData.append(data.PointData[var],var)
+    else:
+        output.PointData.append(data.PointData[var],name_dict[var])"""
+    if kwargs.get('verbose_pipeline',False):
+        names = ProgrammableFilter(registrationName='names', Input=pipeline)
+        names.Script = script
+        return names
+    else:
+        return script
 
-def status_repair(pipeline,**kwargs):
+def fix_status(pipeline,**kwargs) -> object | str:
+        # Status -3 implies the tracing has failed somewhere, if we have
+        #   the theta mapping variables then we have the tools to fix it
+        script = """
+# Get input
+data = inputs[0]
+theta_1 = data.PointData['theta_1_deg']
+theta_2 = data.PointData['theta_2_deg']
+oldStatus = data.PointData['Status']
+status = oldStatus #Don't change non -3 values
+closedCondition = ((oldStatus==-3) & (theta_1>=0) &
+                                    (theta_2>=-90))
+openSCondition = ((oldStatus==-3) & (theta_1<0) &
+                                    (theta_2>=-90))
+openNCondition = ((oldStatus==-3) & (theta_1>=0) &
+                                    (theta_2<-90))
+status[closedCondition] = 3
+status[openSCondition] = 1
+status[openNCondition] = 2
+output.PointData.append(status,'Status')"""
+        if kwargs.get('terminal',False):
+            FixStatus = ProgrammableFilter(registrationName='fixStatus',
+                                           Input=pipeline)
+            FixStatus.Script = script+"""
+output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
+            return FixStatus
+        else:
+            return script
+
+def status_repair(pipeline,**kwargs):#NOTE Depreciated!!!
     status_repair = ProgrammableFilter(registrationName='status_repair',
                                        Input=pipeline)
     status_repair.Script = """
@@ -180,7 +223,7 @@ def status_repair(pipeline,**kwargs):
                          """
     return status_repair
 
-def todimensional(pipeline, **kwargs):
+def todimensional(pipeline:object, **kwargs) -> object | str:
     """Function modifies dimensionless variables -> dimensional variables
     Inputs
         dataset (frame.dataset)- tecplot dataset object
@@ -270,7 +313,11 @@ def todimensional(pipeline, **kwargs):
     #dataset.frame.plot().axes.x_axis.variable = dataset.variable('X *')
     #dataset.frame.plot().axes.y_axis.variable = dataset.variable('Y *')
     #dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
-    return pipeline
+    if kwargs.get('verbose_pipeline',False):
+        return pipeline
+    else:
+        print("TODO - UNIT CONVERSION w/out verbose not implemented!!")
+        return None
 
 def merge_sources(source1,source2,*,prepend1='',prepend2=''):
     """Function creates a filter to combine two sources

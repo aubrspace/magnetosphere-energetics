@@ -1,6 +1,6 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+paraview.compatibility.major = 6
+paraview.compatibility.minor = 0
 
 import os
 import time
@@ -20,7 +20,7 @@ import pv_tabular_tools
 import pv_visuals
 import pv_fte
 
-def get_magnetopause_filter(pipeline,**kwargs):
+def get_magnetopause_filter(pipeline:object,**kwargs:dict) -> object|str:
     """Function calculates a magnetopause variable, NOTE:will still need to
         process variable into iso surface then cleanup iso surface!
     Inputs
@@ -30,35 +30,44 @@ def get_magnetopause_filter(pipeline,**kwargs):
             status_closed (float)- default 3
     Returns
         pipeline (filter)- last filter applied keeping a straight pipeline
+            or
+        string (script)- just the text of the prog filter to be combined
     """
-    #Must have the following conditions met first
-    assert FindSource('beta_star') != None
     betastar_max = kwargs.get('betastar_max',0.7)
     closed_value = kwargs.get('status_closed',3)
     tail_x = kwargs.get('tail_x',-20)
-    mp_state =ProgrammableFilter(registrationName='mp_state',Input=pipeline)
-    mp_state.Script = """
-    from paraview.vtk.numpy_interface import dataset_adapter as dsa
-    from paraview.vtk.numpy_interface import algorithms as algs
-    # Get input
-    data = inputs[0]
-    beta_star = data.PointData['beta_star']
-    status = data.PointData['Status']
-    x = data.PointData['x']
-
-    #Compute magnetopause as logical combination
-    mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&
+    script = """
+from paraview.vtk.numpy_interface import dataset_adapter as dsa
+from paraview.vtk.numpy_interface import algorithms as algs"""
+    if kwargs.get('verbose_pipeline',False):
+        script +="""
+# Get input
+data = inputs[0]
+beta_star = data.PointData['beta_star']
+status = data.PointData['Status']
+x = data.PointData['x']"""
+    script +="""
+#Compute magnetopause as logical combination
+mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&
                             (x>"""+str(tail_x)+""")
                 |
-                (status=="""+str(closed_value)+""")&
+            (status=="""+str(closed_value)+""")&
                             (x>"""+str(tail_x)+""")).astype(int)
+output.PointData.append(mp_state,'mp_state')"""
 
-    #Assign to output
-    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-    output.PointData.append(mp_state,'mp_state')
-    """
-    pipeline = mp_state
-    return pipeline
+    if kwargs.get('verbose_pipeline',False):
+        script+="""
+#Assign to output
+output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+output.PointData.append(mp_state,'mp_state')"""
+        #Must have the following conditions met first
+        assert 'beta_star' in pipeline.PointData.keys()
+        mp_state = ProgrammableFilter(registrationName='mp_state',
+                                      Input=pipeline)
+        mp_state.Script = script
+        return mp_state
+    else:
+        return script
 
 def setup_pipeline(infile,**kwargs):
     #TODO: make this more efficient by having fewer individual filters
@@ -90,9 +99,8 @@ def setup_pipeline(infile,**kwargs):
     ##Set the head of the pipeline, we will want to return this!
     pipelinehead = mergeBlocks1
     pipeline = mergeBlocks1
-    #pipelinehead = sourcedata
-    #pipeline = sourcedata
 
+    ### Coordinate conversions
     if 'convert' in kwargs:
         if kwargs.get('convert')=='eci':
             pipeline = pv_tools.gsm_to_eci(pipeline,kwargs.get('ut',0))
@@ -100,14 +108,26 @@ def setup_pipeline(infile,**kwargs):
             # Figure out what were dealing with
             #NOTE for now assuming gse
             pipeline = pv_tools.gse_to_gsm(pipeline,kwargs.get('ut',0))
-    if kwargs.get('repair_status',False):
-        pipeline = pv_input_tools.status_repair(pipeline,**kwargs)
+    #if kwargs.get('repair_status',False): NOTE depreciated!!
+    #    pipeline = pv_input_tools.status_repair(pipeline,**kwargs)
+    ########################################################################
+    # Gather a few prog filter scripts together to save memory ...
+    #
+    script = """
+#Assign to output
+output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
     ###Check if unitless variables are present
     if kwargs.get('dimensionless',False):
-        pipeline = pv_input_tools.todimensional(pipeline,**kwargs)
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_input_tools.todimensional(pipeline,**kwargs)
+        else:
+            script += pv_input_tools.todimensional(pipeline,**kwargs)
     else:
         ###Rename some tricky variables
-        pipeline = pv_input_tools.fix_names(pipeline,**kwargs)
+        if kwargs.get('verbos_pipeline',False):
+            pipeline = pv_input_tools.fix_names(pipeline,**kwargs)
+        else:
+            script +=  pv_input_tools.fix_names(pipeline,**kwargs)
     ###Build functions up to betastar
     alleq = equations.equations(**kwargs)
     evaluation_set = {}
@@ -118,33 +138,24 @@ def setup_pipeline(infile,**kwargs):
         evaluation_set = pv_tools.eq_add(alleq['dipole'],evaluation_set)
     if kwargs.get('doEntropy',False):
         evaluation_set = pv_tools.eq_add(alleq['entropy'],evaluation_set)
-    pipeline = pv_tools.all_evaluate(evaluation_set,pipeline)
+    # Energy flux variables
+    if kwargs.get('doEnergyFlux',False):
+        evaluation_set = eq_add(alleq['energy_flux'],evaluation_set)
+    # Volume energy variables
+    if kwargs.get('doVolumeEnergy',False):
+        evaluation_set = eq_add(alleq['dipole'],evaluation_set)
+        evaluation_set = eq_add(alleq['volume_energy'],evaluation_set)
+    if kwargs.get('verbose_pipeline',False):
+        pipeline = pv_tools.all_evaluate(evaluation_set,pipeline,**kwargs)
+    else:
+        script += pv_tools.all_evaluate(evaluation_set,pipeline,**kwargs)
     ###Fix tracing
     if (pipeline.PointData['Status'].GetRange()[0] == -3 and
         'theta_1_deg' in pipeline.PointData.keys()):
-        # Status -3 implies the tracing has failed somewhere, if we have
-        #   the theta mapping variables then we have the tools to fix it
-        pipeline =ProgrammableFilter(registrationName='fixStatus',
-                                     Input=pipeline)
-        pipeline.Script = """
-        # Get input
-        data = inputs[0]
-        theta_1 = data.PointData['theta_1_deg']
-        theta_2 = data.PointData['theta_2_deg']
-        Status = data.PointData['Status']
-        newStatus = Status #Don't change non -3 values
-        closedCondition = ((Status==-3) & (theta_1>=0) &
-                                          (theta_2>=-90))
-        openSCondition = ((Status==-3) & (theta_1<0) &
-                                         (theta_2>=-90))
-        openNCondition = ((Status==-3) & (theta_1>=0) &
-                                         (theta_2<-90))
-        newStatus[closedCondition] = 3
-        newStatus[openSCondition] = 1
-        newStatus[openNCondition] = 2
-        output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-        output.PointData.append(newStatus,'Status')
-        """
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_input_tools.fix_status(pipeline,**kwargs)
+        else:
+            script += pv_input_tools.fix_status(pipeline,**kwargs)
     ###Daynight mapping
     if kwargs.get('do_daynight',False):
         #TODO finish this:
@@ -153,20 +164,60 @@ def setup_pipeline(infile,**kwargs):
         #       double check the preconditions (what "state_var" is needed)
         #eq('{trace_limits}=if({Status}==3 && '+
         #                    '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
-        pipeline = pv_mapping.reversed_mapping(pipeline,'trace_limits')
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_mapping.reversed_mapping(pipeline,'trace_limits',
+                                                   **kwargs)
+        else:
+            script += pv_mapping.reversed_mapping(pipeline,'trace_limits',
+                                                  **kwargs)
+    '''
     ###Energy flux variables
     if kwargs.get('doEnergyFlux',False):
-        pipeline = pv_tools.eqeval(alleq['energy_flux'],pipeline)
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_tools.eqeval(alleq['energy_flux'],pipeline,**kwargs)
+        else:
+            script += pv_tools.eqeval(alleq['energy_flux'],pipeline,**kwargs)
     if kwargs.get('doVolumeEnergy',False):
-        pipeline = pv_tools.eqeval(alleq['dipole'],pipeline)
-        pipeline = pv_tools.eqeval(alleq['volume_energy'],pipeline)
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_tools.eqeval(alleq['dipole'],pipeline,**kwargs)
+            pipeline = pv_tools.eqeval(alleq['volume_energy'],pipeline,
+                                       **kwargs)
+        else:
+            script += pv_tools.eqeval(alleq['dipole'],pipeline,**kwargs)
+            script += pv_tools.eqeval(alleq['volume_energy'],pipeline,
+                                      **kwargs)
+    '''
     ###Get Vectors from field variable components
-    pipeline = pv_tools.get_vectors(pipeline)
+    if kwargs.get('doVectors',False):
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_tools.get_vectors(pipeline,**kwargs)
+        else:
+            print("TODO- implement vectors w/out verbose!!!")
+            #script += pv_tools.get_vectors(pipeline,**kwargs)
 
     ###Programmable filters
     # Pressure gradient, optional variable
     if kwargs.get('doGradP',False):
-        pipeline = pv_tools.get_pressure_gradient(pipeline)
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = pv_tools.get_pressure_gradient(pipeline)
+        else:
+            script += pv_tools.get_pressure_gradient(pipeline,**kwargs)
+    # Magnetopause
+    if kwargs.get('verbose_pipeline',False):
+        pipeline = get_magnetopause_filter(pipeline,**kwargs)
+    else:
+        script += get_magnetopause_filter(pipeline,**kwargs)
+
+    if not kwargs.get('verbose_pipeline',False):
+        #TODO fix the script
+        pipeline = ProgrammableFilter(registrationName='equations+',
+                                      Input=pipeline)
+        pipeline.Script = script
+    #
+    # End prog filter things
+    ########################################################################
+
+    # Stand-alone, larger filters that are less default
     if kwargs.get('ffj',False):
         ffj1 = pv_tools.get_ffj_filter1(pipeline)
         ffj2 = PointDatatoCellData(registrationName='ffj_interp1',
@@ -177,6 +228,11 @@ def setup_pipeline(infile,**kwargs):
         ffj4 = CellDatatoPointData(registrationName='ffj_interp2',
                                    Input=ffj3)
         pipeline = ffj4
+
+    if kwargs.get('doFTE',False):
+        # FTE
+        pipeline = pv_fte.load_fte(pipeline)
+
 
     ###Read satellite trajectories
     if kwargs.get('doSat',False):
@@ -208,22 +264,15 @@ def setup_pipeline(infile,**kwargs):
                     'mms3':[0.9,0.9,0.9],
                     'mms4':[0.9,0.9,0.9]
                     }
-    if kwargs.get('doFTE',False):
-        # FTE
-        pipeline = pv_fte.load_fte(pipeline)
-
-    # Magnetopause
-    pipeline = get_magnetopause_filter(pipeline,**kwargs)
-
     ###Now that last variable is done set 'field' for visualizer and a View
     field = pipeline
 
     ###Contour (iso-surface) of the magnetopause
-    mp = pv_surface_tools.create_iso_surface(pipeline, 'mp_state', 'mp')
+    mp = pv_surface_tools.create_iso_surface(field, 'mp_state', 'mp')
 
     if kwargs.get('fte',False):
         ###Contour (iso-surface) of the magnetopause
-        fte = pv_surface_tools.create_iso_surface(pipeline, 'fte', 'fte')
+        fte = pv_surface_tools.create_iso_surface(field, 'fte', 'fte')
 
     ###Field line seeding or Field line projected flux volumes
     fluxResults = None

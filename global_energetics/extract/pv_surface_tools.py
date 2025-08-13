@@ -1,6 +1,6 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+paraview.compatibility.major = 6
+paraview.compatibility.minor = 0
 import numpy as np
 #### import the simple module from paraview
 from paraview.simple import *
@@ -57,7 +57,10 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
     #Generate normals now that the surface is fully constructed
     if kwargs.get('calc_normals',True):
         RenameSource(name+'_beforeNormals', outputsource)
-        iso3 = GenerateSurfaceNormals(registrationName=name,
+        if paraview.__version__ == '6.0.0':
+            iso3 = SurfaceNormals(registrationName=name,Input=outputsource)
+        else:
+            iso3 = GenerateSurfaceNormals(registrationName=name,
                                       Input=outputsource)
         iso3.ComputeCellNormals = 1
         iso3.NonManifoldTraversal = 0

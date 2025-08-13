@@ -1,7 +1,7 @@
 # An eclectic  mix of functions ranging from critical to mildly useful
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+paraview.compatibility.major = 6
+paraview.compatibility.minor = 0
 import os
 import datetime as dt
 import numpy as np
@@ -89,7 +89,7 @@ def haversine(XA,XB):
     c = 2 * arcsin(sqrt(a))
     return c
 
-def merge_rad_mhd(pipeline,infile,**kwargs):
+def merge_rad_mhd(pipeline,infile,it,**kwargs):
     merge =ProgrammableFilter(registrationName='mergeRad',Input=pipeline)
     merge.Script = f"""
     #radiation belt merge w/ mhd
@@ -98,33 +98,58 @@ def merge_rad_mhd(pipeline,infile,**kwargs):
     from numpy import sqrt,sin,cos,deg2rad
     from scipy.interpolate import LinearNDInterpolator,RBFInterpolator
     from pv_tools import haversine
+
     # This filter takes mhd solution as input, this solution must contain:
     #        theta_1,phi_1 - magnetic mapping variables
+
     mhd = inputs[0]
     mhd_th = mhd.PointData['theta_1_deg']# 0-90, in deg, 0=eq, 90=pole
     mhd_phi = mhd.PointData['phi_1_deg']#0-360 in deg, 0=noon, 90=+Y(dusk)
     MHD = list(zip(mhd_th,mhd_phi))
+    mhd_B = mhd.PointData['Bmag_nT']# nT
+    mhd_magnetosphere = mhd.PointData['mp_state']
+
+    mhd_minB = np.ones(len(mhd_B))
+    th_points = np.linspace(20,85,21)
+    phi_points = np.linspace(0,360,37)
+
+    for ith in range(0,len(th_points)-1):
+        for iphi in range(0,len(phi_points)-1):
+            condition = ((mhd_th>th_points[ith]) & (mhd_th<th_points[ith+1]) &
+                    (mhd_phi>phi_points[iphi]) & (mhd_phi<phi_points[iphi+1])&
+                    (mhd_magnetosphere==1))
+            if any(condition):
+                mhd_minB[condition] = mhd_B[condition].min()
+
     # Read in radiation belt file
     inrad = "{infile}"
+    it = {it}
     # flux variable is a 4D matrix of fluxes,
     #   the dimensions correspond to: Lat,MLT,E,y=sin(pitch-angle)
     #    eg. flux[3,9,11,11] - 3rd latitude bin (~30deg),
     #                          9th MLT (4), 11th E bin (4000keV),
     #                          11th pith-angle bin (y=0.98,~90deg)
-    lats,mlts,Es,ys,rs,flux = read_flux(inrad)
-    lons = [(24+lt-12)%24*360/24 for lt in mlts]
-    LATS,LONS = np.meshgrid(lats,lons)
+    data = dict(np.load(inrad,allow_pickle=True))
+    #lats,mlts,Es,ys,rs,flux = read_flux(inrad)
+    data['phi'] = (24+data['mltN']-12)%24*360/24
+    data['theta'] = data['latN']
+    data['omni_flux'] = np.trapz(data['flux'][it,:,:,3,:],
+                                     x=data['alpha_lvls'],axis=-1)
+    #LATS,LONS = np.meshgrid(lats,lons)
+    PHI = data['phi'][it,:,:].flatten()
+    THETA = data['theta'][it,:,:].flatten()
+    FLUX = data['omni_flux'].flatten()
 
-    interp = LinearNDInterpolator(list(zip(LATS.flatten(),LONS.flatten())),
-                                  flux[:,:,11,11].flatten())
-    y = list(zip(LATS.flatten(),LONS.flatten()))
-    d = flux[:,:,11,11].flatten()
+    interp = LinearNDInterpolator(list(zip(THETA,PHI)),FLUX)
+    y = list(zip(THETA,PHI))
+    d = FLUX
     rbfi = RBFInterpolator(y,d,neighbors=20,kernel='linear')
 
     F = interp(mhd_th,mhd_phi)
     F2 = rbfi(MHD)
 
     output.ShallowCopy(mhd.VTKObject)
+    output.PointData.append(mhd_minB,'MinB')
     output.PointData.append(F,'E12_trapped_flux')
     output.PointData.append(F2,'E12_trapped_rbfi')
     """
@@ -479,95 +504,49 @@ def tec2para(instr):
     #print('WAS: ',instr,'\tIS: ',outstr)
     return outstr
 
-def all_evaluate(evaluation_set: dict, pipeline: filter) -> filter:
+def all_evaluate(evaluation_set:dict,
+                       pipeline:object,**kwargs:dict) -> object|str:
     # Get name of point data arrays
     point_data_array_names = pipeline.PointData.keys()
     # Create and populate prog filter
-    evaluation =ProgrammableFilter(registrationName='equations',Input=pipeline)
-    evaluation.Script = update_evaluate(evaluation_set, point_data_array_names)
-    return evaluation
+    script = update_evaluate(evaluation_set, point_data_array_names,**kwargs)
+    if kwargs.get('verbose_pipeline',False):
+        evaluation =ProgrammableFilter(registrationName='equations',
+                                       Input=pipeline)
+        evaluation.Script = script
+        return evaluation
+    else:
+        return script
 
 def update_evaluate(evaluation_set: dict,
-                    point_data_array_names: list) -> str:
+                    point_data_array_names: list,**kwargs) -> str:
     script = f"""
-    import numpy as np
-    from numpy import sqrt,sin,cos,arcsin,arctan2,trunc
+import numpy as np
+from numpy import sqrt,sin,cos,arcsin,arctan2,trunc"""
+    if kwargs.get('verbose_pipeline',False):
+        script += f"""
+#Assign to output
+output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
 
-    #Assign to output
-    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-
-    # reveal all point data arrays as variables with the same name
-    if True:
-    """
+    script +="""
+# reveal all point data arrays as variables with the same name
+if True:"""
     for i,var in enumerate(point_data_array_names):
+        LHS = point_data_array_names[i].replace('^','').replace('`m','u')
         script +=f"""
-        {point_data_array_names[i]} = inputs[0].PointData['{var}']
-        """
+    {LHS} = inputs[0].PointData['{var}']"""
+    script +="""
+    ##################################################"""
     for lhs,rhs in evaluation_set.items():
+        LHS = lhs.replace('lambda','lam').replace('^','').replace('`m','u')
+        RHS = rhs.replace('^','**').replace(
+                                    'asin','arcsin').replace('atan2','arctan2'
+                                    ).replace('lambda','lam')
         script +=f"""
-        {lhs.replace('lambda','lam')} = {rhs.replace(
-                                                     '^','**').
-                                             replace('asin','arcsin').
-                                             replace('atan2','arctan2').
-                                             replace('lambda','lam')}
-        output.PointData.append({lhs.replace('lambda','lam')},
-                               '{lhs.replace('lambda','lam')}')
-        """
+    {LHS} = {RHS}
+    output.PointData.append({lhs.replace('lambda','lam')},
+                           '{lhs.replace('lambda','lam')}')"""
     return script
-
-def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
-    """Function adds the equation to the set that will be evaluated
-    Inputs
-        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
-                                must be converted with 'tec2para' before they
-                                can be evaluated!!
-        evaluation_set ({}) - where attach the new filter
-        kwargs:
-    Returns
-        evaluation_set ({}) - a new endpoint of the pipeline
-    """
-    for lhs_tec,rhs_tec in eqset.items():
-        lhs = tec2para(lhs_tec)
-        rhs = tec2para(rhs_tec)
-        evaluation_set.update({lhs:rhs})
-    return evaluation_set
-
-def eqeval(eqset,pipeline,**kwargs):
-    """Function creates a calculator object which evaluates the given function
-    Inputs
-        eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
-                                must be converted with 'tec2para' before they
-                                can be evaluated!!
-        pipeline (pipeline) - where attach the new filter
-        kwargs:
-    Returns
-        pipeline (pipeline) - a new endpoint of the pipeline
-    """
-    for lhs_tec,rhs_tec in eqset.items():
-        lhs = tec2para(lhs_tec)
-        rhs = tec2para(rhs_tec)
-        var = Calculator(registrationName=lhs, Input=pipeline)
-        var.Function = rhs
-        var.ResultArrayName = lhs
-        pipeline = var
-    return pipeline
-
-def get_sphere_filter(pipeline,**kwargs):
-    """Function calculates a sphere variable, NOTE:will still need to
-        process variable into iso surface then cleanup iso surface!
-    Inputs
-        pipeline (filter/source)- upstream that calculator will process
-        kwargs:
-            betastar_max (float)- default 0.7
-            status_closed (float)- default 3
-    Returns
-        pipeline (filter)- last filter applied keeping a straight pipeline
-    """
-    #Must have the following conditions met first
-    assert FindSource('r_R') != None
-    radius = kwargs.get('radius',3)
-    r_state =ProgrammableFilter(registrationName='r_state',Input=pipeline)
-    pass
 
 def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
     """Function adds the equation to the set that will be evaluated
@@ -1030,7 +1009,7 @@ def magPoints2Gsm(pipeline,localtime,tilt,**kwargs):
     gsmPoints = rotate2GSM(pipeline, tilt, **kwargs)
     return gsmPoints
 
-def get_pressure_gradient(pipeline,**kwargs):
+def get_pressure_gradient(pipeline:object,**kwargs:dict) -> object|str:
     """Function calculates a pressure gradient variable
     Inputs
         pipeline (filter/source)- upstream that calculator will process
@@ -1040,25 +1019,27 @@ def get_pressure_gradient(pipeline,**kwargs):
     Returns
         pipeline (filter)- last filter applied keeping a straight pipeline
     """
-    gradP = ProgrammableFilter(registrationName='gradP', Input=pipeline)
     P_name = kwargs.get('point_data_name','\'P_nPa\'')
     gradP_name = kwargs.get('new_name','GradP_nPa_Re')
-    gradP.Script = """
-    from paraview.vtk.numpy_interface import dataset_adapter as dsa
-    from paraview.vtk.numpy_interface import algorithms as algs
-    # Get input
-    data = inputs[0]
+    script = """
+from paraview.vtk.numpy_interface import dataset_adapter as dsa
+from paraview.vtk.numpy_interface import algorithms as algs
+# Get input
+data = inputs[0]
 
-    #Compute gradient
-    gradP = algs.gradient(data.PointData"""+str(P_name)+"""])
-    data.PointData.append(gradP,"""+str(gradP_name)+""")
+#Compute gradient
+gradP = algs.gradient(data.PointData"""+str(P_name)+"""])
+data.PointData.append(gradP,"""+str(gradP_name)+""")
 
-    #Assign to output
-    output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-    output.PointData.append(gradP,"""+str(gradP_name)+""")
-    """
-    pipeline = gradP
-    return pipeline
+#Assign to output
+output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+output.PointData.append(gradP,"""+str(gradP_name)+""")"""
+    gradP = ProgrammableFilter(registrationName='gradP', Input=pipeline)
+    if kwargs.get('verbose_pipeline'):
+        gradP.Script = script
+        return gradP
+    else:
+        return script
 
 def mag_to_gsm(pipeline,timestamp):
     # Do the coord transform in a programmable filter
@@ -1170,7 +1151,7 @@ def update_geo2gsm(timestamp):
     import datetime as dt
     from geopack import geopack as gp
     # Initialize the geopack routines by finding the universal time
-    timestamp = {timestamp}
+    timestamp = dt.datetime.fromisoformat("{timestamp}")
     t0 = dt.datetime(1970,1,1)
     ut = (timestamp-t0).total_seconds()
     gp.recalc(ut)
