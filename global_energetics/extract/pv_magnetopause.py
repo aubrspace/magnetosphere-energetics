@@ -1,6 +1,6 @@
 import paraview
-paraview.compatibility.major = 6
-paraview.compatibility.minor = 0
+#paraview.compatibility.major = 6
+#paraview.compatibility.minor = 0
 
 import os
 import time
@@ -9,18 +9,17 @@ import numpy as np
 import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
-import magnetometer
-from magnetometer import(get_stations_now, read_station_paraview)
-import equations
-import pv_tools
-import pv_input_tools
-import pv_surface_tools
-import pv_volume_tools
-import pv_tabular_tools
-import pv_visuals
-import pv_fte
+### Interpackage
+from global_energetics.extract import equations
+from global_energetics.extract import pv_tools
+from global_energetics.extract import pv_input_tools
+from global_energetics.extract import pv_surface_tools
+from global_energetics.extract import pv_volume_tools
+from global_energetics.extract import pv_tabular_tools
+from global_energetics.extract import pv_visuals
+from global_energetics.extract import pv_fte
 
-def get_magnetopause_filter(pipeline:object,**kwargs:dict) -> object|str:
+def get_magnetopause_filter(pipeline:object,**kwargs:dict) -> object:
     """Function calculates a magnetopause variable, NOTE:will still need to
         process variable into iso surface then cleanup iso surface!
     Inputs
@@ -277,6 +276,7 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
     ###Field line seeding or Field line projected flux volumes
     fluxResults = None
     if(kwargs.get('doFieldlines',False)or kwargs.get('doFluxVol',False)):
+        from magnetometer import read_station_paraview
         print(kwargs.get('station_file'))
         station_MAG, success = read_station_paraview(
                                     kwargs.get('localtime'),

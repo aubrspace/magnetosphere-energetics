@@ -8,6 +8,8 @@ import paraview
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 #### Custom packages #####
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
 import global_energetics
 from global_energetics.makevideo import time_sort, get_time
 from global_energetics.extract.pv_magnetopause import setup_pipeline
@@ -125,7 +127,8 @@ def save_datacube(field:FILTER,**kwargs:dict) -> None:
 def main() -> None:
     filelist = sorted(glob.glob(f"{INPATH}/*paraview*.plt"),
                       key=time_sort)
-    LoadState('localdbug/mothersday/datacube_state.pvsm')
+    #LoadState('localdbug/mothersday/datacube_state.pvsm')
+    LoadState(os.path.join(os.getcwd(),'cosmetic/datacube_state.pvsm'))
     renderView = GetActiveView()
     print(f"Processing ({len(filelist)})...")
     for infile in filelist:
@@ -168,8 +171,10 @@ if True:
 
     global INPATH,OUTPATH
 
-    INPATH  = os.path.join(os.getcwd(),"gannon-storm/data/large/GM/IO2/")
-    OUTPATH = os.path.join(os.getcwd(),"localdbug/mothersday/")
+    #INPATH  = os.path.join(os.getcwd(),"gannon-storm/data/large/GM/IO2/")
+    #OUTPATH = os.path.join(os.getcwd(),"localdbug/mothersday/")
+    INPATH = os.path.join(os.getcwd(),"run_mothersday_ne/GM/IO2/")
+    OUTPATH = os.path.join(os.getcwd(),"outputs_mothersday_ne/datacubes/")
 
     main()
 

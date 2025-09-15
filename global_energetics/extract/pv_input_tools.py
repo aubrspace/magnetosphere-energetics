@@ -147,7 +147,7 @@ def fix_ie_names(pipeline,**kwargs):
     pipeline = names
     return pipeline
 
-def fix_names(pipeline:object,**kwargs:dict) -> object|str:
+def fix_names(pipeline:object,**kwargs:dict) -> object:
     script = """
 #Get upstream data
 data = inputs[0]
@@ -168,7 +168,7 @@ for var in data.PointData.keys():
     else:
         return script
 
-def fix_status(pipeline,**kwargs) -> object | str:
+def fix_status(pipeline,**kwargs) -> object:
         # Status -3 implies the tracing has failed somewhere, if we have
         #   the theta mapping variables then we have the tools to fix it
         script = """
@@ -223,7 +223,7 @@ def status_repair(pipeline,**kwargs):#NOTE Depreciated!!!
                          """
     return status_repair
 
-def todimensional(pipeline:object, **kwargs) -> object | str:
+def todimensional(pipeline:object, **kwargs) -> object:
     """Function modifies dimensionless variables -> dimensional variables
     Inputs
         dataset (frame.dataset)- tecplot dataset object

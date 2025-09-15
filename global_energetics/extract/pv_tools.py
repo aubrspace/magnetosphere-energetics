@@ -505,7 +505,7 @@ def tec2para(instr):
     return outstr
 
 def all_evaluate(evaluation_set:dict,
-                       pipeline:object,**kwargs:dict) -> object|str:
+                       pipeline:object,**kwargs:dict) -> object:
     # Get name of point data arrays
     point_data_array_names = pipeline.PointData.keys()
     # Create and populate prog filter
@@ -1009,7 +1009,7 @@ def magPoints2Gsm(pipeline,localtime,tilt,**kwargs):
     gsmPoints = rotate2GSM(pipeline, tilt, **kwargs)
     return gsmPoints
 
-def get_pressure_gradient(pipeline:object,**kwargs:dict) -> object|str:
+def get_pressure_gradient(pipeline:object,**kwargs:dict) -> object:
     """Function calculates a pressure gradient variable
     Inputs
         pipeline (filter/source)- upstream that calculator will process
