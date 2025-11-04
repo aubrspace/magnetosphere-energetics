@@ -132,28 +132,31 @@ def main() -> None:
     renderView = GetActiveView()
     print(f"Processing ({len(filelist)})...")
     for infile in filelist:
-        print(f"\t{infile.split('/')[-1]}")
-        localtime = get_time(infile)
-        # Update time
-        timestamp = FindSource('time')
-        timestamp.Text = str(localtime)
-        # Locate the start of the pipeline and the old data
-        pipehead = FindSource('MergeBlocks1')
-        oldData = pipehead.Input
-        # Read in new data and feed into the pipe, delete old data
-        newData = read_tecplot(infile)
-        pipehead.Input = newData
-        Delete(oldData)
-        del oldData
-
         outfile = infile.split('/')[-1].split('e')[-1].replace('.plt','')
-        # Save a new datacube
-        save_datacube(FindSource('magnetosheath'),outname=outfile)
+        if os.path.exists(OUTPATH+outfile+f'_0.png'):
+            pass# Skip
+        else:
+            print(f"\t{infile.split('/')[-1]}")
+            localtime = get_time(infile)
+            # Update time
+            timestamp = FindSource('time')
+            timestamp.Text = str(localtime)
+            # Locate the start of the pipeline and the old data
+            pipehead = FindSource('MergeBlocks1')
+            oldData = pipehead.Input
+            # Read in new data and feed into the pipe, delete old data
+            newData = read_tecplot(infile)
+            pipehead.Input = newData
+            Delete(oldData)
+            del oldData
 
-        # Save screenshot
-        layouts = GetLayouts()
-        for i,layout in enumerate(layouts.values()):
-            SaveScreenshot(OUTPATH+outfile+f'_{i}.png',layout)
+            # Save a new datacube
+            save_datacube(FindSource('magnetosheath'),outname=outfile)
+
+            # Save screenshot
+            layouts = GetLayouts()
+            for i,layout in enumerate(layouts.values()):
+                SaveScreenshot(OUTPATH+outfile+f'_{i}.png',layout)
 
         '''INITIALIZATION - only need this once
         _,__,field,____,_____ = setup_pipeline(infile,doEntropy=True,
