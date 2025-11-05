@@ -1,12 +1,4 @@
 import paraview
-#paraview.compatibility.major = 6
-#paraview.compatibility.minor = 0
-
-import os
-import time
-import glob
-import numpy as np
-import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
 ### Interpackage
@@ -18,58 +10,90 @@ from global_energetics.extract import pv_volume_tools
 from global_energetics.extract import pv_tabular_tools
 from global_energetics.extract import pv_visuals
 from global_energetics.extract import pv_fte
+from global_energetics.extract import pv_mapping
 
-def get_magnetopause_filter(pipeline:object,**kwargs:dict) -> object:
-    """Function calculates a magnetopause variable, NOTE:will still need to
-        process variable into iso surface then cleanup iso surface!
-    Inputs
-        pipeline (filter/source)- upstream that calculator will process
-        kwargs:
-            betastar_max (float)- default 0.7
-            status_closed (float)- default 3
-    Returns
-        pipeline (filter)- last filter applied keeping a straight pipeline
-            or
-        string (script)- just the text of the prog filter to be combined
+def generate_volumes(pipeline:object,**kwargs:dict) -> object:
+    """ Calls volume_tools extract_volume function to generate 3D sub-volumes
     """
-    betastar_max = kwargs.get('betastar_max',0.7)
-    closed_value = kwargs.get('status_closed',3)
-    tail_x = kwargs.get('tail_x',-20)
-    script = """
-from paraview.vtk.numpy_interface import dataset_adapter as dsa
-from paraview.vtk.numpy_interface import algorithms as algs"""
-    if kwargs.get('verbose_pipeline',False):
-        script +="""
-# Get input
-data = inputs[0]
-beta_star = data.PointData['beta_star']
-status = data.PointData['Status']
-x = data.PointData['x']"""
-    script +="""
-#Compute magnetopause as logical combination
-mp_state = ((status>=1)&(beta_star<"""+str(betastar_max)+""")&
-                            (x>"""+str(tail_x)+""")
-                |
-            (status=="""+str(closed_value)+""")&
-                            (x>"""+str(tail_x)+""")).astype(int)
-output.PointData.append(mp_state,'mp_state')"""
+    volume_dict = {}
+    for surface in kwargs.get('surfaces',['mp']):
+        volume_kwargs = {}
+        volume_dict[surface] = pv_volume_tools.extract_volume(pipeline,
+                                                              variable,
+                                                              surface_name,
+                                                              **volume_kwargs)
+    return volume_dict
+
+def generate_surfaces(pipeline:object,**kwargs:dict) -> object:
+    """ Calls surface_tools iso_surface function to generate 2D surfaces in 3D
+    Inputs
+        pipeline (filter/source)- upstream should include state variables!!!
+        kwargs:
+            inner_r (float) - default 3.0, used to set the inner contour
+    Returns
+        surfaces_dict (dict{str:filter})- dict of filters generated 1 per surf
+    """
+    surfaces_dict = {}
+    for surface in kwargs.get('surfaces',['mp']):
+        iso_kwargs = {}
+        variable = surface
+        surface_name = surface
+        if 'lobes' in surface:
+            # Dont trim, since we expect 2 separate non-touching lobes
+            iso_kwargs = {'trim_regions':False}
+        if 'inner' in surface:
+            assert 'r_R' in pipeline.PointData, (
+                                  'GENERATESURFACE inner: No radius variable!')
+            iso_kwargs = {'iso_value':kwargs.get('inner_r',3.0)}
+            variable = 'r_R'
+        surfaces_dict[surface] = pv_surface_tools.create_iso_surface(pipeline,
+                                                                     variable,
+                                                                 surface_name,
+                                                                  **iso_kwargs)
+    return surfaces_dict
+
+def load_state_variables(pipeline:object,**kwargs:dict) -> object:
+    script = ''
+    for surface in kwargs.get('surfaces',['mp']):
+        if 'mp' in surface:
+            state = pv_surface_tools.create_magnetopause_state(pipeline,
+                                               **{k:kwargs[k] for k in
+                                                  ['verbose_pipeline',
+                                                   'betastar_max','inner_r',
+                                                   'status_closed','tail_x']
+                                                  if k in kwargs})
+        if 'closed' in surface:
+            state = pv_surface_tools.create_closed_state(pipeline,
+                                             **{k:kwargs[k] for k in
+                                                ['verbose_pipeline','inner_r',
+                                                 'status_closed','tail_x']
+                                                 if k in kwargs})
+        if 'lobes' in surface:
+            state = pv_surface_tools.create_lobes_state(pipeline,
+                                               **{k:kwargs[k] for k in
+                                                  ['verbose_pipeline',
+                                                   'betastar_max','inner_r',
+                                                   'status_open','tail_x']
+                                                  if k in kwargs})
+        if 'inner' in surface:
+            #NOTE for this one the definition is simple so the logic is diff
+            pass
+            #state = pv_surface_tools.create_inner_state(pipeline,
+            #                                   **{k:kwargs[k] for k in
+            #                                      ['verbose_pipeline',
+            #                                       'inner_r']
+            #                                      if k in kwargs})
+        if kwargs.get('verbose_pipeline',False):
+            pipeline = state
+        else:
+            script += state
 
     if kwargs.get('verbose_pipeline',False):
-        script+="""
-#Assign to output
-output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-output.PointData.append(mp_state,'mp_state')"""
-        #Must have the following conditions met first
-        assert 'beta_star' in pipeline.PointData.keys()
-        mp_state = ProgrammableFilter(registrationName='mp_state',
-                                      Input=pipeline)
-        mp_state.Script = script
-        return mp_state
+        return pipeline
     else:
         return script
 
-def setup_pipeline(infile,**kwargs):
-    #TODO: make this more efficient by having fewer individual filters
+def setup_pipeline(infile:str,**kwargs:dict):
     """Function takes single data file and builds pipeline to find and
         visualize magnetopause
     Inputs
@@ -104,7 +128,6 @@ def setup_pipeline(infile,**kwargs):
         if kwargs.get('convert')=='eci':
             pipeline = pv_tools.gsm_to_eci(pipeline,kwargs.get('ut',0))
         elif kwargs.get('convert')=='gsm':
-            # Figure out what were dealing with
             #NOTE for now assuming gse
             pipeline = pv_tools.gse_to_gsm(pipeline,kwargs.get('ut',0))
     #if kwargs.get('repair_status',False): NOTE depreciated!!
@@ -112,9 +135,7 @@ def setup_pipeline(infile,**kwargs):
     ########################################################################
     # Gather a few prog filter scripts together to save memory ...
     #
-    script = """
-#Assign to output
-output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
+    script = 'output_staging = {}'
     ###Check if unitless variables are present
     if kwargs.get('dimensionless',False):
         if kwargs.get('verbose_pipeline',False):
@@ -129,25 +150,37 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
             script +=  pv_input_tools.fix_names(pipeline,**kwargs)
     ###Build functions up to betastar
     alleq = equations.equations(**kwargs)
-    evaluation_set = {}
-    evaluation_set = pv_tools.eq_add(alleq['basic3d'],evaluation_set)
-    evaluation_set = pv_tools.eq_add(alleq['basic_physics'],evaluation_set)
+    evaluation_set,evaluation_save = {},{}
+    if not kwargs.get('verbose_pipeline',False):
+        doSave = False
+    evaluation_set = pv_tools.eq_add(alleq['basic3d'],evaluation_set,
+                                     evaluation_save,doSave=True)#NOTE
+    evaluation_set = pv_tools.eq_add(alleq['basic_physics'],evaluation_set,
+                                     evaluation_save,doSave=doSave)
     if 'aux' in kwargs:
-        evaluation_set = pv_tools.eq_add(alleq['dipole_coord'],evaluation_set)
-        evaluation_set = pv_tools.eq_add(alleq['dipole'],evaluation_set)
+        evaluation_set = pv_tools.eq_add(alleq['dipole_coord'],evaluation_set,
+                                         evaluation_save,doSave=doSave)
+        evaluation_set = pv_tools.eq_add(alleq['dipole'],evaluation_set,
+                                         evaluation_save,doSave=doSave)
     if kwargs.get('doEntropy',False):
-        evaluation_set = pv_tools.eq_add(alleq['entropy'],evaluation_set)
+        evaluation_set = pv_tools.eq_add(alleq['entropy'],evaluation_set,
+                                         evaluation_save,doSave=doSave)
     # Energy flux variables
     if kwargs.get('doEnergyFlux',False):
-        evaluation_set = eq_add(alleq['energy_flux'],evaluation_set)
+        evaluation_set = pv_tools.eq_add(alleq['energy_flux'],evaluation_set,
+                                         evaluation_save,doSave=doSave)
     # Volume energy variables
     if kwargs.get('doVolumeEnergy',False):
-        evaluation_set = eq_add(alleq['dipole'],evaluation_set)
-        evaluation_set = eq_add(alleq['volume_energy'],evaluation_set)
+        assert 'aux' in kwargs, "No AUX data, cannont calculate Volume Energy"
+        evaluation_set = pv_tools.eq_add(alleq['volume_energy'],evaluation_set,
+                                         evaluation_save,doSave=True)#NOTE
     if kwargs.get('verbose_pipeline',False):
-        pipeline = pv_tools.all_evaluate(evaluation_set,pipeline,**kwargs)
+        pipeline = pv_tools.all_evaluate(evaluation_set,evaluation_save,
+                                         pipeline,verbose_pipeline=True)
     else:
-        script += pv_tools.all_evaluate(evaluation_set,pipeline,**kwargs)
+        script += pv_tools.all_evaluate(evaluation_set,evaluation_save,
+                                        pipeline,verbose_pipeline=False,
+                                        vectorize_variables=True)
     ###Fix tracing
     if (pipeline.PointData['Status'].GetRange()[0] == -3 and
         'theta_1_deg' in pipeline.PointData.keys()):
@@ -164,28 +197,9 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
         #eq('{trace_limits}=if({Status}==3 && '+
         #                    '{r [R]}>'+str(kwargs.get('inner_r',3)-1)+',1,0)')
         if kwargs.get('verbose_pipeline',False):
-            pipeline = pv_mapping.reversed_mapping(pipeline,'trace_limits',
-                                                   **kwargs)
+            pipeline = pv_mapping.reversed_mapping(pipeline,**kwargs)
         else:
-            script += pv_mapping.reversed_mapping(pipeline,'trace_limits',
-                                                  **kwargs)
-    '''
-    ###Energy flux variables
-    if kwargs.get('doEnergyFlux',False):
-        if kwargs.get('verbose_pipeline',False):
-            pipeline = pv_tools.eqeval(alleq['energy_flux'],pipeline,**kwargs)
-        else:
-            script += pv_tools.eqeval(alleq['energy_flux'],pipeline,**kwargs)
-    if kwargs.get('doVolumeEnergy',False):
-        if kwargs.get('verbose_pipeline',False):
-            pipeline = pv_tools.eqeval(alleq['dipole'],pipeline,**kwargs)
-            pipeline = pv_tools.eqeval(alleq['volume_energy'],pipeline,
-                                       **kwargs)
-        else:
-            script += pv_tools.eqeval(alleq['dipole'],pipeline,**kwargs)
-            script += pv_tools.eqeval(alleq['volume_energy'],pipeline,
-                                      **kwargs)
-    '''
+            script += pv_mapping.reversed_mapping(pipeline,**kwargs)
     ###Get Vectors from field variable components
     if kwargs.get('doVectors',False):
         if kwargs.get('verbose_pipeline',False):
@@ -201,20 +215,29 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
             pipeline = pv_tools.get_pressure_gradient(pipeline)
         else:
             script += pv_tools.get_pressure_gradient(pipeline,**kwargs)
-    # Magnetopause
-    if kwargs.get('verbose_pipeline',False):
-        pipeline = get_magnetopause_filter(pipeline,**kwargs)
-    else:
-        script += get_magnetopause_filter(pipeline,**kwargs)
 
+    ###Regional state variables
+    if kwargs.get('verbose_pipeline',False):
+        pipeline = load_state_variables(pipeline,**kwargs)
+    else:
+        script += load_state_variables(pipeline,**kwargs)
+
+    ###Write out the mega-script
     if not kwargs.get('verbose_pipeline',False):
-        #TODO fix the script
         pipeline = ProgrammableFilter(registrationName='equations+',
                                       Input=pipeline)
-        pipeline.Script = script
+        pipeline.Script = script+"""
+for key,arr in output_staging.items():
+    output.PointData.append(arr,key)
+        """
     #
     # End prog filter things
     ########################################################################
+    ###Generate surfaces using the contour filter
+    surfaces_dict = generate_surfaces(pipeline,**kwargs)
+
+    ###Generate volumes as threshold filters
+    volumes_dict = generate_volumes(pipeline,**kwargs)
 
     # Stand-alone, larger filters that are less default
     if kwargs.get('ffj',False):
@@ -239,7 +262,7 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
         for satin in satfiles:
             name = satin.split('.csv')[0]
             csv = CSVReader(registrationName=name+'_in',
-                  FileName=os.path.join(kwargs.get('path'),satin))
+                            FileName=kwargs.get('path')+satin)
             points = TableToPoints(registrationName=name,
                                    Input=csv)
             points.XColumn = 'x'
@@ -267,7 +290,7 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
     field = pipeline
 
     ###Contour (iso-surface) of the magnetopause
-    mp = pv_surface_tools.create_iso_surface(field, 'mp_state', 'mp')
+    #mp = pv_surface_tools.create_iso_surface(field, 'mp_state', 'mp')
 
     if kwargs.get('fte',False):
         ###Contour (iso-surface) of the magnetopause
@@ -313,10 +336,14 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
                 clip1.ClipType.Radius = 2.5
                 obj, fluxResults = pv_volume_tools.add_fluxVolume(clip2,
                                                                   **kwargs)
-
-    return sourcedata, pipelinehead, field, mp, fluxResults
+    ### Collect returnable items
+    return {'field':field,'surfaces':surfaces_dict}
 
 if __name__ == "__main__":
+    import os
+    import time
+    import glob
+    import numpy as np
 #if True:
     #from pv_input_tools import time_sort, read_aux, read_tecplot
     start_time = time.time()

@@ -438,9 +438,11 @@ def create_globe(timestamp:dt.datetime,**kwargs:dict) -> Calculator:
     Returns
         pipeline
     """
+    path_to_toplevel = (os.getcwd().split('magnetosphere-energetics')[0]+
+                                                   'magnetosphere-energetics')
     # Get the file of the texture image
     blue_marble_file = kwargs.get('blue_marble_loc',
-           '/home/aubr/Code/swmf-energetics/tutorial_data/bluemarble_map.png')
+                                f'{path_to_toplevel}/data/bluemarble_map.png')
     bluemarble_mapping = CreateTexture(blue_marble_file)
     # Create a Sphere
     sphere = Sphere(registrationName='Sphere')
@@ -505,21 +507,45 @@ def tec2para(instr):
     return outstr
 
 def all_evaluate(evaluation_set:dict,
+                evaluation_save:dict,
                        pipeline:object,**kwargs:dict) -> object:
     # Get name of point data arrays
     point_data_array_names = pipeline.PointData.keys()
     # Create and populate prog filter
-    script = update_evaluate(evaluation_set, point_data_array_names,**kwargs)
+    script,local_variables = update_evaluate(evaluation_set, evaluation_save,
+                                             point_data_array_names,**kwargs)
     if kwargs.get('verbose_pipeline',False):
         evaluation =ProgrammableFilter(registrationName='equations',
                                        Input=pipeline)
         evaluation.Script = script
         return evaluation
     else:
+        if kwargs.get('vectorize_variables',False):
+            script += vectorize_variables(local_variables)
         return script
 
 def update_evaluate(evaluation_set: dict,
+                   evaluation_save: dict,
                     point_data_array_names: list,**kwargs) -> str:
+    pysafe_translation = {
+             "B_x [nT]":"B_x_nT",
+             "B_y [nT]":"B_y_nT",
+             "B_z [nT]":"B_z_nT",
+             "U_x [km_s]":"U_x_km_s",
+             "U_y [km_s]":"U_y_km_s",
+             "U_z [km_s]":"U_z_km_s",
+             "P [nPa]":"P_nPa",
+             "phi_1 [deg]":"phi_1_deg",
+             "phi_2 [deg]":"phi_2_deg",
+             "theta_1 [deg]":"theta_1_deg",
+             "theta_2 [deg]":"theta_2_deg",
+             "Rho [amu_cm^3]":"Rho_amu_cm3",
+             "dvol [R]^3":"dvol_R3",
+             "J_x [`mA_m^2]":"J_x_uA_m2",
+             "J_y [`mA_m^2]":"J_y_uA_m2",
+             "J_z [`mA_m^2]":"J_z_uA_m2"
+                            }
+    local_variables = []
     script = f"""
 import numpy as np
 from numpy import sqrt,sin,cos,arcsin,arctan2,trunc"""
@@ -531,10 +557,24 @@ output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow"""
     script +="""
 # reveal all point data arrays as variables with the same name
 if True:"""
+    if 'x' not in point_data_array_names:
+        script+="""
+    x = inputs[0].PointData['x']
+    y = inputs[0].PointData['y']
+    z = inputs[0].PointData['z']
+        """
+        local_variables.append('x')
+        local_variables.append('y')
+        local_variables.append('z')
     for i,var in enumerate(point_data_array_names):
-        LHS = point_data_array_names[i].replace('^','').replace('`m','u')
+        LHS = point_data_array_names[i]
+        if LHS in pysafe_translation:
+            LHS = pysafe_translation[LHS]
+        else:
+            LHS = LHS.replace('^','').replace('`m','u')
         script +=f"""
     {LHS} = inputs[0].PointData['{var}']"""
+        local_variables.append(LHS)
     script +="""
     ##################################################"""
     for lhs,rhs in evaluation_set.items():
@@ -543,19 +583,26 @@ if True:"""
                                     'asin','arcsin').replace('atan2','arctan2'
                                     ).replace('lambda','lam')
         script +=f"""
-    {LHS} = {RHS}
-    output.PointData.append({lhs.replace('lambda','lam')},
-                           '{lhs.replace('lambda','lam')}')"""
-    return script
+    {LHS} = {RHS}"""
+        local_variables.append(LHS)
+        if evaluation_save[lhs]:
+            #Save to the outputs so other filters can access later
+            script +=f"""
+    output_staging['{LHS}'] = {LHS}
+    #output.PointData.append({lhs.replace('lambda','lam')},
+    #                       '{lhs.replace('lambda','lam')}')"""
+    return script, local_variables
 
-def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
+def eq_add(eqset:dict,evaluation_set:dict,
+                     evaluation_save:dict,*,doSave:bool=True) -> dict:
     """Function adds the equation to the set that will be evaluated
     Inputs
         eqset (dict{lhs:rhs}) - ported from tecplot format, NOTE all strings
                                 must be converted with 'tec2para' before they
                                 can be evaluated!!
         evaluation_set ({}) - where attach the new filter
-        kwargs:
+        evaluation_save ({}) - where attach the new filter
+        doSave (bool) - default True
     Returns
         evaluation_set ({}) - a new endpoint of the pipeline
     """
@@ -563,6 +610,7 @@ def eq_add(eqset: dict,evaluation_set: dict,**kwargs) -> dict:
         lhs = tec2para(lhs_tec)
         rhs = tec2para(rhs_tec)
         evaluation_set.update({lhs:rhs})
+        evaluation_save[lhs]=doSave
     return evaluation_set
 
 def eqeval(eqset,pipeline,**kwargs):
@@ -861,6 +909,30 @@ def get_ffj_filter2(pipeline,**kwargs):
     pipeline = ffj
     return pipeline
 
+def vectorize_variables(variable_names) -> str:
+    #Script for converting existing [Var_x,Var_y,Var_z] -> Var
+    component_variables = [c for c in variable_names if ('_x_' in c or
+                                                         '_y_' in c or
+                                                         '_z_' in c)]
+    script = """
+### Create vectors from component variables
+from paraview.vtk.numpy_interface import dataset_adapter as dsa"""
+    deconlist=dict([(v.split('_')[0],'_'+'_'.join(v.split('_')[2::]))
+                                                 for v in component_variables])
+    for base,tail in deconlist.items():
+        script += f"""
+{base}{tail} = np.column_stack(({base}_x{tail},{base}_y{tail},{base}_z{tail}))
+output_staging['{base}{tail}'] = dsa.VTKArray({base}{tail})"""
+
+    # Drop the old component variables to save memory
+    for variable in component_variables:
+        script += f"""
+# Drop the old component variables to save memory
+output_staging.pop('{variable}',None)
+        """
+    return script
+
+
 def get_vectors(pipeline,**kwargs):
     """Function sets up calculator filters to turn components into vector
         objects (this will allow field tracing and other things)
@@ -882,8 +954,8 @@ def get_vectors(pipeline,**kwargs):
     #for i in range(0,n_arr):
     #    var_names[i] = info.GetArray(i).Name
     deconlist=dict([(v.split('_')[0],'_'+'_'.join(v.split('_')[2::]))
-                          for v in var_names if('_x' in v or '_y' in v or
-                                                             '_z' in v)])
+                          for v in var_names if('_x_' in v or '_y_' in v or
+                                                             '_z_' in v)])
     for (base,tail) in deconlist.items():
         if tail=='_': tail=''
         vector = Calculator(registrationName=base,Input=pipeline)

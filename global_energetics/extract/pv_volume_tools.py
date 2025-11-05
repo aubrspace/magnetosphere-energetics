@@ -1,5 +1,42 @@
 from paraview.simple import *
 
+def get_numpy_volume_analysis():
+    #TODO
+    # Staging function that will take the volume_dict and pass what is needed
+    #   for each calculation one at a time, compiling the results
+    # Inputs
+    #   volume_dict, *, skip_keys=[]
+    # Returns
+    #   results_dict
+    #   
+    #   results_dict = {}
+    #   for vol,source in volume_dict.items():
+    #       TODO- figure out the level of specificity here
+    #       could do a number of very specific numpy domain functions, one
+    #       for each instance of the volume object?
+    #           or
+    #       Could have a generic function with some key word arguments
+    #        controling what is calculated and what is not ...
+    #       
+    #       results_dict[vol] = somecall(vol,source)
+    #   return results_dict
+    pass
+
+def extract_volume(source:object,
+                 variable:str,
+              volume_name:str,**kwargs:dict) -> object:
+    #TODO flesh this out
+    #   call threshold filter
+    #       set variable
+    #       set threshold type (gt,lt,inbetween)
+    #       set threshold level (1)
+    #       set name (given)
+    #   if not skipped:
+    #       call connectivity filter
+    #   update pipeline
+    #   return pipeline endpoint
+    pass
+
 def add_fluxVolume(field,**kwargs):
     """Function integrates volume flux values
     Inputs
