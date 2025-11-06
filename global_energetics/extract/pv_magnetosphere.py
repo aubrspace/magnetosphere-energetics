@@ -18,9 +18,15 @@ def generate_volumes(pipeline:object,**kwargs:dict) -> object:
     volume_dict = {}
     for surface in kwargs.get('surfaces',['mp']):
         volume_kwargs = {}
-        volume_dict[surface] = pv_volume_tools.extract_volume(pipeline,
-                                                              variable,
-                                                              surface_name,
+        variable = surface
+        volume_name = surface+'Vol'
+        skipVolume = False
+        if 'inner' in surface:
+            skipVolume = True
+        if not skipVolume:
+            volume_dict[surface] = pv_volume_tools.extract_volume(pipeline,
+                                                                  variable,
+                                                              volume_name,
                                                               **volume_kwargs)
     return volume_dict
 
@@ -289,9 +295,6 @@ for key,arr in output_staging.items():
     ###Now that last variable is done set 'field' for visualizer and a View
     field = pipeline
 
-    ###Contour (iso-surface) of the magnetopause
-    #mp = pv_surface_tools.create_iso_surface(field, 'mp_state', 'mp')
-
     if kwargs.get('fte',False):
         ###Contour (iso-surface) of the magnetopause
         fte = pv_surface_tools.create_iso_surface(field, 'fte', 'fte')
@@ -337,7 +340,7 @@ for key,arr in output_staging.items():
                 obj, fluxResults = pv_volume_tools.add_fluxVolume(clip2,
                                                                   **kwargs)
     ### Collect returnable items
-    return {'field':field,'surfaces':surfaces_dict}
+    return {'field':field,'surfaces':surfaces_dict,'volumes':volumes_dict}
 
 if __name__ == "__main__":
     import os

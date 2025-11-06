@@ -3,6 +3,7 @@ import os,sys
 import time
 import glob
 import numpy as np
+import datetime as dt
 #### paraview
 import paraview
 from paraview.simple import *
@@ -15,11 +16,15 @@ from global_energetics.makevideo import time_sort, get_time
 from global_energetics.extract.pv_magnetosphere import setup_pipeline
 from global_energetics.extract.pv_input_tools import (read_tecplot,read_aux)
 from global_energetics.extract.pv_tools import create_globe
+from global_energetics.extract.pv_surface_tools import (
+                                                    get_numpy_surface_analysis)
+from global_energetics.extract.pv_volume_tools import get_numpy_volume_analysis
 
 global FILTER
 FILTER = paraview.vtk.vtkAlgorithm # Generic "filter" object
 
-def initial_processing(infile:str) -> None:
+def initial_processing(infile:str) -> [dict,dt.datetime]:
+    print('INITALIZING SURFACES & VOLUMES: ...')
     # Read aux data
     aux = read_aux(infile.replace('.dat','.aux'))
     # Get time information
@@ -36,6 +41,7 @@ def initial_processing(infile:str) -> None:
                                           aux=aux,
                                           path=OUTPATH)
 
+    '''
     surf_colors = {'mp':np.array([245,245,245])/255,#white
                    'closed':np.array([235,70,7])/255,#orange-red
                    'lobes':np.array([7,235,229])/255,#cyan
@@ -47,21 +53,28 @@ def initial_processing(infile:str) -> None:
         display.AmbientColor = surf_colors[surf]
         display.DiffuseColor = surf_colors[surf]
         display.Opacity = 0.3
+    '''
+    return pipeline_dict,localtime
+
+def perform_integrations(pipeline_dict:dict,tstamp:dt.datetime) -> None:
     # Perform calculations
-    #TODO - one call to surface_tools to do all the math given:
-    #           list of surfaces
-    #           list of fluxes
-    #           return -> surface_integr dict
-    #     - one call to volume_tools to do the math for:
-    #           list of volumes
-    #           list of fluxes
-    #           return -> volume_integr dict
+    surface_results = get_numpy_surface_analysis(pipeline_dict['surfaces'])
+    volume_results = get_numpy_volume_analysis(pipeline_dict['volumes'])
 
-    # Save fluxes to .npz file
-    #TODO join up the two dictionaries
-    #   add a time entry
-    #   save as a .npz file
+    # Set output filename
+    outfile = ('energetics_'+tstamp.isoformat().replace(':',''
+                                              ).replace('-',''
+                                              ).replace('T','')+'.npz')
 
+    # Pack up and save
+    combined_results = {}
+    combined_results['time'] = np.array(np.datetime64(tstamp),
+                                        dtype='datetime64[s]')
+    combined_results.update(surface_results)
+    combined_results.update(volume_results)
+    np.savez_compressed(f"{OUTPATH}/{outfile}",allow_pickle=False,
+                        **combined_results)
+    print(f"\033[92m Saved\033[00m {OUTPATH}/{outfile}")
 
 def main() -> None:
     # Locate files
@@ -74,7 +87,8 @@ def main() -> None:
 
     # If we have a state ready, load it, otw do initial processing
     if True:
-        initial_processing(filelist[0])
+        pipeline_dict,localtime = initial_processing(filelist[0])
+        perform_integrations(pipeline_dict,localtime)
 
     #TODO finish this once the initial processing is setup and the state is saved
     '''
@@ -97,7 +111,7 @@ if True:
     herepath=os.getcwd()
 
     INPATH  = os.path.join(herepath,'localdbug/weak_dipole')
-    OUTPATH = os.path.join(herepath,'localdbug/weak_dipole')
+    OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/analysis')
 
     main()
 
