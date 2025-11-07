@@ -13,7 +13,11 @@ if os.getcwd() not in sys.path:
     sys.path.append(os.getcwd())
 import global_energetics
 from global_energetics.makevideo import time_sort, get_time
-from global_energetics.extract.pv_magnetosphere import setup_pipeline
+from global_energetics.extract.pv_magnetosphere import (setup_pipeline,
+                                                        generate_surfaces,
+                                                        generate_volumes,
+                                                        merge_times,
+                                                        update_merge)
 from global_energetics.extract.pv_input_tools import (read_tecplot,read_aux)
 from global_energetics.extract.pv_tools import create_globe
 from global_energetics.extract.pv_surface_tools import (
@@ -23,43 +27,44 @@ from global_energetics.extract.pv_volume_tools import get_numpy_volume_analysis
 global FILTER
 FILTER = paraview.vtk.vtkAlgorithm # Generic "filter" object
 
-def initial_processing(infile:str) -> [dict,dt.datetime]:
+def initial_processing(infiles:list) -> [dict,dt.datetime]:
     print('INITALIZING SURFACES & VOLUMES: ...')
     # Read aux data
-    aux = read_aux(infile.replace('.dat','.aux'))
+    aux = read_aux(infiles[1].replace('.dat','.aux'))
     # Get time information
-    localtime = get_time(infile)
+    localtime = get_time(infiles[1])
     # Create a representation of Earth updated with the coord system
     #earth = create_globe(localtime,coord='gsm')
 
-    # Setup the pipeline
-    pipeline_dict = setup_pipeline(infile,doEnergyFlux=True,
-                                          doVolumeEnergy=True,
-                                          do_daynight=False,
-                                     surfaces=['mp','closed','lobes','inner'],
-                                          tail_x=-60,
-                                          aux=aux,
-                                          path=OUTPATH)
+    # Setup the pipeline for 3 time steps
+    settings = {'doEnergyFlux':True,
+                'doVolumeEnergy':True,
+                'do_daynight':False,
+                'surfaces':['mp','closed','lobes','inner'],
+                'tail_x':-60,
+                'aux':aux}
+    past    = setup_pipeline(infiles[0],**settings)
+    present = setup_pipeline(infiles[1],**settings)
+    future  = setup_pipeline(infiles[2],**settings)
 
-    '''
-    surf_colors = {'mp':np.array([245,245,245])/255,#white
-                   'closed':np.array([235,70,7])/255,#orange-red
-                   'lobes':np.array([7,235,229])/255,#cyan
-                   'inner':np.array([225,235,7])/255}#yellow
-    renderView = GetActiveView()# for view hooks
-    for surf,filt in pipeline_dict['surfaces'].items():
-        display = Show(filt,renderView,'GeometryRepresentation')
-        ColorBy(display, None)# solid color, no variable contour
-        display.AmbientColor = surf_colors[surf]
-        display.DiffuseColor = surf_colors[surf]
-        display.Opacity = 0.3
-    '''
-    return pipeline_dict,localtime
+    # Merge 3 times into one for just the volume data
+    merged  = merge_times([past['field'],present['field'],future['field']])
 
-def perform_integrations(pipeline_dict:dict,tstamp:dt.datetime) -> None:
+    # Generate surfaces from the present time, and volumes from merged time
+    pipeline = present
+    surfaces = generate_surfaces(present['field'],
+                                 surfaces=settings['surfaces'])
+    #volumes  = generate_volumes(merged,surfaces=settings['surfaces'])
+    volume   = merged
+
+    return pipeline,surfaces,volume,localtime
+
+def perform_integrations(surfaces:dict,volume:object,
+                           tstamp:dt.datetime) -> None:
     # Perform calculations
-    surface_results = get_numpy_surface_analysis(pipeline_dict['surfaces'])
-    volume_results = get_numpy_volume_analysis(pipeline_dict['volumes'])
+    surface_results = get_numpy_surface_analysis(surfaces)
+    volume_results = get_numpy_volume_analysis(volume,
+                                        volume_list=['mp','closed','lobes'])
 
     # Set output filename
     outfile = ('energetics_'+tstamp.isoformat().replace(':',''
@@ -87,10 +92,9 @@ def main() -> None:
 
     # If we have a state ready, load it, otw do initial processing
     if True:
-        pipeline_dict,localtime = initial_processing(filelist[0])
-        perform_integrations(pipeline_dict,localtime)
+        pipeline,surfaces,volume,localtime = initial_processing(filelist)
+        perform_integrations(surfaces,volume,localtime)
 
-    #TODO finish this once the initial processing is setup and the state is saved
     '''
     for ifile,infile in enumerate(filelist):
         # Set output file name

@@ -12,6 +12,44 @@ from global_energetics.extract import pv_visuals
 from global_energetics.extract import pv_fte
 from global_energetics.extract import pv_mapping
 
+def merge_times(sourcelist:list[object],*,
+               sourcenames:list=['past','present','future'],
+                                               **kwargs:dict) -> object:
+    """ Merges multiple sources together
+    """
+    merged = ProgrammableFilter(registrationName='merged',Input=sourcelist)
+    merged.Script = update_merge(**kwargs)
+    return merged
+
+def update_merge(*,
+        keeplist:list=['Rho_amu_cm3','U_km_s','B_nT','P_nPa','J_uA_m2',
+                       'Status','dvol_R3','r_R',
+                       'phi_1_deg','phi_2_deg','theta_1_deg','theta_2_deg',
+                       'Utot_J_Re3','uB_J_Re3','uHydro_J_Re3',
+                       'KE_J_Re3','Pth_J_Re3','uB_dipole_J_Re3','u_db_J_Re3',
+                       'mp','closed','lobes','inner'],
+                                                        **kwargs:dict) -> str:
+    return f"""
+past    = inputs[0]
+present = inputs[1]
+future  = inputs[2]
+
+# pass XYZ to the merge
+output.PointData.append(present.PointData['x'],'x')
+output.PointData.append(present.PointData['y'],'y')
+output.PointData.append(present.PointData['z'],'z')
+
+# tag variables and pass only some things to the output
+keep_list = {keeplist}
+for variable in keep_list:
+    if (variable in past.PointData.keys() and
+        variable in present.PointData.keys() and
+        variable in future.PointData.keys()):
+        output.PointData.append(past.PointData[variable],'PAST'+variable)
+        output.PointData.append(present.PointData[variable],variable)
+        output.PointData.append(future.PointData[variable],'FUTURE'+variable)
+    """
+
 def generate_volumes(pipeline:object,**kwargs:dict) -> object:
     """ Calls volume_tools extract_volume function to generate 3D sub-volumes
     """
@@ -116,6 +154,7 @@ def setup_pipeline(infile:str,**kwargs:dict):
                                variables
         mp (source/filter)- final version of magnetopause
     """
+    print(f"INITIALIZING PIPELINE FROM {infile.split('/')[-1]} ...")
     #### disable automatic camera reset on 'Show'
     paraview.simple._DisableFirstRenderCameraReset()
     # Read input file
@@ -240,10 +279,10 @@ for key,arr in output_staging.items():
     # End prog filter things
     ########################################################################
     ###Generate surfaces using the contour filter
-    surfaces_dict = generate_surfaces(pipeline,**kwargs)
+    #surfaces_dict = generate_surfaces(pipeline,**kwargs)
 
     ###Generate volumes as threshold filters
-    volumes_dict = generate_volumes(pipeline,**kwargs)
+    #volumes_dict = generate_volumes(pipeline,**kwargs)
 
     # Stand-alone, larger filters that are less default
     if kwargs.get('ffj',False):
@@ -340,7 +379,7 @@ for key,arr in output_staging.items():
                 obj, fluxResults = pv_volume_tools.add_fluxVolume(clip2,
                                                                   **kwargs)
     ### Collect returnable items
-    return {'field':field,'surfaces':surfaces_dict,'volumes':volumes_dict}
+    return {'source':sourcedata,'head':pipelinehead,'field':field}
 
 if __name__ == "__main__":
     import os
