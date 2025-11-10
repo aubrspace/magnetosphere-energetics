@@ -36,7 +36,7 @@ def bfield_project(Input,r1,r2,**kwargs):
     stretch.CoordinateResults = 1
     return stretch
 
-def reversed_mapping(pipeline:object,**kwargs:dict) -> object|str:
+def reversed_mapping(pipeline:object,**kwargs:dict) -> object:
     script = get_reverse_map_script()
     if kwargs.get('verbose_pipeline',False):
         rmap =ProgrammableFilter(registrationName='reverse_map',Input=pipeline)
