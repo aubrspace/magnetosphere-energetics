@@ -2,8 +2,8 @@
 """Modifies tecplot .plt files to be save for the VisIt reader in Paraview
 """
 import sys,os,glob,time
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
+sys.path.append(os.getcwd().split('magnetosphere-energetics')[0]+
+                                      'magnetosphere-energetics/')
 import datetime as dt
 import tecplot as tp
 #Interpackage imports
@@ -38,7 +38,7 @@ def fix_dat_files(pathtofiles:str,**kwargs:dict) -> None:
             standarize (bool)- default True, standardize the file names
             keep (bool)- default False, have only modified one remaining
     """
-    for i,infile in enumerate(glob.glob(pathtofiles+'*d__*.dat')):
+    for i,infile in enumerate(glob.glob(pathtofiles+'*d__var*.dat')):
         outfile = 'paraview'.join(infile.split('/')[-1].split('var'))
         if kwargs.get('standardize',False):
             outfile_name = standardize_name(outfile)
@@ -182,13 +182,13 @@ if __name__ == '__main__':
         doVerbose=True
     else:
         doVerbose=False
-    if '-c' in sys.argv:
+    if '-c' in sys.argv and '-a' not in sys.argv:
         tp.session.connect()
     if '-k' in sys.argv or '--keep' in sys.argv:
         keepboth = True
     else:
         keepboth = False
-    if '-d' in sys.argv or '--dat' in sys.argv:
+    if '-a' in sys.argv or '--ascii' in sys.argv:
         doDatfix = True
     else:
         doDatfix = False
