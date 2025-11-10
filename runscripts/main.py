@@ -2,8 +2,8 @@
 """script for calculating integrated quantities from mp and cps
 """
 import os,sys
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
+sys.path.append(os.getcwd().split('magnetosphere-energetics')[0]+
+                                      'magnetosphere-energetics/')
 import time
 import logging
 import glob
@@ -116,11 +116,13 @@ if __name__ == "__main__":
     # Set file paths/individual file
     #inpath = 'error_results/hitime_run/'
     #inpath = 'localdbug/parameter_study/MEDHIGH/'
-    inpath = 'localdbug/starlink/'
+    #inpath = 'localdbug/starlink/'
+    inpath = 'localdbug/weak_dipole/'
     #outpath = 'error_results/hitime_run/'
     #outpath = 'localdbug/parameter_study/MEDHIGH/'
-    outpath = 'localdbug/starlink/'
-    head = '3d__var_*'
+    #outpath = 'localdbug/starlink/'
+    outpath = 'localdbug/weak_dipole/'
+    head = '3d__var_*.plt'
     #ie_stylehead_north, ie_stylehead_south = 'north_pc.sty','south_pc.sty'
     #gm_stylehead = 'simple_vis.sty'
     #gm_stylehead = 'ffj_vis.sty'
@@ -130,7 +132,7 @@ if __name__ == "__main__":
     filelist = sorted(glob.glob(os.path.join(inpath,head)),
                       key=makevideo.time_sort)
     #oggridfile = glob.glob(os.path.join(inpath,'3d*volume*.plt'))[0]
-    oggridfile = 'localdbug/starlink/3d__var_1_e20240510-173300-033.plt'
+    #oggridfile = 'localdbug/starlink/3d__var_1_e20240510-173300-033.plt'
 
     i=0
     #for k,f in enumerate(filelist[0:1]):
@@ -176,17 +178,17 @@ if __name__ == "__main__":
                                       disp_result=True,
                                       do_cms=True,
                                       do_1Dsw=False,
-                                      analysis_type='energy_mass_mag_plasmoid',
-                                      tail_cap=-120,
+                                      analysis_type='energy',
+                                      tail_cap=-60,
                                       modes=['iso_betastar','closed',
-                                             'nlobe','slobe','plasmasheet'],
+                                             'nlobe','slobe'],
                                       #modes=['xslice'],
                                       customTerms={'test':'TestArea [Re^2]'},
                                       do_interfacing=True,
                                       integrate_line=False,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                                      truegridfile=oggridfile,
+                                      truegridfile='',
                                       verbose=True,
                                       extract_flowline=False,
                                       outputpath=outpath)

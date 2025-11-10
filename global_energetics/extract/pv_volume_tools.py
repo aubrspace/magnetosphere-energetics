@@ -13,29 +13,48 @@ def get_diff_volume_integrals(volume:str,np_volume:dict[np.ndarray],
     conditions = {}
     if volume=='mp':
         #M  -  [not mp]  <-> [mp]
-        conditions['M'] = -1*(np_volume['FUTUREmp']*
-                                         (1-np_volume['PASTmp']))/dt
-    if volume=='closed':
-        #M5 -  [not mp]  <-> [closed]
-        #M2 -  [lobes]   <-> [closed]
-        conditions['M5'] = -1*(
-                np_volume['FUTUREclosed']*(1-np_volume['PASTmp'])-
-               (1-np_volume['FUTUREmp'])*np_volume['PASTclosed'])/dt
-        conditions['M2'] = -1*(
-                np_volume['FUTUREclosed']*(1-np_volume['PASTlobes'])-
-            (1-np_volume['FUTURElobes'])*np_volume['PASTclosed'])/dt
-    if volume=='lobes':
         #M1 -  [not mp]  <-> [lobes]
-        #M2 -  [closed]  <-> [lobes]
+        #M5 -  [not mp]  <-> [closed]
+        conditions['M'] = -1*(
+                np_volume['FUTUREmp']*(1-np_volume['PASTmp']) -
+                np_volume['PASTmp']*  (1-np_volume['FUTUREmp'])
+                              )/dt
         conditions['M1'] = -1*(
-                np_volume['FUTURElobes']*(1-np_volume['PASTmp'])-
-                (1-np_volume['FUTUREmp'])*np_volume['PASTlobes'])/dt
+                np_volume['FUTURElobes']*(1-np_volume['PASTmp']) -
+                np_volume['PASTlobes']*  (1-np_volume['FUTUREmp'])
+                              )/dt
+        conditions['M5'] = -1*(
+                np_volume['FUTUREclosed']*(1-np_volume['PASTmp']) -
+                np_volume['PASTclosed']*  (1-np_volume['FUTUREmp'])
+                              )/dt
+    if volume=='closed':
+        #M2 -  [lobes]   <-> [closed]
+        conditions['M2'] = -1*(
+                np_volume['FUTUREclosed']*  (1-np_volume['PASTlobes'])-
+                np_volume['PASTclosed']*    (1-np_volume['FUTURElobes'])
+                              )/dt
+    if volume=='lobes':
+        #M2 -  [closed]  <-> [lobes]
+        pass
+    if volume=='sheath':
+        #M0 -  [solar wind]  <-> [sheath]
+        #M15 -  [mp]         <-> [sheath]
+        conditions['M0'] = -1*(
+                np_volume['FUTUREsheath']*((1-np_volume['PASTmp'])*
+                                           (1-np_volume['PASTsheath'])) -
+                np_volume['PASTsheath']*((1-np_volume['FUTUREmp'])*
+                                         (1-np_volume['FUTUREsheath']))
+                              )/dt
+        conditions['M15'] = -1*(
+                np_volume['FUTUREsheath']* np_volume['PASTmp'] -
+                np_volume['PASTsheath']*   np_volume['FUTUREmp']
+                               )/dt
     return conditions
 
 def get_numpy_volume_analysis(source:object,*,
                          volume_list:list['mp'],
                       integrands:list=['Utot_J_Re3','uHydro_J_Re3','uB_J_Re3'],
-                                   skip_keys:list=[]) -> dict:
+                                skip_keys:list=[],**kwargs:dict) -> dict:
     """Staging function that will take the volume_dict and pass what is needed
         for each calculation one at a time, compiling the results
     Inputs
@@ -48,11 +67,12 @@ def get_numpy_volume_analysis(source:object,*,
     Returns
         results_dict {str:np.ndarray}
     """
-    integral_translation = {'Utot_J_Re3':('Utot','_PJ'),# gives ID tag, unit
-                          'uHydro_J_Re3':('uHydro','_PJ'),
-                              'uB_J_Re3':('uB','_PJ')}
+    integral_translation = {'Utot_J_Re3':('Utot','_J'),# gives ID tag, unit
+                          'uHydro_J_Re3':('uHydro','_J'),
+                              'uB_J_Re3':('uB','_J')}
     results = {}
-    print('ANALYZING VOLUME(S): ...')
+    if kwargs.get('verbose',False):
+        print('ANALYZING VOLUME(S): ...')
     # Extract the volume state from VTKArray -> np.ndarray
     np_volume = {}
     data = servermanager.Fetch(source)
@@ -60,30 +80,33 @@ def get_numpy_volume_analysis(source:object,*,
     for variable in data.PointData.keys():
         np_volume[variable] = vtk_to_numpy(data.PointData[variable])
     for volume in volume_list:
-        print(f'\t{volume}')
+        if kwargs.get('verbose',False):
+            print(f'\t{volume}')
         # for volumes the primary (only?) condition is the subvolume itself
         conditions = {'':np_volume[volume]}
         if 'FUTUREUtot_J_Re3' in np_volume.keys():
             conditions.update(get_diff_volume_integrals(volume,np_volume,1800))
-        else:
-            print(np_volume.keys())
         # Calculate each partial integral
         for integrand in integrands:
-            print(f'\t\t{integrand}')
+            if kwargs.get('verbose',False):
+                print(f'\t\t{integrand}')
             # pull out the integrand as an array
             integrand_values = np_volume[integrand]
             # adjust post-integration units using a dict
             integral_name, units = integral_translation[integrand]
             #TODO - check the magnitudes or the conversion somewhere ...
             for condition_name,cond in conditions.items():
-                entry_name = volume+'_'+integral_name+condition_name+units
+                if condition_name=='':
+                    entry_name = volume+'_'+integral_name+condition_name+'_J'
+                else:
+                    entry_name = volume+'_'+integral_name+condition_name+'_W'
                 results[entry_name] = np.sum(integrand_values*cond*
-                                                    np_volume['dvol_R3'])/1e15
+                                                    np_volume['dvol_R3'])
             if 'FUTUREUtot_J_Re3' in np_volume.keys():
-                entry_name = volume+integral_name+'ddt'+units
+                entry_name = volume+'_'+integral_name+'ddt'+'_W'
                 results[entry_name] = np.sum((np_volume['PAST'+integrand]-
                                               np_volume['FUTURE'+integrand])*
-                           np_volume[volume]*np_volume['dvol_R3'])/(1e15*1800)
+                           np_volume[volume]*np_volume['dvol_R3'])/(1800)
     return results
 
 def extract_volume(source:object,

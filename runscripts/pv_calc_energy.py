@@ -30,7 +30,10 @@ FILTER = paraview.vtk.vtkAlgorithm # Generic "filter" object
 def initial_processing(infiles:list) -> [dict,dt.datetime]:
     print('INITALIZING SURFACES & VOLUMES: ...')
     # Read aux data
-    aux = read_aux(infiles[1].replace('.dat','.aux'))
+    if '.dat' in infiles[1]:
+        aux = read_aux(infiles[1].replace('.dat','.aux'))
+    elif '.plt' in infiles[1]:
+        aux = read_aux(infiles[1].replace('.plt','.aux'))
     # Get time information
     localtime = get_time(infiles[1])
     # Create a representation of Earth updated with the coord system
@@ -39,8 +42,9 @@ def initial_processing(infiles:list) -> [dict,dt.datetime]:
     # Setup the pipeline for 3 time steps
     settings = {'doEnergyFlux':True,
                 'doVolumeEnergy':True,
+                'doEntropy':True,
                 'do_daynight':False,
-                'surfaces':['mp','closed','lobes','inner'],
+                'surfaces':['mp','closed','lobes','inner','sheath'],
                 'tail_x':-60,
                 'aux':aux}
     past    = setup_pipeline(infiles[0],**settings)
@@ -60,11 +64,12 @@ def initial_processing(infiles:list) -> [dict,dt.datetime]:
     return pipeline,surfaces,volume,localtime
 
 def perform_integrations(surfaces:dict,volume:object,
-                           tstamp:dt.datetime) -> None:
+                           tstamp:dt.datetime,**kwargs) -> None:
     # Perform calculations
-    surface_results = get_numpy_surface_analysis(surfaces)
-    volume_results = get_numpy_volume_analysis(volume,
-                                        volume_list=['mp','closed','lobes'])
+    surface_results = get_numpy_surface_analysis(surfaces,**kwargs)
+    volume_results  = get_numpy_volume_analysis(volume,
+                                 volume_list=['mp','closed','lobes','sheath'],
+                                               **kwargs)
 
     # Set output filename
     outfile = ('energetics_'+tstamp.isoformat().replace(':',''
@@ -79,7 +84,8 @@ def perform_integrations(surfaces:dict,volume:object,
     combined_results.update(volume_results)
     np.savez_compressed(f"{OUTPATH}/{outfile}",allow_pickle=False,
                         **combined_results)
-    print(f"\033[92m Saved\033[00m {OUTPATH}/{outfile}")
+    #print(f"\033[92m Saved\033[00m {OUTPATH}/{outfile}")
+    print(f"\033[92m Saved\033[00m {outfile}")
 
 def main() -> None:
     # Locate files
@@ -87,24 +93,68 @@ def main() -> None:
 
     # Initialize variables
     tstart = get_time(filelist[0])# for relative timestamping
-    renderView1 = GetActiveViewOrCreate('RenderView')# for view hooks
-    energetics = {}# output data -> .npz file
+    renderView = GetActiveViewOrCreate('RenderView')# for view hooks
 
     # If we have a state ready, load it, otw do initial processing
     if True:
+        # Load
+        LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'))
+        # Get view
+        renderView = GetActiveView()
+        # Set the heads of the pipeline
+        old_past_head   = FindSource('3d__paraview_4_e20000101-151500-014')
+        old_present_head= FindSource('3d__paraview_4_e20000101-153000-014')
+        old_future_head = FindSource('3d__paraview_4_e20000101-154500-014')
+        # Set the tails where the processing takes over
+        surfaces = {'mp'    :FindSource('mp'),
+                    'closed':FindSource('closed'),
+                    'lobes' :FindSource('lobes'),
+                    'inner' :FindSource('inner'),
+                    'sheath':FindSource('sheath')}
+        volume = FindSource('merged')
+    else:
         pipeline,surfaces,volume,localtime = initial_processing(filelist)
         perform_integrations(surfaces,volume,localtime)
+        old_past_head   = FindSource(filelist[0].split('/')[-1].split('.')[0])
+        old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
+        old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    '''
-    for ifile,infile in enumerate(filelist):
+    for ifile,infile in enumerate(filelist[1:-1]):
         # Set output file name
-        outfile='t'+str(ifile)+infile.split('_4_e')[-1].replace('.dat','.png')
-        # Read aux data
-        aux = read_aux(infile.replace('.dat','.aux'))
-        # Get time information
-        localtime = get_time(infile)
-    '''
+        outfile='t'+str(ifile)+'_'+infile.split('_4_e')[-1].replace(
+                                                                '.dat','.png')
+        if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
+            pass# Skip
+        else:
+            print(f"{infile.split('/')[-1]}")
+            # Read aux data
+            aux = read_aux(infile.replace('.dat','.aux'))
+            # Get time information
+            localtime = get_time(infile)
+            # Update time
+            timestamp = FindSource('time')
+            timestamp.Text = str(localtime)
 
+            # Update the pipeline
+            new_data = read_tecplot(filelist[ifile+1])
+            old_data = old_past_head.Input
+            # Set old_future_head to new_data
+            #     old_present_head to old_future_file
+            #     old_past_head to old_present_file
+            #     delete old_past_file
+            old_future_head.Input = new_data
+            old_present_head.Input= FindSource(filelist[ifile].split('/')[-1])
+            old_past_head.Input = FindSource(filelist[ifile-1].split('/')[-1])
+            Delete(old_data)
+            del old_data
+
+            # Crunch the numbers
+            perform_integrations(surfaces,volume,localtime)
+
+            # Save screenshot
+            SaveScreenshot(f"{OUTPATH.replace('analysis','png')}/{outfile}",
+                           GetLayout())
+            print(f"\033[36m Saved \033[00m {outfile}")
 
 if True:
     start_time = time.time()

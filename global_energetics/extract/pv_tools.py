@@ -488,10 +488,11 @@ def tec2para(instr):
         outstr (str)
     """
     badchars = ['{','}','[',']']
-    replacements = {' [':'_','**':'^','1e':'10^','pi':'3.14159',#generic
-          '/Re':'_Re', 'amu/cm':'amu_cm','km/s':'km_s','/m':'_m',#specific
+    replacements = {'m^':'m','e^':'e','^3':'3',#very specific, for units only
+            '/Re':'_Re', 'amu/cm':'amu_cm','km/s':'km_s','/m':'_m',#specific
             '/MAX':'/max',#string formatting
-                    'm^':'m','e^':'e','^3':'3'}#very specific, for units only
+            ' [':'_','**':'^','pi':'3.14159'}#generic
+            #'e':'*10^',
             #'/':'_',
     coords = {'X_R':'x','Y_R':'y','Z_R':'z'}
     outstr = instr

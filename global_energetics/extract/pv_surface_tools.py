@@ -82,11 +82,16 @@ def map_surface_to_interfaces(surface_name:str,
         conditions['K3n'] = construct_condition(['open','north'],surface_data)
         conditions['K3s'] = construct_condition(['open','south'],surface_data)
         conditions['K7'] = construct_condition(['closed'],surface_data)
+    if surface_name == 'sheath':
+        # K0        - no tail
+        # K8        - tail
+        conditions['K0'] = construct_condition(['no_tail'],surface_data)
+        conditions['K8'] = construct_condition(['tail'],surface_data)
     return conditions
 
 def get_numpy_surface_analysis(surfaces_dict:dict,*,
                             integrands:list=['K_W_Re2','ExB_W_Re2','P0_W_Re2'],
-                                   skip_keys:list=[]) -> dict:
+                                   skip_keys:list=[],**kwargs) -> dict:
     """Staging function that will take the surface_dict and pass what is needed
         for each calculation one at a time, compiling the results
     Inputs
@@ -97,13 +102,15 @@ def get_numpy_surface_analysis(surfaces_dict:dict,*,
     Returns
         results_dict {str:np.ndarray}
     """
-    integral_translation = {'K_W_Re2':('K','_TW'),# gives ID tag, unit
-                          'ExB_W_Re2':('ExB','_TW'),
-                           'P0_W_Re2':('P0','_TW')}
+    integral_translation = {'K_W_Re2':('K','_W'),# gives ID tag, unit
+                          'ExB_W_Re2':('ExB','_W'),
+                           'P0_W_Re2':('P0','_W')}
     results = {}
-    print('ANALYZING SURFACE(S): ...')
+    if kwargs.get('verbose',False):
+        print('ANALYZING SURFACE(S): ...')
     for surf,source in surfaces_dict.items():
-        print(f'\t{surf}')
+        if kwargs.get('verbose',False):
+            print(f'\t{surf}')
         # Extract the surface state from VTKArray -> np.ndarray
         np_surface = {}
         data = servermanager.Fetch(source)
@@ -114,7 +121,8 @@ def get_numpy_surface_analysis(surfaces_dict:dict,*,
         conditions = map_surface_to_interfaces(surf,np_surface)
         # Calculate each partial integral
         for integrand in integrands:
-            print(f'\t\t{integrand}')
+            if kwargs.get('verbose',False):
+                print(f'\t\t{integrand}')
             # pull out the integrand as an array
             integrand_values = np_surface[integrand]
             # adjust post-integration units using a dict
@@ -123,14 +131,14 @@ def get_numpy_surface_analysis(surfaces_dict:dict,*,
             entry_name = surf+'_'+integral_name+units
             results[entry_name] = np.sum(np.sum(
                                 integrand_values*np_surface['Normals'],axis=1)
-                                                      *np_surface['Area'])/1e12
+                                                      *np_surface['Area'])
             for condition_name,cond in conditions.items():
                 # Set the specific entry given the surf+condition combo
                 entry_name = surf+'_'+integral_name+condition_name+units
                 # Use double np.sum for dot product with Normals and Area
                 results[entry_name] = np.sum(np.sum(
                     integrand_values[cond]*np_surface['Normals'][cond],axis=1)
-                                                *np_surface['Area'][cond])/1e12
+                                                *np_surface['Area'][cond])
         ##################################################################
         #DEBUG
         #np.savez_compressed(surf+'.npz',allow_pickle=False,**np_surface)
@@ -199,7 +207,7 @@ output.PointData.append(mp,'mp')"""
         script+="""
 #Assign to output
 output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
-output.PointData.append(mp,'mp')"""
+"""
         #Must have the following conditions met first
         assert 'beta_star' in inputsource.PointData.keys(), 'No Beta*!'
         mp = ProgrammableFilter(registrationName='mp',
@@ -338,6 +346,75 @@ output.PointData.append(lobes,'lobes')"""
     else:
         return script
     pass
+
+def create_sheath_state(pipeline:object,**kwargs:dict) -> object:
+    """Function calculates a magnetosheath variable, NOTE:will still need to
+        process variable into iso surface then cleanup iso surface!
+    Inputs
+        inputsource (filter/source)- upstream that calculator will process
+        kwargs:
+            verbose_pipeline (bool) - default False
+            betastar_max (float)- default 0.7
+            status_closed (float)- default 3
+            tail_x (float)- default -20
+            x0,y0,z0 (float)- location to sample upstream specific entropy s0
+            s_ratio (float)- ratio of s/s0 which indicates post shock (2.4)
+    Returns
+        outputsource (filter)- last filter applied keeping a straight pipeline
+            or
+        string (script)- just the text of the prog filter to be combined
+    """
+    if not kwargs.get('mp_calculated',False):
+        betastar_max = kwargs.get('betastar_max',0.7)
+        closed_value = kwargs.get('status_closed',3)
+        inner_r = kwargs.get('inner_r',3.0)
+    tail_x = kwargs.get('tail_x',-20)
+    x0 = kwargs.get('x0',15)
+    y0 = kwargs.get('y0',0)
+    z0 = kwargs.get('z0',0)
+    s_ratio = kwargs.get('s_ratio',2.4)
+    script = ''
+    if kwargs.get('verbose_pipeline',False):
+        script +=f"""
+# Get input
+beta_star = inputs[0].PointData['beta_star']
+Status = inputs[0].PointData['Status']
+x = inputs[0].PointData['x']
+y = inputs[0].PointData['y']
+z = inputs[0].PointData['z']
+r_R = inputs[0].PointData['r_R']
+s = inputs[0].PointData['s']
+"""
+
+    if not kwargs.get('mp_calculated',False):
+        script +=f"""
+#Compute magnetopause as logical combination
+mp = ((Status>=1)&(beta_star<{betastar_max})&
+          (x>{tail_x})&(r_R>={inner_r})
+                |
+            (Status=={closed_value})&
+          (x>{tail_x})&(r_R>={inner_r})).astype(int)
+"""
+    script +=f"""
+s0 = s[(abs(x-{x0})<1) & (abs(y-{y0})<1) & (abs(z-{z0})<1)].mean()
+# Define magnetosheath as: s/s0 > Const. AND not magnetosphere
+sheath = (((s/s0)>{s_ratio}) & (~ mp) & (x>{tail_x})).astype(int)
+output.PointData.append(sheath,'sheath')
+"""
+
+    if kwargs.get('verbose_pipeline',False):
+        script+="""
+#Assign to output
+output.ShallowCopy(inputs[0].VTKObject)#So rest of inputs flow
+"""
+        #Must have the following conditions met first
+        assert 'beta_star' in inputsource.PointData.keys(), 'No Beta*!'
+        mp = ProgrammableFilter(registrationName='mp',
+                                      Input=inputsource)
+        mp.Script = script
+        return mp
+    else:
+        return script
 
 
 def create_iso_surface(inputsource, variable, name, **kwargs):

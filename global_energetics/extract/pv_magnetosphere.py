@@ -27,7 +27,7 @@ def update_merge(*,
                        'phi_1_deg','phi_2_deg','theta_1_deg','theta_2_deg',
                        'Utot_J_Re3','uB_J_Re3','uHydro_J_Re3',
                        'KE_J_Re3','Pth_J_Re3','uB_dipole_J_Re3','u_db_J_Re3',
-                       'mp','closed','lobes','inner'],
+                       'mp','closed','lobes','inner','sheath'],
                                                         **kwargs:dict) -> str:
     return f"""
 past    = inputs[0]
@@ -127,6 +127,14 @@ def load_state_variables(pipeline:object,**kwargs:dict) -> object:
             #                                      ['verbose_pipeline',
             #                                       'inner_r']
             #                                      if k in kwargs})
+        if 'sheath' in surface:
+            state = pv_surface_tools.create_sheath_state(pipeline,
+                                               **{k:kwargs[k] for k in
+                                                  ['verbose_pipeline',
+                                                   'betastar_max',
+                                                   'status_closed','tail_x',
+                                                   'x0','y0','z0','s_ratio']
+                                                  if k in kwargs})
         if kwargs.get('verbose_pipeline',False):
             pipeline = state
         else:
@@ -161,7 +169,8 @@ def setup_pipeline(infile:str,**kwargs:dict):
     sourcedata = pv_input_tools.read_tecplot(infile)
 
     # apply 'Merge Blocks' so 'Connectivity' can be used
-    mergeBlocks1 = MergeBlocks(registrationName='MergeBlocks1',
+    mergeBlocks1 = MergeBlocks(
+                        registrationName=infile.split('/')[-1].split('.')[0],
                                Input=sourcedata)
 
     ##Set the head of the pipeline, we will want to return this!
