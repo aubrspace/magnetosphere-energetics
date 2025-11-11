@@ -98,13 +98,15 @@ def main() -> None:
     # If we have a state ready, load it, otw do initial processing
     if True:
         # Load
-        LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'))
+        #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
+        #          data_directory=INPATH)
+        LoadState(os.path.join(os.getcwd(),'cosmetic/magnetopause_and_sheath.pvsm'))
         # Get view
         renderView = GetActiveView()
         # Set the heads of the pipeline
-        old_past_head   = FindSource('3d__paraview_4_e20000101-151500-014')
+        old_past_head   = FindSource('3d__paraview_4_e20000101-150000-000')
         old_present_head= FindSource('3d__paraview_4_e20000101-153000-014')
-        old_future_head = FindSource('3d__paraview_4_e20000101-154500-014')
+        old_future_head = FindSource('3d__paraview_4_e20000101-154500-012')
         # Set the tails where the processing takes over
         surfaces = {'mp'    :FindSource('mp'),
                     'closed':FindSource('closed'),
@@ -119,7 +121,7 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    for ifile,infile in enumerate(filelist[1:-1]):
+    for ifile,infile in enumerate(filelist[1:5]):
         # Set output file name
         outfile='t'+str(ifile)+'_'+infile.split('_4_e')[-1].replace(
                                                                 '.dat','.png')
@@ -147,6 +149,7 @@ def main() -> None:
             old_past_head.Input = FindSource(filelist[ifile-1].split('/')[-1])
             Delete(old_data)
             del old_data
+            renderView.Update()
 
             # Crunch the numbers
             perform_integrations(surfaces,volume,localtime)
@@ -164,8 +167,8 @@ if True:
 
     herepath=os.getcwd()
 
-    INPATH  = os.path.join(herepath,'localdbug/weak_dipole')
-    OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/analysis')
+    INPATH  = os.path.join(herepath,'weakdip_50_katus/GM/')
+    OUTPATH = os.path.join(herepath,'weakdip_50_katus/GM/analysis')
 
     main()
 
