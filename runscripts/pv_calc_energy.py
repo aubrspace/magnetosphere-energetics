@@ -121,7 +121,7 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    for ifile,infile in enumerate(filelist[1:5]):
+    for ifile,infile in enumerate(filelist[1:-1]):
         # Set output file name
         outfile='t'+str(ifile)+'_'+infile.split('_4_e')[-1].replace(
                                                                 '.dat','.png')
@@ -149,7 +149,12 @@ def main() -> None:
             old_past_head.Input = FindSource(filelist[ifile-1].split('/')[-1])
             Delete(old_data)
             del old_data
+
+            # Update
             renderView.Update()
+            for surf_name,surface in surfaces.items():
+                surface.UpdatePipeline()
+            volume.UpdatePipeline()
 
             # Crunch the numbers
             perform_integrations(surfaces,volume,localtime)
