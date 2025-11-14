@@ -74,12 +74,13 @@ def equations(**kwargs):
     equations['interface_testing'] = {'{test}':'1'}
     #Useful spatial variables
     equations['basic3d'] = {
-                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)',
-                       #'{Cell Size [Re]}':'{dvol [R]^3}**(1/3)',
-                       '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
+                       '{r [R]}':'sqrt({X [R]}**2+{Y [R]}**2+{Z [R]}**2)'}
     #2D versions of spatial variables
     equations['basic2d_XY'] = {'{r [R]}':'sqrt({X [R]}**2 + {Y [R]}**2)'}
     equations['basic2d_XZ'] = {'{r [R]}':'sqrt({X [R]}**2 + {Z [R]}**2)'}
+    equations['extra3d'] = {
+                       '{Cell Size [Re]}':'{dvol [R]^3}**(1/3)',
+                       '{h}':'sqrt({Y [R]}**2+{Z [R]}**2)'}
     #Dipolar coordinate variables
     if 'aux' in kwargs and kwargs.get('is3D',True):
         aux=kwargs.get('aux')
@@ -149,7 +150,7 @@ def equations(**kwargs):
                                                  '{U_y [km/s]}*{Y [R]}+'+
                                                  '{U_z [km/s]}*{Z [R]})'}
     ######################################################################
-    #Dipole field (requires coordsys and UT information!!!)
+    #Dipole field (NOTE requires coordsys and UT information!!!)
     if kwargs.get('aux')!=None:
         aux=kwargs.get('aux')
         Bdx_eq,Bdy_eq,Bdz_eq = get_dipole_field(aux)
@@ -259,12 +260,12 @@ def equations(**kwargs):
     #   Total pressure Flux (plasma energy flux)
     #   Total Energy Flux
     equations['energy_flux'] = {
-        '{unitbx}':'{B_x [nT]}/MAX(1e-15,'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
-        '{unitby}':'{B_y [nT]}/MAX(1e-15,'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
-        '{unitbz}':'{B_z [nT]}/MAX(1e-15,'+
-                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2))',
+        '{unitbx}':'{B_x [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+        '{unitby}':'{B_y [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
+        '{unitbz}':'{B_z [nT]}/'+
+                        'sqrt({B_x [nT]}**2+{B_y [nT]}**2+{B_z [nT]}**2)',
         '{J_par [uA/m^2]}':'{unitbx}*{J_x [uA/m^2]} + '+
                               '{unitby}*{J_y [uA/m^2]} + '+
                               '{unitbz}*{J_z [uA/m^2]}',
@@ -379,7 +380,7 @@ def equations(**kwargs):
     ######################################################################
     #Entropy and 1D things
     equations['entropy'] = {
-        '{s [Re^4/s^2kg^2/3]}':'{P [nPa]}/{Rho [amu/cm^3]}**('+g+')*'+
+        '{s}':'{P [nPa]}/{Rho [amu/cm^3]}**('+g+')*'+
                                     '1.67**('+g+')/6.371**4*100'}
     ######################################################################
     #Some extra's not normally included:

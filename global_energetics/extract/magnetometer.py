@@ -175,7 +175,7 @@ def read_station_locations(*,file_in='stations.loc'):
     Returns
         stations
     """
-    stations = pd.read_csv(file_in,sep='\s+',header=[1],comment='#')
+    stations = pd.read_csv(file_in,sep=r'\s+',header=[1],comment='#')
     stations.index = stations['IAGA']
     stations.drop(columns='IAGA',inplace=True)
     return stations
@@ -231,7 +231,7 @@ def read_simstations(file_in,*,cordsys='GSM'):
     stations = stations.split(' ')[::]
     stations[-1] = stations[-1].split('\n')[0]
     #Read the rest of the data into DataFrame with date parsing
-    station_df = pd.read_csv(file_in,sep='\s+',skiprows=1,
+    station_df = pd.read_csv(file_in,sep=r'\s+',skiprows=1,
                              parse_dates={'times':
                                   ['year','mo','dy','hr','mn','sc','msc']},
                              date_parser=datetimeparser,
@@ -309,7 +309,7 @@ def read_virtual_SML(datafile):
     with open(datafile,'r') as f:
         station_ids = f.readline()
         station_ids = station_ids.replace('\n','').split(' ')
-    results = pd.read_csv(datafile,sep='\s+',skiprows=[0])
+    results = pd.read_csv(datafile,sep=r'\s+',skiprows=[0])
     # Parse a datetime entry and set to the DataFrame index
     results.index = [dt.datetime(*t) for t in
                     results[['year','mo','dy','hr','mn','sc']].values]
@@ -453,7 +453,7 @@ def read_MGL(datapath,**kwargs):
         ut = (ftime-t0).total_seconds()
         gp.recalc(ut)
         grid,headers = readgrid(infile,**kwargs)
-        #grid = pd.read_csv(f,sep='\s+',skiprows=[0,1,2])
+        #grid = pd.read_csv(f,sep=r'\s+',skiprows=[0,1,2])
         min_point = np.argmin(grid[:,headers.index('dBn')])
         dBmin[i] = grid[min_point,headers.index('dBn')]
         geoLat[i] = grid[min_point,headers.index('Lat')]
@@ -492,7 +492,7 @@ def read_SML(datafile):
         header = f.readline()
     header=header.replace('<','').replace('>','').replace('\n','').split('\t')
     # Read data with pandas
-    data=pd.read_csv(datafile,sep='\s+',header=None,names=header,skiprows=[0])
+    data=pd.read_csv(datafile,sep=r'\s+',header=None,names=header,skiprows=[0])
     # Parse a datetime entry and set to the DataFrame index
     data.index = [dt.datetime(*t) for t in
                         data[['year','month','day','hour','min','sec']].values]

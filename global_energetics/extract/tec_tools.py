@@ -1923,6 +1923,7 @@ def get_global_variables(field_data, analysis_type, **kwargs):
         else:
             aux = field_data.zone('global_field').aux_data
         eqeval(alleq['basic3d'])
+        eqeval(alleq['extra3d'])
         if 'dvol [R]^3' in field_data.variable_names:
             eq('{Cell Size [Re]}={dvol [R]^3}**(1/3)',
                                  zones=[field_data.zone('global_field')],

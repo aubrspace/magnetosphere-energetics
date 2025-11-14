@@ -1,6 +1,4 @@
 import paraview
-#paraview.compatibility.major = 5
-#paraview.compatibility.minor = 10
 import numpy as np
 #### import the simple module from paraview
 from paraview.simple import *

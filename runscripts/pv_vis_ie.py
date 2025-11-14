@@ -17,9 +17,33 @@ import pv_ionosphere
 from pv_input_tools import (read_tecplot)
 from makevideo import (get_time, time_sort)
 
+def calc_oval(ie:dict,itime:int) -> [float,float]:
+    # Define variables at this time index
+    jr = ie['JR [`mA/m^2]'][itime,:].reshape(181,91)
+    colat = ie['Theta [deg]'][itime,:].reshape(181,91)
+    lon = ie['Psi [deg]'][itime,:].reshape(181,91)
+
+    ## Perform calculations
+    # mean colatitude
+    Jmax = np.max(jr,axis=1) #max along each lon
+    colat_max = colat[0,:][np.argmax(jr,axis=1)]
+    colat_mean = np.sum(Jmax*colat_max)/np.sum(Jmax)
+
+    # dcolat
+    Jnoon = Jmax[0]
+    Jmidnight = Jmax[int(len(Jmax)/2)-1]
+    colat_noon = colat_max[0]
+    colat_midnight = colat_max[int(len(Jmax)/2)-1]
+    dcolat = (Jnoon*(colat_noon-colat_mean)-
+              Jmidnight*(colat_midnight-colat_mean))/(Jnoon+Jmidnight)
+    return colat_mean,dcolat
+
 #if __name__ == "__main__":
 if True:
     start_time = time.time()
+    ie_north = dict(np.load(
+                       'gannon-storm/data/large/IE/ionosphere/compiled_N.npz',
+                    allow_pickle=True))
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
     inpath = os.path.join(herepath,'gannon-storm/data/large/')
@@ -33,8 +57,8 @@ if True:
 
     # Load master state
     print(f'Saving images at {outpath}:')
-    LoadState(outpath+'ie_only_state.pvsm')
-    for i,infile in enumerate(filelist[1000:1001]):
+    LoadState(outpath+'../cpcp_vis_state2.pvsm')
+    for i,infile in enumerate(filelist):
         localtime = get_time(infile)
         outfile = infile.split('/')[-1].replace('.tec','.png')
         # Find corresponding IE file
@@ -47,6 +71,11 @@ if True:
         del oldIE
         # Find new up/down FAC isovolume levels + R1R2 defintions
         FAC2 = pv_ionosphere.id_R1R2_currents(FindSource('names'))
+        # Update oval location
+        oval = FindSource('Oval')
+        colat_mean,dcolat = calc_oval(ie_north,filelist.index(infile))
+        oval.Function = (
+            f"({colat_mean}+({dcolat})*cos(3.14159/180*Psi_deg))-Theta_deg")
         # Update time
         timestamp = FindSource('time')
         timestamp.Text = str(localtime)
