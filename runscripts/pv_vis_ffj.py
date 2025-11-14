@@ -1,9 +1,7 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 10
 import os,sys
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
 
 import time
 import glob
@@ -11,16 +9,16 @@ import numpy as np
 import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
-#import global_energetics.extract.pv_magnetopause
-import pv_magnetopause
-from makevideo import (get_time, time_sort)
-from pv_tools import (update_rotation)
-from pv_input_tools import (read_aux, read_tecplot)
-import pv_surface_tools
-from pv_magnetopause import (setup_pipeline)
-import magnetometer
-from magnetometer import(get_stations_now,update_stationHead)
-from pv_visuals import (display_visuals)
+#### custom packages
+import global_energetics
+from global_energetics.extract.pv_magnetopause import (setup_pipeline)
+from global_energetics.makevideo import (get_time, time_sort)
+from global_energetics.extract.pv_tools import (update_rotation)
+from global_energetics.extract.pv_input_tools import (read_aux, read_tecplot)
+from global_energetics.extract import pv_surface_tools
+from global_energetics.extract.pv_visuals import (display_visuals)
+from global_energetics.extract.magnetometer import (get_stations_now,
+                                                    update_stationHead)
 
 #if __name__ == "__main__":
 if True:

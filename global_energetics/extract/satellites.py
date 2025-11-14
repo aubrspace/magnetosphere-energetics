@@ -2,8 +2,6 @@
 """Extraction routine for ionosphere surface
 """
 import sys,os
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
 import time
 import glob
 import numpy as np

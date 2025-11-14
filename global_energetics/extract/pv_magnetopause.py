@@ -1,6 +1,6 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 10
 
 import os
 import time
@@ -9,16 +9,17 @@ import numpy as np
 import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
-import magnetometer
-from magnetometer import(get_stations_now, read_station_paraview)
-import equations
-import pv_tools
-import pv_input_tools
-import pv_surface_tools
-import pv_volume_tools
-import pv_tabular_tools
-import pv_visuals
-import pv_fte
+#### interpackage
+from global_energetics.extract.magnetometer import (get_stations_now,
+                                                    read_station_paraview)
+from global_energetics.extract import equations
+from global_energetics.extract import pv_tools
+from global_energetics.extract import pv_input_tools
+from global_energetics.extract import pv_surface_tools
+from global_energetics.extract import pv_volume_tools
+from global_energetics.extract import pv_tabular_tools
+from global_energetics.extract import pv_visuals
+from global_energetics.extract import pv_fte
 
 def get_magnetopause_filter(pipeline,**kwargs):
     """Function calculates a magnetopause variable, NOTE:will still need to

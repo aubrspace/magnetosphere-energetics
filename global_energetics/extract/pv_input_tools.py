@@ -1,6 +1,6 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 10
 
 import numpy as np
 import datetime as dt
