@@ -1,7 +1,4 @@
 import paraview
-paraview.compatibility.major = 6
-paraview.compatibility.minor = 0
-
 import numpy as np
 import datetime as dt
 #### import the simple module from paraview

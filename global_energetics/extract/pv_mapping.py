@@ -1,7 +1,5 @@
 # An eclectic  mix of functions ranging from critical to mildly useful
 import paraview
-paraview.compatibility.major = 6
-paraview.compatibility.minor = 0
 import numpy as np
 from numpy import sin,cos,pi
 #### import the simple module from paraview

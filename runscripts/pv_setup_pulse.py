@@ -1,9 +1,9 @@
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 10
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 10
 import os,sys
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
 
 import time
 import glob
@@ -12,27 +12,31 @@ import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
-#import global_energetics.extract.pv_magnetopause
-import pv_magnetopause
-from makevideo import (get_time, time_sort)
-from pv_tools import (update_rotation,slice_and_calc_applied_voltage)
-from pv_input_tools import (read_aux, read_tecplot,find_IE_matched_file)
-import pv_surface_tools
-from pv_magnetopause import (setup_pipeline)
-import magnetometer
-from magnetometer import(get_stations_now,update_stationHead)
-import pv_ionosphere
-from pv_visuals import (display_visuals)
+#### custom packages
+import global_energetics
+from global_energetics.makevideo import (get_time, time_sort)
+from global_energetics.extract import pv_magnetopause
+from global_energetics.extract.pv_tools import(update_rotation,
+                                               slice_and_calc_applied_voltage)
+from global_energetics.extract.pv_input_tools import (read_aux, read_tecplot,
+                                                      find_IE_matched_file)
+from global_energetics.extract.magnetometer import (get_stations_now,
+                                                    update_stationHead)
+from global_energetics.extract import pv_surface_tools
+from global_energetics.extract.pv_magnetopause import (setup_pipeline)
+from global_energetics.extract import magnetometer
+from global_energetics.extract import pv_ionosphere
+from global_energetics.extract.pv_visuals import (display_visuals)
 
 #if __name__ == "__main__":
 if True:
     start_time = time.time()
     # Set the paths NOTE cwd will be where paraview OR pvbatch is launched
     herepath=os.getcwd()
-    inpath = os.path.join(herepath,'localdbug/starlink/')
-    GMpath = os.path.join(inpath,'hires_GM/')
-    IEpath = os.path.join(inpath,'hires_IE/')
-    outpath= os.path.join(inpath,'hires_output/')
+    inpath = os.path.join(herepath,'run_mothersday_ne/')
+    GMpath = os.path.join(inpath,'GM/IO2/')
+    IEpath = os.path.join(inpath,'IE/ionosphere/')
+    outpath= herepath
 
     filelist = sorted(glob.glob(GMpath+'*paraview*.plt'),
                       key=time_sort)

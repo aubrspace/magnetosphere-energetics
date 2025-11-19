@@ -2,8 +2,6 @@
 """Extracting data related to ground based magnetometers (obs and virtual)
 """
 import os,sys
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
 import glob
 import numpy as np
 from numpy import (sin,cos,deg2rad,pi,rad2deg,arccos,sign,sqrt)

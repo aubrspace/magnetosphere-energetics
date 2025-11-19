@@ -2,8 +2,6 @@
 """Extracting data related to particle flux distributions from satellite trajs
 """
 import os,sys,time
-#sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-#                                      'swmf-energetics/')
 import glob
 import numpy as np
 from numpy import (sin,cos,deg2rad,pi)
