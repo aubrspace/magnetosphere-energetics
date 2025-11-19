@@ -5,8 +5,8 @@
 #INPUTDIR=./theta_aurora1997/GM/IO2/
 #OUTPUTDIR=./outputs_theta_aurora/
 
-INPUTDIR=./Starlink_lowres/
-OUTPUTDIR=./outputs_starlink_lowres/
+INPUTDIR=./weakdip_50_katus/GM/
+OUTPUTDIR=./weakdip_50_katus/GM/analysis/
 
 #INPUTDIR=./starlink2/IO2/
 #OUTPUTDIR=./outputs_ccmcStarlink/
@@ -28,11 +28,12 @@ workercount=0
 
 #head=3d__var_3_e199701
 #head=3d__var_1_e202206
-head=3d__var_1_e202202
+#head=3d__var_1_e202202
 #head=3d__var_1_e202405
 #head=3d__paraview_1_e202405
+head=3d__paraview_4_e
 
-satpath=star2satloc
+#satpath=star2satloc
 #satpath=mothersday_sats/interp/
 
 i=0
@@ -45,10 +46,10 @@ do
     minute=${file:${#GMDIR}+${#head}+5:2}
     
     # Filter by day/hour/minute
-    if [[ ${day#0} -eq  3 ]] && [[ ${hour#0} -ge 11 ]] \
-                             && [[ ${hour#0} -lt 13 ]]
+    #if [[ ${day#0} -eq  3 ]] && [[ ${hour#0} -ge 11 ]] \
+    #                         && [[ ${hour#0} -lt 13 ]]
     #&& [[ ${hour#0} -gt 1 ]]
-    #if [[ 1 == 1 ]]
+    if [[ 1 == 1 ]]
     then
         #echo "${file:${#GMDIR}} $day $hour"
 

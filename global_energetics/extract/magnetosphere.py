@@ -16,6 +16,7 @@ from global_energetics.extract import line_tools
 from global_energetics.extract import surface_tools
 from global_energetics.extract.surface_tools import post_proc_interface2
 from global_energetics.extract.volume_tools import volume_analysis
+from global_energetics.extract.shared_tools import read_aux
 from global_energetics.extract.mapping import reversed_mapping
 from global_energetics.extract.tec_tools import (streamfind_bisection,
                                                     get_global_variables,
@@ -110,7 +111,7 @@ def todimensional(dataset, **kwargs):
     dataset.frame.plot().axes.z_axis.variable = dataset.variable('Z *')
 
 def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
-                     do_trace, tshift):
+                     do_trace, tshift,**kwargs):
     """Function checks compatibility of selected settings and displays
         if in verbose mode
     Inputs
@@ -158,13 +159,17 @@ def validate_preproc(field_data, mode, source, outputpath, do_cms, verbose,
     #get date and time info based on data source
     if source == 'swmf':
         if do_cms:
-            eventtime = (swmf_access.swmf_read_time(zoneindex=1)+
+            eventtime = (swmf_access.swmf_read_time(zoneindex=1,**kwargs)+
                                                   dt.timedelta(minutes=tshift))
-            pasttime = (swmf_access.swmf_read_time(zoneindex=0)+
+            pasttime = (swmf_access.swmf_read_time(zoneindex=0,**kwargs)+
                         dt.timedelta(minutes=tshift))
-            futuretime = (swmf_access.swmf_read_time(zoneindex=2)+
+            futuretime = (swmf_access.swmf_read_time(zoneindex=2,**kwargs)+
                           dt.timedelta(minutes=tshift))
             deltatime = (futuretime-pasttime).seconds/2
+            print(f"VALIDATEPREPROC: \n\teventtime ={eventtime}"+
+                                   f"\n\tpasttime  ={pasttime}"+
+                                   f"\n\tfuturetime={futuretime}"+
+                                   f"\n\tdeltatime ={deltatime}")
         else:
             eventtime = (swmf_access.swmf_read_time(zoneindex=0)+
                                                   dt.timedelta(minutes=tshift))
@@ -210,7 +215,10 @@ def prep_field_data(field_data, **kwargs):
     if kwargs.get('verbose',False):
         show_settings(**kwargs)
     #Auxillary data from tecplot file
-    aux = field_data.zone('global_field').aux_data
+    if 'auxfile' in kwargs:
+        aux = read_aux(kwargs.get('auxfile'))
+    else:
+        aux = field_data.zone('global_field').aux_data
     eq,cc=tp.data.operate.execute_equation,ValueLocation.CellCentered
     # If the Status == -3 anywhere it means the B field trace failed somewhere
     # What we want to do is try to use th_1 th_2 to fill in the portions
@@ -581,11 +589,13 @@ def get_magnetosphere(field_data, *, mode='iso_betastar', **kwargs):
         n_oneD = kwargs.get('n_oneD', 121)
     if do_cms:
         pass#TODO does anything go here?
+    preproc_dict = {k:kwargs[k] for k in kwargs if 'auxfile' in k}
     do_trace, eventtime, deltatime = validate_preproc(field_data, mode,
                                                       source,outputpath,
                                                       do_cms, verbose,
                                               kwargs.get('do_trace',False),
-                                              kwargs.get('tshift',0))
+                                              kwargs.get('tshift',0),
+                                                      **preproc_dict)
     if 'tdelta' not in kwargs:
         kwargs.update({'tdelta':deltatime})
     print(kwargs.get('tdelta'))

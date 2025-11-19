@@ -19,6 +19,7 @@ from global_energetics.extract.pv_magnetosphere import (setup_pipeline,
                                                         merge_times,
                                                         update_merge)
 from global_energetics.extract.pv_input_tools import (read_tecplot,read_aux)
+from global_energetics.extract.shared_tools import (read_aux)
 from global_energetics.extract.pv_tools import create_globe
 from global_energetics.extract.pv_surface_tools import (
                                                     get_numpy_surface_analysis)
@@ -89,7 +90,7 @@ def perform_integrations(surfaces:dict,volume:object,
 
 def main() -> None:
     # Locate files
-    filelist = sorted(glob.glob(f'{INPATH}/*paraview*.dat'),key=time_sort)
+    filelist = sorted(glob.glob(f'{INPATH}/*paraview*.plt'),key=time_sort)
 
     # Initialize variables
     tstart = get_time(filelist[0])# for relative timestamping
@@ -124,13 +125,13 @@ def main() -> None:
     for ifile,infile in enumerate(filelist[1:-1]):
         # Set output file name
         outfile='t'+str(ifile)+'_'+infile.split('_4_e')[-1].replace(
-                                                                '.dat','.png')
+                                                                '.plt','.png')
         if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
             pass# Skip
         else:
             print(f"{infile.split('/')[-1]}")
             # Read aux data
-            aux = read_aux(infile.replace('.dat','.aux'))
+            aux = read_aux(infile.replace('.plt','.aux'))
             # Get time information
             localtime = get_time(infile)
             # Update time
