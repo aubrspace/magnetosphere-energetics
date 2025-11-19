@@ -89,7 +89,7 @@ def perform_integrations(surfaces:dict,volume:object,
 
 def main() -> None:
     # Locate files
-    filelist = sorted(glob.glob(f'{INPATH}/*paraview*.dat'),key=time_sort)
+    filelist = sorted(glob.glob(f'{INPATH}/*paraview*.plt'),key=time_sort)
 
     # Initialize variables
     tstart = get_time(filelist[0])# for relative timestamping
@@ -100,13 +100,14 @@ def main() -> None:
         # Load
         #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
         #          data_directory=INPATH)
-        LoadState(os.path.join(os.getcwd(),'cosmetic/magnetopause_and_sheath.pvsm'))
+        #LoadState(os.path.join(os.getcwd(),'cosmetic/magnetopause_and_sheath.pvsm'))
+        LoadState(os.path.join(os.getcwd(),'cosmetic/sheath-mp-iso.pvsm'))
         # Get view
         renderView = GetActiveView()
         # Set the heads of the pipeline
         old_past_head   = FindSource('3d__paraview_4_e20000101-150000-000')
-        old_present_head= FindSource('3d__paraview_4_e20000101-153000-014')
-        old_future_head = FindSource('3d__paraview_4_e20000101-154500-012')
+        old_present_head= FindSource('3d__paraview_4_e20000101-151500-010')
+        old_future_head = FindSource('3d__paraview_4_e20000101-153000-014')
         # Set the tails where the processing takes over
         surfaces = {'mp'    :FindSource('mp'),
                     'closed':FindSource('closed'),
@@ -123,14 +124,13 @@ def main() -> None:
 
     for ifile,infile in enumerate(filelist[1:-1]):
         # Set output file name
-        outfile='t'+str(ifile)+'_'+infile.split('_4_e')[-1].replace(
-                                                                '.dat','.png')
+        outfile=infile.split('_4_e')[-1].replace('.plt','.png')
         if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
             pass# Skip
         else:
             print(f"{infile.split('/')[-1]}")
             # Read aux data
-            aux = read_aux(infile.replace('.dat','.aux'))
+            aux = read_aux(infile.replace('.plt','.aux'))
             # Get time information
             localtime = get_time(infile)
             # Update time
@@ -172,8 +172,10 @@ if True:
 
     herepath=os.getcwd()
 
-    INPATH  = os.path.join(herepath,'weakdip_50_katus/GM/')
-    OUTPATH = os.path.join(herepath,'weakdip_50_katus/GM/analysis')
+    #INPATH  = os.path.join(herepath,'weakdip_50_katus/GM/')
+    #OUTPATH = os.path.join(herepath,'weakdip_50_katus/GM/analysis')
+    INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
+    OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
 
     main()
 
