@@ -5,6 +5,7 @@ from numpy import sign
 from numba import jit
 import numpy as np
 from numpy import deg2rad,sin,cos,arcsin,sqrt
+import datetime as dt
 
 @jit#NOTE this restricts the types and methods available so take care
 def check_bin(x,theta_1,phi_1,inbin,state):
@@ -50,3 +51,39 @@ def check_bin(x,theta_1,phi_1,inbin,state):
     else:
         contested[0] = 1
     return quadbins, contested[0]
+
+def find_IE_matched_file(path:str,filetime:dt.datetime) -> str:
+    """Function returns the IE file at a specific time, if it exists
+    Inputs
+        path (str)
+        filetime (datetime)
+    Returns
+        iedatafile (str)
+    """
+    iedatafile = (path+
+                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
+                      filetime.year-2000,
+                      filetime.month,
+                      filetime.day,
+                      filetime.hour,
+                      filetime.minute,
+                      filetime.second))
+    return iedatafile
+
+def read_aux(infile:str) -> dict:
+    """Reads in auxillary data file stripped from a .plt tecplot file
+    Inputs
+        infile (str)- full path to file location
+    Returns
+        data (dict)- dictionary of all data contained in the file
+    """
+    data = {}
+    with open(infile,'r') as f:
+        for line in f.readlines():
+            if 'TIME' in line:
+                data[line.split(':')[0]] = ':'.join(line.split(':')[1::])
+            else:
+                data[line.split(':')[0]]=line.split(':')[-1].replace(
+                                                 ' ','').replace('\n','')
+    return data
+

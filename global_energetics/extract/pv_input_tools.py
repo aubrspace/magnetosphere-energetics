@@ -4,24 +4,6 @@ import datetime as dt
 #### import the simple module from paraview
 from paraview.simple import *
 
-def find_IE_matched_file(path,filetime):
-    """Function returns the IE file at a specific time, if it exists
-    Inputs
-        path (str)
-        filetime (datetime)
-    Returns
-        iedatafile (str)
-    """
-    iedatafile = (path+
-                  'it{:02d}{:02d}{:02d}_{:02d}{:02d}{:02d}_000.tec'.format(
-                      filetime.year-2000,
-                      filetime.month,
-                      filetime.day,
-                      filetime.hour,
-                      filetime.minute,
-                      filetime.second))
-    return iedatafile
-
 def read_npz(infile:str,sourcename:str) -> ProgrammableSource:
     source = ProgrammableSource(registrationName=sourcename)
     source.OutputDataSetType = 'vtkPolyData'
@@ -33,23 +15,6 @@ def read_npz(infile:str,sourcename:str) -> ProgrammableSource:
         output.RowData.append(data[var],var)
     """
     return source
-
-def read_aux(infile):
-    """Reads in auxillary data file stripped from a .plt tecplot file
-    Inputs
-        infile (str)- full path to file location
-    Returns
-        data (dict)- dictionary of all data contained in the file
-    """
-    data = {}
-    with open(infile,'r') as f:
-        for line in f.readlines():
-            if 'TIME' in line:
-                data[line.split(':')[0]] = ':'.join(line.split(':')[1::])
-            else:
-                data[line.split(':')[0]]=line.split(':')[-1].replace(
-                                                 ' ','').replace('\n','')
-    return data
 
 def read_tecplot(infile,**kwargs):
     """Function reads tecplot binary file

@@ -2,8 +2,8 @@
 """script for calculating integrated quantities from mp and cps
 """
 import os,sys
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
+sys.path.append(os.getcwd().split('magnetosphere-energetics')[0]+
+                                     'magnetosphere-energetics/')
 import time
 import logging
 import glob
@@ -61,7 +61,7 @@ def save_gm_single(gm_style,outpath,OUTPUTNAME,filetime):
 
 def parse_infiles(inpath,outpath):
     # Get the set of data files to be processed (solution times)
-    all_solution_times = sorted(glob.glob(inpath+'/3d__var_*.plt'),
+    all_solution_times = sorted(glob.glob(inpath+'/3d__*.plt'),
                                 key=makevideo.time_sort)[0::]
     # Prune any repeat times
     times = [makevideo.get_time(f) for f in all_solution_times]
@@ -118,7 +118,7 @@ def energetics_analysis(infiles,outpath):
                                       do_cms=True,
                                       do_1Dsw=False,
                                       analysis_type='energy_mass_mag',
-                                      tail_cap=-120,
+                                      tail_cap=-60,
                                       #modes=['sphere'],
                                       #sp_rmax=10,
                                       #sp_rmin=3,
@@ -131,7 +131,9 @@ def energetics_analysis(infiles,outpath):
                                       integrate_line=False,
                                       integrate_surface=True,
                                       integrate_volume=True,
-                        truegridfile='starlink2/IO2/3d__volume_e20220202.plt',
+                                      truegridfile='',
+                                    auxfile=infiles[1].replace('.plt','.aux'),
+                                      tdelta=900,
                                       verbose=True,
                                       extract_flowline=False,
                                       outputpath=outpath)
@@ -174,7 +176,7 @@ def energetics_analysis(infiles,outpath):
                                               outputpath=outpath)
     '''
     print(os.path.join(outpath,'png',outputname+'.png'))
-    if True:
+    if False:
         save_gm_single('cosmetic/xpos_densityXZ.sty',
                        outpath,outputname,filetime)
     else:
