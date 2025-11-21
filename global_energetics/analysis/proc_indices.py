@@ -944,7 +944,8 @@ def read_indices(data_path, **kwargs):
         for key in swmfdata:
             data[key] = swmfdata[key]
         #find new start/end times, will have been trimmed already if needed
-        anykey = [k for k in data.keys()][0]
+        anykey = [k for k in data if not data[k].empty][0]
+        #from IPython import embed; embed()
         kwargs.update({'start':data[anykey].index[0]})
         kwargs.update({'end':data[anykey].index[-1]})
     #get supermag and omni
