@@ -327,6 +327,7 @@ def collect_geotail(start, end, **kwargs):
         df (DataFrame)- collected and processed data
     """
     probelist = kwargs.get('probes',['1','2','3','4'])
+    outpath = kwargs.get('outpath','./')
     # Get tilt from somewhere else bc apparently it's not included here...
     print('Getting dipole tilt')
     mms_instrument = 'MMS1_MEC_SRVY_L2_EPHT89D'
@@ -393,13 +394,13 @@ def collect_geotail(start, end, **kwargs):
         df.index = plasmadata[epoch_key]
         plasma['geotail'] = df
     if kwargs.get('writeData',True):
-        ofilename = kwargs.get('ofilename','geotail')
+        ofilename = outpath+kwargs.get('ofilename','geotail')
         # Position
         posfile = pd.HDFStore(ofilename+'_pos.h5')
         for key in positions.keys():
             posfile[key] = positions[key]
         posfile.close()
-        print('Created ',ofilename+'_pos.h5 output file')
+        print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
         # B Field
         bfile = pd.HDFStore(ofilename+'_bfield.h5')
         for key in bfield.keys():
@@ -423,6 +424,7 @@ def collect_themis(start, end, **kwargs):
         df (DataFrame)- collected and processed data
     """
     probelist = kwargs.get('probelist',['A','D','E'])
+    outpath = kwargs.get('outpath','./')
     # Position
     buff = dt.timedelta(hours=12)
     positions = {}
@@ -494,14 +496,14 @@ def collect_themis(start, end, **kwargs):
                 df = df[(df.index>start)&(df.index<end)]
             plasma['themis'+num] = df
     if kwargs.get('writeData',True):
-        ofilename = kwargs.get('ofilename','themis')
+        ofilename = outpath+kwargs.get('ofilename','themis')
         # Position
         if not kwargs.get('skip_pos',False):
             posfile = pd.HDFStore(ofilename+'_pos.h5')
             for key in positions.keys():
                 posfile[key] = positions[key]
             posfile.close()
-            print('Created ',ofilename+'_pos.h5 output file')
+            print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
         # B Field
         if not kwargs.get('skip_bfield',False):
             bfile = pd.HDFStore(ofilename+'_bfield.h5')
@@ -528,6 +530,7 @@ def collect_mms(start, end, **kwargs):
     """
     probelist = kwargs.get('probes',['1'])
     buff = dt.timedelta(hours=12)
+    outpath = kwargs.get('outpath','./')
     # Position
     positions = {}
     mode = kwargs.get('eph_mode','srvy')
@@ -648,14 +651,14 @@ def collect_mms(start, end, **kwargs):
         #       O+
         #       Spin averaged B
     if kwargs.get('writeData',True):
-        ofilename = kwargs.get('ofilename','mms')
+        ofilename = outpath+kwargs.get('ofilename','mms')
         # Position
         if not kwargs.get('skip_pos',False):
             posfile = pd.HDFStore(ofilename+'_pos.h5')
             for key in positions.keys():
                 posfile[key] = positions[key]
             posfile.close()
-            print('Created ',ofilename+'_pos.h5 output file')
+            print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
         # B Field
         if not kwargs.get('skip_bfield',False):
             bfile = pd.HDFStore(ofilename+'_bfield.h5')
@@ -682,6 +685,7 @@ def collect_cluster(start, end, **kwargs):
     """
     probelist = kwargs.get('probes',['1','2','3','4'])
     buff = dt.timedelta(hours=12)
+    outpath = kwargs.get('outpath','./')
     # Position
     positions = {}
     if not kwargs.get('skip_pos',False):
@@ -766,13 +770,13 @@ def collect_cluster(start, end, **kwargs):
             else:
                 plasma['cluster'+num] = pd.DataFrame()
     if kwargs.get('writeData',True):
-        ofilename = kwargs.get('ofilename','cluster')
+        ofilename = outpath+kwargs.get('ofilename','cluster')
         # Position
         posfile = pd.HDFStore(ofilename+'_pos.h5')
         for key in positions.keys():
             posfile[key] = positions[key]
         posfile.close()
-        print('Created ',ofilename+'_pos.h5 output file')
+        print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
         # B Field
         bfile = pd.HDFStore(ofilename+'_bfield.h5')
         for key in bfield.keys():
@@ -788,8 +792,9 @@ def collect_cluster(start, end, **kwargs):
     return positions, bfield, plasma
 
 def collect_goes(start,end,**kwargs):
-    probelist = kwargs.get('probes',['14','15','16'])
+    probelist = kwargs.get('probes',['14','15','16','17'])
     buff = dt.timedelta(hours=12)
+    outpath = kwargs.get('outpath','./')
     # Position
     positions = {}
     if not kwargs.get('skip_pos',False):
@@ -836,15 +841,100 @@ def collect_goes(start,end,**kwargs):
         #TODO
         pass
     if kwargs.get('writeData',True):
-        ofilename = kwargs.get('ofilename','goes')
+        ofilename = outpath+kwargs.get('ofilename','goes')
         # Position
         posfile = pd.HDFStore(ofilename+'_pos.h5')
         for key in positions.keys():
             posfile[key] = positions[key]
         posfile.close()
-        print('Created ',ofilename+'_pos.h5 output file')
+        print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
         #TODO
         pass
+    return positions, bfield, plasma
+
+def collect_arase(start:dt.datetime,end:dt.datetime,**kwargs:dict) -> list:
+    buff = dt.timedelta(hours=12)
+    outpath = kwargs.get('outpath','./')
+    # Position
+    positions = {}
+    if not kwargs.get('skip_pos',False):
+        print('Gathering Arase (ERG) ( Position Data...')
+        df = pd.DataFrame()
+        pos_instrument = kwargs.get('pos_instrument','ERG_ORB_L2')
+        epoch_key = 'epoch'
+        gsm_keys = ['pos_gsm']
+        status,posdata = cdas.get_data(pos_instrument,gsm_keys,
+                                           start-buff,end+buff)
+        if posdata:
+            df.index = posdata[epoch_key]
+            df[['x_gsm','y_gsm','z_gsm']] = posdata[gsm_keys[0]] # Re
+            df = df[(df.index>start)&(df.index<end)]
+        positions['arase'] = df
+    bfield = {}
+    if not kwargs.get('skip_bfield',False):
+        #TODO
+        pass
+    plasma = {}
+    if not kwargs.get('skip_plasma',False):
+        #TODO
+        pass
+    if kwargs.get('writeData',True):
+        ofilename = outpath+kwargs.get('ofilename','arase')
+        # Position
+        posfile = pd.HDFStore(ofilename+'_pos.h5')
+        for key in positions.keys():
+            posfile[key] = positions[key]
+        posfile.close()
+        print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
+    return positions, bfield, plasma
+
+def collect_rbsp(start,end,**kwargs):
+    probelist = kwargs.get('probes',['A','B'])
+    buff = dt.timedelta(hours=12)
+    outpath = kwargs.get('outpath','./')
+    # Position
+    positions = {}
+    if not kwargs.get('skip_pos',False):
+        print('Gathering RBSP Position Data...')
+        for num in probelist:
+            print('\trbsp',num)
+            df = pd.DataFrame()
+            pos_instrument = kwargs.get('pos_instrument',
+                                       f'RBSP{num}_REL04_ECT-HOPE-MOM-L3')
+            epoch_key = 'Epoch_Ion'
+            geo_keys = ['Position']
+            status,posdata = cdas.get_data(pos_instrument,geo_keys,
+                                           start-buff,end+buff)
+            if posdata:
+                xyz_geo = posdata[geo_keys[0]]/6371 # Re
+                df.index = posdata[epoch_key]
+                xyz_gsm = np.zeros([len(xyz_geo),3])
+                for i,t in enumerate(df.index):
+                    t0 = dt.datetime(1970,1,1)
+                    ut = (t-t0).total_seconds()
+                    gp.recalc(ut)
+                    xyz_gsm[i,:] = gp.geogsm(xyz_geo[i,0],
+                                             xyz_geo[i,1],
+                                             xyz_geo[i,2],1)
+                df[['x_gsm','y_gsm','z_gsm']] = xyz_gsm # Re
+                df = df[(df.index>start)&(df.index<end)]
+            positions['rbsp'+num] = df
+    bfield = {}
+    if not kwargs.get('skip_bfield',False):
+        #TODO
+        pass
+    plasma = {}
+    if not kwargs.get('skip_plasma',False):
+        #TODO
+        pass
+    if kwargs.get('writeData',True):
+        ofilename = outpath+kwargs.get('ofilename','rbsp')
+        # Position
+        posfile = pd.HDFStore(ofilename+'_pos.h5')
+        for key in positions.keys():
+            posfile[key] = positions[key]
+        posfile.close()
+        print('\033[92m Created\033[00m ',ofilename+'_pos.h5 output file')
     return positions, bfield, plasma
 
 def collect_orbits(start,end,sourcelist):
@@ -855,44 +945,43 @@ def collect_orbits(start,end,sourcelist):
     #from IPython import embed; embed()
     pass
 
-#Main program
-if __name__ == '__main__':
-    #############################USER INPUTS HERE##########################
-    path_to_ori_file = None
-    #start = dt.datetime(2019,5,13,12,0)
-    #end = dt.datetime(2019,5,15,12,0)
-    start = dt.datetime(2018,1,1,0,0)
-    end   = dt.datetime(2018,2,1,0,0)
-    #start = dt.datetime(2022,2,2,12)
-    #end = dt.datetime(2022,2,3,12)
-    #start = dt.datetime(2024,5,10,6)
-    #end = dt.datetime(2024,5,13,0)
-    outpath = './'
-    plot_data = False
-    #######################################################################
-
-    wind = collect_wind(start, end)
-    #cluster_pos, cluster_b,cluster_plasma = collect_cluster(start, end)
-    #mms_pos, mms_b,mms_plasma = collect_mms(start, end)
-    #themis_pos, themis_b,themis_plasma = collect_themis(start, end)
-    #geotail_pos, geotail_b, geotail_plasma = collect_geotail(start,end)
+def main() -> None:
+    wind = collect_wind(START, END)
+    #cluster_pos, cluster_b,cluster_plasma = collect_cluster(START, END,
+    #                                             skip_bfield=True,
+    #                                             skip_plasma=True)
+    #mms_pos, mms_b,mms_plasma = collect_mms(START, END,
+    #                                             skip_bfield=True,
+    #                                             skip_plasma=True)
+    #themis_pos, themis_b,themis_plasma = collect_themis(START, END,
+    #                                             skip_bfield=True,
+    #                                             skip_plasma=True)
+    #geotail_pos, geotail_b, geotail_plasma = collect_geotail(START,END,
+    #                                             skip_bfield=True,
+    #                                             skip_plasma=True)
+    #goes_pos, goes_b, goes_plasma = collect_goes(START,END,
+    #                                             skip_bfield=True,
+    #                                             skip_plasma=True,
+    #                                             probes=['16','17'])
 
     ## For a list of all observatories for location plots use:
     #   observatories = ssc.get_observatories()
     #   obslist = [o['Name'] for o in observatories['Observatory']]                          
     sourcelist = ['cluster1','cluster2','cluster3','cluster4',
                   'geotail',
-                  'mms1','mms2','mms3','mms4',
-                  'themisa','themisd','themise']
+                  'mms1',
+                  'themisa','themisd','themise',
+                  'goes16','goes17']
+    from IPython import embed; embed()
     #collect_orbits(start,end,sourcelist)
     #omni = swmfpy.web.get_omni_data(start,end)
 
     #Additional options
-    if path_to_ori_file is not None:
-        ori_df = read_SWMF_IMF(path_to_ori_file)
+    if PATH_TO_ORI_FILE is not None:
+        ori_df = read_SWMF_IMF(PATH_TO_ORI_FILE)
         if not ori_df.empty:
-            plot_comparison(ori_df, df, outpath)
-    if plot_data:
+            plot_comparison(ori_df, df, OUTPATH)
+    if PLOT_DATA:
         try:
             from util.plotSW import plot_solarwind as plotsw
         except ModuleNotFoundError:
@@ -903,3 +992,24 @@ if __name__ == '__main__':
             #plt.show()
             plt.figure(1).savefig('IMF.png')
             print('Figure saved to IMF.png')
+
+#Main program
+if __name__ == '__main__':
+    global PATH_TO_ORI_FILE,START,END,OUTPATH,PLOT_DATA
+
+    #############################USER INPUTS HERE##########################
+    PATH_TO_ORI_FILE = None
+    START = dt.datetime(2019,5,13,12,0)
+    END = dt.datetime(2019,5,15,12,0)
+    #start = dt.datetime(2018,1,1,0,0)
+    #end   = dt.datetime(2018,2,1,0,0)
+    #start = dt.datetime(2022,2,2,12)
+    #end = dt.datetime(2022,2,3,12)
+    #start = dt.datetime(2024,5,10,6)
+    #end = dt.datetime(2024,5,13,0)
+    OUTPATH = './energy_map/inputs/satellites/'
+    PLOT_DATA = False
+    #######################################################################
+
+    main()
+
