@@ -9384,11 +9384,11 @@
     </Proxy>
     <Proxy group="sources" type="VisItTecplotBinaryReader" id="9255" servers="1">
       <Property name="FileName" id="9255.FileName" number_of_elements="1">
-        <Element index="0" value="/Users/ngpdl/Code/magnetosphere-energetics/localdbug/weak_dipole/3d__paraview_4_e20000101-150000-000.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/weakdip_100_katus/GM/3d__paraview_4_e20000101-150000-000.plt"/>
         <Domain name="files" id="9255.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="9255.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/Users/ngpdl/Code/magnetosphere-energetics/localdbug/weak_dipole/3d__paraview_4_e20000101-150000-000.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/weakdip_100_katus/GM/3d__paraview_4_e20000101-150000-000.plt"/>
       </Property>
       <Property name="TimestepValues" id="9255.TimestepValues"/>
       <Property name="CellArrayInfo" id="9255.CellArrayInfo"/>
@@ -9547,11 +9547,11 @@
     </Proxy>
     <Proxy group="sources" type="VisItTecplotBinaryReader" id="9370" servers="1">
       <Property name="FileName" id="9370.FileName" number_of_elements="1">
-        <Element index="0" value="/Users/ngpdl/Code/magnetosphere-energetics/localdbug/weak_dipole/3d__paraview_4_e20000101-151500-010.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/weakdip_100_katus/GM/3d__paraview_4_e20000101-151500-036.plt"/>
         <Domain name="files" id="9370.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="9370.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/Users/ngpdl/Code/magnetosphere-energetics/localdbug/weak_dipole/3d__paraview_4_e20000101-151500-010.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/weakdip_100_katus/GM/3d__paraview_4_e20000101-151500-036.plt"/>
       </Property>
       <Property name="TimestepValues" id="9370.TimestepValues"/>
       <Property name="CellArrayInfo" id="9370.CellArrayInfo"/>
@@ -9710,11 +9710,11 @@
     </Proxy>
     <Proxy group="sources" type="VisItTecplotBinaryReader" id="9407" servers="1">
       <Property name="FileName" id="9407.FileName" number_of_elements="1">
-        <Element index="0" value="/Users/ngpdl/Code/magnetosphere-energetics/localdbug/weak_dipole/3d__paraview_4_e20000101-153000-014.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/weakdip_100_katus/GM/3d__paraview_4_e20000101-153000-011.plt"/>
         <Domain name="files" id="9407.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="9407.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/Users/ngpdl/Code/magnetosphere-energetics/localdbug/weak_dipole/3d__paraview_4_e20000101-153000-014.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/weakdip_100_katus/GM/3d__paraview_4_e20000101-153000-011.plt"/>
       </Property>
       <Property name="TimestepValues" id="9407.TimestepValues"/>
       <Property name="CellArrayInfo" id="9407.CellArrayInfo"/>
@@ -12124,10 +12124,10 @@
     <ProxyCollection name="sources">
       <Item id="9345" name="3d__paraview_4_e20000101-150000-000" logname="3d__paraview_4_e20000101-150000-000"/>
       <Item id="9255" name="3d__paraview_4_e20000101-150000-000.plt" logname="3d__paraview_4_e20000101-150000-000.plt"/>
-      <Item id="9382" name="3d__paraview_4_e20000101-151500-010" logname="3d__paraview_4_e20000101-151500-010"/>
-      <Item id="9370" name="3d__paraview_4_e20000101-151500-010.plt" logname="3d__paraview_4_e20000101-151500-010.plt"/>
-      <Item id="9419" name="3d__paraview_4_e20000101-153000-014" logname="3d__paraview_4_e20000101-153000-014"/>
-      <Item id="9407" name="3d__paraview_4_e20000101-153000-014.plt" logname="3d__paraview_4_e20000101-153000-014.plt"/>
+      <Item id="9382" name="3d__paraview_4_e20000101-151500-036" logname="3d__paraview_4_e20000101-151500-036"/>
+      <Item id="9370" name="3d__paraview_4_e20000101-151500-036.plt" logname="3d__paraview_4_e20000101-151500-036.plt"/>
+      <Item id="9419" name="3d__paraview_4_e20000101-153000-011" logname="3d__paraview_4_e20000101-153000-011"/>
+      <Item id="9407" name="3d__paraview_4_e20000101-153000-011.plt" logname="3d__paraview_4_e20000101-153000-011.plt"/>
       <Item id="9569" name="closed" logname="closed"/>
       <Item id="9518" name="closed_init" logname="closed_init"/>
       <Item id="9557" name="closed_normals" logname="closed_normals"/>

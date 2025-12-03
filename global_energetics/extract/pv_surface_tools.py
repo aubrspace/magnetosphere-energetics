@@ -6,7 +6,7 @@ from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.util.numpy_support import vtk_to_numpy
 #NOTE 'object' = stand in for paraview filter-like object in type hints
 
-def construct_condition(description:list[str],
+def construct_condition(description:list,
                        surface_data:dict,
                            **kwargs:dict) -> []:
     """ Takes a description in the form of list of str, considered AND of all
@@ -47,8 +47,8 @@ def construct_condition(description:list[str],
     return condition
 
 def map_surface_to_interfaces(surface_name:str,
-                              surface_data:dict[np.ndarray],
-                                  **kwargs:dict) -> dict[str:np.ndarray]:
+                              surface_data:dict,
+                                  **kwargs:dict) -> dict:
     """ Takes a surface name and dictionary of arrays and gets the condition
          arrays which represent the partial integral bounds of each required
          calculation

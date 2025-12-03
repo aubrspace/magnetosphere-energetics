@@ -3,7 +3,7 @@ from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.util.numpy_support import vtk_to_numpy
 
-def get_diff_volume_integrals(volume:str,np_volume:dict[np.ndarray],
+def get_diff_volume_integrals(volume:str,np_volume:dict,
                               dt:float) -> dict:
     """ Conditional arrays for the differential bounds (integrand eval @ t0)
         NOTE - if point will be acquired (future - past > 0) this is energy
@@ -52,7 +52,7 @@ def get_diff_volume_integrals(volume:str,np_volume:dict[np.ndarray],
     return conditions
 
 def get_numpy_volume_analysis(source:object,*,
-                         volume_list:list['mp'],
+                         volume_list:list,
                       integrands:list=['Utot_J_Re3','uHydro_J_Re3','uB_J_Re3'],
                                 skip_keys:list=[],**kwargs:dict) -> dict:
     """Staging function that will take the volume_dict and pass what is needed

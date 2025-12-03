@@ -17,7 +17,7 @@ from global_energetics.extract import pv_visuals
 from global_energetics.extract import pv_fte
 from global_energetics.extract import pv_mapping
 
-def merge_times(sourcelist:list[object],*,
+def merge_times(sourcelist:list,*,
                sourcenames:list=['past','present','future'],
                                                **kwargs:dict) -> object:
     """ Merges multiple sources together

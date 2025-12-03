@@ -238,7 +238,7 @@ def project_to_iono(field,timestamp,**kwargs):
     ssetCoords.CoordinateResults = 1
     return nsetCoords,ssetCoords
 
-def readgrid(infile:str,**kwargs:dict) -> [np.array,list[str]]:
+def readgrid(infile:str,**kwargs:dict) -> [np.array,list]:
     #NOTE Duplicate function TODO refactor this!!!
     if kwargs.get('type','ascii')=='ascii':
         with open(infile,'r')as f:

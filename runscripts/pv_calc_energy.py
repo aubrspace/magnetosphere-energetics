@@ -18,7 +18,7 @@ from global_energetics.extract.pv_magnetosphere import (setup_pipeline,
                                                         generate_volumes,
                                                         merge_times,
                                                         update_merge)
-from global_energetics.extract.pv_input_tools import (read_tecplot,read_aux)
+from global_energetics.extract.pv_input_tools import (read_tecplot)
 from global_energetics.extract.shared_tools import (read_aux)
 from global_energetics.extract.pv_tools import create_globe
 from global_energetics.extract.pv_surface_tools import (
@@ -107,8 +107,8 @@ def main() -> None:
         renderView = GetActiveView()
         # Set the heads of the pipeline
         old_past_head   = FindSource('3d__paraview_4_e20000101-150000-000')
-        old_present_head= FindSource('3d__paraview_4_e20000101-151500-010')
-        old_future_head = FindSource('3d__paraview_4_e20000101-153000-014')
+        old_present_head= FindSource('3d__paraview_4_e20000101-151500-036')
+        old_future_head = FindSource('3d__paraview_4_e20000101-153000-011')
         # Set the tails where the processing takes over
         surfaces = {'mp'    :FindSource('mp'),
                     'closed':FindSource('closed'),
@@ -123,13 +123,17 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    for ifile,infile in enumerate(filelist[1:-1]):
+    #for ifile,infile in enumerate(filelist[1:-1]):
+    for ifile,infile in enumerate(filelist[1:2]):
         # Set output file name
-        outfile=infile.split('_4_e')[-1].replace('.plt','.png')
+        outfile=infile.split('_1_e')[-1].replace('.plt','.png')
+        #outfile=infile.split('_4_e')[-1].replace('.plt','.png')
         if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
             pass# Skip
         else:
             print(f"{infile.split('/')[-1]}")
+            localtime = get_time(infile)
+            '''
             # Read aux data
             aux = read_aux(infile.replace('.plt','.aux'))
             # Get time information
@@ -151,6 +155,7 @@ def main() -> None:
             Delete(old_data)
             del old_data
 
+            '''
             # Update
             renderView.Update()
             for surf_name,surface in surfaces.items():
@@ -173,10 +178,12 @@ if True:
 
     herepath=os.getcwd()
 
-    #INPATH  = os.path.join(herepath,'weakdip_50_katus/GM/')
-    #OUTPATH = os.path.join(herepath,'weakdip_50_katus/GM/analysis')
-    INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
-    OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
+    #INPATH  = os.path.join(herepath,'weakdip_100_katus/GM/')
+    #OUTPATH = os.path.join(herepath,'weakdip_100_katus/GM/analysis')
+    #INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
+    #OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
+    INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
+    OUTPATH   = os.path.join(herepath,'outputs_may2019/')
 
     main()
 

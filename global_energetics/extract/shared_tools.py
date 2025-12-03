@@ -2,12 +2,12 @@
 """
 
 from numpy import sign
-from numba import jit
+#from numba import jit
 import numpy as np
 from numpy import deg2rad,sin,cos,arcsin,sqrt
 import datetime as dt
 
-@jit#NOTE this restricts the types and methods available so take care
+#@jit#NOTE this restricts the types and methods available so take care
 def check_bin(x,theta_1,phi_1,inbin,state):
     """Function checks 4 quadrants of bin to determine contestation (daynight)
     Inputs

@@ -5,8 +5,8 @@
 #INPUTDIR=./theta_aurora1997/GM/IO2/
 #OUTPUTDIR=./outputs_theta_aurora/
 
-INPUTDIR=./weakdip_50_katus/GM/
-OUTPUTDIR=./weakdip_50_katus/GM/analysis/
+INPUTDIR=./weakdip_100_katus/GM/
+OUTPUTDIR=./weakdip_100_katus/GM/analysis/
 
 #INPUTDIR=./starlink2/IO2/
 #OUTPUTDIR=./outputs_ccmcStarlink/
@@ -69,7 +69,7 @@ do
         #then
         #    exit
         #fi
-        #exit
+        exit
 
     fi
 done
