@@ -57,21 +57,32 @@ def fix_dat_files(pathtofiles:str,**kwargs:dict) -> None:
                 lines = fin.readlines()
             # Write a new copy with some edits
             write_lines = lines.copy()
+            for i in range(0,len(write_lines)):
+                lines[i] = lines[i].replace('\x00','')
+                write_lines[i] = write_lines[i].replace('\x00','')
+            linesize = len(write_lines[1000].split())
             pop_buffer = 0
             for iline,line in enumerate(lines):
+                if line.startswith('TITLE') or line.startswith('ZONE'):
+                    pass
                 # Change the name of XYZ so the reader can pick it up
-                if line.startswith('VARIABLES'):
+                elif line.startswith('VARIABLES'):
                     write_lines[iline] = line.replace('X [R]','X'
                                             ).replace('Y [R]','Y'
                                             ).replace('Z [R]','Z')
                 # Pop out the aux data to its own file
-                if line.startswith('AUXDATA'):
+                elif line.startswith('AUXDATA'):
                     auxline = write_lines.pop(iline-pop_buffer)
                     pop_buffer+=1
                     key = auxline.replace('AUXDATA ','').split('=')[0]
                     value = ''.join(
                                auxline.replace('AUXDATA ','').split('=')[1::])
                     aux[key] = value.replace('"','')
+                elif len(line.split())>linesize:
+                    print(f'WARNING! found bad data: {line.split()[0]} in line:{iline}')
+                    write_lines[iline] = ' '+' '.join(line.split()[-linesize::])+'\n'
+                    #from IPython import embed; embed()
+                    #time.sleep(3)
             # Write the new file
             with open(pathtofiles+outfile,'wt') as fout:
                 fout.writelines(write_lines)

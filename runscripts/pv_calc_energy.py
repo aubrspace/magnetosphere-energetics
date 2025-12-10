@@ -123,13 +123,16 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    for ifile,infile in enumerate(filelist[1:-1]):
+    #for ifile,infile in enumerate(filelist[1:-1]):
+    for ifile,infile in enumerate(filelist[1:2]):
         # Set output file name
         outfile=infile.split('_1_e')[-1].replace('.plt','.png')
         if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
             pass# Skip
         else:
             print(f"{infile.split('/')[-1]}")
+            localtime = get_time(infile)
+            '''
             # Read aux data
             aux = read_aux(infile.replace('.plt','.aux'))
             # Get time information
@@ -151,6 +154,7 @@ def main() -> None:
             Delete(old_data)
             del old_data
 
+            '''
             # Update
             renderView.Update()
             for surf_name,surface in surfaces.items():
@@ -177,8 +181,10 @@ if True:
     #OUTPATH = os.path.join(herepath,'weakdip_50_katus/GM/analysis')
     #INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
     #OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
-    INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
-    OUTPATH  = os.path.join(herepath,'data/analysis/')
+    #INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
+    #OUTPATH  = os.path.join(herepath,'data/analysis/')
+    INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
+    OUTPATH   = os.path.join(herepath,'outputs_may2019/')
 
     main()
 
