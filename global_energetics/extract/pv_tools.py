@@ -542,7 +542,10 @@ def update_evaluate(evaluation_set: dict,
              "dvol [R]^3":"dvol_R3",
              "J_x [`mA_m^2]":"J_x_uA_m2",
              "J_y [`mA_m^2]":"J_y_uA_m2",
-             "J_z [`mA_m^2]":"J_z_uA_m2"
+             "J_z [`mA_m^2]":"J_z_uA_m2",
+             "J_x [`uA_m^2]":"J_x_uA_m2",
+             "J_y [`uA_m^2]":"J_y_uA_m2",
+             "J_z [`uA_m^2]":"J_z_uA_m2"
                             }
     local_variables = []
     script = f"""
@@ -570,14 +573,15 @@ if True:"""
         if LHS in pysafe_translation:
             LHS = pysafe_translation[LHS]
         else:
-            LHS = LHS.replace('^','').replace('`m','u')
+            LHS = LHS.replace('^','').replace('`m','u').replace('`u','u')
         script +=f"""
     {LHS} = inputs[0].PointData['{var}']"""
         local_variables.append(LHS)
     script +="""
     ##################################################"""
     for lhs,rhs in evaluation_set.items():
-        LHS = lhs.replace('lambda','lam').replace('^','').replace('`m','u')
+        LHS = lhs.replace('lambda','lam').replace('^','').replace(
+                '`m','u').replace('`u','u')
         RHS = rhs.replace('^','**').replace(
                                     'asin','arcsin').replace('atan2','arctan2'
                                     ).replace('lambda','lam')

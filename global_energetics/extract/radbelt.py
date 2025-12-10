@@ -22,34 +22,37 @@ def pull(line:str) -> np.ndarray:
 
 def read_rtp(infile:str,**kwargs:dict) -> dict:
     rtp = {}
+    print(f"READING .rtp file: {infile} ...")
     with open(infile,'r') as f:
         #####################################################################
         # Grid
         gridline = f.readline()
         nr,nth,nphi = [int(v) for v in gridline.split('!')[0].split()[0:3]]
         i,done = 0,False
-        unknown_lvls = np.array([])
+        buffer = np.array([])
         r_lvls = np.array([])
         th_lvls = np.array([])
         phi_lvls = np.array([])
         while not done:
             line = pull(f.readline())
-            unknown_lvls = np.concat([unknown_lvls,line])
-            if len(unknown_lvls)==nr and max(unknown_lvls)<20:
-                r_lvls = unknown_lvls
+            print(line)
+            buffer = np.concat([buffer,line])
+            if len(buffer) == nr and min(buffer)>1.0 :
+                r_lvls = buffer[0:nr]
+                buffer = buffer[nr:]
                 if kwargs.get('verbose',False):
                     print(f'\t\t\t{nr} R Levels')
-                    unknown_lvls = np.array([])
-            elif len(unknown_lvls)==nth and max(unknown_lvls)>np.pi:
-                th_lvls = unknown_lvls
+            elif len(buffer)==nth and max(buffer)<(2*np.pi):
+                th_lvls = buffer[0:nth]
+                buffer = buffer[nth:]
                 if kwargs.get('verbose',False):
                     print(f'\t\t\t{nth} Theta Levels')
-                    unknown_lvls = np.array([])
-            elif len(unknown_lvls)==nphi and max(unknown_lvls)<(np.pi):
-                phi_lvls = unknown_lvls
+            elif (len(buffer) == nphi and max(buffer)>(np.pi)
+                  and min(buffer)<1.0):
+                phi_lvls = buffer[0:nphi]
+                buffer = buffer[nphi:]
                 if kwargs.get('verbose',False):
                     print(f'\t\t\t{nphi} Phi Levels')
-                    unknown_lvls = np.array([])
             if all([r_lvls.any(),th_lvls.any(),phi_lvls.any()]):
                 done = True
             if i>(nr+nth+nphi):
@@ -67,41 +70,29 @@ def read_rtp(infile:str,**kwargs:dict) -> dict:
         f.seek(data_start)
         times = np.zeros(ntimes)
         #####################################################################
-        # Flux
-        #TODO figure out what else is saved here
-        #   - appears to be: 3x (flux[nr,nth,nphi])
-        #   - then r0 crossing point?
-        #   - then mlt crossing point?
-        flux1 = np.zeros([ntimes,nr,nth,nphi])
-        flux2 = np.zeros([ntimes,nr,nth,nphi])
-        flux3 = np.zeros([ntimes,nr,nth,nphi])
-        req = np.zeros([ntimes,nr,nth,nphi])
-        mlteq = np.zeros([ntimes,nr,nth,nphi])
-        for it in range(0,ntimes):
-            times[it] = float(f.readline().split()[0])
-            for i_value in [0,1,2,3,4]:
-                done = False
-                flux_segment = np.array([])
-                while not done:
-                    line = pull(f.readline())
-                    flux_segment = np.concat([flux_segment,line])
-                    if len(flux_segment)>=(nr*nth*nphi):
-                        done = True
-                if i_value==0:
-                    flux1[it,:,:,:] =flux_segment.reshape(nr,nth,nphi)
-                elif i_value==1:
-                    flux2[it,:,:,:] =flux_segment.reshape(nr,nth,nphi)
-                elif i_value==2:
-                    flux3[it,:,:,:] =flux_segment.reshape(nr,nth,nphi)
-                elif i_value==3:
-                    req[it,:,:,:] =flux_segment.reshape(nr,nth,nphi)
-                elif i_value==4:
-                    mlteq[it,:,:,:] =flux_segment.reshape(nr,nth,nphi)
-            print(it)
-        rtp.update({'times':times,'r_lvls':r_lvls,
-                    'th_lvls':th_lvls,'phi_lvls':phi_lvls,
-                    'flux1':flux2,'flux2':flux2,'flux3':flux3,
-                    'req':req,'mlteq':mlteq})
+        lines = f.readlines()
+    ngrid = nr*nth*nphi
+    Bx   = np.zeros([ntimes,nr,nth,nphi])
+    By   = np.zeros([ntimes,nr,nth,nphi])
+    Bz   = np.zeros([ntimes,nr,nth,nphi])
+    Ro   = np.zeros([ntimes,nr,nth,nphi])
+    MLTo = np.zeros([ntimes,nr,nth,nphi])
+    iline = 0
+    for ihour in tqdm(range(0,ntimes)):
+        times[ihour] = pull(lines[iline].split('!')[0])[0]
+        iline = int(iline+1)
+        bigline = ''.join(lines[iline:int(iline+ngrid*5/7)])
+        buffer = pull(bigline.replace('\n',''))
+        Bx[ihour,:,:,:]   = buffer[0:ngrid].reshape(nr,nth,nphi)*1e9
+        By[ihour,:,:,:]   = buffer[ngrid:2*ngrid].reshape(nr,nth,nphi)*1e9
+        Bz[ihour,:,:,:]   = buffer[2*ngrid:3*ngrid].reshape(nr,nth,nphi)*1e9
+        Ro[ihour,:,:,:]   = buffer[3*ngrid:4*ngrid].reshape(nr,nth,nphi)
+        MLTo[ihour,:,:,:] = buffer[4*ngrid:5*ngrid].reshape(nr,nth,nphi)
+        iline = int(iline+5*ngrid/7)
+    rtp.update({'times':times,
+                'r_lvls':r_lvls,'th_lvls':th_lvls,'phi_lvls':phi_lvls,
+                'Bx':Bx,'By':By,'Bz':Bz,
+                'Ro':Ro,'MLTo':MLTo})
     return rtp
 
 def read_flux(infile:str,**kwargs:dict) -> dict:
@@ -428,21 +419,28 @@ def main() -> None:
     outpath = os.path.join(herepath,indir)
     print(f'INPATH: {inpath}/')
 
-    filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
-    t0 = dt.datetime(1970,1,1)
-    flux_dict = {}
-    for i,infile in enumerate(filelist):
-        fname = infile.split('/')[-1][:-6]
-        flux = read_flux(infile,maxtimes=999,verbose=i==0)
-        if i==0:
-            flux_dict = flux
-        else:
-            for key in flux:
-                if len(flux[key].shape) > 2 or 'time' in key:
-                    flux_dict[key] = np.concat([flux_dict[key],flux[key]])
-    print(f"Converting {infile.split('/')[-1]} -> "+
-          f"{infile.replace('.fls','_fls.npz').split('/')[-1]}")
-    np.savez_compressed(infile.replace('.fls','_fls.npz'),**flux_dict)
+    if '-rtp' in arguments:
+        infile = glob.glob('*.rtp')[0]
+        rtp = read_rtp(infile,verbose=True)
+        np.savez_compressed(f"{inpath}/{infile.replace('.rtp','_rtp.npz')}",
+                            **rtp)
+        print(f"SAVED: {inpath}/{infile.replace('.rtp','_rtp.npz')}")
+    else:
+        filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
+        t0 = dt.datetime(1970,1,1)
+        flux_dict = {}
+        for i,infile in enumerate(filelist):
+            fname = infile.split('/')[-1][:-6]
+            flux = read_flux(infile,maxtimes=999,verbose=i==0)
+            if i==0:
+                flux_dict = flux
+            else:
+                for key in flux:
+                    if len(flux[key].shape) > 2 or 'time' in key:
+                        flux_dict[key] = np.concat([flux_dict[key],flux[key]])
+        print(f"Converting {infile.split('/')[-1]} -> "+
+            f"{infile.replace('.fls','_fls.npz').split('/')[-1]}")
+        np.savez_compressed(infile.replace('.fls','_fls.npz'),**flux_dict)
     # TODO
     # - see Roeder 1970 book section IV.4 application for mapping flux
     #    in B-L coordinates

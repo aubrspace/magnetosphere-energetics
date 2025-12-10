@@ -123,6 +123,9 @@ name_dict = {
              "J_x_`mA_m^2":"J_x_uA_m2",
              "J_y_`mA_m^2":"J_y_uA_m2",
              "J_z_`mA_m^2":"J_z_uA_m2",
+             "J_x_`uA_m^2":"J_x_uA_m2",
+             "J_y_`uA_m^2":"J_y_uA_m2",
+             "J_z_`uA_m^2":"J_z_uA_m2",
              #
              "B_x [nT]":"B_x_nT",
              "B_y [nT]":"B_y_nT",
@@ -139,7 +142,10 @@ name_dict = {
              "dvol [R]^3":"dvol_R3",
              "J_x [`mA_m^2]":"J_x_uA_m2",
              "J_y [`mA_m^2]":"J_y_uA_m2",
-             "J_z [`mA_m^2]":"J_z_uA_m2"
+             "J_z [`mA_m^2]":"J_z_uA_m2",
+             "J_x [`uA_m^2]":"J_x_uA_m2",
+             "J_y [`uA_m^2]":"J_y_uA_m2",
+             "J_z [`uA_m^2]":"J_z_uA_m2"
              }
 for var in data.PointData.keys():
     if var not in name_dict.keys():
