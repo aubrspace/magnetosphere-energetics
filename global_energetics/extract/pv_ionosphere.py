@@ -1,4 +1,6 @@
 import paraview
+paraview.compatibility.major = 5
+paraview.compatibility.minor = 12
 #### import the simple module from paraview
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa

@@ -6,6 +6,8 @@ import numpy as np
 import datetime as dt
 #### paraview
 import paraview
+paraview.compatibility.major = 5
+paraview.compatibility.minor = 12
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 #### Custom packages #####

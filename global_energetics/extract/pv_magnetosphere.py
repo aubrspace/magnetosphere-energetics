@@ -1,4 +1,6 @@
 import paraview
+paraview.compatibility.major = 5
+paraview.compatibility.minor = 12
 import os
 import time
 import glob
