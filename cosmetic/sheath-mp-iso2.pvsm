@@ -6528,169 +6528,6 @@
         <Domain name="bool" id="7139.ZTitleShadow.bool"/>
       </Property>
     </Proxy>
-    <Proxy group="annotations" type="LegendGridActor" id="7142" servers="21">
-      <Property name="AxisNotation" id="7142.AxisNotation" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="enum" id="7142.AxisNotation.enum">
-          <Entry value="0" text="Default"/>
-          <Entry value="1" text="Scientific"/>
-          <Entry value="2" text="Fixed"/>
-        </Domain>
-      </Property>
-      <Property name="AxisPrecision" id="7142.AxisPrecision" number_of_elements="1">
-        <Element index="0" value="2"/>
-        <Domain name="range" id="7142.AxisPrecision.range"/>
-      </Property>
-      <Property name="BottomBorderOffset" id="7142.BottomBorderOffset" number_of_elements="1">
-        <Element index="0" value="30"/>
-        <Domain name="range" id="7142.BottomBorderOffset.range"/>
-      </Property>
-      <Property name="GridVisibility" id="7142.GridVisibility" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7142.GridVisibility.bool"/>
-      </Property>
-      <Property name="HorizontalLabelNumber" id="7142.HorizontalLabelNumber" number_of_elements="1">
-        <Element index="0" value="5"/>
-        <Domain name="range" id="7142.HorizontalLabelNumber.range"/>
-      </Property>
-      <Property name="LeftBorderOffset" id="7142.LeftBorderOffset" number_of_elements="1">
-        <Element index="0" value="50"/>
-        <Domain name="range" id="7142.LeftBorderOffset.range"/>
-      </Property>
-      <Property name="Origin" id="7142.Origin" number_of_elements="3">
-        <Element index="0" value="0"/>
-        <Element index="1" value="0"/>
-        <Element index="2" value="0"/>
-      </Property>
-      <Property name="RightBorderOffset" id="7142.RightBorderOffset" number_of_elements="1">
-        <Element index="0" value="50"/>
-        <Domain name="range" id="7142.RightBorderOffset.range"/>
-      </Property>
-      <Property name="TopBorderOffset" id="7142.TopBorderOffset" number_of_elements="1">
-        <Element index="0" value="30"/>
-        <Domain name="range" id="7142.TopBorderOffset.range"/>
-      </Property>
-      <Property name="VerticalLabelNumber" id="7142.VerticalLabelNumber" number_of_elements="1">
-        <Element index="0" value="5"/>
-        <Domain name="range" id="7142.VerticalLabelNumber.range"/>
-      </Property>
-      <Property name="Visibility" id="7142.Visibility" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7142.Visibility.bool"/>
-      </Property>
-      <Property name="GridColor" id="7142.GridColor" number_of_elements="3">
-        <Element index="0" value="1"/>
-        <Element index="1" value="1"/>
-        <Element index="2" value="1"/>
-        <Domain name="range" id="7142.GridColor.range"/>
-      </Property>
-      <Property name="LegendLabelBold" id="7142.LegendLabelBold" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7142.LegendLabelBold.bool"/>
-      </Property>
-      <Property name="LegendLabelColor" id="7142.LegendLabelColor" number_of_elements="3">
-        <Element index="0" value="1"/>
-        <Element index="1" value="1"/>
-        <Element index="2" value="1"/>
-        <Domain name="range" id="7142.LegendLabelColor.range"/>
-      </Property>
-      <Property name="LegendLabelFontFamily" id="7142.LegendLabelFontFamily" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="enum" id="7142.LegendLabelFontFamily.enum">
-          <Entry value="0" text="Arial"/>
-          <Entry value="1" text="Courier"/>
-          <Entry value="2" text="Times"/>
-          <Entry value="4" text="File"/>
-        </Domain>
-      </Property>
-      <Property name="LegendLabelFontFile" id="7142.LegendLabelFontFile" number_of_elements="1">
-        <Element index="0" value=""/>
-      </Property>
-      <Property name="LegendLabelFontSize" id="7142.LegendLabelFontSize" number_of_elements="1">
-        <Element index="0" value="12"/>
-        <Domain name="range" id="7142.LegendLabelFontSize.range"/>
-      </Property>
-      <Property name="LegendLabelItalic" id="7142.LegendLabelItalic" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7142.LegendLabelItalic.bool"/>
-      </Property>
-      <Property name="LegendLabelOpacity" id="7142.LegendLabelOpacity" number_of_elements="1">
-        <Element index="0" value="1"/>
-        <Domain name="range" id="7142.LegendLabelOpacity.range"/>
-      </Property>
-      <Property name="LegendLabelShadow" id="7142.LegendLabelShadow" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7142.LegendLabelShadow.bool"/>
-      </Property>
-    </Proxy>
-    <Proxy group="annotations" type="PolarGridActor" id="7145" servers="21">
-      <Property name="AxesLength" id="7145.AxesLength" number_of_elements="1">
-        <Element index="0" value="100"/>
-        <Domain name="range" id="7145.AxesLength.range"/>
-      </Property>
-      <Property name="EndAngle" id="7145.EndAngle" number_of_elements="1">
-        <Element index="0" value="180"/>
-        <Domain name="range" id="7145.EndAngle.range"/>
-      </Property>
-      <Property name="NumberOfAxes" id="7145.NumberOfAxes" number_of_elements="1">
-        <Element index="0" value="6"/>
-        <Domain name="range" id="7145.NumberOfAxes.range"/>
-      </Property>
-      <Property name="NumberOfTicks" id="7145.NumberOfTicks" number_of_elements="1">
-        <Element index="0" value="6"/>
-        <Domain name="range" id="7145.NumberOfTicks.range"/>
-      </Property>
-      <Property name="Origin" id="7145.Origin" number_of_elements="2">
-        <Element index="0" value="0.5"/>
-        <Element index="1" value="0.5"/>
-        <Domain name="range" id="7145.Origin.range"/>
-      </Property>
-      <Property name="StartAngle" id="7145.StartAngle" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="range" id="7145.StartAngle.range"/>
-      </Property>
-      <Property name="Visibility" id="7145.Visibility" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7145.Visibility.bool"/>
-      </Property>
-      <Property name="AxesLabelBold" id="7145.AxesLabelBold" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7145.AxesLabelBold.bool"/>
-      </Property>
-      <Property name="AxesLabelColor" id="7145.AxesLabelColor" number_of_elements="3">
-        <Element index="0" value="1"/>
-        <Element index="1" value="1"/>
-        <Element index="2" value="1"/>
-        <Domain name="range" id="7145.AxesLabelColor.range"/>
-      </Property>
-      <Property name="AxesLabelFontFamily" id="7145.AxesLabelFontFamily" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="enum" id="7145.AxesLabelFontFamily.enum">
-          <Entry value="0" text="Arial"/>
-          <Entry value="1" text="Courier"/>
-          <Entry value="2" text="Times"/>
-          <Entry value="4" text="File"/>
-        </Domain>
-      </Property>
-      <Property name="AxesLabelFontSize" id="7145.AxesLabelFontSize" number_of_elements="1">
-        <Element index="0" value="12"/>
-        <Domain name="range" id="7145.AxesLabelFontSize.range"/>
-      </Property>
-      <Property name="AxesLabelItalic" id="7145.AxesLabelItalic" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7145.AxesLabelItalic.bool"/>
-      </Property>
-      <Property name="AxesLabelShadow" id="7145.AxesLabelShadow" number_of_elements="1">
-        <Element index="0" value="0"/>
-        <Domain name="bool" id="7145.AxesLabelShadow.bool"/>
-      </Property>
-      <Property name="GridColor" id="7145.GridColor" number_of_elements="3">
-        <Element index="0" value="1"/>
-        <Element index="1" value="1"/>
-        <Element index="2" value="1"/>
-        <Domain name="range" id="7145.GridColor.range"/>
-      </Property>
-    </Proxy>
     <Proxy group="representations" type="GeometryRepresentation" id="11196" servers="21">
       <Property name="DataAxesGrid" id="11196.DataAxesGrid" number_of_elements="1">
         <Proxy value="10990"/>
@@ -12544,11 +12381,11 @@
     </Proxy>
     <Proxy group="sources" type="VisItTecplotBinaryReader" id="10302" servers="1">
       <Property name="FileName" id="10302.FileName" number_of_elements="1">
-        <Element index="0" value="/Users/ambrenne/Code/energy_map/data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/run_may2019/GM/IO2/3d__paraview_1_e20190513-195600-016.plt"/>
         <Domain name="files" id="10302.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="10302.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/Users/ambrenne/Code/energy_map/data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/run_may2019/GM/IO2/3d__paraview_1_e20190513-195600-016.plt"/>
       </Property>
       <Property name="TimestepValues" id="10302.TimestepValues" number_of_elements="1">
         <Element index="0" value="0"/>
@@ -12719,11 +12556,11 @@
     </Proxy>
     <Proxy group="sources" type="VisItTecplotBinaryReader" id="10439" servers="1">
       <Property name="FileName" id="10439.FileName" number_of_elements="1">
-        <Element index="0" value="/Users/ambrenne/Code/energy_map/data/large/GM/IO2/3d__paraview_1_e20190513-195700-032.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/run_may2019/GM/IO2/3d__paraview_1_e20190513-195700-032.plt"/>
         <Domain name="files" id="10439.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="10439.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/Users/ambrenne/Code/energy_map/data/large/GM/IO2/3d__paraview_1_e20190513-195700-032.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/run_may2019/GM/IO2/3d__paraview_1_e20190513-195700-032.plt"/>
       </Property>
       <Property name="TimestepValues" id="10439.TimestepValues" number_of_elements="1">
         <Element index="0" value="0"/>
@@ -12894,11 +12731,11 @@
     </Proxy>
     <Proxy group="sources" type="VisItTecplotBinaryReader" id="10476" servers="1">
       <Property name="FileName" id="10476.FileName" number_of_elements="1">
-        <Element index="0" value="/Users/ambrenne/Code/energy_map/data/large/GM/IO2/3d__paraview_1_e20190513-195800-008.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/run_may2019/GM/IO2/3d__paraview_1_e20190513-195800-008.plt"/>
         <Domain name="files" id="10476.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="10476.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/Users/ambrenne/Code/energy_map/data/large/GM/IO2/3d__paraview_1_e20190513-195800-008.plt"/>
+        <Element index="0" value="/home/aubr/pytecplot/magnetosphere-energetics/run_may2019/GM/IO2/3d__paraview_1_e20190513-195800-008.plt"/>
       </Property>
       <Property name="TimestepValues" id="10476.TimestepValues" number_of_elements="1">
         <Element index="0" value="0"/>
@@ -15100,12 +14937,6 @@
         <Element index="0" value="20"/>
         <Domain name="range" id="7148.LODThreshold.range"/>
       </Property>
-      <Property name="LegendGrid" id="7148.LegendGrid" number_of_elements="1">
-        <Proxy value="7142"/>
-        <Domain name="proxy_list" id="7148.LegendGrid.proxy_list">
-          <Proxy value="7142"/>
-        </Domain>
-      </Property>
       <Property name="LightScale" id="7148.LightScale" number_of_elements="1">
         <Element index="0" value="1"/>
         <Domain name="range" id="7148.LightScale.range"/>
@@ -15673,8 +15504,6 @@
     </ProxyCollection>
     <ProxyCollection name="pq_helper_proxies.7148">
       <Item id="7139" name="AxesGrid" logname="RenderView1/AxesGrid/GridAxes3DActor"/>
-      <Item id="7142" name="LegendGrid" logname="RenderView1/LegendGrid/LegendGridActor"/>
-      <Item id="7145" name="PolarGrid" logname="RenderView1/PolarGrid/PolarGridActor"/>
     </ProxyCollection>
     <ProxyCollection name="representations">
       <Item id="11196" name="GeometryRepresentation1" logname="GeometryRepresentation1"/>

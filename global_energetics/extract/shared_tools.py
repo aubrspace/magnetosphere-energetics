@@ -80,8 +80,11 @@ def read_aux(infile:str) -> dict:
     data = {}
     with open(infile,'r') as f:
         for line in f.readlines():
-            if 'TIME' in line:
+            if 'TIME' in line or 'DATE' in line:
                 data[line.split(':')[0]] = ':'.join(line.split(':')[1::])
+            #elif 'SAVEDATE' in line:
+            #    data[line.split(':')[0]] = ':'.join(
+            #                           line.replace(' at','').split(':')[2::])
             else:
                 data[line.split(':')[0]]=line.split(':')[-1].replace(
                                                  ' ','').replace('\n','')

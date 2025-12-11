@@ -99,7 +99,7 @@ def main() -> None:
     renderView = GetActiveViewOrCreate('RenderView')# for view hooks
 
     # If we have a state ready, load it, otw do initial processing
-    if True:
+    if False:
         # Load
         #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
         #          data_directory=INPATH)
@@ -125,23 +125,26 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    #for ifile,infile in enumerate(filelist[1:-1]):
-    for ifile,infile in enumerate(filelist[1:2]):
-        # Set output file name
+    for ifile,infile in enumerate(filelist[1:-1]):
+    #for ifile,infile in enumerate(filelist[1:3]):
+        # Set output file name(s)
+        localtime = get_time(infile)
         outfile=infile.split('_1_e')[-1].replace('.plt','.png')
-        if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
+        npzfile = ('energetics_'+localtime.isoformat().replace(':',''
+                                              ).replace('-',''
+                                              ).replace('T','')+'.npz')
+        #if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
+        if os.path.exists(f"{OUTPATH}/{npzfile}"):
             pass# Skip
         else:
             print(f"{infile.split('/')[-1]}")
-            localtime = get_time(infile)
-            '''
             # Read aux data
             aux = read_aux(infile.replace('.plt','.aux'))
             # Get time information
             localtime = get_time(infile)
             # Update time
-            timestamp = FindSource('time')
-            timestamp.Text = str(localtime)
+            #timestamp = FindSource('Text1')
+            #timestamp.Text = str(localtime)
 
             # Update the pipeline
             new_data = read_tecplot(filelist[ifile+1])
@@ -156,7 +159,6 @@ def main() -> None:
             Delete(old_data)
             del old_data
 
-            '''
             # Update
             renderView.Update()
             for surf_name,surface in surfaces.items():
@@ -166,10 +168,11 @@ def main() -> None:
             # Crunch the numbers
             perform_integrations(surfaces,volume,localtime)
 
-            # Save screenshot
-            SaveScreenshot(f"{OUTPATH.replace('analysis','png')}/{outfile}",
-                           GetLayout())
-            print(f"\033[36m Saved \033[00m {outfile}")
+            if False:
+                # Save screenshot
+                SaveScreenshot(f"{OUTPATH.replace('analysis','png')}/{outfile}",
+                               GetLayout())
+                print(f"\033[36m Saved \033[00m {outfile}")
 
 if True:
     start_time = time.time()

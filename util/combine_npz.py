@@ -30,7 +30,7 @@ if __name__=='__main__':
 
     global INPATH,KEY
 
-    INPATH = 'weakdip_50_katus/GM/analysis'
+    INPATH = 'outputs_may2019'
     KEY    = 'energetics_*.npz'
 
     main()

@@ -2,13 +2,14 @@
 """Modifies tecplot .plt files to be save for the VisIt reader in Paraview
 """
 import sys,os,glob,time
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
+sys.path.append(os.getcwd().split('magnetosphere-energetics')[0]+
+                                      'magnetosphere-energetics/')
 import datetime as dt
-import tecplot as tp
+#import tecplot as tp
 #Interpackage imports
 try:
     from global_energetics.makevideo import time_sort,get_time
+    from global_energetics.extract.shared_tools import (read_aux)
     nosort = False
 except ImportError:
     print('global_energetics not found cant sort files!')
@@ -20,9 +21,9 @@ def weed_savedate(pathtofiles,keytime,keep_side,*,verbose):
     """
     # Glob for the files at this path
     if nosort:
-        filelist = glob.glob(f'{pathtofiles}/3d*var*.plt')
+        filelist = glob.glob(f'{pathtofiles}/3d*paraview*.plt')
     else:
-        filelist = sorted(glob.glob(f'{pathtofiles}/3d*var*.plt'),
+        filelist = sorted(glob.glob(f'{pathtofiles}/3d*paraview*.plt'),
                           key=time_sort)
     times = [get_time(f) for f in filelist]
     if verbose:
@@ -43,11 +44,12 @@ def weed_savedate(pathtofiles,keytime,keep_side,*,verbose):
             savedates = [[]]*count
             for k in range(0,count):
                 # Read file with tecplot and scrape the aux data
-                tp.new_layout()
-                ds = tp.data.load_tecplot(filelist[i+k])
-                aux = ds.zone(0).aux_data.as_dict()
+                #tp.new_layout()
+                #ds = tp.data.load_tecplot(filelist[i+k])
+                #aux = ds.zone(0).aux_data.as_dict()
+                aux = read_aux(infile.replace('.plt','.aux'))
                 savedate = dt.datetime.strptime(aux['SAVEDATE'],
-                                             'Save Date: %Y/%m/%d at %H:%M:%S')
+                                           'Save Date: %Y/%m/%d at %H:%M:%S\n')
                 savedates[k] = savedate
             # keep only the one that was created most recently
             savevalues = [(s-savedates[0]).total_seconds() for s in savedates]
