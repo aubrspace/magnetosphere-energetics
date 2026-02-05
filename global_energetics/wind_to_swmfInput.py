@@ -16,6 +16,18 @@ ssc = SscWs()
 from sscws.coordinates import CoordinateSystem as coordsys
 import swmfpy
 from geopack import geopack as gp
+from tqdm import tqdm
+
+def gse_to_gsm(times:np.ndarray,
+             vec_gse:np.ndarray) -> np.ndarray:
+    t1970 = dt.datetime(1970,1,1,0)
+    vec_gsm = np.zeros_like(vec_gse)
+    for it, t in enumerate(tqdm(times)):
+        ut = (t-t1970).total_seconds()
+        gp.recalc(ut)
+        vec_gsm[it,:] = gp.gsmgse(*np.array(vec_gse[it,:]).astype(float),-1)
+    return vec_gse
+
 
 def read_MFI_SWE_WIND(filename):
     """Reads specific type of file output https://wind.nasa.gov/mfi_swe_plot.php
@@ -683,13 +695,29 @@ def collect_cluster(start, end, **kwargs):
     Returns
         df (DataFrame)- collected and processed data
     """
+    #TODO re-write this whole section
+    #   > make more general by abstracting up specific functions
+    #       x Set probe/sc ID
+    #       x set buffer
+    #       x set outpath
+    #       
+    #   > Position
+    #       x set instrument
+    #       x set keys
+    #       x call get_data
+    #       x gse_to_gsm
+    #   > Bfield
+    #       x set instrument
+    #       x set keys
+    #       x call get_data
+    #       x gse_to_gsm
     probelist = kwargs.get('probes',['1','2','3','4'])
     buff = dt.timedelta(hours=12)
     outpath = kwargs.get('outpath','./')
     # Position
     positions = {}
     if not kwargs.get('skip_pos',False):
-        print('Gathering Position Data')
+        print('Gathering Position Data ...')
         pos_instrument = kwargs.get('instrument','CL_SP_AUX')
         gsmgse_key = kwargs.get('gsmgse_key','gse_gsm__CL_SP_AUX')
         gseref_key = kwargs.get('gseref_key','sc_r_xyz_gse__CL_SP_AUX')
@@ -709,13 +737,15 @@ def collect_cluster(start, end, **kwargs):
     # Flux Gate Magnetometer
     bfield = {}
     if not kwargs.get('skip_bfield',False):
-        print('Gathering Bfield Data')
+        print('Gathering Bfield Data ...')
         for num in probelist:
+            print(f"\t Cluster-{num}")
             df = pd.DataFrame()
             fgm_instrument = 'C'+num+'_CP_FGM_SPIN'
             bvec_key = 'B_vec_xyz_gse__C'+num+'_CP_FGM_SPIN'
             epoch_key = 'Epoch__C'+num+'_CP_FGM_SPIN'
             status,fgmdata = cdas.get_data(fgm_instrument,[bvec_key],start,end)
+            epoch_key = epoch_key.replace('Epoch_','time_tags_')# dumb!
             columns = ['bx','by','bz']
             if fgmdata == None:
                 fgm_instrument = 'C'+num+'_UP_FGM'
@@ -726,18 +756,17 @@ def collect_cluster(start, end, **kwargs):
                 df[['status1','status2','status3','status4']]=fgmdata[
                                                                     status_key]
                 epoch_key = 'Epoch__C'+num+'_UP_FGM'
-            xtime = [t.value for t in positions['cluster'+num].index]
-            ytime = [pd.Timestamp(t).value for t in fgmdata[epoch_key]]
-            dipole_angles = np.interp(ytime,xtime,posdata[gsmgse_key])
-            bgsm = rotate_gse_gsm(dipole_angles,fgmdata[bvec_key])
-            df[['bx','by','bz']] =  bgsm
+            print('\t\tConverting GSE->GSM')
+            bgsm = gse_to_gsm(fgmdata[epoch_key],fgmdata[bvec_key])
+            df[['bx','by','bz']] = bgsm
             df.index = fgmdata[epoch_key]
             bfield['cluster'+num] = df
     # Cluster Ion Spectrometry (CIS)
     plasma = {}
     if not kwargs.get('skip_bfield',False):
-        print('Gathering Plasma Data')
+        print('Gathering Plasma Data ...')
         for num in ['1','2','3','4']:
+            print(f"\t Cluster-{num}")
             df = pd.DataFrame()
             # Variable keys
             cis_instrument = 'C'+num+'_PP_CIS'
@@ -746,6 +775,7 @@ def collect_cluster(start, end, **kwargs):
             Tpar_proton_key = 'T_p_par__C'+num+'_PP_CIS' #MK
             Tperp_proton_key = 'T_p_perp__C'+num+'_PP_CIS' #MK
             epoch_key = 'Epoch__C'+num+'_PP_CIS'
+            #epoch_key = epoch_key.replace('Epoch_','time_tags_')# dumb!
             # Get Data
             status,plasmadata = cdas.get_data(cis_instrument,[n_proton_key,
                                                             u_proton_key,
@@ -758,10 +788,9 @@ def collect_cluster(start, end, **kwargs):
                     plasma['cluster'+num] = pd.DataFrame()
                 else:
                     df['n'] = plasmadata[n_proton_key]
-                    xtime = [t.value for t in positions['cluster'+num].index]
-                    ytime=[pd.Timestamp(t).value for t in plasmadata[epoch_key]]
-                    dipole_angles = np.interp(ytime,xtime,posdata[gsmgse_key])
-                    vgsm=rotate_gse_gsm(dipole_angles,plasmadata[u_proton_key])
+                    print('\t\tConverting GSE->GSM')
+                    vgsm = gse_to_gsm(plasmadata[epoch_key],
+                                      plasmadata[u_proton_key])
                     df[['vx','vy','vz']] = vgsm
                     df['Tpar'] = plasmadata[Tpar_proton_key]
                     df['Tperp'] = plasmadata[Tperp_proton_key]
@@ -769,6 +798,7 @@ def collect_cluster(start, end, **kwargs):
                     plasma['cluster'+num] = df
             else:
                 plasma['cluster'+num] = pd.DataFrame()
+    from IPython import embed; embed()
     if kwargs.get('writeData',True):
         ofilename = outpath+kwargs.get('ofilename','cluster')
         # Position

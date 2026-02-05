@@ -1,8 +1,8 @@
 import numpy as np
 import paraview
 #### import the simple module from paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 12
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.util.numpy_support import vtk_to_numpy
@@ -458,11 +458,11 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
     #Generate normals now that the surface is fully constructed
     if kwargs.get('calc_normals',True):
         #if paraview.__version__ == '6.0.0':
-        #    normals = SurfaceNormals(registrationName=name+'_normals',
-        #                             Input=outputsource)
+        normals = SurfaceNormals(registrationName=name+'_normals',
+                                     Input=outputsource)
         #else:
-        normals = GenerateSurfaceNormals(registrationName=name+'_normals',
-                                             Input=outputsource)
+        #    normals = GenerateSurfaceNormals(registrationName=name+'_normals',
+        #                                     Input=outputsource)
         normals.ComputeCellNormals = 1
         normals.NonManifoldTraversal = 0
         outputsource = normals

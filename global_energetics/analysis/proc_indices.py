@@ -456,10 +456,10 @@ def get_supermag_data(start, end, datapath):
         start, end- datatime objects used for supermag.py
     """
     #Interpackage imports
-    if os.path.exists('../supermag-data'):
+    if os.path.exists(f'../supermag-data'):
         os.system('ln -s ../supermag-data/supermag.py')
         print('soft link to supermag.py created')
-        SUPERMAGDATAPATH = '../supermag-data/data'
+        SUPERMAGDATAPATH = f'../supermag-data/data'
     else:
         try:
             import supermag
@@ -949,7 +949,7 @@ def read_indices(data_path, **kwargs):
         kwargs.update({'start':data[anykey].index[0]})
         kwargs.update({'end':data[anykey].index[-1]})
     #get supermag and omni
-    if kwargs.get('read_supermag',True):
+    if kwargs.get('read_supermag',False):
         import supermag
         #Get start and duration
         start = [kwargs.get('start').year,

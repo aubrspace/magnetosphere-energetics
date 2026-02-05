@@ -2,7 +2,6 @@
 """module processes observation/simulation satellite traces
 """
 import os
-import sys
 import glob
 import time
 import numpy as np
@@ -15,7 +14,6 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 import swmfpy
 #interpackage imports
-from global_energetics.analysis.analyze_energetics import mark_times
 from global_energetics.analysis.proc_indices import (read_indices,
                                                      csv_to_pandas,
                                                      datetimeparser,
@@ -985,6 +983,8 @@ def read_satellites(pathtofiles):
     return virtualsats, obssats
 
 if __name__ == "__main__":
+    import sys
+    from global_energetics.analysis.analyze_energetics import mark_times
     datapath = sys.argv[1]
     print('processing satellite output at {}'.format(datapath))
     obspath = os.path.join(datapath, 'observation')

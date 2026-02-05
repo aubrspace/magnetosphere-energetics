@@ -1,8 +1,8 @@
 import numpy as np
 import paraview
 from paraview.simple import *
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 12
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.util.numpy_support import vtk_to_numpy
 
@@ -88,7 +88,7 @@ def get_numpy_volume_analysis(source:object,*,
         # for volumes the primary (only?) condition is the subvolume itself
         conditions = {'':np_volume[volume]}
         if 'FUTUREUtot_J_Re3' in np_volume.keys():
-            conditions.update(get_diff_volume_integrals(volume,np_volume,1800))
+            conditions.update(get_diff_volume_integrals(volume,np_volume,120))
         # Calculate each partial integral
         for integrand in integrands:
             if kwargs.get('verbose',False):
@@ -109,7 +109,7 @@ def get_numpy_volume_analysis(source:object,*,
                 entry_name = volume+'_'+integral_name+'ddt'+'_W'
                 results[entry_name] = np.sum((np_volume['PAST'+integrand]-
                                               np_volume['FUTURE'+integrand])*
-                           np_volume[volume]*np_volume['dvol_R3'])/(1800)
+                           np_volume[volume]*np_volume['dvol_R3'])/(120)
     return results
 
 def extract_volume(source:object,

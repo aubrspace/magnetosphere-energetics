@@ -11,6 +11,9 @@ from matplotlib import pyplot as plt
 from matplotlib import patches
 # Custom
 from global_energetics.analysis.proc_indices import read_indices
+from global_energetics.cdaweb_interface import(get_satellite_positions,
+                                               get_satellite_bfield,
+                                               get_satellite_plasma)
 from global_energetics.wind_to_swmfInput import (collect_themis,collect_mms,
                                              collect_cluster,collect_geotail,
                                              collect_goes,collect_arase,
@@ -71,28 +74,72 @@ def main() -> None:
     imf = read_indices(IMFPATH,start=START,end=END,read_supermag=False)
     solarwind = imf['swmf_sw']
     # Scrape data from CDAWeb
+    cluster_pos = get_satellite_positions('cluster',START,END)
+    #cluster_b   = get_satellite_bfield('cluster',START,END)
+    rbsp_pos    = get_satellite_positions('rbsp',START,END)
+    goes_pos    = get_satellite_positions('goes',START,END)
+    mms_pos     = get_satellite_positions('mms',START,END,
+                                          spacecraft_list=['1'])
+    themis_pos  = get_satellite_positions('themis',START,END,
+                                          spacecraft_list=['A','D','E'])
+    arase_pos    = get_satellite_positions('arase',START,END)
+    #TODO
+    #   test / iterate through with cluster for plasma data
+    #   (hopefully now robust) update static dictionaries and test for:
+    #       goes
+    #       mms
+    #       rbsp
+    #       themis
+    #   Then make a reader/npz converter for CIMI satellite output
+    #   (finally)
+    #       actually start poking through data
+    #       look for:
+    #           energization in particle data
+    #           evidence of pressure pulse in magnetic field measurments
+    #           evidence of pressure pulse in particle data
+    #           evidence of reduced anisotropy in agreement with FLC scattering
+    '''
+    arase_b      = get_satellite_bfield('arase',START,END)
+    arase_plasma = get_satellite_plasma('arase',START,END)
+    arase_plasma.pop('ERG_HEP_L2_OMNIFLUX_Epoch_H')# NOTE <- lazy
+
+    np.savez_compressed(f'{OUTPATH}/arase_position.npz',**arase_pos,
+                        allow_pickle=False)
+    print(f'\t\033[92m Created\033[00m {OUTPATH}/arase_position.npz')
+    np.savez_compressed(f'{OUTPATH}/arase_b.npz',**arase_b,
+                        allow_pickle=False)
+    print(f'\t\033[92m Created\033[00m {OUTPATH}/arase_b.npz')
+    np.savez_compressed(f'{OUTPATH}/arase_plasma.npz',**arase_plasma,
+                        allow_pickle=False)
+    print(f'\t\033[92m Created\033[00m {OUTPATH}/arase_plasma.npz')
+    '''
+    '''
     arase_pos, arase_b, arase_plasma = collect_arase(START,END,
                                             skip_bfield=True,skip_plasma=True,
                                             writeData=True)
-    rbsp_pos, rbsp_b, rbsp_plasma = collect_rbsp(START,END,
-                                            skip_bfield=True,skip_plasma=True,
-                                            writeData=True)
+    #rbsp_pos, rbsp_b, rbsp_plasma = collect_rbsp(START,END,
+    #                                        skip_bfield=True,skip_plasma=True,
+    #                                        writeData=True)
     goes_pos, goes_b, goes_plasma = collect_goes(START,END,
-                                            skip_bfield=True,skip_plasma=True,
+                                            skip_bfield=False,skip_plasma=True,
                                             probes=['16','17'],
                                             writeData=True)
     cluster_pos, cluster_b,cluster_plasma = collect_cluster(START, END,
-                                            skip_bfield=True,skip_plasma=True,
+                                            skip_bfield=False,
+                                            skip_plasma=False,
                                             probes=['1','2','3','4'],
                                             writeData=True)
     mms_pos, mms_b,mms_plasma = collect_mms(START, END,
-                                            skip_bfield=True,skip_plasma=True,
+                                            skip_bfield=False,
+                                            skip_plasma=False,
                                             probes=['1'],
                                             writeData=True)
     themis_pos, themis_b,themis_plasma = collect_themis(START, END,
-                                            skip_bfield=True,skip_plasma=True,
+                                            skip_bfield=True,
+                                            skip_plasma=True,
                                             probes=['A','D','E'],
                                             writeData=True)
+    '''
 
     # Quick Plot
     if PLOT_DATA:
@@ -162,8 +209,9 @@ def main() -> None:
         meridional.set_xlabel('X GSM [R]')
         meridional.set_ylabel('Z GSM [R]')
         meridional.legend()
-        from IPython import embed; embed()
+        plt.show()
 
+    '''
     print('Writing Arase Satfiles ...')
     for sat in arase_pos.keys():
         write_SWMF_satfile(arase_pos[sat],sat+'.dat',OUTPATH,
@@ -188,15 +236,16 @@ def main() -> None:
     for sat in goes_pos.keys():
         write_SWMF_satfile(goes_pos[sat],sat+'.dat',OUTPATH,
                            note=f'{sat} Created {str(dt.datetime.now())}')
+    '''
 
 if __name__ == '__main__':
     global START,END,OUTPATH,PLOT_DATA
     #############################USER INPUTS HERE##########################
     START     = dt.datetime(2019,5,13,19,0)
     END       = dt.datetime(2019,5,15,10,30)
-    OUTPATH   = './energy_map/inputs/satellites'
-    PLOT_DATA = True
-    IMFPATH   = './energy_map/inputs/simulations/'
+    OUTPATH   = './inputs/satellites'
+    PLOT_DATA = False
+    IMFPATH   = './inputs/simulations/'
     #######################################################################
 
     main()

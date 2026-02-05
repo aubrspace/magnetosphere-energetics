@@ -1,7 +1,7 @@
 import paraview
 from paraview.simple import *
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 12
 
 def setup_table(**kwargs):
     """Function sets up a table (spreadsheet view) so data can be exported

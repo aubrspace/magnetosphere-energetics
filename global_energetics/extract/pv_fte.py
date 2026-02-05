@@ -1,7 +1,7 @@
 import paraview
 from paraview.simple import *
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 12
 
 def load_fte(pipeline,**kwargs):
     filtername = 'fte_state'

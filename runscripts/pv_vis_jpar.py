@@ -2,8 +2,8 @@ import paraview
 paraview.compatibility.major = 5
 paraview.compatibility.minor = 10
 import os,sys
-sys.path.append(os.getcwd().split('swmf-energetics')[0]+
-                                      'swmf-energetics/')
+sys.path.append(os.getcwd().split('magnetosphere-energetics')[0]+
+                                      'magnetosphere-energetics/')
 
 import time
 import glob

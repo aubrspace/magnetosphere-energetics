@@ -1,7 +1,7 @@
 import paraview
 from paraview.simple import *
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 12
 
 def display_visuals(field,mp,renderView,**kwargs):
     """Function standin for separate file governing visual representations

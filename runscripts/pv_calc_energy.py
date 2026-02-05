@@ -6,8 +6,8 @@ import numpy as np
 import datetime as dt
 #### paraview
 import paraview
-paraview.compatibility.major = 5
-paraview.compatibility.minor = 12
+#paraview.compatibility.major = 5
+#paraview.compatibility.minor = 12
 from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 #### Custom packages #####
@@ -87,8 +87,8 @@ def perform_integrations(surfaces:dict,volume:object,
     combined_results.update(volume_results)
     np.savez_compressed(f"{OUTPATH}/{outfile}",allow_pickle=False,
                         **combined_results)
-    #print(f"\033[92m Saved\033[00m {OUTPATH}/{outfile}")
-    print(f"\033[92m Saved\033[00m {outfile}")
+    print(f"\t\033[92m Saved\033[00m {OUTPATH}/{outfile}")
+    #print(f"\033[92m Saved\033[00m {outfile}")
 
 def main() -> None:
     # Locate files
@@ -99,18 +99,18 @@ def main() -> None:
     renderView = GetActiveViewOrCreate('RenderView')# for view hooks
 
     # If we have a state ready, load it, otw do initial processing
-    if False:
+    if True:
         # Load
         #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
         #          data_directory=INPATH)
         #LoadState(os.path.join(os.getcwd(),'cosmetic/magnetopause_and_sheath.pvsm'))
-        LoadState(os.path.join(os.getcwd(),'cosmetic/sheath-mp-iso2.pvsm'))
+        LoadState(os.path.join(os.getcwd(),'cosmetic/sheath-mp-iso3.pvsm'))
         # Get view
         renderView = GetActiveView()
         # Set the heads of the pipeline
-        old_past_head   = FindSource('3d__paraview_1_e20190513-195600-016')
-        old_present_head= FindSource('3d__paraview_1_e20190513-195700-032')
-        old_future_head = FindSource('3d__paraview_1_e20190513-195800-008')
+        old_past_head   = FindSource('3d__paraview_1_e20190513-190000-000')
+        old_present_head= FindSource('3d__paraview_1_e20190513-190100-014')
+        old_future_head = FindSource('3d__paraview_1_e20190513-190200-034')
         # Set the tails where the processing takes over
         surfaces = {'mp'    :FindSource('mp'),
                     'closed':FindSource('closed'),
@@ -125,17 +125,19 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
+    #if False:
     for ifile,infile in enumerate(filelist[1:-1]):
-    #for ifile,infile in enumerate(filelist[1:3]):
+    #for ifile,infile in enumerate(filelist[1:5]):
         # Set output file name(s)
         localtime = get_time(infile)
         outfile=infile.split('_1_e')[-1].replace('.plt','.png')
-        npzfile = ('energetics_'+localtime.isoformat().replace(':',''
-                                              ).replace('-',''
-                                              ).replace('T','')+'.npz')
-        #if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
-        if os.path.exists(f"{OUTPATH}/{npzfile}"):
-            pass# Skip
+        #npzfile = ('energetics_'+localtime.isoformat().replace(':',''
+        #                                      ).replace('-',''
+        #                                      ).replace('T','')+'.npz')
+        #if os.path.exists(f"{OUTPATH}/{npzfile}"):
+        #    pass# Skip
+        if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
+            print(f"File found ({infile.split('/')[-1]}.png), skipping")
         else:
             print(f"{infile.split('/')[-1]}")
             # Read aux data
@@ -143,8 +145,8 @@ def main() -> None:
             # Get time information
             localtime = get_time(infile)
             # Update time
-            #timestamp = FindSource('Text1')
-            #timestamp.Text = str(localtime)
+            timestamp = FindSource('Time')
+            timestamp.Text = str(localtime)
 
             # Update the pipeline
             new_data = read_tecplot(filelist[ifile+1])
@@ -168,11 +170,11 @@ def main() -> None:
             # Crunch the numbers
             perform_integrations(surfaces,volume,localtime)
 
-            if False:
+            if True:
                 # Save screenshot
                 SaveScreenshot(f"{OUTPATH.replace('analysis','png')}/{outfile}",
                                GetLayout())
-                print(f"\033[36m Saved \033[00m {outfile}")
+                print(f"\t\033[36m Saved \033[00m {outfile}")
 
 if True:
     start_time = time.time()
@@ -187,9 +189,10 @@ if True:
     #INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
     #OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
     #INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
-    #OUTPATH  = os.path.join(herepath,'data/analysis/')
-    INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
-    OUTPATH   = os.path.join(herepath,'outputs_may2019/')
+    INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2/')
+    OUTPATH  = os.path.join(herepath,'data/analysis/')
+    #INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
+    #OUTPATH   = os.path.join(herepath,'outputs_may2019/')
 
     main()
 

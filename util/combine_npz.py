@@ -9,8 +9,7 @@ def main() -> None:
     combined_data = dict(np.load(filelist[0]))
     for infile in tqdm(filelist[1::]):
         data = dict(np.load(infile))
-        for key in [k for k in combined_data.keys()
-                                                  if 'allow_pickle' not in k]:
+        for key in[k for k in combined_data.keys()if 'allow_pickle' not in k]:
             if combined_data[key].size == 1:
                 combined_data[key] = np.concatenate(([combined_data[key]],
                                                      [data[key]]))
@@ -30,7 +29,8 @@ if __name__=='__main__':
 
     global INPATH,KEY
 
-    INPATH = 'outputs_may2019'
+    #INPATH = 'outputs_may2019'
+    INPATH = 'data/analysis'
     KEY    = 'energetics_*.npz'
 
     main()
