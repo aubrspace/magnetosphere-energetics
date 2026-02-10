@@ -95,6 +95,92 @@ def read_rtp(infile:str,**kwargs:dict) -> dict:
                 'Ro':Ro,'MLTo':MLTo})
     return rtp
 
+def read_flux_data(f,
+            flux_dict:dict,
+                 flux:np.ndarray,
+                times:np.ndarray,
+                itime:int,
+                 nLat:int,
+                 nMLT:int,
+                   nE:int,
+               nAlpha:int) -> None:#NOTE modifies flux_dict
+    line = f.readline()
+    if is_data_line(line):
+        params1 = line.split('!')[0].split()
+    else:
+        params1 = pull(f.readline())
+    times[itime] = params1[0]
+    #lstarMax[itime]  = params1[-1]
+    found = False
+    for ilat in range(0,nLat):
+        for imlt in range(0,nMLT):
+            line = f.readline()
+            if is_data_line(line):
+                params2 = pull(line)
+            else:
+                # Read two lines of header and 2 lines of values
+                head1 = line.split()
+                head2 = f.readline().split()
+                params2 = pull(f.readline())
+                params2 = np.concat([params2,pull(f.readline())])
+                # One more header line for the flux
+                flux_header = f.readline()
+            if len(params2)>9:
+                flux_dict['latN'][itime,ilat,imlt] = params2[0]
+                flux_dict['mltN'][itime,imlt]      = params2[1]
+                flux_dict['latS'][itime,ilat,imlt] = params2[2]
+                flux_dict['mltS'][itime,ilat,imlt] = params2[3]
+                flux_dict['ro'][itime,ilat,imlt]   = params2[4]
+                flux_dict['mlto'][itime,ilat,imlt] = params2[5]
+                flux_dict['BriN'][itime,ilat,imlt] = params2[6]
+                flux_dict['BriS'][itime,ilat,imlt] = params2[7]
+                flux_dict['bo'][itime,ilat,imlt]   = params2[8]
+                flux_dict['ba'][itime,imlt]        = params2[9]
+
+                if len(params2)<20:
+                    params3 = f.readline().split()
+                else:
+                    params3 = params2[10:22]
+
+                flux_dict['density'][itime,ilat,imlt] = params3[0]
+                flux_dict['ompe'][itime,ilat,imlt]    = params3[1]
+                flux_dict['CHpower'][itime,ilat,imlt] = params3[2]
+                flux_dict['HIpower'][itime,ilat,imlt] = params3[3]
+                flux_dict['denWP'][itime,ilat,imlt]   = params3[4]
+                flux_dict['TparaWP'][itime,ilat,imlt] = params3[5]
+                flux_dict['TperpWP'][itime,ilat,imlt] = params3[6]
+                flux_dict['HRPee'][itime,ilat,imlt]   = params3[7]
+                flux_dict['HRPii'][itime,ilat,imlt]   = params3[8]
+                flux_dict['rppa'][itime,imlt]         = params3[9]
+                flux_dict['Lstar'][itime,ilat,imlt]   = params3[10]
+                flux_dict['volume'][itime,ilat,imlt]  = params3[11]
+
+            elif len(params2)>6:
+                flux_dict['latN'][itime,ilat,imlt] = params2[0]
+                flux_dict['mltN'][itime,ilat,imlt] = params2[1]
+                flux_dict['ro'][itime,ilat,imlt]   = params2[2]
+                flux_dict['mlto'][itime,ilat,imlt] = params2[3]
+                flux_dict['bo'][itime,ilat,imlt]   = params2[4]
+                flux_dict['irm'][itime,ilat,imlt]  = params2[5]
+                flux_dict['iba'][itime,ilat,imlt]  = params2[6]
+                params3 = None
+            else:
+                flux_dict['latN'][itime,ilat,imlt] = params2[0]
+                flux_dict['mltN'][itime,ilat,imlt] = params2[1]
+                flux_dict['ro'][itime,ilat,imlt]   = params2[2]
+                flux_dict['mlto'][itime,ilat,imlt] = params2[3]
+                flux_dict['bo'][itime,ilat,imlt]   = params2[4]
+                flux_dict['rm'][itime,ilat,imlt]   = params2[5]
+                params3 = None
+            done = False
+            flux_segment = np.array([])
+            while not done:
+                line = f.readline()
+                flux_segment =np.concat([flux_segment,pull(line)])
+                if len(flux_segment)>=(nE*nAlpha):
+                    done = True
+            flux[itime,ilat,imlt,:,:] = flux_segment.reshape(nE,nAlpha)
+
 def read_flux(infile:str,**kwargs:dict) -> dict:
     flux_dict = {}
     if kwargs.get('verbose',False):
@@ -310,103 +396,18 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
         #####################################################################
         # Read Flux data
         flux = np.zeros([ntimes,nLat,nMLT,nE,nAlpha])
-        for itime in tqdm(range(0,ntimes)):
-            line = f.readline()
-            if is_data_line(line):
-                params1 = line.split('!')[0].split()
-            else:
-                params1 = pull(f.readline())
-            times[itime] = params1[0]
-            lstarMax[itime]  = params1[-1]
-            found = False
-            for ilat in range(0,nLat):
-                for imlt in range(0,nMLT):
-                    line = f.readline()
-                    if is_data_line(line):
-                        params2 = pull(line)
-                    else:
-                        # Read two lines of header and then 2 lines of values
-                        head1 = line.split()
-                        head2 = f.readline().split()
-                        params2 = pull(f.readline())
-                        params2 = np.concat([params2,pull(f.readline())])
-                        # One more header line for the flux
-                        flux_header = f.readline()
-                    if len(params2)>9:
-                        flux_dict['latN'][itime,ilat,imlt] = params2[0]
-                        flux_dict['mltN'][itime,imlt]      = params2[1]
-                        flux_dict['latS'][itime,ilat,imlt] = params2[2]
-                        flux_dict['mltS'][itime,ilat,imlt] = params2[3]
-                        flux_dict['ro'][itime,ilat,imlt]   = params2[4]
-                        flux_dict['mlto'][itime,ilat,imlt] = params2[5]
-                        flux_dict['BriN'][itime,ilat,imlt] = params2[6]
-                        flux_dict['BriS'][itime,ilat,imlt] = params2[7]
-                        flux_dict['bo'][itime,ilat,imlt]   = params2[8]
-                        flux_dict['ba'][itime,imlt]        = params2[9]
-
-                        if len(params2)<20:
-                            params3 = f.readline().split()
-                        else:
-                            params3 = params2[10:22]
-
-                        flux_dict['density'][itime,ilat,imlt] = params3[0]
-                        flux_dict['ompe'][itime,ilat,imlt]    = params3[1]
-                        flux_dict['CHpower'][itime,ilat,imlt] = params3[2]
-                        flux_dict['HIpower'][itime,ilat,imlt] = params3[3]
-                        flux_dict['denWP'][itime,ilat,imlt]   = params3[4]
-                        flux_dict['TparaWP'][itime,ilat,imlt] = params3[5]
-                        flux_dict['TperpWP'][itime,ilat,imlt] = params3[6]
-                        flux_dict['HRPee'][itime,ilat,imlt]   = params3[7]
-                        flux_dict['HRPii'][itime,ilat,imlt]   = params3[8]
-                        flux_dict['rppa'][itime,imlt]         = params3[9]
-                        flux_dict['Lstar'][itime,ilat,imlt]   = params3[10]
-                        flux_dict['volume'][itime,ilat,imlt]  = params3[11]
-
-                    elif len(params2)>6:
-                        flux_dict['latN'][itime,ilat,imlt] = params2[0]
-                        flux_dict['mltN'][itime,ilat,imlt] = params2[1]
-                        flux_dict['ro'][itime,ilat,imlt]   = params2[2]
-                        flux_dict['mlto'][itime,ilat,imlt] = params2[3]
-                        flux_dict['bo'][itime,ilat,imlt]   = params2[4]
-                        flux_dict['irm'][itime,ilat,imlt]  = params2[5]
-                        flux_dict['iba'][itime,ilat,imlt]  = params2[6]
-                        params3 = None
-                    else:
-                        flux_dict['latN'][itime,ilat,imlt] = params2[0]
-                        flux_dict['mltN'][itime,ilat,imlt] = params2[1]
-                        flux_dict['ro'][itime,ilat,imlt]   = params2[2]
-                        flux_dict['mlto'][itime,ilat,imlt] = params2[3]
-                        flux_dict['bo'][itime,ilat,imlt]   = params2[4]
-                        flux_dict['rm'][itime,ilat,imlt]   = params2[5]
-                        params3 = None
-                    done = False
-                    flux_segment = np.array([])
-                    while not done:
-                        line = f.readline()
-                        flux_segment = np.concat([flux_segment,pull(line)])
-                        if len(flux_segment)>=(nE*nAlpha):
-                            done = True
-                    #from IPython import embed; embed()
-                    #time.sleep(3)
-                    flux[itime,ilat,imlt,:,:] =flux_segment.reshape(nE,nAlpha)
-                    '''
-                    for iE in range(0,nE):
-                        pacount = 0
-                        iflux = np.array([])
-                        while(pacount<nAlpha):
-                            i+=1
-                            line = pull(f.readline())
-                            iflux = np.concat([iflux,line])
-                            pacount = len(iflux)
-                        flux[itime,ilat,imlt,iE,:] = iflux
-                        print(iE)
-                        if iE==22: from IPython import embed; embed()
-                    '''
-        flux_dict.update({'times':times,
-                          'lat_lvls':lat_lvls,'mlt_lvls':mlt_lvls,
-                          'E_lvls':E_lvls,'alpha_lvls':alpha_lvls,
-                          'flux':flux})
-        return flux_dict
+        if ntimes>1:
+            for itime in tqdm(range(0,ntimes)):
+                read_flux_data(f,flux_dict,flux,times,
+                                           itime,nLat,nMLT,nE,nAlpha)
+        else:
+            read_flux_data(f,flux_dict,flux,times,
+                                          0,nLat,nMLT,nE,nAlpha)
+    flux_dict.update({'times':times,
+                      'lat_lvls':lat_lvls,'mlt_lvls':mlt_lvls,
+                      'E_lvls':E_lvls,'alpha_lvls':alpha_lvls,
+                      'flux':flux})
+    return flux_dict
 
 def main() -> None:
     herepath=os.getcwd()
@@ -426,18 +427,23 @@ def main() -> None:
                             **rtp)
         print(f"SAVED: {inpath}/{infile.replace('.rtp','_rtp.npz')}")
     else:
-        filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
+        filelist = sorted(glob.glob(f'{inpath}/*_o.fls'),key=time_sort)
         t0 = dt.datetime(1970,1,1)
         flux_dict = {}
-        for i,infile in enumerate(filelist):
+        if len(filelist)==1:
             fname = infile.split('/')[-1][:-6]
-            flux = read_flux(infile,maxtimes=999,verbose=i==0)
-            if i==0:
-                flux_dict = flux
-            else:
-                for key in flux:
-                    if len(flux[key].shape) > 2 or 'time' in key:
-                        flux_dict[key] = np.concat([flux_dict[key],flux[key]])
+            flux_dict = read_flux(infile,maxtimes=999,verbose=i==0)
+        else:
+            for i,infile in enumerate(tqdm(filelist)):
+                fname = infile.split('/')[-1][:-6]
+                flux = read_flux(infile,maxtimes=999,verbose=i==0)
+                if i==0:
+                    flux_dict = flux
+                else:
+                    for key in flux:
+                        if len(flux[key].shape) > 2 or 'time' in key:
+                            flux_dict[key] = np.concat([flux_dict[key],
+                                                        flux[key]])
         print(f"Converting {infile.split('/')[-1]} -> "+
             f"{infile.replace('.fls','_fls.npz').split('/')[-1]}")
         np.savez_compressed(infile.replace('.fls','_fls.npz'),**flux_dict)

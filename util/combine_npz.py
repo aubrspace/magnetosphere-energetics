@@ -1,6 +1,7 @@
 import numpy as np
 from glob import glob
 from tqdm import tqdm
+import argparse
 
 def main() -> None:
     # Glob files
@@ -26,11 +27,27 @@ def main() -> None:
     print(f"\033[92m Saved\033[00m {INPATH}/energetics.npz")
 
 if __name__=='__main__':
+    # Example text
+    example_text = """
+examples:
+    python util/combine_npz.py -i run_quiet/output3d/ -f output_*.npz
+    """
+
+    # Built in argument parser argument (I think this is built on sys)
+    parser = argparse.ArgumentParser(epilog=example_text,
+                         formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    # Add parser options
+    parser.add_argument('-i','--input',default='./',help='path to input data')
+    parser.add_argument('-f','--file',default='energetics_*.npz',
+                        help='file template used to glob the files')
+
+
+    args = parser.parse_args()
 
     global INPATH,KEY
 
-    #INPATH = 'outputs_may2019'
-    INPATH = 'data/analysis'
-    KEY    = 'energetics_*.npz'
+    INPATH = args.input
+    KEY    = args.file
 
     main()

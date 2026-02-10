@@ -99,11 +99,12 @@ def main() -> None:
     renderView = GetActiveViewOrCreate('RenderView')# for view hooks
 
     # If we have a state ready, load it, otw do initial processing
-    if True:
+    if False:
         # Load
         #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
         #          data_directory=INPATH)
-        #LoadState(os.path.join(os.getcwd(),'cosmetic/magnetopause_and_sheath.pvsm'))
+        #LoadState(os.path.join(os.getcwd(),
+        #                       'cosmetic/magnetopause_and_sheath.pvsm'))
         LoadState(os.path.join(os.getcwd(),'cosmetic/sheath-mp-iso3.pvsm'))
         # Get view
         renderView = GetActiveView()
@@ -142,11 +143,6 @@ def main() -> None:
             print(f"{infile.split('/')[-1]}")
             # Read aux data
             aux = read_aux(infile.replace('.plt','.aux'))
-            # Get time information
-            localtime = get_time(infile)
-            # Update time
-            timestamp = FindSource('Time')
-            timestamp.Text = str(localtime)
 
             # Update the pipeline
             new_data = read_tecplot(filelist[ifile+1])
@@ -170,9 +166,14 @@ def main() -> None:
             # Crunch the numbers
             perform_integrations(surfaces,volume,localtime)
 
-            if True:
+            if False:
+                # Update time
+                timestamp = FindSource('Time')
+                timestamp.Text = str(localtime)
+
                 # Save screenshot
-                SaveScreenshot(f"{OUTPATH.replace('analysis','png')}/{outfile}",
+                SaveScreenshot(
+                             f"{OUTPATH.replace('analysis','png')}/{outfile}",
                                GetLayout())
                 print(f"\t\033[36m Saved \033[00m {outfile}")
 
@@ -189,8 +190,10 @@ if True:
     #INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
     #OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
     #INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
-    INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2/')
-    OUTPATH  = os.path.join(herepath,'data/analysis/')
+    #INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2/')
+    #OUTPATH  = os.path.join(herepath,'data/analysis/')
+    INPATH   = os.path.join(herepath,'test_3d/')
+    OUTPATH  = os.path.join(herepath,'test_3d/outputs')
     #INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
     #OUTPATH   = os.path.join(herepath,'outputs_may2019/')
 
