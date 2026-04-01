@@ -704,7 +704,7 @@ def get_swmf_data(datapath,**kwargs):
             sigmaA = 1/(4*pi*1e-7*swdata['Va'])
             swdata['CPCP_K08'] = (cpcp_viscous+
                  1.35e6*swdata['Esw']*ptot**(-1/6)*sigmaA/(sigmaA+sigmaP))/1e7
-            # Rquick from Borovsky 2008
+            # Rquick from Borovsky 2023?
             swdata['Rquick']=(6.9*swdata['P']**(1/2)*swdata['density']**(1/2)*
                swdata['v']**2*sin(swdata['clock']/2)**2*swdata['Ma']**(-1.35)*
                                 (1+680*swdata['Ma']**(-3.30))**(-1/4))

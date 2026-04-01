@@ -66,11 +66,14 @@ def initial_processing(infiles:list) -> [dict,dt.datetime]:
 
     return pipeline,surfaces,volume,localtime
 
-def perform_integrations(surfaces:dict,volume:object,
-                           tstamp:dt.datetime,**kwargs) -> None:
+def perform_integrations(surfaces:dict,
+                           volume:object,
+                           tstamp:dt.datetime,
+                               dt:float,
+                         **kwargs:dict) -> None:
     # Perform calculations
     surface_results = get_numpy_surface_analysis(surfaces,**kwargs)
-    volume_results  = get_numpy_volume_analysis(volume,
+    volume_results  = get_numpy_volume_analysis(volume,dt,
                                  volume_list=['mp','closed','lobes','sheath'],
                                                **kwargs)
 
@@ -85,7 +88,7 @@ def perform_integrations(surfaces:dict,volume:object,
                                         dtype='datetime64[s]')
     combined_results.update(surface_results)
     combined_results.update(volume_results)
-    np.savez_compressed(f"{OUTPATH}/{outfile}",allow_pickle=False,
+    np.savez_compressed(f"{OUTPATH}/energetics/{outfile}",allow_pickle=False,
                         **combined_results)
     print(f"\t\033[92m Saved\033[00m {OUTPATH}/{outfile}")
     #print(f"\033[92m Saved\033[00m {outfile}")
@@ -99,7 +102,7 @@ def main() -> None:
     renderView = GetActiveViewOrCreate('RenderView')# for view hooks
 
     # If we have a state ready, load it, otw do initial processing
-    if False:
+    if True:
         # Load
         #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
         #          data_directory=INPATH)
@@ -121,7 +124,11 @@ def main() -> None:
         volume = FindSource('merged')
     else:
         pipeline,surfaces,volume,localtime = initial_processing(filelist)
-        perform_integrations(surfaces,volume,localtime)
+        t2 = get_time(infile[2])
+        t0 = get_time(infile[0])
+        dt = (t2-t0).total_seconds()
+        print(dt)
+        perform_integrations(surfaces,volume,localtime,dt)
         old_past_head   = FindSource(filelist[0].split('/')[-1].split('.')[0])
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
@@ -137,7 +144,7 @@ def main() -> None:
         #                                      ).replace('T','')+'.npz')
         #if os.path.exists(f"{OUTPATH}/{npzfile}"):
         #    pass# Skip
-        if os.path.exists(OUTPATH.replace('analysis','png')+outfile):
+        if os.path.exists(OUTPATH.replace('analysis','png')+'/'+outfile):
             print(f"File found ({infile.split('/')[-1]}.png), skipping")
         else:
             print(f"{infile.split('/')[-1]}")
@@ -164,9 +171,12 @@ def main() -> None:
             volume.UpdatePipeline()
 
             # Crunch the numbers
-            perform_integrations(surfaces,volume,localtime)
+            t2 = get_time(filelist[ifile+1])
+            t0 = get_time(filelist[ifile-1])
+            dt = (t2-t0).total_seconds()
+            perform_integrations(surfaces,volume,localtime,dt)
 
-            if False:
+            if True:
                 # Update time
                 timestamp = FindSource('Time')
                 timestamp.Text = str(localtime)
@@ -190,10 +200,10 @@ if True:
     #INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
     #OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
     #INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
-    #INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2/')
-    #OUTPATH  = os.path.join(herepath,'data/analysis/')
-    INPATH   = os.path.join(herepath,'test_3d/')
-    OUTPATH  = os.path.join(herepath,'test_3d/outputs')
+    INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2')
+    OUTPATH  = os.path.join(herepath,'data/analysis')
+    #INPATH   = os.path.join(herepath,'test_3d/')
+    #OUTPATH  = os.path.join(herepath,'test_3d/outputs')
     #INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
     #OUTPATH   = os.path.join(herepath,'outputs_may2019/')
 

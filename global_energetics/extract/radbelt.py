@@ -20,6 +20,46 @@ def is_data_line(line:str) -> bool:
 def pull(line:str) -> np.ndarray:
     return np.array([float(v) for v in line.split()])
 
+def read_fin(infile:str,**kwargs:dict) -> dict:
+    fin = {}
+    print(f"READING .fin file: {infile} ...")
+    with open(infile,'r') as f:
+        # Grid
+        nL,nE  = pull(f.readline().split('!')[0]).astype('int')
+        unit   = int(pull(f.readline().split('!')[0])[0])
+        done = False
+        buffer = np.array([])
+        while not done:
+            buffer = np.concat([buffer,pull(f.readline().split('!')[0])])
+            if len(buffer)>=nL:
+                done = True
+        r_lvls = buffer
+        done = False
+        buffer = np.array([])
+        while not done:
+            buffer = np.concat([buffer,pull(f.readline().split('!')[0])])
+            if len(buffer)>=nE:
+                done = True
+        E_lvls = buffer
+        lines  = f.readlines()
+    fin['r_lvls'] = r_lvls
+    fin['E_lvls'] = E_lvls
+    done = False
+    iline = 0
+    buffer = np.array([])
+    while not done:
+        tag = 'flux_'+lines[iline].split()[0]# set name of this chunk of data
+        iline+=1
+        while len(buffer)<(nL*nE):
+            buffer = np.concat([buffer,pull(lines[iline])])
+            iline+=1
+        fin[tag] = buffer.reshape(nE,nL).T
+        if unit==2:
+            fin[tag] = fin[tag]/1e3
+        if iline>(len(lines)-1):
+            done = True
+    return fin
+
 def read_rtp(infile:str,**kwargs:dict) -> dict:
     rtp = {}
     print(f"READING .rtp file: {infile} ...")
@@ -427,12 +467,13 @@ def main() -> None:
                             **rtp)
         print(f"SAVED: {inpath}/{infile.replace('.rtp','_rtp.npz')}")
     else:
-        filelist = sorted(glob.glob(f'{inpath}/*_o.fls'),key=time_sort)
+        filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
         t0 = dt.datetime(1970,1,1)
         flux_dict = {}
         if len(filelist)==1:
+            infile = filelist[0]
             fname = infile.split('/')[-1][:-6]
-            flux_dict = read_flux(infile,maxtimes=999,verbose=i==0)
+            flux_dict = read_flux(infile,maxtimes=999,verbose=True)
         else:
             for i,infile in enumerate(tqdm(filelist)):
                 fname = infile.split('/')[-1][:-6]

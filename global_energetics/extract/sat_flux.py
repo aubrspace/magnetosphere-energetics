@@ -2,12 +2,15 @@
 """Extracting data related to particle flux distributions from satellite trajs
 """
 import os,sys,time
-import glob
+from glob import glob
+from tqdm import tqdm
 import numpy as np
 from numpy import (sin,cos,deg2rad,pi)
 import datetime as dt
 from matplotlib import pyplot as plt
 from geopack import geopack as gp
+#
+from global_energetics.makevideo import time_sort
 
 def read_sat_flux(infile:str) -> np.ndarray:
     flux_dict = {}
@@ -108,20 +111,131 @@ def read_sat_flux(infile:str) -> np.ndarray:
 
     return flux_dict
 
+def read_coupled_cimi_sat_flux(infile:str) -> dict:
+    iflux = 13#NOTE come back to this!!!
+
+    # Reads .sat file from IM output
+    sat_flux = {}
+    with open(infile,'r') as f:
+        title   = f.readline()
+        headers = f.readline().split()
+        raw     = f.readlines()
+    nE,nAlpha =np.array(title.replace('nEnergy=',''
+                            ).replace('nAngle=','').split()[-2::],dtype='int')
+    sat_flux['E_lvls'] = np.array([h.split('keV')[0] for h in headers
+                                              if '@00deg' in h],dtype='float')
+    sat_flux['alpha_lvls'] = np.array([h.split('@')[-1].split('deg')[0]
+                                       for h in headers if '1.0keV' in h],
+                                                                dtype='int')
+    # Convert string information to one long array of floats
+    flat_data = np.array(''.join(raw).split(),dtype='float')
+    # Save off pieces that aren't part of the flux matrix
+    for icol,header in enumerate([h for h in headers if 'keV' not in h]):
+        if icol<8:
+            dtype = 'int'
+        else:
+            dtype = 'float'
+        sat_flux[header] = np.array(flat_data[icol::len(headers)],dtype=dtype)
+    nt = len(sat_flux['it'])
+    # Save the flux matrix
+    sat_flux['flux'] = np.array(
+                           [flat_data[iflux+len(headers)*i:len(headers)*(i+1)]
+                               for i in range(0,nt)],
+                                       dtype='float').reshape([nt,nAlpha,nE])
+    sat_flux['flux'] = sat_flux['flux'].transpose([0,2,1])
+    sat_flux['flux'][sat_flux['flux']<1e-2] = 1e-2
+    # Combine the time info into numpy datetime64 type
+    time_stack = np.stack([sat_flux['year'],
+                           sat_flux['mo'],
+                           sat_flux['dy'],
+                           sat_flux['hr'],
+                           sat_flux['mn'],
+                           sat_flux['sc']],axis=1)
+    sat_flux['time'] = np.array([dt.datetime(*stack) for stack in time_stack],
+                                dtype=np.datetime64)
+    # Remove piecewise time objects
+    sat_flux.pop('year')
+    sat_flux.pop('mo')
+    sat_flux.pop('dy')
+    sat_flux.pop('hr')
+    sat_flux.pop('mn')
+    sat_flux.pop('sc')
+    sat_flux.pop('msc')
+    return sat_flux
+
+def condense_time_info(sat_flux:dict) -> dict:
+    new_data = sat_flux.copy()
+
+
 def main() -> None:
-    infile = "2018p001_rbsp-A_e.flux"
+    filelist = sorted(glob(f"{FILEPATH}/{FILEKEY}"),key=time_sort)
+    print(f"Converting {FILEKEY} -> {OUTFILE}")
     # TODO (optional) generate sat_flux file from .fls and trajectory
     # Read sat_flux file
-    sat_flux = read_sat_flux("2018p001_rbsp-A_e.flux")
+
+    if False:
+        sat_flux = read_sat_flux(filelist[0])
+    else:
+        sat_flux = {}
+        for ifile,f in enumerate(tqdm(filelist)):
+            latest_flux = read_coupled_cimi_sat_flux(f)
+            if ifile==0:
+                sat_flux = latest_flux
+            else:
+                keep = sat_flux['it']<latest_flux['it'][0]
+                for key in sat_flux:
+                    if 'lvls' not in key:
+                        sat_flux[key] = np.concat([sat_flux[key][keep],
+                                                   latest_flux[key]])
     # Save as .npz
-    print(f"Converting {infile.split('/')[-1]} -> "+
-          f"{infile.replace('.flux','_flux.npz').split('/')[-1]}")
-    np.savez_compressed(infile.replace('.flux','_flux.npz'),**sat_flux)
+    np.savez_compressed(f"{OUTPATH}/{OUTFILE}",**sat_flux)
+    print(f"SAVED: {OUTPATH}/{OUTFILE}")
 
 if __name__ == "__main__":
     start_time = time.time()
+    global FILEPATH,FILEKEY,OUTPATH,OUTFILE
 
-    main()
+    for filekey in [
+            'sat_arase_eflux_*.sat',
+            'sat_arase_hflux_*.sat',
+            'sat_arase_oflux_*.sat',
+            'sat_cluster1_eflux_*.sat',
+            'sat_cluster1_hflux_*.sat',
+            'sat_cluster1_oflux_*.sat',
+            'sat_cluster2_eflux_*.sat',
+            'sat_cluster2_hflux_*.sat',
+            'sat_cluster2_oflux_*.sat',
+            'sat_cluster3_eflux_*.sat',
+            'sat_cluster3_hflux_*.sat',
+            'sat_cluster3_oflux_*.sat',
+            'sat_cluster4_eflux_*.sat',
+            'sat_cluster4_hflux_*.sat',
+            'sat_cluster4_oflux_*.sat',
+            'sat_goes16_eflux_*.sat',
+            'sat_goes16_hflux_*.sat',
+            'sat_goes16_oflux_*.sat',
+            'sat_goes17_eflux_*.sat',
+            'sat_goes17_hflux_*.sat',
+            'sat_goes17_oflux_*.sat',
+            'sat_mms1_eflux_*.sat',
+            'sat_mms1_hflux_*.sat',
+            'sat_mms1_oflux_*.sat',
+            'sat_themisA_eflux_*.sat',
+            'sat_themisA_hflux_*.sat',
+            'sat_themisA_oflux_*.sat',
+            'sat_themisD_eflux_*.sat',
+            'sat_themisD_hflux_*.sat',
+            'sat_themisD_oflux_*.sat',
+            'sat_themisE_eflux_*.sat',
+            'sat_themisE_hflux_*.sat',
+            'sat_themisE_oflux_*.sat']:
+        FILEPATH = 'data/large/IM/plots'
+        #FILEKEY  = 'sat_themisE_eflux_*.sat'
+        FILEKEY  = filekey
+        OUTPATH  = 'data/sat'
+        OUTFILE  = FILEKEY.replace('_*.sat','.npz')
+
+        main()
 
     #timestamp
     ltime = time.time()-start_time

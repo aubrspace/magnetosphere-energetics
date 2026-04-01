@@ -6,8 +6,9 @@ from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from vtkmodules.util.numpy_support import vtk_to_numpy
 
-def get_diff_volume_integrals(volume:str,np_volume:dict,
-                              dt:float) -> dict:
+def get_diff_volume_integrals(volume:str,
+                           np_volume:dict,
+                                  dt:float) -> dict:
     """ Conditional arrays for the differential bounds (integrand eval @ t0)
         NOTE - if point will be acquired (future - past > 0) this is energy
                 ADDED to the system, therfore for sign convention we multiply
@@ -54,7 +55,9 @@ def get_diff_volume_integrals(volume:str,np_volume:dict,
                                )/dt
     return conditions
 
-def get_numpy_volume_analysis(source:object,*,
+def get_numpy_volume_analysis(source:object,
+                                  dt:float,
+                                    *,
                          volume_list:list,
                       integrands:list=['Utot_J_Re3','uHydro_J_Re3','uB_J_Re3'],
                                 skip_keys:list=[],**kwargs:dict) -> dict:
@@ -88,7 +91,7 @@ def get_numpy_volume_analysis(source:object,*,
         # for volumes the primary (only?) condition is the subvolume itself
         conditions = {'':np_volume[volume]}
         if 'FUTUREUtot_J_Re3' in np_volume.keys():
-            conditions.update(get_diff_volume_integrals(volume,np_volume,120))
+            conditions.update(get_diff_volume_integrals(volume,np_volume,2*dt))
         # Calculate each partial integral
         for integrand in integrands:
             if kwargs.get('verbose',False):
@@ -109,7 +112,7 @@ def get_numpy_volume_analysis(source:object,*,
                 entry_name = volume+'_'+integral_name+'ddt'+'_W'
                 results[entry_name] = np.sum((np_volume['PAST'+integrand]-
                                               np_volume['FUTURE'+integrand])*
-                           np_volume[volume]*np_volume['dvol_R3'])/(120)
+                           np_volume[volume]*np_volume['dvol_R3'])/(2*dt)
     return results
 
 def extract_volume(source:object,

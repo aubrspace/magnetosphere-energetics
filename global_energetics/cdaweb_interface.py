@@ -95,7 +95,7 @@ def get_satellite_positions(sat_name:str,
 def get_satellite_bfield(sat_name:str,
                             start:dt.datetime,
                               end:dt.datetime,
-                            **kwargs:dict) -> dict:
+                         **kwargs:dict) -> dict:
     """Calls CDAWeb to get the B field data from the relevant instrument
     Inputs
         sat_name (str) -  name of the spacecraft or constellation
@@ -123,7 +123,7 @@ def get_satellite_bfield(sat_name:str,
         bfield_instrument = kwargs.get('bfield_instrument',
                           bfield_instrument_dict[sat_name].replace('*',satID))
         bfield_variables = [kwargs.get('bfield_variables',
-                      bfield_variable_keys_dict[sat_name].replace('*',satID))]
+              bfield_variable_keys_dict[sat_name].replace('*',satID.lower()))]
 
         # Call CDAWeb to get the data
         status,bfielddata = cdas.get_data(bfield_instrument,bfield_variables,
@@ -133,7 +133,7 @@ def get_satellite_bfield(sat_name:str,
         # This part is awful :(
         time_key = [k for k in bfielddata.keys()
                        if 'epoch' in k.replace('time_tag','epoch').lower()][0]
-        times = np.array([np.datetime64(t) for t in bfielddata[time_key]])
+        times = np.array(bfielddata[time_key],dtype=np.datetime64)
         interv = (times>start)&(times<end)
 
         # Rotate coordinate system, if necessary
@@ -173,12 +173,8 @@ def get_satellite_plasma(sat_name:str,
 
     all_plasma = {}
     for satID in spacecraft_list:
-        if satID =='':
-            plasma = all_plasma
-        else:
+        if satID != '':
             print(f'\t {sat_name}-{satID}')
-            all_plasma[satID] = {}
-            plasma = all_plasma[satID]
         # Set magnetic field instrument key and variable key
         # NOTE for plasma data there may be multiple instruments to combine
         plasma_instruments = kwargs.get('plasma_instrument',
@@ -189,50 +185,78 @@ def get_satellite_plasma(sat_name:str,
             variable_dict = kwargs.get('plasma_variables',
                                         plasma_variable_keys_dict[sat_name])
             if satID != '':
-                variables = variable_dict[instrument.replace(satID,'*')]
+                variables =variable_dict[instrument.replace(f'{satID}_','*_')]
+                if variables[0].islower():
+                    variables = [v.replace('*_',f"{satID.lower()}_")
+                                 for v in variables]
+                else:
+                    variables = [v.replace('*_',f"{satID.upper()}_")
+                                 for v in variables]
             else:
                 variables = variable_dict[instrument]
 
             # Call CDAWeb to get the data
-            status,plasmadata = cdas.get_data(instrument,variables,
+            status,plasma = cdas.get_data(instrument,variables,
                                               start-buff,end+buff)
 
-            if plasmadata: #successfully found the data
+            if plasma: #successfully found the data
                 print(f'\t\t {instrument} - (SUCCESS)')
                 # Define the time array, and trim back from our buffer
-                interv = (times>start)&(times<end)
-                for key in plasmadata:
-                    if 'epoch' in key.lower():
+                plasma_keys = list(plasma.keys())
+                for key in plasma_keys:
+                    if 'epoch' in key.lower() and plasma[key].shape!=():
                         # If its time, then convert dt -> np.datetime64
-                        times = np.array([np.datetime64(t)
-                                          for t in plasmadata[key]])
-                        plasma[f"{instrument}_time"] = times[interv]
-                    elif key in variables:
-                        # If its timeseries data, trim the buffer
-                        plasma[f"{instrument}_{key}"] = np.array(
-                                                      plasmadata[key][interv])
+                        times = np.array(plasma[key],dtype=np.datetime64)
+                        interv = (times>start)&(times<end)
+                        if key.split('_epoch')[0] == '':
+                            plasma[f"time_{instrument}"] = times
+                        else:
+                            plasma[f"time_{key.split('_epoch')[0]}"] = times
+                        plasma.pop(key)
+                plasma_keys = list(plasma.keys())
+                for key in plasma_keys:
+                    if instrument not in key:
+                        tag = '_'+instrument
                     else:
+                        tag = ''
+                    if key in variables:
+                        times = [plasma[k] for k in plasma if 'time_' in k and
+                                 len(plasma[k])==len(plasma[key])][0]
+                        interv = (times>start)&(times<end)
+                        # If its timeseries data, trim the buffer
+                        plasma[f"{key}{tag}"] = np.array(
+                                                     plasma[key][interv])
+                        if key != '':
+                            plasma.pop(key)
+                    elif (plasma[key].shape == (3,) or
+                          plasma[key].shape==()     or
+                          '_time' in key):
+                        plasma.pop(key)
+                    elif 'time_' not in key:
                         # Anything else just load as is
-                        plasma[f"{instrument}_{key}"] = np.array(
-                                                              plasmadata[key])
+                        plasma[f"{key}{tag}"] = np.array(plasma[key])
+                        if key != '':
+                            plasma.pop(key)
+                plasma_keys = list(plasma.keys())
+                for key in [k for k in plasma_keys if 'time_' in k]:
+                    times = plasma[key]
+                    interv = (times>start)&(times<end)
+                    plasma[key] = plasma[key][interv]
             else:
                 print(f'\t\t {instrument} - (FAIL)')
 
-                '''
+        #TODO need different instruments for cluster plasma
         # Rotate coordinate system, if necessary
-        if kwargs.get('needs_rotation',needs_rotation[sat_name]):
+        if plasma and kwargs.get('needs_rotation',needs_rotation[sat_name]):
             print('\t\t Rotating vectors GSE->GSM')
-            plasma[variables[0]] = gse_to_gsm(times[interv],
-                                      plasmadata[plasma_variables[0]][interv])
-                # Load the data into a dictionary of numpy arrays
-                plasma['time']  = times[interv]
-                plasma['bx_gsm'] = np.array(
-                                 plasmadata[plasma_variables[0]][:,0][interv])
-                plasma['by_gsm'] = np.array(
-                                 plasmadata[plasma_variables[0]][:,1][interv])
-                plasma['bz_gsm'] = np.array(
-                                 plasmadata[plasma_variables[0]][:,2][interv])
-                '''
+            plasma_keys = list(plasma.keys())
+            for key in plasma_keys:
+                if plasma[key].shape[-1] == 3:
+                    plasma[key] = gse_to_gsm(times[interv],plasma[key])
+        if satID =='':
+            all_plasma = plasma
+        else:
+            all_plasma[satID] = plasma
 
 
     return all_plasma
