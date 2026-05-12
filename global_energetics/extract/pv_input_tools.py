@@ -147,7 +147,8 @@ name_dict = {
              "J_z [`mA_m^2]":"J_z_uA_m2",
              "J_x [`uA_m^2]":"J_x_uA_m2",
              "J_y [`uA_m^2]":"J_y_uA_m2",
-             "J_z [`uA_m^2]":"J_z_uA_m2"
+             "J_z [`uA_m^2]":"J_z_uA_m2",
+             "E [J_m^3]":"E_J_m3"
              }
 for var in data.PointData.keys():
     if var not in name_dict.keys():
