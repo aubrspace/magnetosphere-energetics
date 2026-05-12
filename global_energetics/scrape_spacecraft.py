@@ -89,41 +89,35 @@ def main() -> None:
                      'themis_pos','themis_b','themis_plasma']
 
     # Scrape data from CDAWeb
-    '''
-    arase_pos    = get_satellite_positions('arase',START,END)
-    arase_b      = get_satellite_bfield('arase',START,END)
-    arase_plasma = get_satellite_plasma('arase',START,END)
+    #arase_pos    = get_satellite_positions('arase',START,END)
+    #arase_b      = get_satellite_bfield('arase',START,END)
+    #arase_plasma = get_satellite_plasma('arase',START,END)
 
     cluster_pos   = get_satellite_positions('cluster',START,END)
-    cluster_b     = get_satellite_bfield('cluster',START,END)
-    '''
-    cluster_plasma = get_satellite_plasma('cluster',START,END)
-    '''
+    #cluster_b     = get_satellite_bfield('cluster',START,END)
+    #cluster_plasma = get_satellite_plasma('cluster',START,END)
 
-    rbsp_pos    = get_satellite_positions('rbsp',START,END)
-    rbsp_b       = get_satellite_bfield('rbsp',START,END)
-    rbsp_plasma = get_satellite_plasma('rbsp',START,END)
+    #rbsp_pos    = get_satellite_positions('rbsp',START,END)
+    #rbsp_b       = get_satellite_bfield('rbsp',START,END)
+    #rbsp_plasma = get_satellite_plasma('rbsp',START,END)
 
-    goes_pos    = get_satellite_positions('goes',START,END)
-    goes_b      = get_satellite_bfield('goes',START,END)
+    #goes_pos    = get_satellite_positions('goes',START,END)
+    #goes_b      = get_satellite_bfield('goes',START,END)
 
-    mms_pos    = get_satellite_positions('mms',START,END,
-                                          spacecraft_list=['1'])
-    mms_b      = get_satellite_bfield('mms',START,END,
-                                          spacecraft_list=['1'])
-    '''
+    #mms_pos    = get_satellite_positions('mms',START,END,
+    #                                      spacecraft_list=['1'])
+    #mms_b      = get_satellite_bfield('mms',START,END,
+    #                                      spacecraft_list=['1'])
     #TODO mms 1 fails, maybe bad instrument or need 2/3/4
     #mms_plasma = get_satellite_plasma('mms',START,END,
     #                                      spacecraft_list=['2','3','4'])
-    '''
 
-    themis_pos  = get_satellite_positions('themis',START,END,
-                                          spacecraft_list=['A','D','E'])
-    themis_b  = get_satellite_bfield('themis',START,END,
-                                          spacecraft_list=['A','D','E'])
-    themis_plasma = get_satellite_plasma('themis',START,END,
-                                          spacecraft_list=['A','D','E'])
-    '''
+    #themis_pos  = get_satellite_positions('themis',START,END,
+    #                                      spacecraft_list=['A','D','E'])
+    #themis_b  = get_satellite_bfield('themis',START,END,
+    #                                      spacecraft_list=['A','D','E'])
+    #themis_plasma = get_satellite_plasma('themis',START,END,
+    #                                      spacecraft_list=['A','D','E'])
     if SAVE_DATA:
         print('\nSAVING DATA ...')
         for idataset,dataset in enumerate([arase_pos,arase_b,arase_plasma,
@@ -228,37 +222,37 @@ def main() -> None:
                             note=f'arase.dat Created {str(dt.datetime.now())}')
         print('Writing RBSP Satfiles ...')
         for sat in rbsp_pos.keys():
-            write_SWMF_satfile(rbsp_pos[sat],f'rbsp-{sat}.dat',OUTPATH,
+            write_SWMF_satfile(rbsp_pos[sat],f'rbsp{sat}.dat',OUTPATH,
                             note=f'{sat} Created {str(dt.datetime.now())}')
         print('Writing Cluster Satfiles ...')
         for sat in cluster_pos.keys():
-            write_SWMF_satfile(cluster_pos[sat],f'cluster-{sat}.dat',OUTPATH,
+            write_SWMF_satfile(cluster_pos[sat],f'cluster{sat}.dat',OUTPATH,
                             note=f'{sat} Created {str(dt.datetime.now())}')
         print('Writing MMS Satfiles ...')
         for sat in mms_pos.keys():
-            write_SWMF_satfile(mms_pos[sat],f'mms-{sat}.dat',OUTPATH,
+            write_SWMF_satfile(mms_pos[sat],f'mms{sat}.dat',OUTPATH,
                             note=f'{sat} Created {str(dt.datetime.now())}')
         print('Writing THEMIS Satfiles ...')
         for sat in themis_pos.keys():
-            write_SWMF_satfile(themis_pos[sat],f'themis-{sat}.dat',OUTPATH,
+            write_SWMF_satfile(themis_pos[sat],f'themis{sat}.dat',OUTPATH,
                             note=f'{sat} Created {str(dt.datetime.now())}')
         print('Writing GOES Satfiles ...')
         for sat in goes_pos.keys():
-            write_SWMF_satfile(goes_pos[sat],f'goes-{sat}.dat',OUTPATH,
+            write_SWMF_satfile(goes_pos[sat],f'goes{sat}.dat',OUTPATH,
                             note=f'{sat} Created {str(dt.datetime.now())}')
 
 if __name__ == '__main__':
     global START,END,OUTPATH,PLOT_DATA
     #############################USER INPUTS HERE##########################
-    START     = dt.datetime(2019,5,13,19,0)
-    END       = dt.datetime(2019,5,15,10,30)
-    OUTPATH   = './inputs/satellites'
+    START     = dt.datetime(2019,5,10,0,0)
+    END       = dt.datetime(2019,5,16,0,0)
+    OUTPATH   = './inputs/new_satellites'
     #START     = dt.datetime(2018,1,1,0,0)
     #END       = dt.datetime(2018,2,1,0,0)
     #OUTPATH   = './temp/'
-    SAVE_DATA  = True
+    SAVE_DATA  = False
     PLOT_DATA  = False
-    WRITE_DATA = False
+    WRITE_DATA = True
     IMFPATH   = './inputs/simulations/'
     #######################################################################
 

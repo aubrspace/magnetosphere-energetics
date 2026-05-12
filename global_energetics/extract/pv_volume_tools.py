@@ -91,7 +91,7 @@ def get_numpy_volume_analysis(source:object,
         # for volumes the primary (only?) condition is the subvolume itself
         conditions = {'':np_volume[volume]}
         if 'FUTUREUtot_J_Re3' in np_volume.keys():
-            conditions.update(get_diff_volume_integrals(volume,np_volume,2*dt))
+            conditions.update(get_diff_volume_integrals(volume,np_volume,dt))
         # Calculate each partial integral
         for integrand in integrands:
             if kwargs.get('verbose',False):
@@ -112,7 +112,7 @@ def get_numpy_volume_analysis(source:object,
                 entry_name = volume+'_'+integral_name+'ddt'+'_W'
                 results[entry_name] = np.sum((np_volume['PAST'+integrand]-
                                               np_volume['FUTURE'+integrand])*
-                           np_volume[volume]*np_volume['dvol_R3'])/(2*dt)
+                           np_volume[volume]*np_volume['dvol_R3'])/(dt)
     return results
 
 def extract_volume(source:object,

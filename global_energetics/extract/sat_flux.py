@@ -173,7 +173,7 @@ def main() -> None:
     # TODO (optional) generate sat_flux file from .fls and trajectory
     # Read sat_flux file
 
-    if False:
+    if True:
         sat_flux = read_sat_flux(filelist[0])
     else:
         sat_flux = {}
@@ -195,6 +195,14 @@ if __name__ == "__main__":
     start_time = time.time()
     global FILEPATH,FILEKEY,OUTPATH,OUTFILE
 
+    FILEPATH = './'
+    FILEKEY = '2018p001_rbsp-A_e.flux'
+    OUTPATH = './'
+    OUTFILE = FILEKEY.replace('.flux','_flux.npz')
+
+    main()
+
+    '''
     for filekey in [
             'sat_arase_eflux_*.sat',
             'sat_arase_hflux_*.sat',
@@ -236,6 +244,7 @@ if __name__ == "__main__":
         OUTFILE  = FILEKEY.replace('_*.sat','.npz')
 
         main()
+    '''
 
     #timestamp
     ltime = time.time()-start_time

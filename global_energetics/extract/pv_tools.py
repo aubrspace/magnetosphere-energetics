@@ -11,6 +11,8 @@ from paraview.simple import *
 from paraview.vtk.numpy_interface import dataset_adapter as dsa
 from global_energetics.extract.equations import rotation
 from global_energetics.makevideo import get_time
+global FILTER
+FILTER = paraview.vtk.vtkAlgorithm # Generic "filter" object
 
 def slice_and_calc_applied_voltage(tracenames,field,**kwargs):
     """Function takes a set of projected B field traces and calculates the
@@ -89,11 +91,16 @@ def haversine(XA,XB):
     c = 2 * arcsin(sqrt(a))
     return c
 
-def merge_rad_mhd(pipeline,infile,it,**kwargs):
+def merge_rad_mhd(pipeline:FILTER,
+                  fluxfile:str,
+                     itime:int,
+                  **kwargs:dict) -> FILTER:
     merge =ProgrammableFilter(registrationName='mergeRad',Input=pipeline)
     merge.Script = f"""
     #radiation belt merge w/ mhd
-    from radbelt import read_flux
+    from global_energetics.extract.radbelt import (read_flux,
+                                                   get_Biono,
+                                                   integrate_f_dAlpha)
     import numpy as np
     from numpy import sqrt,sin,cos,deg2rad
     from scipy.interpolate import LinearNDInterpolator,RBFInterpolator
@@ -106,52 +113,86 @@ def merge_rad_mhd(pipeline,infile,it,**kwargs):
     mhd_th = mhd.PointData['theta_1_deg']# 0-90, in deg, 0=eq, 90=pole
     mhd_phi = mhd.PointData['phi_1_deg']#0-360 in deg, 0=noon, 90=+Y(dusk)
     MHD = list(zip(mhd_th,mhd_phi))
-    mhd_B = mhd.PointData['Bmag_nT']# nT
-    mhd_magnetosphere = mhd.PointData['mp_state']
-
-    mhd_minB = np.ones(len(mhd_B))
-    th_points = np.linspace(20,85,21)
-    phi_points = np.linspace(0,360,37)
-
-    for ith in range(0,len(th_points)-1):
-        for iphi in range(0,len(phi_points)-1):
-            condition = ((mhd_th>th_points[ith]) & (mhd_th<th_points[ith+1]) &
-                    (mhd_phi>phi_points[iphi]) & (mhd_phi<phi_points[iphi+1])&
-                    (mhd_magnetosphere==1))
-            if any(condition):
-                mhd_minB[condition] = mhd_B[condition].min()
+    mhd_B = np.sqrt(mhd.PointData['B_nT'][:,0]**2+
+                    mhd.PointData['B_nT'][:,1]**2+
+                    mhd.PointData['B_nT'][:,2]**2)# nT
 
     # Read in radiation belt file
-    inrad = "{infile}"
-    it = {it}
-    # flux variable is a 4D matrix of fluxes,
-    #   the dimensions correspond to: Lat,MLT,E,y=sin(pitch-angle)
-    #    eg. flux[3,9,11,11] - 3rd latitude bin (~30deg),
-    #                          9th MLT (4), 11th E bin (4000keV),
-    #                          11th pith-angle bin (y=0.98,~90deg)
-    data = dict(np.load(inrad,allow_pickle=True))
-    #lats,mlts,Es,ys,rs,flux = read_flux(inrad)
+    inrad = "{fluxfile}"
+    itime = {itime}
+    data = read_flux(inrad)
     data['phi'] = (24+data['mltN']-12)%24*360/24
     data['theta'] = data['latN']
-    data['omni_flux'] = np.trapz(data['flux'][it,:,:,3,:],
-                                     x=data['alpha_lvls'],axis=-1)
-    #LATS,LONS = np.meshgrid(lats,lons)
-    PHI = data['phi'][it,:,:].flatten()
-    THETA = data['theta'][it,:,:].flatten()
-    FLUX = data['omni_flux'].flatten()
 
-    interp = LinearNDInterpolator(list(zip(THETA,PHI)),FLUX)
-    y = list(zip(THETA,PHI))
-    d = FLUX
-    rbfi = RBFInterpolator(y,d,neighbors=20,kernel='linear')
+    # Get Bmax(X)
+    Bmax = get_Biono(mhd_th,mhd_phi)
 
-    F = interp(mhd_th,mhd_phi)
-    F2 = rbfi(MHD)
+    PHI = data['phi'][itime,:,:].flatten()
+    THETA = data['theta'][itime,:,:].flatten()
+
+    # Get Bo(X)
+    BO = data['bo'][itime,:,:].flatten()*1e9
+    interp_BO = LinearNDInterpolator(list(zip(THETA,PHI)),BO)
+    Bo = interp_BO(mhd_th,mhd_phi)
+
+    # Get fo(X,E,alpha_o)
+    FO = data['flux'][itime,:,:,:,:].reshape(data['flux'].shape[1]*
+                                             data['flux'].shape[2],
+                                             data['flux'].shape[3],
+                                             data['flux'].shape[4])
+    interp_FO = LinearNDInterpolator(list(zip(THETA,PHI)),FO)
+    fo = interp_FO(mhd_th,mhd_phi)
+
+    # Calculate Bmirror
+    Bmirror = Bo.reshape(len(Bo),1)/(data['alpha_lvls'].reshape(1,
+                                                   len(data['alpha_lvls'])))**2
+
+    # Morph flux from fo to f
+    f = mhd_B/Bo * fo
+    alpha = np.sqrt((mhd_B/Bo).reshape(len(mhd_B),1)*
+                     data['alpha_lvls'].reshape(1,len(data['alpha_lvls']))**2)
+    alpha[alpha<0] = 0
+    np.nan_to_num(alpha,copy=False)
+
+    # Clean up flux
+    for ialpha in range(0,data['flux'].shape[4]):
+        i_alpha_bounced = (mhd_B>Bmirror[:,ialpha]) # flux that has bounced
+        f[i_alpha_bounced,:,ialpha] = 0
+
+    '''
+    # Calculate omni flux and aniso
+    f_PAave,f_para,f_perp = integrate_f_dAlpha(alpha,f,pa_axis=2)
+
+    np.nan_to_num(f_PAave,copy=False)
+    np.nan_to_num(f_para,copy=False)
+    np.nan_to_num(f_perp,copy=False)
+
+    aniso = (f_perp-f_para)/(f_perp+f_para)
+
+    np.nan_to_num(aniso,copy=False)
+    '''
+
+    # Re-bin flux over common pitch angle grids
+    # TODO - this bit is too slow ...
+    #for iE in range(o,data['flux'].shape[3]:
+    #    f[:,iE,:] = np.interp(data['alpha_lvls'],alpha.flatten()
+    #iX_flat = np.array(list(range(0,len(mhd_B)))*len(data['alpha_lvls']))
+    #F = f.transpose(0,2,1)
+    #print(np.array(list(zip(iX_flat,alpha.flatten()))).shape)
+    #print(F.shape)
+    #interp_alpha = LinearNDInterpolator(list(zip(iX_flat,alpha.flatten())),
+    #                            F.reshape(F.shape[0]*F.shape[1],F.shape[2]))
 
     output.ShallowCopy(mhd.VTKObject)
-    output.PointData.append(mhd_minB,'MinB')
-    output.PointData.append(F,'E12_trapped_flux')
-    output.PointData.append(F2,'E12_trapped_rbfi')
+    #output.PointData.append(Bmax,'MaxB')# for debugging only!
+    #output.PointData.append(Bo,'MinB')# for debugging only!
+    #output.PointData.append(fo,'fo')# for debugging only!
+    #output.PointData.append(Bmirror,'Bmirror')# for debugging only!
+
+    output.PointData.append(f,'f')
+    output.PointData.append(alpha,'alpha')
+    #output.PointData.append(f_PAave,'f_omni')
+    #output.PointData.append(aniso,'aniso')
     """
     return merge
 

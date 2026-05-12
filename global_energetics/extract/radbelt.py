@@ -8,9 +8,205 @@ from numpy import (sin,cos,deg2rad,pi)
 import datetime as dt
 from matplotlib import pyplot as plt
 from geopack import geopack as gp
-from tqdm import tqdm
+#from tqdm import tqdm
+from scipy.interpolate import LinearNDInterpolator
 ##
 from global_energetics.makevideo import time_sort
+from global_energetics.extract.shared_tools import (read_aux)
+
+#TODO - see about moving everything over to here where it can be worked on 
+#       more efficiently
+def sph_to_cart(r:np.ndarray,
+            theta:np.ndarray,
+              phi:np.ndarray) -> (np.ndarray,np.ndarray,np.ndarray):
+    x = (r * cos(deg2rad(theta)) * cos(deg2rad(phi)))
+    y = (r * cos(deg2rad(theta)) * sin(deg2rad(phi)))
+    z = (r * sin(deg2rad(theta)))
+    return x,y,z
+
+def cart_to_sph(x:np.ndarray,
+                y:np.ndarray,
+                z:np.ndarray) -> (np.ndarray,np.ndarray,np.ndarray):
+    r     = np.sqrt(x**2+y**2+z**2)
+    theta = np.rad2deg(np.arcsin(z/r))
+    phi   = (360-np.rad2deg(np.arctan2(-y,x)))%360
+    return r,theta,phi
+
+def rotate_GSM2SM(lat_gsm:np.ndarray,#in deg
+                  lon_gsm:np.ndarray,#in deg
+                    angle:float) -> (np.ndarray,np.ndarray):
+    # Construct rotation matrix (about +Y axis)
+    rotation = [[ np.cos(angle), 0, np.sin(angle)],
+                [0,              1,             0],
+                [-np.sin(angle), 0, np.cos(angle)]]
+    x_gsm,y_gsm,z_gsm = sph_to_cart(1,lat_gsm,lon_gsm)
+    x_sm,y_sm,z_sm = np.matmul(rotation,np.vstack([x_gsm,y_gsm,z_gsm]))
+    r_sm,lat_sm,lon_sm = cart_to_sph(x_sm,y_sm,z_sm)
+    return lat_sm,lon_sm
+
+def get_3dinterpolator(X:np.ndarray,
+                       Y:np.ndarray,
+                       Z:np.ndarray,
+                       F:np.ndarray) -> float:
+    return LinearNDInterpolator(list(zip(X,Y,Z)),F)
+
+def get_single_point_flux(mhd:dict,
+                     fluxfile:str,
+                        itime:int,
+                     rotAngle:float=0.0) -> dict:
+    data = read_flux(fluxfile)
+    data['phi'] = (24+data['mltN']-12)%24*360/24
+    data['theta'] = data['latN']
+
+    # Get Bmax(X)
+    Bmax = get_Biono(mhd['theta_1'],mhd['phi_1'])
+
+    THETA_GSM = data['theta'][itime,:,:].flatten()
+    PHI_GSM = data['phi'][itime,:,:].flatten()
+
+    # Rotate from GSM -> SM
+    THETA,PHI = rotate_GSM2SM(THETA_GSM,PHI_GSM,rotAngle)
+    THETA = abs(THETA) # assuming perfect conjucacy
+
+    # Get Bo(X)
+    BO = data['bo'][itime,:,:].flatten()*1e9
+    interp_BO = LinearNDInterpolator(list(zip(THETA,PHI)),BO)
+    Bo = interp_BO(mhd['theta_1'],mhd['phi_1'])
+
+    # Get fo(X,E,alpha_o)
+    FO = data['flux'][itime,:,:,:,:].reshape(data['flux'].shape[1]*
+                                             data['flux'].shape[2],
+                                             data['flux'].shape[3],
+                                             data['flux'].shape[4])
+    interp_FO = LinearNDInterpolator(list(zip(THETA,PHI)),FO)
+    fo = interp_FO(mhd['theta_1'],mhd['phi_1'])
+
+    # Calculate Bmirror
+    Bmirror = Bo.reshape(len(Bo),1)/(data['alpha_lvls'].reshape(1,
+                                                   len(data['alpha_lvls'])))**2
+
+
+    # Morph flux from fo to f
+    #f = mhd['Bmag']/Bo * fo
+    f = np.einsum('i,ijk->ijk',mhd['Bmag']/Bo,fo)
+    alpha = np.sqrt((mhd['Bmag']/Bo).reshape(len(mhd['Bmag']),1)*
+                     data['alpha_lvls'].reshape(1,len(data['alpha_lvls']))**2)
+
+    # Reduce all pA>90deg to 0 flux (it would have bounced back)
+    f.transpose(0,2,1)[alpha>1] = 0.0
+    alpha[alpha>1] = 1.0
+
+    f_ave,f_para,f_perp = integrate_f_dAlpha(alpha[~np.isnan(Bo)],
+                                             f[~np.isnan(Bo)],2)
+
+    f_omni = np.zeros([f.shape[0],f.shape[1]])
+    f_omni[np.isnan(Bo)]  = np.nan
+    f_omni[~np.isnan(Bo)] = f_ave
+
+    # Clean up flux
+    #for ialpha in range(0,data['flux'].shape[4]):
+    #    i_alpha_bounced = (mhd['Bmag']>Bmirror[:,ialpha]) # flux that bounced
+    #    f[i_alpha_bounced,:,ialpha] = 0
+
+    return f_omni
+
+def merge_rad_mhd(mhd:dict,
+             fluxfile:str,
+                itime:int,
+             rotAngle:float=0.0) -> dict:
+    data = read_flux(fluxfile)
+    data['phi'] = (24+data['mltN']-12)%24*360/24
+    data['theta'] = data['latN']
+
+    # Get Bmax(X)
+    Bmax = get_Biono(mhd['theta_1'],mhd['phi_1'])
+
+    THETA_GSM = data['theta'][itime,:,:].flatten()
+    PHI_GSM = data['phi'][itime,:,:].flatten()
+
+    # Rotate from GSM -> SM
+    THETA,PHI = rotate_GSM2SM(THETA_GSM,PHI_GSM,rotAngle)
+    THETA = abs(THETA) # assuming perfect conjucacy
+
+    # Get Bo(X)
+    BO = data['bo'][itime,:,:].flatten()*1e9
+    interp_BO = LinearNDInterpolator(list(zip(THETA,PHI)),BO)
+    Bo = interp_BO(mhd['theta_1'],mhd['phi_1'])
+
+    # Get fo(X,E,alpha_o)
+    FO = data['flux'][itime,:,:,:,:].reshape(data['flux'].shape[1]*
+                                             data['flux'].shape[2],
+                                             data['flux'].shape[3],
+                                             data['flux'].shape[4])
+    interp_FO = LinearNDInterpolator(list(zip(THETA,PHI)),FO)
+    fo = interp_FO(mhd['theta_1'],mhd['phi_1'])
+
+    # Calculate Bmirror
+    Bmirror = Bo.reshape(len(Bo),1)/(data['alpha_lvls'].reshape(1,
+                                                   len(data['alpha_lvls'])))**2
+
+
+    # Morph flux from fo to f
+    #f = mhd['Bmag']/Bo * fo
+    f = np.einsum('i,ijk->ijk',mhd['Bmag']/Bo,fo)
+    alpha = np.sqrt((mhd['Bmag']/Bo).reshape(len(mhd['Bmag']),1)*
+                     data['alpha_lvls'].reshape(1,len(data['alpha_lvls']))**2)
+
+    # Reduce all pA>90deg to 0 flux (it would have bounced back)
+    f.transpose(0,2,1)[alpha>1] = 0.0
+    alpha[alpha>1] = 1.0
+
+    f_ave,f_para,f_perp = integrate_f_dAlpha(alpha[~np.isnan(Bo)],
+                                             f[~np.isnan(Bo)],2)
+
+    f_omni = np.zeros([f.shape[0],f.shape[1]])
+    f_omni[np.isnan(Bo)]  = np.nan
+    f_omni[~np.isnan(Bo)] = f_ave
+
+    # Clean up flux
+    #for ialpha in range(0,data['flux'].shape[4]):
+    #    i_alpha_bounced = (mhd['Bmag']>Bmirror[:,ialpha]) # flux that bounced
+    #    f[i_alpha_bounced,:,ialpha] = 0
+
+    return f_omni
+
+
+def integrate_f_dAlpha(sina:np.ndarray,
+                       flux:np.ndarray,pa_axis:int) -> np.ndarray:
+    # Get dmu from the sin of pitch angle array
+    if len(sina.shape)==2:
+        middle = (sina[:,0:-1]+sina[:,1::])/2
+        left = np.zeros_like(sina)
+        right = np.ones_like(sina)
+        left[:,1::] = middle
+        right[:,0:-1] = middle
+    elif len(sina.shape)==1:
+        middle = (sina[0:-1]+sina[1::])/2
+        left = np.zeros_like(sina)
+        right = np.ones_like(sina)
+        left[1::] = middle
+        right[0:-1] = middle
+
+
+    dmu = np.sqrt(1-left**2)-np.sqrt(1-right**2)
+
+    # Get para/perp factors
+    para_factor = 3*np.cos(np.arcsin(sina))**2
+    perp_factor = 1.5*sina**2
+
+    # Integrate using flux*dmu
+    #(flux.transpose(1,2,3,0,4)*dmu).transpose(3,0,1,2,4)
+    flux_PAave = np.sum(flux.transpose(1,0,2)*dmu,
+                                  axis=pa_axis).transpose(1,0)/np.sum(dmu)
+    flux_para  = np.sum(flux.transpose(1,0,2)*dmu*para_factor,
+                                  axis=pa_axis).transpose(1,0)/np.sum(dmu)
+    flux_perp  = np.sum(flux.transpose(1,0,2)*dmu*perp_factor,
+                                  axis=pa_axis).transpose(1,0)/np.sum(dmu)
+    #flux_PAave = np.sum(flux*dmu,axis=pa_axis)/np.sum(dmu)
+    #flux_para  = np.sum(flux*dmu*para_factor,axis=pa_axis)/np.sum(dmu)
+    #flux_perp  = np.sum(flux*dmu*perp_factor,axis=pa_axis)/np.sum(dmu)
+
+    return flux_PAave,flux_para,flux_perp
 
 def is_data_line(line:str) -> bool:
     return all([e.replace('.','').replace('-','').replace(
@@ -162,7 +358,7 @@ def read_flux_data(f,
                 head1 = line.split()
                 head2 = f.readline().split()
                 params2 = pull(f.readline())
-                params2 = np.concat([params2,pull(f.readline())])
+                params2 = np.concatenate([params2,pull(f.readline())])
                 # One more header line for the flux
                 flux_header = f.readline()
             if len(params2)>9:
@@ -216,7 +412,7 @@ def read_flux_data(f,
             flux_segment = np.array([])
             while not done:
                 line = f.readline()
-                flux_segment =np.concat([flux_segment,pull(line)])
+                flux_segment =np.concatenate([flux_segment,pull(line)])
                 if len(flux_segment)>=(nE*nAlpha):
                     done = True
             flux[itime,ilat,imlt,:,:] = flux_segment.reshape(nE,nAlpha)
@@ -283,7 +479,7 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
             line = f.readline()
             if is_data_line(line):
                 lvl_line = [float(v) for v in line.split()]
-                unknown_lvls = np.concat([unknown_lvls,lvl_line])
+                unknown_lvls = np.concatenate([unknown_lvls,lvl_line])
                 if len(unknown_lvls)==nE and max(unknown_lvls)>90:
                     E_lvls = unknown_lvls
                     if kwargs.get('verbose',False):
@@ -350,9 +546,9 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
             # Read two lines of header and then 2 lines of values
             head1 = line.split()
             head2 = f.readline().split()
-            head = np.concat([head1,head2])
+            head = np.concatenate([head1,head2])
             params2 = pull(f.readline())
-            params2 = np.concat([params2,pull(f.readline())])
+            params2 = np.concatenate([params2,pull(f.readline())])
         else:
             params2 = pull(line)
         if len(params2)>9:
@@ -449,6 +645,65 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
                       'flux':flux})
     return flux_dict
 
+def get_Biono(lat:np.ndarray,
+              lon:np.ndarray,
+         altitude:float=110.0,
+            field:str='dipole') -> np.ndarray:
+    #TODO implement non-dipole
+    # return B_dipole array evaluated at r=altitude, lat=lat
+    B = 31000*np.sqrt(1+3*np.sin(np.deg2rad(lat))**2)/(1+altitude/6371)**3
+    return B
+
+def bi_interpolate(lat_local:float,
+                     lon_local:float,
+                     #local^    globalv
+                           lat:np.ndarray,
+                           lon:np.ndarray,
+                          flux:np.ndarray,
+                          Bmin:np.ndarray,
+                          Bmax:np.ndarray) -> dict:
+    # NOTE assuming shapes:
+    #   lat     - [lat,lon]
+    #   lon     - [lat,lon]
+    #   flux    - [lat,lon,E,pA]
+    #   Bmin    - [lat,lon]
+    #   Bmax    - [derived]
+
+    local = {'lat':lat_local,
+             'lon':lon_local,
+             'flux':np.zeros(flux.shape[-2::]),
+             'Bmin':0,
+             'Bmax':0}
+
+    return local
+
+def morph_f_along_B(flux:np.ndarray,
+                    Bmin:np.ndarray,
+                  Blocal:float,
+                    Bmax:np.ndarray) -> np.ndarray:
+    # NOTE assuming shapes
+    #   flux    - [E,pA]
+    #   Bmin    - [
+
+    # TODO
+    # step 1. get Bmax(X)
+    #   calculate Bmax for every point based on theta_1 and dipole @110km
+    # step 2. get Bo(X)
+    #   bi-interpolate Bo usint theta_1 and phi_1
+    # step 3. get fo(X,E,alpha_o)
+    #   bi-interpolate fo(E,alpha_o) to each X location
+    # step 4. Calculate Bmirror
+    #   Bmirror(X,alpha_o) = Bo(X)/sin(alpha_o)
+    # step 5. morph flux from fo to f
+    #   f(X,E,alpha) = B(X)/Bo(X) * fo(X,E,alpha_o)
+    #   alpha(X) = arcsin(B(X)*sin(alpha_o(X))/Bo(X))
+    # step 6. remove flux past the mirror point
+    #   i_alpha_keep = if B(X)<Bmirror(X,alpha_o)
+    #   f(X,E,not alpha_keep) = 0
+    # step 7. re-bin flux over a common pitch angle grid
+    #   flux = np.interp(old_PA, new_PA, flux)
+    pass
+
 def main() -> None:
     herepath=os.getcwd()
     arguments = sys.argv
@@ -506,4 +761,17 @@ def main() -> None:
 
 if __name__ == "__main__":
     start_time = time.time()
-    main()
+    #main()
+    mhdfile = 'test.npz'
+    fluxfile = 'data/large/IM/plots/20190513_195600_e.fls'
+
+    mhd  = dict(np.load(mhdfile))
+    aux = read_aux('data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.aux')
+    Bthetatilt = float(aux['BTHETATILT'])
+    #f = merge_rad_mhd(mhd,fluxfile,0,rotAngle=-Bthetatilt)
+    f = get_single_point_flux(mhd,fluxfile,0,rotAngle=-Bthetatilt)
+
+    ltime = time.time()-start_time
+    print('DONE')
+    print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
+                                           np.mod(ltime,60)))

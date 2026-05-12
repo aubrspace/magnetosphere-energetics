@@ -45,14 +45,15 @@ def get_satellite_positions(sat_name:str,
     #time_key = kwargs.get('time_key',pos_time_key_dict[sat_name])
 
     # Set spacecraft IDs, time key and unit conversion
-    pos_instrument = kwargs.get('pos_instrument',pos_instrument_dict[sat_name])
-    pos_variables = kwargs.get('pos_variables',
-                               pos_variable_keys_dict[sat_name])
     unit_conversion = kwargs.get('unit_conversion',
                                  unit_conversion_dict[sat_name])
 
     all_position = {}
     for satID in spacecraft_list:
+        pos_instrument = kwargs.get('pos_instrument',
+                                    pos_instrument_dict[sat_name])
+        pos_variables = kwargs.get('pos_variables',
+                                    pos_variable_keys_dict[sat_name])
         if satID =='':
             position = all_position
         else:

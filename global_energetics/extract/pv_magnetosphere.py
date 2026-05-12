@@ -222,7 +222,7 @@ def setup_pipeline(infile:str,**kwargs:dict):
         evaluation_set = pv_tools.eq_add(alleq['dipole_coord'],evaluation_set,
                                          evaluation_save,doSave=doSave)
         evaluation_set = pv_tools.eq_add(alleq['dipole'],evaluation_set,
-                                         evaluation_save,doSave=doSave)
+                                         evaluation_save,doSave=True)
     if kwargs.get('doEntropy',False):
         evaluation_set = pv_tools.eq_add(alleq['entropy'],evaluation_set,
                                          evaluation_save,doSave=doSave)
