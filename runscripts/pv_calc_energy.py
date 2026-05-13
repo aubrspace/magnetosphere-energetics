@@ -35,8 +35,6 @@ def initial_processing(infiles:list) -> [dict,dt.datetime]:
     # Read aux data
     if '.dat' in infiles[1]:
         aux = read_aux(infiles[1].replace('.dat','.aux'))
-        for key in aux:
-            print(key,aux[key])
     elif '.plt' in infiles[1]:
         aux = read_aux(infiles[1].replace('.plt','.aux'))
     # Get time information
@@ -130,7 +128,7 @@ def main() -> None:
         t2 = get_time(filelist[2])
         t0 = get_time(filelist[0])
         dt = (t2-t0).total_seconds()
-        perform_integrations(surfaces,volume,localtime,dt)
+        perform_integrations(surfaces,volume,localtime,dt,verbose=True)
         old_past_head   = FindSource(filelist[0].split('/')[-1].split('.')[0])
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])

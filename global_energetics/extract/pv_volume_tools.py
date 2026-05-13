@@ -60,7 +60,7 @@ def get_numpy_volume_analysis(source:object,
                                     *,
                          volume_list:list,
                       integrands:list=['Utot_J_Re3','uHydro_J_Re3','uB_J_Re3'],
-                                skip_keys:list=[],**kwargs:dict) -> dict:
+                           skip_keys:list=[],**kwargs:dict) -> dict:
     """Staging function that will take the volume_dict and pass what is needed
         for each calculation one at a time, compiling the results
     Inputs
@@ -83,8 +83,36 @@ def get_numpy_volume_analysis(source:object,
     np_volume = {}
     data = servermanager.Fetch(source)
     data = dsa.WrapDataObject(data)
-    for variable in data.PointData.keys():
-        np_volume[variable] = vtk_to_numpy(data.PointData[variable])
+    # Check to see if the original cell volume has been stored
+    if 'dvol_R3' not in data.PointData.keys():
+        print('WARNING:\n\tNO ORIGINAL VOLUME INFORMATION FOUND! (dvol_R3)')
+        print('\tCalculating volume information on the fly ...')
+        # Create a new souce downstream which is the cell centered
+        # NOTE this cell centered is not the original cc, its cc of the
+        #   unstructured dual grid that was created
+        name = source.GetLogName()
+
+        p2c = PointDatatoCellData(registrationName=name+'_p2c',Input=source)
+        p2c.ProcessAllArrays = 1
+        p2c.PassPointData = 0
+
+        cellsize = CellSize(registrationName=name+'_cc',Input=p2c)
+        cellsize.ComputeVertexCount = 0
+        cellsize.ComputeArea        = 0
+        cellsize.ComputeVolume      = 1
+        cellsize.ComputeSum         = 0
+
+        source = cellsize
+        data   = servermanager.Fetch(source)
+        data   = dsa.WrapDataObject(data)
+
+        for variable in data.CellData.keys():
+            np_volume[variable] = vtk_to_numpy(data.CellData[variable])
+        np_volume['dvol_R3'] = np_volume['Volume'] # fix the name
+
+    else:
+        for variable in data.PointData.keys():
+            np_volume[variable] = vtk_to_numpy(data.PointData[variable])
     for volume in volume_list:
         if kwargs.get('verbose',False):
             print(f'\t{volume}')
