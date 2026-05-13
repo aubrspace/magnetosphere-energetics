@@ -26,6 +26,23 @@ def gse_to_gsm(times:np.ndarray,
         vec_gsm[it,:] = gp.gsmgse(*np.array(vec_gse[it,:]).astype(float),-1)
     return vec_gsm
 
+def geo_to_gsm(times:np.ndarray,
+             vec_geo:np.ndarray) -> np.ndarray:
+    """Converts a vector [n x 3] form GEO to GSM coords
+    Inputs
+        times (as datetimes)
+        vec_geo (n x 3) vector
+    Returns
+        vec_gsm (same shape as input)
+    """
+    t1970 = dt.datetime(1970,1,1,0)
+    vec_gsm = np.zeros_like(vec_geo)
+    for it, t in enumerate(tqdm(times)):
+        ut = (t-t1970).total_seconds()
+        gp.recalc(ut)
+        vec_gsm[it,:] = gp.geogsm(*np.array(vec_geo[it,:]).astype(float),1)
+    return vec_gsm
+
 def get_satellite_positions(sat_name:str,
                                start:dt.datetime,
                                  end:dt.datetime,
@@ -75,13 +92,20 @@ def get_satellite_positions(sat_name:str,
         interv = (times>start)&(times<end)
 
         # Rotate coordinate system, if necessary
-        if kwargs.get('needs_rotation',needs_rotation[sat_name]):
+        if kwargs.get('rotate_gse_gsm',rotate_gse_gsm[sat_name]):
             xGSE = posdata[pos_variables[0]][interv]
             position['x_gse'] = np.array(xGSE[:,0])
             position['y_gse'] = np.array(xGSE[:,1])
             position['z_gse'] = np.array(xGSE[:,2])
             print('\t\t Rotating vectors GSE->GSM')
             xGSM = gse_to_gsm(times[interv],xGSE)
+        elif kwargs.get('rotate_geo_gsm',rotate_geo_gsm[sat_name]):
+            xGEO = posdata[pos_variables[0]][interv]
+            position['x_geo'] = np.array(xGEO[:,0])
+            position['y_geo'] = np.array(xGEO[:,1])
+            position['z_geo'] = np.array(xGEO[:,2])
+            print('\t\t Rotating vectors GEO->GSM')
+            xGSM = geo_to_gsm(times[interv],xGEO)
         else:
             xGSM = posdata[pos_variables[0]][interv]
 

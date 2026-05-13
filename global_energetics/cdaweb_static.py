@@ -12,7 +12,7 @@ pos_instrument_dict = {'arase':'ERG_ORB_L2',
                      'cluster':'CL_SP_AUX',
                         'goes':'GOES*_EPHEMERIS_SSC',
                          'mms':'MMS*_MEC_SRVY_L2_EPHT89D',
-                        'rbsp':'RBSP*_REL04_ECT-HOPE-MOM-L3',
+                        'rbsp':'RBSP*_REL04_ECT-MAGEIS-L3',
                       'themis':'TH*_OR_SSC'}
 
 bfield_instrument_dict = {'arase':'ERG_MGF_L2_8SEC',
@@ -108,17 +108,24 @@ plasma_time_key_dict = {'cluster':'Epoch__C*_PP_CIS',
                          'themis':['th*_pteff_epoch',
                                    'th*_ptiff_epoch']}
 
-needs_rotation = {'arase':False,
+rotate_gse_gsm = {'arase':False,
                 'cluster':True,
                    'goes':False,
                     'mms':False,
                    'rbsp':False,
                  'themis':False}
 
+rotate_geo_gsm = {'arase':False,
+                'cluster':False,
+                   'goes':False,
+                    'mms':False,
+                   'rbsp':True,
+                 'themis':False}
+
 unit_conversion_dict = {'arase':1,
                       'cluster':1/6371,
                          'goes':1,
                           'mms':1/6371,
-                         'rbsp':1/6371,
+                         'rbsp':1,
                        'themis':1}
 
