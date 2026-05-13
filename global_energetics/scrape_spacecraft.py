@@ -89,11 +89,11 @@ def main() -> None:
                      'themis_pos','themis_b','themis_plasma']
 
     # Scrape data from CDAWeb
-    #arase_pos    = get_satellite_positions('arase',START,END)
+    arase_pos    = get_satellite_positions('arase',START,END)
     #arase_b      = get_satellite_bfield('arase',START,END)
     #arase_plasma = get_satellite_plasma('arase',START,END)
 
-    cluster_pos   = get_satellite_positions('cluster',START,END)
+    #cluster_pos   = get_satellite_positions('cluster',START,END)
     #cluster_b     = get_satellite_bfield('cluster',START,END)
     #cluster_plasma = get_satellite_plasma('cluster',START,END)
 
@@ -101,7 +101,7 @@ def main() -> None:
     #rbsp_b       = get_satellite_bfield('rbsp',START,END)
     #rbsp_plasma = get_satellite_plasma('rbsp',START,END)
 
-    #goes_pos    = get_satellite_positions('goes',START,END)
+    goes_pos    = get_satellite_positions('goes',START,END)
     #goes_b      = get_satellite_bfield('goes',START,END)
 
     #mms_pos    = get_satellite_positions('mms',START,END,
@@ -112,8 +112,8 @@ def main() -> None:
     #mms_plasma = get_satellite_plasma('mms',START,END,
     #                                      spacecraft_list=['2','3','4'])
 
-    #themis_pos  = get_satellite_positions('themis',START,END,
-    #                                      spacecraft_list=['A','D','E'])
+    themis_pos  = get_satellite_positions('themis',START,END,
+                                          spacecraft_list=['A','D','E'])
     #themis_b  = get_satellite_bfield('themis',START,END,
     #                                      spacecraft_list=['A','D','E'])
     #themis_plasma = get_satellite_plasma('themis',START,END,
@@ -148,8 +148,8 @@ def main() -> None:
         imf = read_indices(IMFPATH,start=START,end=END,read_supermag=False)
         solarwind = imf['swmf_sw']
         quicklook,(equatorial,meridional) =plt.subplots(1,2,figsize=[20,10])
-        dual_half_circle((0,0),1,ax=equatorial)
-        dual_half_circle((0,0),1,ax=meridional)
+        #dual_half_circle((0,0),1,ax=equatorial)
+        #dual_half_circle((0,0),1,ax=meridional)
         # Get the Shue magnetopause at its most compressed
         sw_min = solarwind.iloc[solarwind['r_shue98'].argmin()]
         sw_max = solarwind.iloc[solarwind['r_shue98'].argmax()]
@@ -169,11 +169,12 @@ def main() -> None:
                                 alpha=0.6)
         meridional.fill_between(X_shue_max,-Y_low,-Y_shue_max,fc='grey',
                                 alpha=0.6)
-        for sat in arase_pos.keys():
-            equatorial.scatter(arase_pos[sat]['x_gsm'],arase_pos[sat]['y_gsm'],
-                            label=sat)
-            meridional.scatter(arase_pos[sat]['x_gsm'],arase_pos[sat]['z_gsm'],
-                            label=sat)
+        #for sat in arase_pos.keys():
+        if arase_pos != {}:
+            equatorial.scatter(arase_pos['x_gsm'],arase_pos['y_gsm'],
+                            label='arase')
+            meridional.scatter(arase_pos['x_gsm'],arase_pos['z_gsm'],
+                            label='arase')
         for sat in rbsp_pos.keys():
             equatorial.scatter(rbsp_pos[sat]['x_gsm'],rbsp_pos[sat]['y_gsm'],
                             label=sat)
@@ -251,7 +252,7 @@ if __name__ == '__main__':
     #END       = dt.datetime(2018,2,1,0,0)
     #OUTPATH   = './temp/'
     SAVE_DATA  = False
-    PLOT_DATA  = False
+    PLOT_DATA  = True
     WRITE_DATA = True
     IMFPATH   = './inputs/simulations/'
     #######################################################################
