@@ -457,7 +457,7 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
 
     #Generate normals now that the surface is fully constructed
     if kwargs.get('calc_normals',True):
-        if paraview.__version__ == '6.0.0':
+        if GetParaViewVersion().major == 6:
             normals = SurfaceNormals(registrationName=name+'_normals',
                                      Input=outputsource)
         else:
