@@ -457,12 +457,12 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
 
     #Generate normals now that the surface is fully constructed
     if kwargs.get('calc_normals',True):
-        #if paraview.__version__ == '6.0.0':
-        normals = SurfaceNormals(registrationName=name+'_normals',
+        if paraview.__version__ == '6.0.0':
+            normals = SurfaceNormals(registrationName=name+'_normals',
                                      Input=outputsource)
-        #else:
-        #    normals = GenerateSurfaceNormals(registrationName=name+'_normals',
-        #                                     Input=outputsource)
+        else:
+            normals = GenerateSurfaceNormals(registrationName=name+'_normals',
+                                             Input=outputsource)
         normals.ComputeCellNormals = 1
         normals.NonManifoldTraversal = 0
         outputsource = normals
