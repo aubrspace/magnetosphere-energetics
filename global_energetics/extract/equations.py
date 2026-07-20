@@ -287,6 +287,21 @@ def equations(**kwargs):
                                              '{B_y [nT]}*{U_y [km/s]}+'+
                                              '{B_z [nT]}*{U_z [km/s]})'+
                                            '/(4*pi*1e-7)*1e-9*6371**2',
+        '{Salf_x [W/Re^2]}':'-{B_x [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{Salf_y [W/Re^2]}':'-{B_y [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
+        '{Salf_z [W/Re^2]}':'-{B_z [nT]}*'+
+                                            '({B_x [nT]}*{U_x [km/s]}+'+
+                                             '{B_y [nT]}*{U_y [km/s]}+'+
+                                             '{B_z [nT]}*{U_z [km/s]})'+
+                                           '/(4*pi*1e-7)*1e-9*6371**2',
         '{P0_x [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+
                           '*{U_x [km/s]}',
         '{P0_y [W/Re^2]}':'({P [nPa]}*(2.5)+{Dp [nPa]}/2)*6371**2'+

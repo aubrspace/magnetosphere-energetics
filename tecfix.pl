@@ -9,7 +9,8 @@ use File::Copy qw(move);
 use File::Basename qw(basename dirname);
 
 # Directory to search NOTE this is manual for now
-my $dir = './GM/IO2';
+#my $dir = './GM/IO2';
+my $dir = './';
 
 my @files = glob("$dir/3d*.dat");
 
@@ -60,8 +61,14 @@ foreach my $filename (@files) {
     close($aux_fh);
 
     # Replace the original file with the temp file
-    move($tmp_filename, $filename) or die
+    if (-z $tmp_filename){
+        print "Temp file is empty, the .dat must already be processed!";
+    }else {
+        #TODO
+        print ""
+        move($tmp_filename, $filename) or die
                               "Cannot replace '$filename' with temp file: $!";
+    }
     #print "  -> '$filename' updated successfully.\n";
     #print "  -> Auxillary data written to '$aux_filename'.\n";
 }

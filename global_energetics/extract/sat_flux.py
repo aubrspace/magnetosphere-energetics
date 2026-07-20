@@ -168,7 +168,8 @@ def condense_time_info(sat_flux:dict) -> dict:
 
 
 def main() -> None:
-    filelist = sorted(glob(f"{FILEPATH}/{FILEKEY}"),key=time_sort)
+    #filelist = sorted(glob(f"{FILEPATH}/{FILEKEY}"),key=time_sort)
+    filelist = glob(f"{FILEPATH}/{FILEKEY}")
     print(f"Converting {FILEKEY} -> {OUTFILE}")
     # TODO (optional) generate sat_flux file from .fls and trajectory
     # Read sat_flux file
@@ -196,7 +197,12 @@ if __name__ == "__main__":
     global FILEPATH,FILEKEY,OUTPATH,OUTFILE
 
     FILEPATH = './'
-    FILEKEY = '2018p001_rbsp-A_e.flux'
+    #FILEKEY = '2018p001_rbsp-A_e.flux'
+    #FILEKEY = 'sample_noharm.flux'
+    #FILEKEY = 'sample_noharm_quiet.flux'
+    #FILEKEY = 'sample_noharm_burst_expandedE.flux'
+    FILEKEY = 'quiet_data/ARB_CIMI_noha-0_e.flux'
+    #FILEKEY = 'burst_data/1962a301_noha-0_e.flux'
     OUTPATH = './'
     OUTFILE = FILEKEY.replace('.flux','_flux.npz')
 

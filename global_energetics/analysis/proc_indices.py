@@ -528,25 +528,53 @@ def csv_to_pandas(csvfile,**kwargs):
     Returns
         df (DataFrame)
     """
-    tdict = kwargs.get('tdict',{'year':'year','month':'mo','day':'dy',
-                                'hour':'hr','minute':'mn','second':'sc',
-                                'millisecond':'msc'})
-    df = pd.read_csv(csvfile, sep='\s+', skiprows=kwargs.get('skiprows',1),
-                     header=kwargs.get('header','infer'),
-                     names=kwargs.get('names'))
-    df['Time [UTC]']=pd.to_datetime(dict(year=df[tdict['year']],
-                                         month=df[tdict['month']],
-                                         day=df[tdict['day']],
-                                         hour=df[tdict['hour']],
-                                         minute=df[tdict['minute']],
-                                         second=df[tdict['second']]))
+    #tdict = kwargs.get('tdict',{'month':'mo','day':'dy',
+    #                            'hour':'hr','minute':'mn','second':'sc',
+    #                            'millisecond':'msc'})
+    tdict = {'month':'mo','day':'dy',
+             'hour':'hr','minute':'mn','second':'sc',
+             'millisecond':'msc'}
+    print(f'READING {csvfile} ...')
+    with open(csvfile,'r') as f:
+        lines = f.readlines()
+    istart = [i for i,line in enumerate(lines)if line.startswith('#START')]
+    if istart:
+        istart = istart[0]+1
+        df = pd.read_csv(csvfile,sep='\s+',skiprows=istart,header=None,
+                         names=['year','mo','dy','hr','mn','sc','msc',
+                                'bx','by','bz','vx','vy','vz',
+                                'density','temperature'])
+    else:
+        df = pd.read_csv(csvfile, sep='\s+', skiprows=kwargs.get('skiprows',1),
+                         header=kwargs.get('header','infer'),
+                         names=kwargs.get('names'))
+    #df['Time [UTC]']=pd.to_datetime(dict(year=df[tdict['year']],
+    #                                     month=df[tdict['month']],
+    #                                     day=df[tdict['day']],
+    #                                     hour=df[tdict['hour']],
+    #                                     minute=df[tdict['minute']],
+    #                                     second=df[tdict['second']]))
+    for key,value in tdict.items():
+        if key in df:
+            df[value] = df[key]
+    #if 'itot' in csvfile:
+    #    from IPython import embed; embed()
+    df['Time [UTC]']=pd.to_datetime(dict(year=df['year'],
+                                         month=df['mo'],
+                                         day=df['dy'],
+                                         hour=df['hr'],
+                                         minute=df['mn'],
+                                         second=df['sc']))
     df['Time [UTC]']+=dt.timedelta(minutes=kwargs.get('tshift',0))
     df.index = df['Time [UTC]']
-    dropcols = list(tdict.values())
+    #dropcols = list(tdict.values())
+    dropcols = ['year','mo','dy','hr','mn','sc','msc']
     dropcols.append('Time [UTC]')
     if 'it' in df.columns:
         dropcols.append('it')
-    df.drop(columns=dropcols,inplace=True)
+    for col in dropcols:
+        if col in df:
+            df.drop(columns=[col],inplace=True)
     return df
 
 def get_swmf_data(datapath,**kwargs):
@@ -620,12 +648,18 @@ def get_swmf_data(datapath,**kwargs):
         ielogdata = csv_to_pandas(ielog,tshift=kwargs.get('tshift',0))
     ##SIMULATION SOLARWIND
     if not skip_sw:
-        coordsys = pd.read_csv(solarwind).loc[2].values[0]
-        sw_tdict = {'year':'year','month':'month','day':'day',
-                    'hour':'hour','minute':'min','second':'sec',
-                    'millisecond':'msec'}
-        swdata = csv_to_pandas(solarwind,tshift=kwargs.get('tshift',0),
-                                tdict=sw_tdict,skiprows=[0,1,2,4,5,6,7])
+        with open(solarwind,'r') as f: lines = f.readlines()
+        icoord = [i for i,line in enumerate(lines)
+                                            if line.startswith('#COORD')][0]+1
+        coordsys = lines[icoord].split()[0]
+
+        #coordsys = pd.read_csv(solarwind).loc[2].values[0]
+        #sw_tdict = {'year':'year','month':'month','day':'day',
+        #            'hour':'hour','minute':'min','second':'sec',
+        #            'millisecond':'msec'}
+        #swdata = csv_to_pandas(solarwind,tshift=kwargs.get('tshift',0),
+        #                        tdict=sw_tdict,skiprows=[0,1,2,4,5,6,7])
+        swdata = csv_to_pandas(solarwind,tshift=kwargs.get('tshift',0))
         if coordsys=='GSE':
             print('GSE solarwind data found!!! Converting to GSM...')
             swdata['Time [UTC]'] = swdata.index
@@ -945,9 +979,10 @@ def read_indices(data_path, **kwargs):
             data[key] = swmfdata[key]
         #find new start/end times, will have been trimmed already if needed
         anykey = [k for k in data if not data[k].empty][0]
-        #from IPython import embed; embed()
-        kwargs.update({'start':data[anykey].index[0]})
-        kwargs.update({'end':data[anykey].index[-1]})
+        if 'start' not in kwargs:
+            kwargs.update({'start':data[anykey].index[0]})
+        if 'end' not in kwargs:
+            kwargs.update({'end':data[anykey].index[-1]})
     #get supermag and omni
     if kwargs.get('read_supermag',False):
         import supermag

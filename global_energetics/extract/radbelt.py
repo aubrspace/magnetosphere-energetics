@@ -8,7 +8,7 @@ from numpy import (sin,cos,deg2rad,pi)
 import datetime as dt
 from matplotlib import pyplot as plt
 from geopack import geopack as gp
-#from tqdm import tqdm
+from tqdm import tqdm
 from scipy.interpolate import LinearNDInterpolator
 ##
 from global_energetics.makevideo import time_sort
@@ -374,7 +374,15 @@ def read_flux_data(f,
                 flux_dict['ba'][itime,imlt]        = params2[9]
 
                 if len(params2)<20:
-                    params3 = f.readline().split()
+                    #params3 = f.readline().split()
+                    #TODO - hotfix
+                    flux_dict['latN'][itime,ilat,imlt] = params2[0]
+                    flux_dict['mltN'][itime,imlt] = params2[1]
+                    flux_dict['ro'][itime,ilat,imlt]   = params2[2]
+                    flux_dict['mlto'][itime,ilat,imlt] = params2[3]
+                    flux_dict['bo'][itime,ilat,imlt]   = params2[4]
+                    #TODO - hotfix
+                    params3 = params2[-12::]
                 else:
                     params3 = params2[10:22]
 
@@ -448,25 +456,34 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
         total_ngrid = 0
         done = False
         no_grid_headers = True
+        header_test = []
         while not done:
             line = f.readline()
             if 'parmod' in line:
                 done = True
             elif is_data_line(line):
                 total_ngrid += len(line.split())
+                header_test.append(line.split())
             else:#we've found a header line
                 no_grid_headers = False
-        if total_ngrid - (nLat+nMLT+nE+nAlpha)<0: #MLT grid inferred
+        if total_ngrid - (nLat+nMLT+nE+nAlpha)<-1: #MLT grid inferred
             # MLT bins
             if kwargs.get('verbose',False):
                 print(f'\t\t\t{nMLT} MLTs')
             mlt_lvls = np.linspace(0,23.5,nMLT)
             skip_mlt = True
+            fix_mlt = False
+        elif total_ngrid - (nLat+nMLT+nE+nAlpha)==-1: #MLT is missing one...
+            skip_mlt = False
+            fix_mlt = True
+            nMLT -=1
         else:
             skip_mlt = False
+            fix_mlt = False
         f.seek(grid_start)
         if not no_grid_headers:
-            grid_header = f.readline()
+            #grid_header = f.readline()
+            pass
         done = False
         i = 0
         unknown_lvls = np.array([])
@@ -477,6 +494,7 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
             mlt_lvls = np.array([])
         while not done:
             line = f.readline()
+            #print(f'LINE: {line}')
             if is_data_line(line):
                 lvl_line = [float(v) for v in line.split()]
                 unknown_lvls = np.concatenate([unknown_lvls,lvl_line])
@@ -487,6 +505,9 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
                     unknown_lvls = np.array([])
                 elif len(unknown_lvls)==nMLT and not skip_mlt:
                     mlt_lvls = unknown_lvls
+                    if fix_mlt:
+                        mlt_lvls = np.concat([mlt_lvls,[12.0]])
+                        nMLT+=1
                     if kwargs.get('verbose',False):
                         print(f'\t\t\t{nMLT} MLT Levels')
                     unknown_lvls = np.array([])
@@ -558,7 +579,7 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
             #   xmlt(j)             - mlt position (hours)
             #   xlatS1(i,j)         - southern footpoint lat (deg)
             #   xmltS(i,j)          - southern footpoint mlt (hours)
-            #   ro1=ro(i,j)         - inner radius
+            #   ro1=ro(i,j)         - eq mapped radius
             #   xmlto1=xmlto(i,j)   - eq mapped mlt
             #   BriN(i,j)           - North mirror point B
             #   BriS(i,j)           - South mirror point B
@@ -613,7 +634,7 @@ def read_flux(infile:str,**kwargs:dict) -> dict:
             # mlto  - eq mapped MLT
             # bo    - eq magnetic field strength
             # irm   - index of latitude of last modeled field line
-            # iba   - ???
+            # iba   - index of last B field
             flux_dict['latN'] = np.zeros([ntimes,nLat,nMLT])
             flux_dict['mltN'] = np.zeros([ntimes,nLat,nMLT])
             flux_dict['ro']   = np.zeros([ntimes,nLat,nMLT])
@@ -704,6 +725,63 @@ def morph_f_along_B(flux:np.ndarray,
     #   flux = np.interp(old_PA, new_PA, flux)
     pass
 
+def read_psd(infile:str,**kwargs:dict) -> dict:
+    psd_dict = {}
+    with open(infile,'r') as f:
+        line  = pull(f.readline().split('!')[0])
+        rc    = float(line[0])
+        nlat  = int(line[1])
+        nlon  = int(line[2])
+        nm    = int(line[3])
+        nk    = int(line[4])
+        ntime = int(line[5])
+        # Read k
+        kgrid = np.array([],dtype=float)
+        kgrid = np.concat([kgrid,pull(f.readline())])
+        kgrid = np.concat([kgrid,pull(f.readline())])
+        kgrid = np.concat([kgrid,pull(f.readline())])
+        # Read m
+        mgrid = np.array([],dtype=float)
+        mgrid = np.concat([mgrid,pull(f.readline())])
+        mgrid = np.concat([mgrid,pull(f.readline())])
+        mgrid = np.concat([mgrid,pull(f.readline())])
+        mgrid = np.concat([mgrid,pull(f.readline())])
+        # Read alpha
+        latgrid = np.array([],dtype=float)
+        latgrid = np.concat([latgrid,pull(f.readline())])
+        latgrid = np.concat([latgrid,pull(f.readline())])
+        latgrid = np.concat([latgrid,pull(f.readline())])
+        latgrid = np.concat([latgrid,pull(f.readline())])
+        latgrid = np.concat([latgrid,pull(f.readline())])
+        # Start reading times
+        times = np.zeros(ntime)
+        ro = np.zeros([ntime,nlat,nlon])
+        bo = np.zeros([ntime,nlat,nlon])
+        longrid = np.zeros(nlon)
+        psd = np.zeros([ntime,nlat,nlon,nm,nk])
+        for it in tqdm(range(ntime)):
+            hourline = pull(f.readline().split('!')[0])
+            times[it] = hourline[0]
+            for ilat,lat in enumerate(latgrid):
+                for ilon in range(nlon):
+                    line = pull(f.readline())
+                    longrid[ilon] = line[1]
+                    ro[it,ilat,ilon] = line[2]
+                    bo[it,ilat,ilon] = line[4]
+                    buffer = np.array([],dtype=float)
+                    done = False
+                    while not done:
+                        buffer = np.concat([buffer,pull(f.readline())])
+                        if len(buffer)>=nm*nk:
+                            done = True
+                    psd[it,ilat,ilon,:,:] = buffer.reshape([nm,nk])
+    psd_dict = {'times':times,
+                'latgrid':latgrid,'longrid':longrid,
+                'mgrid':mgrid,'kgrid':kgrid,
+                'ro':ro,'bo':bo,
+                'psd':psd}
+    return psd_dict
+
 def main() -> None:
     herepath=os.getcwd()
     arguments = sys.argv
@@ -721,8 +799,19 @@ def main() -> None:
         np.savez_compressed(f"{inpath}/{infile.replace('.rtp','_rtp.npz')}",
                             **rtp)
         print(f"SAVED: {inpath}/{infile.replace('.rtp','_rtp.npz')}")
+    elif '-psd' in arguments:
+        infiles = glob.glob(f'{inpath}/*.psd')
+        for infile in infiles:
+            psd = read_psd(infile,verbose=True)
+            np.savez_compressed(f"{infile.replace('.psd','_psd.npz')}",
+                                allow_pickle=False,
+                                **psd)
+            print(f"SAVED: {inpath}/{infile.replace('.psd','_psd.npz')}")
     else:
-        filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
+        try:
+            filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
+        except:
+            filelist = glob.glob(f'{inpath}/*_e.fls')
         t0 = dt.datetime(1970,1,1)
         flux_dict = {}
         if len(filelist)==1:
@@ -761,15 +850,16 @@ def main() -> None:
 
 if __name__ == "__main__":
     start_time = time.time()
-    #main()
-    mhdfile = 'test.npz'
-    fluxfile = 'data/large/IM/plots/20190513_195600_e.fls'
+    main()
 
-    mhd  = dict(np.load(mhdfile))
-    aux = read_aux('data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.aux')
-    Bthetatilt = float(aux['BTHETATILT'])
+    #mhdfile = 'test.npz'
+    #fluxfile = 'data/large/IM/plots/20190513_195600_e.fls'
+
+    #mhd  = dict(np.load(mhdfile))
+    #aux = read_aux('data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.aux')
+    #Bthetatilt = float(aux['BTHETATILT'])
     #f = merge_rad_mhd(mhd,fluxfile,0,rotAngle=-Bthetatilt)
-    f = get_single_point_flux(mhd,fluxfile,0,rotAngle=-Bthetatilt)
+    #f = get_single_point_flux(mhd,fluxfile,0,rotAngle=-Bthetatilt)
 
     ltime = time.time()-start_time
     print('DONE')

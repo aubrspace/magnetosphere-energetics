@@ -92,7 +92,7 @@ def map_surface_to_interfaces(surface_name:str,
     return conditions
 
 def get_numpy_surface_analysis(surfaces_dict:dict,*,
-                            integrands:list=['K_W_Re2','ExB_W_Re2','P0_W_Re2'],
+             integrands:list=['K_W_Re2','ExB_W_Re2','Salf_W_Re2','P0_W_Re2'],
                                    skip_keys:list=[],**kwargs) -> dict:
     """Staging function that will take the surface_dict and pass what is needed
         for each calculation one at a time, compiling the results
@@ -106,6 +106,7 @@ def get_numpy_surface_analysis(surfaces_dict:dict,*,
     """
     integral_translation = {'K_W_Re2':('K','_W'),# gives ID tag, unit
                           'ExB_W_Re2':('ExB','_W'),
+                          'Salf_W_Re2':('Salf','_W'),
                            'P0_W_Re2':('P0','_W')}
     results = {}
     if kwargs.get('verbose',False):

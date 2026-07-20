@@ -95,8 +95,8 @@ def perform_integrations(surfaces:dict,
 
 def main() -> None:
     # Locate files
-    #filelist = sorted(glob.glob(f'{INPATH}/*paraview*.plt'),key=time_sort)
-    filelist = sorted(glob.glob(f'{INPATH}/3d*.dat'),key=time_sort)
+    filelist = sorted(glob.glob(f'{INPATH}/*paraview*.plt'),key=time_sort)
+    #filelist = sorted(glob.glob(f'{INPATH}/3d*.dat'),key=time_sort)
 
     # Initialize variables
     tstart = get_time(filelist[0])# for relative timestamping
@@ -133,9 +133,8 @@ def main() -> None:
         old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
         old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
 
-    if False:
-    #for ifile,infile in enumerate(filelist[0:1]):
-    #for ifile,infile in enumerate(filelist[1:-1]):
+    #if False:
+    for ifile,infile in enumerate(filelist[1:-1]):
         # Set output file name(s)
         localtime = get_time(infile)
         outfile=infile.split('_1_e')[-1].replace('.plt','.png')
@@ -202,13 +201,15 @@ if True:
     #INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
     #INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2')
     #OUTPATH  = os.path.join(herepath,'data/analysis')
-    INPATH   = os.path.join(herepath,'test/GM/IO2')
-    OUTPATH  = os.path.join(herepath,'test/GM/IO2')
+    #INPATH   = os.path.join(herepath,'test/GM/IO2')
+    #OUTPATH  = os.path.join(herepath,'test/GM/IO2')
     #OUTPATH  = os.path.join(herepath,'temp')
     #INPATH   = os.path.join(herepath,'test_3d/')
     #OUTPATH  = os.path.join(herepath,'test_3d/outputs')
     #INPATH   = os.path.join(herepath,'run_may2019/GM/IO2/')
     #OUTPATH   = os.path.join(herepath,'outputs_may2019/')
+    INPATH    = os.path.join(herepath,'data/may_2019/')
+    OUTPATH   = os.path.join(herepath,'output/')
 
     main()
 
