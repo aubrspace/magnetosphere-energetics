@@ -735,31 +735,31 @@ def read_psd(infile:str,**kwargs:dict) -> dict:
         nm    = int(line[3])
         nk    = int(line[4])
         ntime = int(line[5])
+        if kwargs.get('single',False):
+            ntime = 1
         # Read k
         kgrid = np.array([],dtype=float)
-        kgrid = np.concat([kgrid,pull(f.readline())])
-        kgrid = np.concat([kgrid,pull(f.readline())])
-        kgrid = np.concat([kgrid,pull(f.readline())])
+        while len(kgrid)<nk:
+            kgrid = np.concat([kgrid,pull(f.readline())])
         # Read m
         mgrid = np.array([],dtype=float)
-        mgrid = np.concat([mgrid,pull(f.readline())])
-        mgrid = np.concat([mgrid,pull(f.readline())])
-        mgrid = np.concat([mgrid,pull(f.readline())])
-        mgrid = np.concat([mgrid,pull(f.readline())])
+        while len(mgrid)<nm:
+            mgrid = np.concat([mgrid,pull(f.readline())])
         # Read alpha
         latgrid = np.array([],dtype=float)
-        latgrid = np.concat([latgrid,pull(f.readline())])
-        latgrid = np.concat([latgrid,pull(f.readline())])
-        latgrid = np.concat([latgrid,pull(f.readline())])
-        latgrid = np.concat([latgrid,pull(f.readline())])
-        latgrid = np.concat([latgrid,pull(f.readline())])
+        while len(latgrid)<nlat:
+            latgrid = np.concat([latgrid,pull(f.readline())])
         # Start reading times
         times = np.zeros(ntime)
         ro = np.zeros([ntime,nlat,nlon])
         bo = np.zeros([ntime,nlat,nlon])
         longrid = np.zeros(nlon)
         psd = np.zeros([ntime,nlat,nlon,nm,nk])
-        for it in tqdm(range(ntime)):
+        if kwargs.get('single',False):
+            iterator = range(ntime)
+        else:
+            iterator = tqdm(range(ntime))
+        for it in iterator:
             hourline = pull(f.readline().split('!')[0])
             times[it] = hourline[0]
             for ilat,lat in enumerate(latgrid):
@@ -800,13 +800,25 @@ def main() -> None:
                             **rtp)
         print(f"SAVED: {inpath}/{infile.replace('.rtp','_rtp.npz')}")
     elif '-psd' in arguments:
-        infiles = glob.glob(f'{inpath}/*.psd')
-        for infile in infiles:
-            psd = read_psd(infile,verbose=True)
-            np.savez_compressed(f"{infile.replace('.psd','_psd.npz')}",
-                                allow_pickle=False,
-                                **psd)
-            print(f"SAVED: {inpath}/{infile.replace('.psd','_psd.npz')}")
+        infiles = glob.glob(f'{inpath}/*_e.psd')
+        psd_dict = {}
+        if len(infiles)==1:
+            infile = filelist[0]
+            psd_dict = read_psd(infile,verbose=True)
+            outfile = f"{infile.replace('_e.psd','_e_psd.npz')}"
+        else:
+            for i,infile in enumerate(tqdm(infiles[::10])):
+                psd = read_psd(infile,verbose=i==0,single=True)
+                if i==0:
+                    psd_dict = psd
+                    outfile = f"{infile.replace('_e.psd','_e_psd.npz')}"
+                else:
+                    for key in psd:
+                        if len(psd[key].shape) > 2 or 'time' in key:
+                            psd_dict[key] = np.concat([psd_dict[key],
+                                                        psd[key]])
+        np.savez_compressed(outfile,allow_pickle=False,**psd_dict)
+        print(f"SAVED: {inpath}/{outfile}")
     else:
         try:
             filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)

@@ -23,6 +23,11 @@ foreach my $filename (@files) {
     my $file_dir     = dirname($filename);
     my $aux_filename = "$file_dir/$base.aux";
 
+    if (-e $aux_filename) {
+        print "Aux data for $filename exists: moving on ...";
+        next;
+    }
+
     print "Processing '$filename' ...\n";
     # Open input file for reading
     open(my $fh, '<', $filename) or die "Cannot open '$filename': $!";
@@ -64,13 +69,11 @@ foreach my $filename (@files) {
     if (-z $tmp_filename){
         print "Temp file is empty, the .dat must already be processed!";
     }else {
-        #TODO
-        print ""
         move($tmp_filename, $filename) or die
                               "Cannot replace '$filename' with temp file: $!";
     }
-    #print "  -> '$filename' updated successfully.\n";
-    #print "  -> Auxillary data written to '$aux_filename'.\n";
+    print "  -> '$filename' updated successfully.\n";
+    print "  -> Auxillary data written to '$aux_filename'.\n";
 }
 
 print "\nDONE.\n";
