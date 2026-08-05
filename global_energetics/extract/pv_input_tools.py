@@ -136,6 +136,8 @@ name_dict = {
              "U_y [km_s]":"U_y_km_s",
              "U_z [km_s]":"U_z_km_s",
              "P [nPa]":"P_nPa",
+             "P_perp [nPa]":"Pperp_nPa",
+             "P_par [nPa]":"Ppar_nPa",
              "phi_1 [deg]":"phi_1_deg",
              "phi_2 [deg]":"phi_2_deg",
              "theta_1 [deg]":"theta_1_deg",
@@ -257,6 +259,8 @@ def todimensional(pipeline:object, **kwargs) -> object:
              'U_y':6371*1e3,
              'U_z':6371*1e3,
              'P':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
+             'Pperp':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
+             'Ppar':1e6*proton_mass*(6371*1e3)**2,        #Rho * U^2
              'B_x':6371*1e3*np.sqrt(cMu*1e6*proton_mass), #U * sqrt(M*rho)
              'B_y':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
              'B_z':6371*1e3*np.sqrt(cMu*1e6*proton_mass),
@@ -273,6 +277,8 @@ def todimensional(pipeline:object, **kwargs) -> object:
              'U_y':1e3,                     #km/s
              'U_z':1e3,                     #km/s
              'P':1e-9,                      #nPa
+             'Pperp':1e-9,                  #nPa
+             'Ppar':1e-9,                   #nPa
              'B_x':1e-9,                    #nT
              'B_y':1e-9,                    #nT
              'B_z':1e-9,                    #nT

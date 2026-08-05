@@ -61,7 +61,7 @@ if True:
 
     HERE    = os.getcwd()
     INPATH  = f"{HERE}/data"
-    GMPATH  = f"{INPATH}/large/GM/IO2"
+    GMPATH  = f"{INPATH}/large/GM"
     IEPATH  = f"{INPATH}/large/IE/ionosphere"
     OUTPATH = f"{HERE}/outputs"
 
