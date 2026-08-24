@@ -44,7 +44,7 @@ mp = surfaces_dict['mp']
 renderView1 = GetActiveViewOrCreate('RenderView')
 SetActiveView(renderView1)
 display_visuals(field,mp,renderView1,
-                mpContourBy='B_x_nT',
+                mpContourBy=('CELLS','B_nT','X'),
                     contourMin=-5,
                     contourMax=5)
 ```
@@ -62,11 +62,17 @@ Option 2- via script
 similar to before copy this now into "myscript.py"
 ```
 from paraview.simple import *
-from pv_magnetopause import setup_pipeline
-from pv_visuals import display_visuals
+from global_energetics.extract.pv_magnetosphere import setup_pipeline, generate_surfaces
+from global_energetics.extract.pv_visuals import display_visuals
  
 infile = 'some/path/fixed_3Dfile.plt'
-oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(infile)
+
+pipeline_dict = setup_pipeline(infile)
+field = pipeline_dict['field']
+
+surfaces_dict = generate_surfaces(field)
+mp = surfaces_dict['mp']
+
 renderView1 = GetActiveViewOrCreate('RenderView')
 SetActiveView(renderView1)
 display_visuals(field,mp,renderView1,
@@ -90,3 +96,10 @@ magnetosphere-energetics/runscripts/
 *NOTE* may need to use os and sys packages to ensure that paraview can
 find the custom python packages, or follow instructions in modify_paraview.md
 to soft link them in yourself.
+
+```
+import os,sys
+if os.getcwd() not in sys.path:
+    sys.path.append(os.getcwd())
+```
+
