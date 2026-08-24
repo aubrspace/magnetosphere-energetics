@@ -7,7 +7,7 @@ You will need
 =============
 -> Working installation of paraview with built in python  
 -> Global_energetics package visible to python within paraview
--> 3D output file fixed for paraview (see tecfix.pl)
+-> 3D output file fixed for paraview (https://drive.google.com/drive/folders/1E0Aw7sI5Wwop4E0e-nZ_wk8RdgLZHdy3?usp=sharing)
 
 Option 1- interactive
 =====================
