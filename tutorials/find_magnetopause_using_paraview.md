@@ -6,8 +6,8 @@ In this tutorial we will be usind the paraview python scripts to:
 You will need
 =============
 -> Working installation of paraview with built in python  
--> Linked global_energetics package to paraview  
--> 3D output file fixed for paraview (see util/pltfixer.py)
+-> Global_energetics package visible to python within paraview
+-> 3D output file fixed for paraview (see tecfix.pl)
 
 Option 1- interactive
 =====================
