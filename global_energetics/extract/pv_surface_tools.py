@@ -372,9 +372,9 @@ def create_sheath_state(pipeline:object,**kwargs:dict) -> object:
         closed_value = kwargs.get('status_closed',3)
         inner_r = kwargs.get('inner_r',3.0)
     tail_x = kwargs.get('tail_x',-20)
-    x0 = kwargs.get('x0',15)
+    x0 = kwargs.get('x0',10)
     y0 = kwargs.get('y0',0)
-    z0 = kwargs.get('z0',0)
+    z0 = kwargs.get('z0',100)
     s_ratio = kwargs.get('s_ratio',2.4)
     script = ''
     if kwargs.get('verbose_pipeline',False):
@@ -399,7 +399,7 @@ mp = ((Status>=1)&(beta_star<{betastar_max})&
           (x>{tail_x})&(r_R>={inner_r})).astype(int)
 """
     script +=f"""
-s0 = s[(abs(x-{x0})<1) & (abs(y-{y0})<1) & (abs(z-{z0})<1)].mean()
+s0 = s[(abs(x-{x0})<4) & (abs(y-{y0})<4) & (abs(z-{z0})<4)].mean()
 # Define magnetosheath as: s/s0 > Const. AND not magnetosphere
 sheath = (((s/s0)>{s_ratio}) & (~ mp) & (x>{tail_x})).astype(int)
 output.PointData.append(sheath,'sheath')
@@ -446,6 +446,13 @@ def create_iso_surface(inputsource, variable, name, **kwargs):
                                      Input=iso)
     point2cell.ProcessAllArrays = 1
     outputsource = point2cell
+
+    # Smooth the surface
+    if kwargs.get('smooth_surface',True):
+        smooth = Smooth(registrationName=name+'_smooth', Input=outputsource)
+        smooth.Set(NumberofIterations=500,
+                   Convergence=0.0)
+        outputsource = smooth
 
     #Trim any small floating regions
     if kwargs.get('trim_regions',True):

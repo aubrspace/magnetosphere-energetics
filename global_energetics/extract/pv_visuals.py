@@ -28,10 +28,10 @@ def display_visuals(field,mp,renderView,**kwargs):
 
         if 'mpContourBy' in kwargs:
             # set scalar coloring
-            ColorBy(mpDisplay, ('POINTS', kwargs.get('mpContourBy')))
+            ColorBy(mpDisplay, kwargs.get('mpContourBy'))
             # get color & opacity transfer functions'
-            mpLUT = GetColorTransferFunction(kwargs.get('mpContourBy'))
-            mpPWF = GetOpacityTransferFunction(kwargs.get('mpContourBy'))
+            mpLUT = GetColorTransferFunction(kwargs.get('mpContourBy')[1])
+            mpPWF = GetOpacityTransferFunction(kwargs.get('mpContourBy')[1])
             # Set limits, default both equal
             mpLUT.RescaleTransferFunction(kwargs.get('contourMin',-10),
                                         kwargs.get('contourMax',10))

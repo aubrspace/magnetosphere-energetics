@@ -25,14 +25,18 @@ from paraview.simple import *
 3.Load in magnetopause and display functions
 --------------------------------------------
 ```
-from pv_magnetopause import setup_pipeline
-from pv_visuals import display_visuals
+from global_energetics.extract.pv_magnetosphere import setup_pipeline, generate_surfaces
+from global_energetics.extract.pv_visuals import display_visuals
 ```
 4.Call setup_pipeline function
 ------------------------------
 There are lots of options available, see help(setup_pipeline) for more details
 ```
-oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline('fixed_3Dfile.plt')
+pipeline_dict = setup_pipeline("fixed_3Dfile.plt")
+field = pipeline_dict['field']
+
+surfaces_dict = generate_surfaces(field)
+mp = surfaces_dict['mp']
 ```
 5.Render and set visuals
 ------------------------
@@ -66,7 +70,7 @@ oldsource,pipelinehead,field,mp,fluxResults=setup_pipeline(infile)
 renderView1 = GetActiveViewOrCreate('RenderView')
 SetActiveView(renderView1)
 display_visuals(field,mp,renderView1,
-                mpContourBy='B_x_nT',
+                mpContourBy=('CELLS','B_nT','X'),
                 contourMin=-5,
                 contourMax=5)
 layout = GetLayout()
@@ -76,9 +80,13 @@ SaveScreenshot('./example_image.png',layout,
 ```
 1.Call pvbatch mode with your script
 ------------------------------------
-*In the directory swmf-energetics/* call the script using pvbatch
+*In the directory magnetosphere-energetics/* call the script using pvbatch
 ```
 pvbatch myscript.py
 ```
 In this way you can also call any of the scripts found in
-swmf-energetics/runscripts/
+magnetosphere-energetics/runscripts/
+
+*NOTE* may need to use os and sys packages to ensure that paraview can
+find the custom python packages, or follow instructions in modify_paraview.md
+to soft link them in yourself.

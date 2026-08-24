@@ -95,8 +95,12 @@ def perform_integrations(surfaces:dict,
 
 def main() -> None:
     # Locate files
-    #filelist = sorted(glob.glob(f'{INPATH}/*paraview*.plt'),key=time_sort)
-    filelist = sorted(glob.glob(f'{INPATH}/3d*.dat'),key=time_sort)[-8::]
+    filelist = sorted(glob.glob(f'{INPATH}/3d*.plt'),key=time_sort)
+    if len(filelist)==0:# if no .plt look for .dat
+        filelist = sorted(glob.glob(f'{INPATH}/3d*.dat'),key=time_sort)
+    if len(filelist)==0:# if still no files, complain
+        print(f"NO 3D .plt or .dat FILES FOUND at {INPATH}!")
+        return
 
     # Initialize variables
     tstart = get_time(filelist[0])# for relative timestamping
@@ -105,17 +109,13 @@ def main() -> None:
     # If we have a state ready, load it, otw do initial processing
     if False:
         # Load
-        #LoadState(os.path.join(INPATH,'magnetopause_and_sheath.pvsm'),
-        #          data_directory=INPATH)
-        #LoadState(os.path.join(os.getcwd(),
-        #                       'cosmetic/magnetopause_and_sheath.pvsm'))
-        LoadState(os.path.join(os.getcwd(),'cosmetic/sheath-mp-iso3.pvsm'))
+        LoadState(os.path.join(os.getcwd(),'cosmetics/bfield_geometry.pvsm'))
         # Get view
         renderView = GetActiveView()
         # Set the heads of the pipeline
-        old_past_head   = FindSource('3d__paraview_1_e20190513-190000-000')
-        old_present_head= FindSource('3d__paraview_1_e20190513-190100-014')
-        old_future_head = FindSource('3d__paraview_1_e20190513-190200-034')
+        old_past_head   = FindSource(filelist[0].split('/')[-1].split('.')[0])
+        old_present_head= FindSource(filelist[1].split('/')[-1].split('.')[0])
+        old_future_head = FindSource(filelist[2].split('/')[-1].split('.')[0])
         # Set the tails where the processing takes over
         surfaces = {'mp'    :FindSource('mp'),
                     'closed':FindSource('closed'),
@@ -143,12 +143,13 @@ def main() -> None:
                                               ).replace('T','')+'.npz')
         if os.path.exists(f"{OUTPATH}/energetics/{npzfile}"):
             print(f"\tFile found ({npzfile}), skipping")
-        #if os.path.exists(OUTPATH.replace('analysis','png')+'/'+outfile):
-        #    print(f"File found ({infile.split('/')[-1]}.png), skipping")
         else:
             print(f"{infile.split('/')[-1]}")
             # Read aux data
-            aux = read_aux(infile.replace('.plt','.aux'))
+            if '.plt' in infile:
+                aux = read_aux(infile.replace('.plt','.aux'))
+            elif '.dat' in infile:
+                aux = read_aux(infile.replace('.dat','.aux'))
 
             # Update the pipeline
             new_data = read_tecplot(filelist[ifile+1])
@@ -177,12 +178,12 @@ def main() -> None:
 
             if False:
                 # Update time
-                timestamp = FindSource('Time')
+                timestamp = FindSource('text')
                 timestamp.Text = str(localtime)
 
                 # Save screenshot
                 SaveScreenshot(
-                             f"{OUTPATH.replace('analysis','png')}/{outfile}",
+                           f"{OUTPATH.replace('energetics','png')}/{outfile}",
                                GetLayout())
                 print(f"\t\033[36m Saved \033[00m {outfile}")
 
@@ -194,23 +195,8 @@ if True:
 
     herepath=os.getcwd()
 
-    #INPATH  = os.path.join(herepath,'weakdip_50_katus/GM/')
-    #OUTPATH = os.path.join(herepath,'weakdip_50_katus/GM/analysis')
-    #INPATH  = os.path.join(herepath,'localdbug/weak_dipole/')
-    #OUTPATH = os.path.join(herepath,'localdbug/weak_dipole/')
-    #INPATH   = os.path.join(herepath,'data/large/GM/IO2/')
-    #INPATH   = os.path.join(herepath,'/Volumes/T9/storage/may2019/GM/IO2')
-    #OUTPATH  = os.path.join(herepath,'data/analysis')
-    #INPATH   = os.path.join(herepath,'test/GM/IO2')
-    #OUTPATH  = os.path.join(herepath,'test/GM/IO2')
-    #OUTPATH  = os.path.join(herepath,'temp')
-    #INPATH   = os.path.join(herepath,'test_3d/')
-    #OUTPATH  = os.path.join(herepath,'test_3d/outputs')
-    #INPATH   = os.path.join(herepath,'run_may2019/GM/IO2')
-    #OUTPATH   = os.path.join(herepath,'outputs_may2019')
-    #INPATH    = os.path.join(herepath,'data/lowMach/large/GM')
-    INPATH    = os.path.join(herepath,'data/lowMach/demo')
-    OUTPATH   = os.path.join(herepath,'output')
+    INPATH = os.path.join(herepath,'data/run_steady24/GM/IO2')
+    OUTPATH = os.path.join(herepath,'output')
 
     main()
 

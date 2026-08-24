@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Extracting data related to radiation belt particle distributions
 """
-import os,sys,time
+import os,sys,time,argparse
 import glob
 import numpy as np
 from numpy import (sin,cos,deg2rad,pi)
@@ -783,24 +783,16 @@ def read_psd(infile:str,**kwargs:dict) -> dict:
     return psd_dict
 
 def main() -> None:
-    herepath=os.getcwd()
-    arguments = sys.argv
-    if '-i' in arguments:
-        indir = arguments[arguments.index('-i')+1]
-    else:
-        indir = 'run_quiet_RBSP2/'
-    inpath = os.path.join(herepath,indir)
-    outpath = os.path.join(herepath,indir)
-    print(f'INPATH: {inpath}/')
 
-    if '-rtp' in arguments:
-        infile = glob.glob('*.rtp')[0]
-        rtp = read_rtp(infile,verbose=True)
-        np.savez_compressed(f"{inpath}/{infile.replace('.rtp','_rtp.npz')}",
-                            **rtp)
-        print(f"SAVED: {inpath}/{infile.replace('.rtp','_rtp.npz')}")
-    elif '-psd' in arguments:
-        infiles = glob.glob(f'{inpath}/*_e.psd')
+    if FILETYPE=='rtp':
+        infiles = glob.glob(f'{INPATH}/*.rtp')[0]
+        for infile in infiles:
+            rtp = read_rtp(infile,verbose=True)
+            np.savez_compressed(
+                       f"{INPATH}/{infile.replace('.rtp','_rtp.npz')}",**rtp)
+        print(f"SAVED: {INPATH}/{infile.replace('.rtp','_rtp.npz')}")
+    elif FILETYPE=='psd':
+        infiles = glob.glob(f'{INPATH}/*_e.psd')
         psd_dict = {}
         if len(infiles)==1:
             infile = filelist[0]
@@ -818,12 +810,12 @@ def main() -> None:
                             psd_dict[key] = np.concat([psd_dict[key],
                                                         psd[key]])
         np.savez_compressed(outfile,allow_pickle=False,**psd_dict)
-        print(f"SAVED: {inpath}/{outfile}")
+        print(f"SAVED: {INPATH}/{outfile}")
     else:
         try:
-            filelist = sorted(glob.glob(f'{inpath}/*_e.fls'),key=time_sort)
+            filelist = sorted(glob.glob(f'{INPATH}/*_e.fls'),key=time_sort)
         except:
-            filelist = glob.glob(f'{inpath}/*_e.fls')
+            filelist = glob.glob(f'{INPATH}/*_e.fls')
         t0 = dt.datetime(1970,1,1)
         flux_dict = {}
         if len(filelist)==1:
@@ -844,36 +836,64 @@ def main() -> None:
         print(f"Converting {infile.split('/')[-1]} -> "+
             f"{infile.replace('.fls','_fls.npz').split('/')[-1]}")
         np.savez_compressed(infile.replace('.fls','_fls.npz'),**flux_dict)
-    # TODO
-    # - see Roeder 1970 book section IV.4 application for mapping flux
-    #    in B-L coordinates
-    # - Then Suk-Bins code calc_Lstar2.f90 from cimipak bb from 2015
-    # - Implement numerical integrations to recover Lstar if only given particle
-    #    fluxes and foot points
-    # - See how the same calculations can be leveraged to provide better Lstar
-    #    values for data-model comparison (use sim fields to get integrals)
-    # - Is there a way to more easily extract this info from BATSRUS?
-
-    # TODO
-    # Try to feed in RBE flux to sat_flux.f90
-    #   - might have to trick it by rewriting the flux file to look like the
-    #       cimi one...
-    #   - alternatively, could try to also rewrite this part in python but ...
 
 if __name__ == "__main__":
     start_time = time.time()
+
+    # Example text
+    example_text = """
+examples:
+    python radbelt.py -i ./ -f 2018p001_e.fls
+    """
+
+    # Built in argument parser argument (I think this is built on sys)
+    parser = argparse.ArgumentParser(epilog=example_text,
+                         formatter_class=argparse.RawDescriptionHelpFormatter)
+
+    # Add parser options
+    parser.add_argument('-i','--inpath',default='./',help='path to input data')
+    parser.add_argument('-f','--file',
+                            help='Given file, will infer type from extention')
+    parser.add_argument('-fls','--fls_file',action='store_true',
+                                                    help='process .fls files')
+    parser.add_argument('-rtp','--rtp_file',action='store_true',
+                                                    help='process .rtp files')
+    parser.add_argument('-psd','--psd_file',action='store_true',
+                                                    help='process .psd files')
+
+    args = parser.parse_args()
+
+    global INPATH,INFILE,FILETYPE
+
+    herepath=os.getcwd()
+
+    INPATH = os.path.join(herepath,args.inpath)
+    print(f'\nINPATH: {INPATH}')
+    if args.file:
+        FILETYPE = args.file.split('.')[-1]
+    else:
+        if args.fls_file:
+            FILETYPE = 'fls'
+        elif args.rtp_file:
+            FILETYPE = 'rtp'
+        elif args.psd_file:
+            FILETYPE = 'psd'
+        else:
+            FILETYPE = 'fls' #default
+    print(f'FILETYPE: {FILETYPE}')
+
     main()
 
     #mhdfile = 'test.npz'
     #fluxfile = 'data/large/IM/plots/20190513_195600_e.fls'
 
     #mhd  = dict(np.load(mhdfile))
-    #aux = read_aux('data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.aux')
+    #aux =read_aux('data/large/GM/IO2/3d__paraview_1_e20190513-195600-016.aux')
     #Bthetatilt = float(aux['BTHETATILT'])
     #f = merge_rad_mhd(mhd,fluxfile,0,rotAngle=-Bthetatilt)
     #f = get_single_point_flux(mhd,fluxfile,0,rotAngle=-Bthetatilt)
 
     ltime = time.time()-start_time
-    print('DONE')
+    print('\nDONE')
     print('--- {:d}min {:.2f}s ---'.format(int(ltime/60),
                                            np.mod(ltime,60)))

@@ -557,8 +557,6 @@ def csv_to_pandas(csvfile,**kwargs):
     for key,value in tdict.items():
         if key in df:
             df[value] = df[key]
-    #if 'itot' in csvfile:
-    #    from IPython import embed; embed()
     df['Time [UTC]']=pd.to_datetime(dict(year=df['year'],
                                          month=df['mo'],
                                          day=df['dy'],
